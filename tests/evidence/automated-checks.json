@@ -1,0 +1,240 @@
+{
+  "session_date": "2026-10-05",
+  "scope": "actual AutoLISP pure functions in a subset host; source contracts and adapter stubs; no CAD acceptance",
+  "passed": true,
+  "test_count": 40,
+  "failure_count": 0,
+  "error_count": 0,
+  "baseline": {
+    "version": 1,
+    "kind": "synthetic-only",
+    "units": "synthetic drawing units; not calibrated for production",
+    "parameters": {
+      "eps_touch": 0.1,
+      "eps_boundary": 0.1,
+      "eps_perp": 0.5,
+      "theta_max": 0.01,
+      "eps_z": 0.01,
+      "R0": 20,
+      "Dmax": 200
+    },
+    "gap_lengths": [
+      20,
+      75,
+      180,
+      200,
+      201
+    ],
+    "power_boundaries_W": [
+      171,
+      172,
+      173
+    ],
+    "example_loads": {
+      "lighting": [
+        20,
+        5
+      ],
+      "direction_sign": [
+        12,
+        1
+      ],
+      "exit_sign": [
+        8,
+        1
+      ]
+    },
+    "expected_example_W": 120,
+    "required_external_assets": [
+      "representative floor-plan DWG",
+      "panel dynamic block",
+      "circuit dynamic block",
+      "system-diagram example",
+      "manual circuit and device counts"
+    ]
+  },
+  "tests": [
+    {
+      "test": "test_fixture.FixtureTests.test_generated_fixture_is_reproducible_and_has_three_outlets",
+      "status": "passed"
+    },
+    {
+      "test": "test_kernel.KernelTests.test_120_watt_example_and_leader_exclusion",
+      "status": "passed"
+    },
+    {
+      "test": "test_kernel.KernelTests.test_actual_load_cannot_be_hidden_or_omitted",
+      "status": "passed"
+    },
+    {
+      "test": "test_kernel.KernelTests.test_candidate_and_seed_order_do_not_change_decisions",
+      "status": "passed"
+    },
+    {
+      "test": "test_kernel.KernelTests.test_complete_range_and_reverse_uniqueness",
+      "status": "passed"
+    },
+    {
+      "test": "test_kernel.KernelTests.test_config_validation_and_data_only",
+      "status": "passed"
+    },
+    {
+      "test": "test_kernel.KernelTests.test_conflicted_device_not_double_counted",
+      "status": "passed"
+    },
+    {
+      "test": "test_kernel.KernelTests.test_crossing_allowed_device_and_collinear_path_block",
+      "status": "passed"
+    },
+    {
+      "test": "test_kernel.KernelTests.test_end_directions_repeated_vertices_and_arc",
+      "status": "passed"
+    },
+    {
+      "test": "test_kernel.KernelTests.test_endpoint_occupation_is_order_independent",
+      "status": "passed"
+    },
+    {
+      "test": "test_kernel.KernelTests.test_generation_correspondence_order_reserve_and_text",
+      "status": "passed"
+    },
+    {
+      "test": "test_kernel.KernelTests.test_global_seed_conflict_rejects_entire_component",
+      "status": "passed"
+    },
+    {
+      "test": "test_kernel.KernelTests.test_integer_power_parser_and_zero_confirmation",
+      "status": "passed"
+    },
+    {
+      "test": "test_kernel.KernelTests.test_integrated_gap_trace_and_unrelated_issues",
+      "status": "passed"
+    },
+    {
+      "test": "test_kernel.KernelTests.test_leader_pair_deleted_or_moved_never_complete",
+      "status": "passed"
+    },
+    {
+      "test": "test_kernel.KernelTests.test_library_schema_rejects_unknown_fields_and_invalid_power",
+      "status": "passed"
+    },
+    {
+      "test": "test_kernel.KernelTests.test_manual_model_exception_keeps_global_restrictions",
+      "status": "passed"
+    },
+    {
+      "test": "test_kernel.KernelTests.test_manual_reuse_requires_whole_snapshot",
+      "status": "passed"
+    },
+    {
+      "test": "test_kernel.KernelTests.test_missing_template_and_power_overflow_are_explicit",
+      "status": "passed"
+    },
+    {
+      "test": "test_kernel.KernelTests.test_multiple_device_ports_and_return_to_same_device_are_not_terminal",
+      "status": "passed"
+    },
+    {
+      "test": "test_kernel.KernelTests.test_multiple_variable_gaps_reach_one_terminal_device",
+      "status": "passed"
+    },
+    {
+      "test": "test_kernel.KernelTests.test_parameters_and_symmetric_layers",
+      "status": "passed"
+    },
+    {
+      "test": "test_kernel.KernelTests.test_physical_crossing_and_t_contact",
+      "status": "passed"
+    },
+    {
+      "test": "test_kernel.KernelTests.test_plane_tolerance_for_physical_device_contacts",
+      "status": "passed"
+    },
+    {
+      "test": "test_kernel.KernelTests.test_power_171_172_173_and_incomplete",
+      "status": "passed"
+    },
+    {
+      "test": "test_kernel.KernelTests.test_power_defaults_and_precedence",
+      "status": "passed"
+    },
+    {
+      "test": "test_kernel.KernelTests.test_rejections_and_pi_boundary_rotation",
+      "status": "passed"
+    },
+    {
+      "test": "test_kernel.KernelTests.test_rotated_scaled_output_positions",
+      "status": "passed"
+    },
+    {
+      "test": "test_kernel.KernelTests.test_rotation_mirror_nonuniform_nested_transform",
+      "status": "passed"
+    },
+    {
+      "test": "test_kernel.KernelTests.test_same_layer_role_exclusion",
+      "status": "passed"
+    },
+    {
+      "test": "test_kernel.KernelTests.test_single_circuit_unique_device_and_terminal",
+      "status": "passed"
+    },
+    {
+      "test": "test_kernel.KernelTests.test_template_tokens_and_stale_recognition_rules",
+      "status": "passed"
+    },
+    {
+      "test": "test_kernel.KernelTests.test_three_independent_outlets_and_unrelated_open_end",
+      "status": "passed"
+    },
+    {
+      "test": "test_kernel.KernelTests.test_unverified_contour_is_a_veto_not_a_confirmed_connection",
+      "status": "passed"
+    },
+    {
+      "test": "test_kernel.KernelTests.test_variable_gaps_and_search_limit",
+      "status": "passed"
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_atomic_config_write_restores_previous_file_on_failure",
+      "status": "passed"
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_dcl_keys_and_callback_syntax",
+      "status": "passed"
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_forms_arities_and_local_assignments",
+      "status": "passed"
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_geometry_and_topology_do_not_mutate_drawing",
+      "status": "passed"
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_rollback_only_deletes_created_objects_even_if_one_delete_fails",
+      "status": "passed"
+    }
+  ],
+  "sha256": {
+    "src/common.lsp": "e6a05730d87490c9fff67863566bddb03578fa6514aa1aa5bb60f50679c73091",
+    "src/config.lsp": "be46a37420781153b01038c53741c2b95d9a55cf5eb2d0a687b3eeb1cbcb8498",
+    "src/generation.lsp": "2aa9ab56c9b7ab77b8cd2297adb0fd0a52ca2c0f476cf3d4423bb229b4078518",
+    "src/geometry.lsp": "2d624c195fec3ff9c904e79df43f48c1bae7444a914de0885ed6b45acb2c831b",
+    "src/load.lsp": "2c6a2f87e29ed299def0db18b89450e2fc09fdd0cf37ce857e287639fffb2ec2",
+    "src/main.lsp": "28281f9916abfa3546fe0777365863df3f0fd5f03b84783b44c95d03715cb165",
+    "src/statistics.lsp": "dce3c6d02c1921b5d8715604525096e4113c149b7e275e24d19b4add2cce0223",
+    "src/topology.lsp": "9b183d0ea5e3985131e61ccab7a9261cd89a3e4b5d6ef4c90e73e1a72bbb9fc3",
+    "tests/autolisp_host.py": "9efd1e6e61566c891ac696411bae6ec683e2d8a8c7cf7c838593902cd48d6498",
+    "tests/fixtures/.gitkeep": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+    "tests/fixtures/baseline.json": "5fadf02f7426be50ec77585518199363327e8fe644b3dbf33a315f1a555815df",
+    "tests/fixtures/cad-plan.dxf": "878383ed5c125cdf3edc8c08e6f50fee8dd8e80622d65f45b3c0eee25ca252b0",
+    "tests/fixtures/cad-plan.expected.json": "12fc607d573d858c71872771791ef349be3bb8abfa7d91fd54b27f4d4c03b312",
+    "tests/fixtures/generate_fixture.py": "6d78290a8c8108d469fe5e8b6a3ee6adc0526b779b3897e77a57a8f1e7c171af",
+    "tests/run_checks.py": "37ab6d6336882afbc009fc0ab470ca1a730b0ce2915fa98646a3af84aca382b3",
+    "tests/test_fixture.py": "f39be24b47da351effa2a54939552813ff32499aa805816080aacf2e87141631",
+    "tests/test_kernel.py": "ffe934ce0e2ee3e17e908bbd8999580d8c54e807781e452d6870332063bb7042",
+    "tests/test_source_contracts.py": "a8e1f9c57b882f65e5d400d7e6832b2cf379d707cf045a24fca5afe203d1e6b4",
+    "ui/power.dcl": "75188a23833906d554d584ad75318f16115406408f555a58b7493977b20adb2c"
+  },
+  "cad_status": "pending; no AutoCAD, representative DWG or real dynamic templates provided"
+}

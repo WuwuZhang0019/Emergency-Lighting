@@ -19,6 +19,11 @@ class Pair:
     cdr: object
 
 
+@dataclass
+class CaughtError:
+    exception: Exception
+
+
 def tokens(text):
     return re.findall(r';[^\n]*|"(?:\\.|[^"\\])*"|[()]|\'|[^\s()\';]+', text)
 
@@ -154,6 +159,8 @@ class Host:
             'VL-REMOVE-IF-NOT': lambda fn,xs:[x for x in seq(xs) if truth(self.call(fn,[x]))] or None,
             'VL-SOME': lambda fn,xs:next((v for x in seq(xs) if truth(v:=self.call(fn,[x]))),None),
             'VL-SORT': lambda xs,fn: sorted(seq(xs),key=cmp_to_key(lambda a,b: -1 if truth(self.call(fn,[a,b])) else (1 if truth(self.call(fn,[b,a])) else 0))) or None,
+            'VL-CATCH-ALL-APPLY': self.catch,
+            'VL-CATCH-ALL-ERROR-P': lambda x:isinstance(x,CaughtError),
         }
         for op in ['CADR','CADDR','CADDDR','CAAR','CDAR','CDDR','CDDDR','CADAR','CADR']:
             self.builtins[op] = self.accessor(op)
@@ -171,6 +178,10 @@ class Host:
         for b in xs:
             a = int(a/b) if isinstance(a,int) and isinstance(b,int) else a/b
         return a
+
+    def catch(self, name, values):
+        try: return self.call(name,seq(values))
+        except Exception as exc: return CaughtError(exc)
 
     def lookup(self, key):
         for frame in reversed(self.frames):

@@ -14,6 +14,7 @@
 (defun EL:Point (p)
   (and (listp p) (= (length p) 3)
        (EL:Number (car p)) (EL:Number (cadr p)) (EL:Number (caddr p))))
+(defun EL:Point3 (p) (list (car p) (cadr p) (cond ((caddr p)) (T 0.0))))
 (defun EL:V+ (a b) (mapcar '+ a b))
 (defun EL:V- (a b) (mapcar '- a b))
 (defun EL:V* (s a) (mapcar '(lambda (v) (* s v)) a))
@@ -54,6 +55,9 @@
   (and (equal (EL:Get 'drawing result) (EL:Get 'drawing cfg))
        (equal (EL:Get 'rules result) (EL:RecognitionRules cfg))
        (equal (EL:Get 'signature fresh) (EL:Get 'signature (EL:Get 'snapshot result)))))
+(defun EL:OptionLabel (option)
+  (cond ((= option 'cap300) "0.3kW") ((= option 'cap600) "0.6kW") ((= option 'cap1000) "1kW")
+        ((= option 'normal) "普通") ((= option 'ground) "地面") ((= option 'reserve) "预留") (T "未选择")))
 (defun EL:OnlyKeys (data keys / ok row seen)
   (setq ok (listp data))
   (foreach row data

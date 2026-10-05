@@ -4,3 +4,5 @@ config/drawing-*.eld
 config/device-library.eld
 output/*.eld
 *.tmp
+config/*.bak
+config/*.invalid-*

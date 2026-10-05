@@ -326,6 +326,98 @@ class KernelTests(unittest.TestCase):
                (not (EL:SourceCurrent result (EL:Put 'params (EL:Put 'eps_touch 0.2 p) cfg) snap))
                (not (EL:SourceCurrent result cfg (EL:Put 'signature "changed-source" snap))))''')
 
+    def test_three_independent_outlets_and_unrelated_open_end(self):
+        self.check_lisp('''
+          (defun test:wire (id points)
+            (list (cons 'id id) (cons 'layer "E") (cons 'segments (EL:Segments points))
+              (cons 'ends (list (EL:MakeEnd id 'start points '(0.0 0.0) "E") (EL:MakeEnd id 'end points '(0.0 0.0) "E")))))
+          (setq wires nil blocks nil ends nil i 0 identity '("lamp" nil "definition-v1"))
+          (foreach y '(10.0 20.0 30.0)
+            (setq i (1+ i) wire (test:wire (strcat "W" (itoa i)) (list (list 0.0 y 0.0) (list 50.0 y 0.0)))
+                  wires (cons wire wires) ends (append ends (EL:Get 'ends wire)))
+            (setq blocks (cons (list (cons 'id (strcat "D" (itoa i))) (cons 'role 'device) (cons 'name "lamp")
+              (cons 'identity identity) (cons 'segments (list (list (list 50.0 (- y 1.0) 0.0) (list 50.0 (+ y 1.0) 0.0))))) blocks)))
+          (setq blocks (cons '((id . "BOX") (role . panel) (segments ((0.0 0.0 0.0) (0.0 40.0 0.0)))) blocks)
+                ends (cons (test:end "unrelated" '(10000.0 10000.0 0.0) '(1.0 0.0 0.0)) ends))
+          (setq local (list (cons 'wires wires) (cons 'blocks blocks) (cons 'ends ends) (cons 'signature "three-circuits")))
+          (setq physical (EL:BuildPhysical local cfg "BOX") seeds (EL:SeedCandidates (EL:Get 'snapshot physical) cfg "BOX"))
+          (setq result (EL:AnalyzeSnapshot local cfg "BOX" seeds))
+          (setq power (list (cons 'identity identity) (cons 'category 'lighting) (cons 'display "lamp") (cons 'watts 5)))
+          (setq computed (EL:BoxStatistics result (EL:Put 'powers (list power) cfg) nil nil))
+          (and (= (length seeds) 3) (= (length (EL:Get 'circuits result)) 3) (EL:Get 'complete result)
+               (EL:Get 'unrelated-issues result) (EL:Get 'can-generate computed) (= (EL:Get 'box-watts computed) 15))''')
+
+    def test_multiple_variable_gaps_reach_one_terminal_device(self):
+        self.check_lisp('''
+          (setq wires nil ends nil i 0)
+          (foreach interval '((0.0 10.0) (30.0 40.0) (115.0 125.0) (305.0 315.0))
+            (setq i (1+ i) id (strcat "W" (itoa i))
+                  points (list (list (car interval) 0.0 0.0) (list (cadr interval) 0.0 0.0)))
+            (setq wire (list (cons 'id id) (cons 'segments (EL:Segments points)) (cons 'ends
+              (list (EL:MakeEnd id 'start points '(0.0 0.0) "E") (EL:MakeEnd id 'end points '(0.0 0.0) "E"))))
+                  wires (cons wire wires) ends (append ends (EL:Get 'ends wire))))
+          (setq blocks '(((id . "BOX") (role . panel) (segments ((0.0 -2.0 0.0) (0.0 2.0 0.0))))
+                        ((id . "LAMP") (role . device) (segments ((315.0 -2.0 0.0) (315.0 2.0 0.0))))))
+          (setq local (list (cons 'wires wires) (cons 'ends ends) (cons 'blocks blocks) (cons 'signature "three-gaps")))
+          (setq result (EL:AnalyzeSnapshot local cfg "BOX" '(((id . "R1") (wire . "W1")))))
+          (and (EL:Get 'complete result) (= (length (EL:Get 'connections result)) 3)
+               (equal (EL:Get 'devices (car (EL:Get 'circuits result))) '("LAMP")))''')
+
+    def test_candidate_and_seed_order_do_not_change_decisions(self):
+        self.check_lisp('''
+          (setq first (EL:Get 'pairs (EL:BuildMutualPairs (EL:FindGapCandidates snap cfg) snap cfg)))
+          (setq reversed (EL:Put 'ends (reverse (EL:Get 'ends snap)) snap))
+          (and (equal first (EL:Get 'pairs (EL:BuildMutualPairs (EL:FindGapCandidates reversed cfg) reversed cfg)))
+               (equal (EL:Get 'candidates (EL:By 'key (EL:Get 'key a) (EL:FindGapCandidates snap cfg)))
+                      (EL:Get 'candidates (EL:By 'key (EL:Get 'key a) (EL:FindGapCandidates reversed cfg)))))''')
+
+    def test_unverified_contour_is_a_veto_not_a_confirmed_connection(self):
+        self.check_lisp('''
+          (setq block '((id . "unsupported") (role . device) (bounds (-1.0 -1.0 0.0) (1.0 1.0 0.0))
+                        (issues ((code . UNSUPPORTED_CONTOUR) (object . "unsupported")))))
+          (setq local (EL:Put 'blocks (list block) snap) physical (EL:BuildPhysical local cfg nil))
+          (and (EL:Get 'issues physical) (not (EL:Get 'edges physical))
+               (EL:Get 'occupied (EL:By 'key (EL:Get 'key a) (EL:Get 'ends (EL:Get 'snapshot physical))))
+               (= (EL:Get 'reason (EL:ValidateGapPair a b (EL:Put 'blocks
+                 (list (EL:Put 'bounds '((30.0 -1.0 0.0) (35.0 1.0 0.0)) block)) snap) cfg)) 'BLOCKED_BY_DEVICE_OR_PATH))''')
+
+    def test_plane_tolerance_for_physical_device_contacts(self):
+        self.check_lisp('''
+          (and (EL:Touches '(0.0 0.0 0.0) '(((0.0 -1.0 0.0) (0.0 1.0 0.0))) 0.1 0.01)
+               (not (EL:Touches '(0.0 0.0 0.08) '(((0.0 -1.0 0.0) (0.0 1.0 0.0))) 0.1 0.01)))''')
+
+    def test_missing_template_and_power_overflow_are_explicit(self):
+        self.check_lisp('''
+          (setq identity '("lamp" nil "definition-v1"))
+          (setq blocks (list (list (cons 'id "D1") (cons 'name "lamp") (cons 'identity identity) (cons 'role 'device))
+                             (list (cons 'id "D2") (cons 'name "lamp") (cons 'identity identity) (cons 'role 'device))))
+          (setq power (list (cons 'identity identity) (cons 'category 'lighting) (cons 'display "lamp") (cons 'watts 2147483647)))
+          (setq computed (EL:CircuitStatistics '((id . "R1") (devices "D1" "D2") (complete . T)) blocks nil
+                             (EL:Put 'powers (list power) cfg) nil nil))
+          (and (not (EL:TemplateRuntimeValid nil cfg)) (= (EL:Get 'power-status computed) 'incomplete)
+               (= (EL:Get 'code (car (EL:Get 'power-issues computed))) 'POWER_OVERFLOW))''')
+
+    def test_library_schema_rejects_unknown_fields_and_invalid_power(self):
+        self.check_lisp('''
+          (setq identity '("lamp" nil "definition-v1"))
+          (setq power (list (cons 'identity identity) (cons 'category 'lighting) (cons 'display "lamp") (cons 'watts 7)))
+          (setq library (list (cons 'version 1) (cons 'devices (list power))))
+          (and (EL:LibraryValid library) (not (EL:LibraryValid (EL:Put 'execute '(command "ERASE") library)))
+               (not (EL:LibraryValid (EL:Put 'devices (list (EL:Put 'watts -1 power)) library))))''')
+
+    def test_multiple_device_ports_and_return_to_same_device_are_not_terminal(self):
+        self.check_lisp('''
+          (setq e1 (EL:Put 'side 'start (EL:Put 'key '("A" start) a)))
+          (setq e2 (EL:Put 'point '(0.0 1.0 0.0) (test:end "B" '(0.0 0.0 0.0) '(1.0 0.0 0.0))))
+          (setq e3 (EL:Put 'side 'start (EL:Put 'key '("B" start)
+                        (test:end "B" '(0.0 -1.0 0.0) '(-1.0 0.0 0.0)))))
+          (setq local (list (cons 'ends (list e1 e2 e3))
+             (cons 'blocks '(((id . "D") (role . device) (segments ((0.0 -2.0 0.0) (0.0 2.0 0.0))))))))
+          (setq physical (EL:BuildPhysical local cfg nil))
+          (setq circuit (EL:TraceCircuit '((id . "R1") (wire . "A")) (EL:Get 'snapshot physical)
+                              (EL:Get 'edges physical) (EL:Get 'issues physical)))
+          (and (not (EL:Get 'complete circuit)) (EL:Get 'issues physical))''')
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

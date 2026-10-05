@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+config/drawing-*.eld
+config/device-library.eld
+output/*.eld
+*.tmp

@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "kind": "synthetic-only",
+  "units": "synthetic drawing units; not calibrated for production",
+  "parameters": {"eps_touch": 0.1, "eps_boundary": 0.1, "eps_perp": 0.5, "theta_max": 0.01, "eps_z": 0.01, "R0": 20, "Dmax": 200},
+  "gap_lengths": [20, 75, 180, 200, 201],
+  "power_boundaries_W": [171, 172, 173],
+  "example_loads": {"lighting": [20, 5], "direction_sign": [12, 1], "exit_sign": [8, 1]},
+  "expected_example_W": 120,
+  "required_external_assets": ["representative floor-plan DWG", "panel dynamic block", "circuit dynamic block", "system-diagram example", "manual circuit and device counts"]
+}

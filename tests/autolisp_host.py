@@ -144,6 +144,8 @@ class Host:
             'STRCAT': lambda *xs: ''.join(xs), 'STRCASE': lambda x,lower=None:x.lower() if lower else x.upper(),
             'ITOA': str, 'ATOI': int, 'STRLEN': len, 'RTOS': lambda x,*opts: f'{x:.{opts[1] if len(opts)>1 else 4}f}',
             'VL-SYMBOL-NAME': str, 'VL-STRING->LIST': lambda x:list(map(ord,x)),
+            'VL-STRING-SEARCH': lambda token,textdata,offset=0: (i if (i:=textdata.find(token,offset))>=0 else None),
+            'SUBSTR': lambda s,start,n=None:s[start-1:] if n is None else s[start-1:start-1+n],
             'VL-PRIN1-TO-STRING': repr, 'VL-REMOVE': lambda x,xs:[y for y in seq(xs) if not equal(x,y)] or None,
             'PRINC': lambda *x: None, 'READ': lambda x:parse(x)[0],
             'MAPCAR': lambda fn,*xs: [self.call(fn,list(a)) for a in zip(*(seq(x) for x in xs))] or None,

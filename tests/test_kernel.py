@@ -262,6 +262,70 @@ class KernelTests(unittest.TestCase):
           (and (= (EL:Get 'watts computed) 120) (= (length (EL:Get 'counts computed)) 3)
                (= (EL:Get 'power-status computed) 'pass))''')
 
+    def generation_fixture(self):
+        self.h.run('''
+          (setq contour '(((0.0 0.0 0.0) (5.0 0.0 0.0))))
+          (setq annotation '((offset 3.0 4.0 0.0) (type . "TEXT") (style . "Standard")
+                            (height . 2.0) (align . 0) (rotation . 0.0) (width . 0.0) (factor . 1.0) (oblique . 0.0)))
+          (setq panelstates nil circuitstates nil)
+          (foreach option '(cap300 cap600 cap1000)
+            (setq panelstates (cons (list (cons 'option option) (cons 'value (vl-symbol-name option))
+              (cons 'connection '(10.0 0.0 0.0)) (cons 'contour contour)) panelstates)))
+          (foreach option '(normal ground reserve)
+            (setq circuitstates (cons (list (cons 'option option) (cons 'value (vl-symbol-name option))
+              (cons 'connection '(2.0 0.0 0.0)) (cons 'contour contour) (cons 'text annotation)) circuitstates)))
+          (setq template (list (cons 'panel (list (cons 'name "BOX") (cons 'property "real-property")
+              (cons 'definition "panel-definition") (cons 'states panelstates)))
+            (cons 'circuit (list (cons 'name "CIRCUIT") (cons 'property "other-property")
+              (cons 'definition "circuit-definition") (cons 'states circuitstates)))
+            (cons 'step '(0.0 -10.0 0.0)) (cons 'actual-format "{回路编号} {设备数量摘要} 合计{回路功率W}W")
+            (cons 'reserve-format "预留") (cons 'layer "EL-SYSTEM")))
+          (setq result '((can-generate . T) (circuits
+              ((id . "R1") (watts . 120) (counts ((name . "lamp") (display . "照明") (count . 20))))
+              ((id . "R2") (watts . 50) (counts ((name . "sign") (count . 50)))))))
+          (setq outputs '(((circuit-id . "R2") (label . "L2") (mode . ground))
+                          ((circuit-id . "R1") (label . "L1") (mode . normal))
+                          ((label . "RES1") (mode . reserve))))''')
+
+    def test_generation_correspondence_order_reserve_and_text(self):
+        self.generation_fixture()
+        self.check_lisp('''
+          (setq plan (EL:BuildGenerationPlan result template 'cap600 outputs '(100.0 200.0 0.0) 0.0 1.0))
+          (setq rows (EL:Get 'rows plan))
+          (and (EL:TemplateValid template) (= (length rows) 3)
+               (= (EL:Get 'circuit-id (car rows)) "R2") (= (EL:Get 'value (car rows)) "GROUND")
+               (= (EL:Get 'text (cadr rows)) "L1 照明×20 合计120W")
+               (= (EL:Get 'text (caddr rows)) "预留") (not (EL:Get 'watts (caddr rows))))''')
+
+    def test_actual_load_cannot_be_hidden_or_omitted(self):
+        self.generation_fixture()
+        self.check_lisp('''
+          (and (not (EL:BuildGenerationPlan result template 'cap300 (cdr outputs) '(0.0 0.0 0.0) 0.0 1.0))
+               (not (EL:BuildGenerationPlan result template 'cap300
+                 (cons (EL:Put 'mode 'reserve (car outputs)) (cdr outputs)) '(0.0 0.0 0.0) 0.0 1.0))
+               (not (EL:BuildGenerationPlan result template 'cap300
+                 (cons (EL:Put 'label "L1" (car outputs)) (cdr outputs)) '(0.0 0.0 0.0) 0.0 1.0))
+               (not (EL:BuildGenerationPlan (EL:Put 'can-generate nil result) template 'cap300 outputs '(0.0 0.0 0.0) 0.0 1.0)))''')
+
+    def test_rotated_scaled_output_positions(self):
+        self.generation_fixture()
+        self.check_lisp('''
+          (setq plan (EL:BuildGenerationPlan result template 'cap1000 outputs '(100.0 200.0 0.0) (/ pi 2.0) 2.0))
+          (setq row (car (EL:Get 'rows plan)))
+          (and (equal (EL:Get 'position row) '(100.0 216.0 0.0) 0.000001)
+               (equal (EL:Get 'text-position row) '(92.0 222.0 0.0) 0.000001)
+               (equal (EL:InversePoint '(4.0 18.0 0.0) '(0.0 -2.0 -3.0 0.0 10.0 20.0 0.0 1.0)) '(1.0 2.0 0.0)))''')
+
+    def test_template_tokens_and_stale_recognition_rules(self):
+        self.check_lisp('''
+          (setq result (list (cons 'drawing "test") (cons 'rules (EL:RecognitionRules cfg)) (cons 'snapshot snap)))
+          (and (EL:FormatValid "{回路编号} 合计{回路功率W}W")
+               (not (EL:FormatValid "{unknown} {回路功率W}W"))
+               (not (EL:FormatValid "无功率字段")) (EL:SourceCurrent result cfg snap)
+               (EL:SourceCurrent result (EL:Put 'powers '(updated) cfg) snap)
+               (not (EL:SourceCurrent result (EL:Put 'params (EL:Put 'eps_touch 0.2 p) cfg) snap))
+               (not (EL:SourceCurrent result cfg (EL:Put 'signature "changed-source" snap))))''')
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

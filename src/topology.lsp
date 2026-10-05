@@ -128,7 +128,7 @@
   (foreach endrec (EL:Get 'ends snapshot)
     (if (and (member panel (EL:Get 'contacts endrec)) (EL:Get 'status endrec))
       (setq portissues (cons (EL:Issue 'PANEL_PORT_AMBIGUOUS (EL:Get 'wire endrec) endrec) portissues))))
-  (list (cons 'drawing (EL:Get 'drawing cfg)) (cons 'panel panel) (cons 'snapshot snapshot)
+  (list (cons 'drawing (EL:Get 'drawing cfg)) (cons 'panel panel) (cons 'snapshot snapshot) (cons 'rules (EL:RecognitionRules cfg))
         (cons 'config-revision (EL:Get 'revision cfg)) (cons 'circuits (reverse circuits))
         (cons 'connections (EL:Get 'pairs checked)) (cons 'candidates rows)
         (cons 'issues (append portissues issues)) (cons 'unrelated-issues (EL:Unique orphan))

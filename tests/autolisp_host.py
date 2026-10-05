@@ -5,6 +5,7 @@ integer division and AutoLISP LAST (one-element list) are modelled explicitly.
 """
 import math
 import re
+from functools import cmp_to_key
 from dataclasses import dataclass
 
 
@@ -126,7 +127,7 @@ class Host:
             'ABS': abs, 'SQRT': math.sqrt, 'COS': math.cos, 'SIN': math.sin,
             'ATAN': lambda y,x=None: math.atan(y) if x is None else math.atan2(y,x),
             'EXPT': pow, 'FIX': int, 'REM': lambda a,b: math.fmod(a,b),
-            'MAX': max, 'MIN': min, 'TYPE': lisp_type,
+            'MAX': max, 'MIN': min, 'TYPE': lisp_type, 'FLOAT': float, 'LOGAND': lambda a,b:a&b,
             'NUMBERP': lambda x: isinstance(x,(int,float)) and not isinstance(x,bool),
             'LISTP': lambda x: x is None or isinstance(x,(list,Pair)),
             'NULL': lambda x:not truth(x), 'NOT': lambda x:not truth(x),
@@ -139,6 +140,8 @@ class Host:
             'APPLY': lambda fn,xs:self.call(fn,seq(xs)),
             'VL-REMOVE-IF': lambda fn,xs:[x for x in seq(xs) if not truth(self.call(fn,[x]))] or None,
             'VL-REMOVE-IF-NOT': lambda fn,xs:[x for x in seq(xs) if truth(self.call(fn,[x]))] or None,
+            'VL-SOME': lambda fn,xs:next((v for x in seq(xs) if truth(v:=self.call(fn,[x]))),None),
+            'VL-SORT': lambda xs,fn: sorted(seq(xs),key=cmp_to_key(lambda a,b: -1 if truth(self.call(fn,[a,b])) else (1 if truth(self.call(fn,[b,a])) else 0))) or None,
         }
         for op in ['CADR','CADDR','CADDDR','CAAR','CDAR','CDDR','CDDDR','CADAR','CADR']:
             self.builtins[op] = self.accessor(op)
@@ -211,6 +214,10 @@ class Host:
         if op == 'WHILE':
             value = None
             while truth(self.evaluate(args[0])): value=self.body(args[1:])
+            return value
+        if op == 'REPEAT':
+            value = None
+            for _ in range(self.evaluate(args[0])): value=self.body(args[1:])
             return value
         return self.call(op,[self.evaluate(a) for a in args])
 

@@ -131,6 +131,69 @@ class KernelTests(unittest.TestCase):
                (not (EL:Get 'complete (EL:TraceCircuit '((id . "C1") (wire . "W")) local
                  '(("W" "D")) (list (EL:Issue 'NO_CANDIDATE "W" nil))))))''')
 
+    def test_global_seed_conflict_rejects_entire_component(self):
+        self.check_lisp('''
+          (setq pair (list (cons 'a (EL:Get 'key a)) (cons 'b (EL:Get 'key b)) (cons 'source 'auto)))
+          (setq seeds '(((id . "R1") (wire . "A")) ((id . "R2") (wire . "B"))))
+          (setq checked (EL:ValidatePairSet snap cfg nil (list pair) seeds))
+          (and (not (EL:Get 'pairs checked)) (not (EL:Get 'edges checked))
+               (= (EL:Get 'code (car (EL:Get 'issues checked))) 'CIRCUIT_CONFLICT))''')
+
+    def test_endpoint_occupation_is_order_independent(self):
+        self.check_lisp('''
+          (setq c (test:end "C" '(100.0 0.0 0.0) '(-1.0 0.0 0.0)))
+          (setq snap (EL:Put 'ends (list a b c) snap))
+          (setq p1 (list (cons 'a (EL:Get 'key a)) (cons 'b (EL:Get 'key b))))
+          (setq p2 (list (cons 'a (EL:Get 'key b)) (cons 'b (EL:Get 'key c))))
+          (and (not (EL:Get 'pairs (EL:ValidatePairSet snap cfg nil (list p1 p2) nil)))
+               (not (EL:Get 'pairs (EL:ValidatePairSet snap cfg nil (list p2 p1) nil))))''')
+
+    def test_manual_reuse_requires_whole_snapshot(self):
+        self.check_lisp('''
+          (setq pair (list (cons 'a (EL:Get 'key a)) (cons 'b (EL:Get 'key b))
+                  (cons 'drawing "test") (cons 'source 'manual) (cons 'signature "source-v1") (cons 'params p)))
+          (setq cfg (EL:Put 'gap-pairs (list pair) cfg))
+          (and (EL:Get 'pairs (EL:LoadValidGapPairs cfg snap))
+               (not (EL:Get 'pairs (EL:LoadValidGapPairs cfg (EL:Put 'signature "new-interfering-line" snap))))
+               (not (EL:Get 'pairs (EL:LoadValidGapPairs cfg (EL:Put 'ends (list a) snap)))))''')
+
+    def test_manual_model_exception_keeps_global_restrictions(self):
+        self.check_lisp('''
+          (setq b (EL:Put 'point '(1000.0 30.0 0.0) b) snap (EL:Put 'ends (list a b) snap))
+          (setq pair (list (cons 'a (EL:Get 'key a)) (cons 'b (EL:Get 'key b)) (cons 'source 'manual)))
+          (and (EL:Get 'pairs (EL:ValidatePairSet snap cfg nil (list pair) '(((id . "R1") (wire . "A")))))
+               (not (EL:Get 'pairs (EL:ValidatePairSet snap cfg nil (list pair)
+                  '(((id . "R1") (wire . "A")) ((id . "R2") (wire . "B"))))))
+               (not (EL:Get 'pairs (EL:ValidatePairSet (EL:Put 'ends (list a (EL:Put 'point '(1000.0 30.0 5.0) b)) snap)
+                   cfg nil (list pair) nil))))''')
+
+    def test_leader_pair_deleted_or_moved_never_complete(self):
+        self.check_lisp('''
+          (setq la '((id . "LA") (role . leader) (raw . "a-v1")))
+          (setq lb '((id . "LB") (role . leader) (raw . "b-v1")))
+          (setq snap (EL:Put 'blocks (list la lb) snap))
+          (setq cfg (EL:Put 'leader-pairs '(((a . "LA") (b . "LB") (a-state . "a-v1") (b-state . "b-v1"))) cfg))
+          (setq base '(("W1" "LA") ("W2" "LB")))
+          (and (member '("LA" "LB") (EL:Get 'edges (EL:LeaderConnections snap cfg base)))
+               (not (EL:Get 'issues (EL:LeaderConnections snap cfg base)))
+               (EL:Get 'issues (EL:LeaderConnections (EL:Put 'blocks (list la (EL:Put 'raw "moved" lb)) snap) cfg base))
+               (EL:Get 'issues (EL:LeaderConnections (EL:Put 'blocks (list la) snap) cfg base)))''')
+
+    def test_integrated_gap_trace_and_unrelated_issues(self):
+        self.check_lisp('''
+          (setq pts1 '((0.0 0.0 0.0) (10.0 0.0 0.0)) pts2 '((30.0 0.0 0.0) (50.0 0.0 0.0)))
+          (setq w1 (list (cons 'id "W1") (cons 'segments (EL:Segments pts1))
+                    (cons 'ends (list (EL:MakeEnd "W1" 'start pts1 '(0.0 0.0) "E") (EL:MakeEnd "W1" 'end pts1 '(0.0 0.0) "E")))))
+          (setq w2 (list (cons 'id "W2") (cons 'segments (EL:Segments pts2))
+                    (cons 'ends (list (EL:MakeEnd "W2" 'start pts2 '(0.0 0.0) "E") (EL:MakeEnd "W2" 'end pts2 '(0.0 0.0) "E")))))
+          (setq box '((id . "BOX") (role . panel) (segments ((0.0 -2.0 0.0) (0.0 2.0 0.0)))))
+          (setq lamp '((id . "LAMP") (role . device) (segments ((50.0 -2.0 0.0) (50.0 2.0 0.0)))))
+          (setq local (list (cons 'wires (list w1 w2)) (cons 'blocks (list box lamp))
+                    (cons 'ends (append (EL:Get 'ends w1) (EL:Get 'ends w2))) (cons 'signature "baseline")))
+          (setq result (EL:AnalyzeSnapshot local cfg "BOX" '(((id . "R1") (wire . "W1")))))
+          (and (EL:Get 'complete result) (= (length (EL:Get 'connections result)) 1)
+               (equal (EL:Get 'devices (car (EL:Get 'circuits result))) '("LAMP")))''')
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

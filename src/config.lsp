@@ -32,6 +32,7 @@
                   (equal (EL:Get 'drawing pair) id) (= (type (EL:Get 'a pair)) 'STR)
                   (= (type (EL:Get 'b pair)) 'STR) (= (type (EL:Get 'a-state pair)) 'STR)
                   (= (type (EL:Get 'b-state pair)) 'STR))) (setq ok nil)))
+  (foreach pair (EL:Get 'powers cfg) (if (not (EL:PowerShape pair)) (setq ok nil)))
   ok)
 (defun EL:LoadValidGapPairs (cfg snapshot / valid issues pair a b rec)
   (foreach pair (EL:Get 'gap-pairs cfg)

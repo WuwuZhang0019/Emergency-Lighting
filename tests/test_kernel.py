@@ -194,6 +194,74 @@ class KernelTests(unittest.TestCase):
           (and (EL:Get 'complete result) (= (length (EL:Get 'connections result)) 1)
                (equal (EL:Get 'devices (car (EL:Get 'circuits result))) '("LAMP")))''')
 
+    def test_power_defaults_and_precedence(self):
+        self.check_lisp('''
+          (setq identity '("lamp" nil "definition-v1"))
+          (setq saved (list (cons 'identity identity) (cons 'category 'lighting) (cons 'display "应急照明")
+                    (cons 'watts 7) (cons 'zero-confirmed nil)))
+          (setq current (EL:Put 'watts 9 saved) library (EL:Put 'watts 6 saved))
+          (and (= (EL:DefaultWatts 'lighting) 5) (= (EL:DefaultWatts 'sign) 1)
+               (not (EL:DefaultWatts 'unknown))
+               (= (EL:Get 'watts (EL:ResolvePower identity (list current) (list saved) (list library))) 9)
+               (= (EL:Get 'watts (EL:ResolvePower identity nil (list saved) (list library))) 7)
+               (= (EL:Get 'watts (EL:ResolvePower identity nil nil (list library))) 6)
+               (not (EL:ResolvePower '("lamp" nil "changed-definition") nil (list saved) nil)))''')
+
+    def test_integer_power_parser_and_zero_confirmation(self):
+        for text in ['', '-1', '1.5', '5W', ' 5', '2147483648', 'NaN']:
+            with self.subTest(text=text):
+                self.assertIsNone(self.h.run(f'(EL:ParseWatts "{text}")'))
+        for text, expected in [('0',0), ('172',172), ('0005',5), ('2147483647',2147483647)]:
+            self.assertEqual(self.h.run(f'(EL:ParseWatts "{text}")'),expected)
+        self.check_lisp('''
+          (setq record '((display . "零功率说明") (category . other) (watts . 0)))
+          (and (not (EL:PowerValid record)) (EL:PowerValid (EL:Put 'zero-confirmed T record))
+               (not (EL:PowerValid (EL:Put 'watts 1.5 record)))
+               (not (EL:PowerValid (EL:Put 'watts -1 record))))''')
+
+    def test_power_171_172_173_and_incomplete(self):
+        self.h.run('''
+          (setq identity '("lamp" nil "definition-v1"))
+          (setq blocks (list (list (cons 'id "D") (cons 'name "lamp") (cons 'identity identity) (cons 'role 'device))))
+          (setq circuit '((id . "R1") (devices "D" "D") (complete . T)))
+          (setq power (list (cons 'identity identity) (cons 'category 'lighting) (cons 'display "lamp") (cons 'watts 172)))''')
+        for watts, expected in [(171,'PASS'),(172,'PASS'),(173,'OVER-LIMIT')]:
+            status=self.h.run(f'''(EL:Get 'power-status (EL:CircuitStatistics circuit blocks nil
+                (EL:Put 'powers (list (EL:Put 'watts {watts} power)) cfg) nil nil))''')
+            self.assertEqual(str(status),expected)
+        self.check_lisp('''
+          (and (= (EL:Get 'power-status (EL:CircuitStatistics circuit blocks nil cfg nil nil)) 'incomplete)
+               (= (EL:Get 'power-status (EL:CircuitStatistics (EL:Put 'complete nil circuit) blocks nil
+                  (EL:Put 'powers (list power) cfg) nil nil)) 'incomplete)
+               (= (length (EL:Get 'counts (EL:CircuitStatistics circuit blocks nil cfg nil nil))) 1))''')
+
+    def test_conflicted_device_not_double_counted(self):
+        self.check_lisp('''
+          (setq identity '("lamp" nil "definition-v1"))
+          (setq blocks (list (list (cons 'id "D") (cons 'name "lamp") (cons 'identity identity) (cons 'role 'device))))
+          (setq circuits '(((id . "R1") (devices "D") (complete . T)) ((id . "R2") (devices "D") (complete . T))))
+          (setq result (list (cons 'complete T) (cons 'circuits circuits) (cons 'snapshot (list (cons 'blocks blocks)))))
+          (setq power (list (cons 'identity identity) (cons 'category 'lighting) (cons 'display "lamp") (cons 'watts 5)))
+          (setq computed (EL:BoxStatistics result (EL:Put 'powers (list power) cfg) nil nil))
+          (and (not (EL:Get 'can-generate computed)) (= (EL:Get 'box-watts computed) 0)
+               (EL:Get 'device-conflicts computed))''')
+
+    def test_120_watt_example_and_leader_exclusion(self):
+        self.check_lisp('''
+          (setq blocks nil ids nil powers nil)
+          (foreach spec '(("lighting" lighting 20 5) ("sign" sign 12 1) ("exit" exit 8 1))
+            (setq identity (list (car spec) nil "definition-v1") i 0)
+            (setq powers (cons (list (cons 'identity identity) (cons 'category (cadr spec))
+                  (cons 'display (car spec)) (cons 'watts (nth 3 spec))) powers))
+            (repeat (nth 2 spec)
+              (setq id (strcat (car spec) (itoa i)) i (1+ i) ids (cons id ids)
+                    blocks (cons (list (cons 'id id) (cons 'name (car spec)) (cons 'identity identity) (cons 'role 'device)) blocks))))
+          (setq blocks (cons '((id . "LEADER") (role . leader)) blocks))
+          (setq circuit (list (cons 'id "R1") (cons 'devices (cons "LEADER" ids)) (cons 'complete T)))
+          (setq computed (EL:CircuitStatistics circuit blocks nil (EL:Put 'powers powers cfg) nil nil))
+          (and (= (EL:Get 'watts computed) 120) (= (length (EL:Get 'counts computed)) 3)
+               (= (EL:Get 'power-status computed) 'pass))''')
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

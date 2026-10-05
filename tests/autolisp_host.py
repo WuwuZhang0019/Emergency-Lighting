@@ -88,11 +88,21 @@ def truth(x):
 
 
 def equal(a, b, fuzz=None):
+    if isinstance(a, Symbol) != isinstance(b, Symbol): return False
+    if isinstance(a, bool) != isinstance(b, bool): return False
     if fuzz is not None and isinstance(a, (float, int)) and isinstance(b, (float, int)):
         return abs(a - b) <= fuzz
     if isinstance(a, list) and isinstance(b, list):
         return len(a) == len(b) and all(equal(x, y, fuzz) for x, y in zip(a, b))
     return a == b
+
+
+def quoted(x):
+    if isinstance(x, Symbol) and x == 'NIL': return None
+    if isinstance(x, Symbol) and x == 'T': return True
+    if isinstance(x, Pair): return Pair(quoted(x.car), quoted(x.cdr))
+    if isinstance(x, list): return [quoted(v) for v in x] or None
+    return x
 
 
 def lisp_type(x):
@@ -132,7 +142,7 @@ class Host:
             'LISTP': lambda x: x is None or isinstance(x,(list,Pair)),
             'NULL': lambda x:not truth(x), 'NOT': lambda x:not truth(x),
             'STRCAT': lambda *xs: ''.join(xs), 'STRCASE': lambda x,lower=None:x.lower() if lower else x.upper(),
-            'ITOA': str, 'RTOS': lambda x,*opts: f'{x:.{opts[1] if len(opts)>1 else 4}f}',
+            'ITOA': str, 'ATOI': int, 'STRLEN': len, 'RTOS': lambda x,*opts: f'{x:.{opts[1] if len(opts)>1 else 4}f}',
             'VL-SYMBOL-NAME': str, 'VL-STRING->LIST': lambda x:list(map(ord,x)),
             'VL-PRIN1-TO-STRING': repr, 'VL-REMOVE': lambda x,xs:[y for y in seq(xs) if not equal(x,y)] or None,
             'PRINC': lambda *x: None, 'READ': lambda x:parse(x)[0],
@@ -180,7 +190,7 @@ class Host:
         if not isinstance(form,list): return form
         if not form: return None
         op,*args = form
-        if op in ('QUOTE','FUNCTION'): return args[0]
+        if op in ('QUOTE','FUNCTION'): return quoted(args[0])
         if op == 'DEFUN':
             self.functions[args[0]] = (seq(args[1]),args[2:])
             return args[0]

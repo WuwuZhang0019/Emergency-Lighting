@@ -113,6 +113,7 @@
     (progn (setq *EL:SimpleRows* (subst (EL:Put 'watts watts row) row *EL:SimpleRows*)) T)
     (progn (set_tile "s_status" "功率请输入非负整数 W。") nil)))
 (defun EL:SimpleFill (/ row total)
+  (start_list "s_header") (add_list "设备图块\t数量\t单个功率（W）") (end_list)
   (start_list "s_names")
   (foreach row *EL:SimpleRows*
     (add_list (strcat (EL:Get 'name row) "\t" (itoa (EL:Get 'count row)) "\t"

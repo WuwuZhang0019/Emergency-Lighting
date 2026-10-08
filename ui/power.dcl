@@ -44,16 +44,20 @@ el_roles : dialog {
   ok_cancel;
 }
 
+// Date: 2026-10-08. Header and data share font, tabs and list-box insets.
+el_device_columns : list_box {
+  width = 85;
+  fixed_width_font = true;
+  tabs = "54 64";
+  tab_truncate = true;
+}
+
 // Date: 2026-10-08. Simple device table: two picks, no role/exit review.
 el_devices : dialog {
   label = "设备数量与功率";
   : text { label = "点选设备可在图面查看，按 Enter 返回；功率按图块名自动记住。"; }
-  : row {
-    : text { label = "设备图块"; width = 54; fixed_width = true; }
-    : text { label = "数量"; width = 10; fixed_width = true; }
-    : text { label = "单个功率（W）"; width = 18; fixed_width = true; }
-  }
-  : list_box { key = "s_names"; width = 85; height = 13; fixed_width_font = true; tabs = "54 64"; tab_truncate = true; }
+  : el_device_columns { key = "s_header"; height = 1.5; fixed_height = true; is_enabled = false; is_tab_stop = false; }
+  : el_device_columns { key = "s_names"; height = 13; }
   : text { key = "s_selected"; width = 85; }
   : edit_box { key = "s_edit"; label = "单个功率（W）"; edit_width = 12; }
   : text { key = "s_status"; width = 85; }

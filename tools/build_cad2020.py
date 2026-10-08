@@ -4,7 +4,7 @@ import shutil
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGE_NO = 22
+PACKAGE_NO = 23
 NAME = f'应急照明-{PACKAGE_NO:03d}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 DEST = ROOT / 'output' / NAME
@@ -71,16 +71,18 @@ def build():
     (DEST / 'tests/evidence').mkdir(exist_ok=True)
     for filename in ('2026-10-08-box-statistics.md', '2026-10-08-trace-diagnostics.md', '2026-10-08-contour-diagnostics.md', '2026-10-08-polyline-ocs-fix.md', '2026-10-08-curve-ocs-fix.md', '2026-10-08-region-performance.md', '2026-10-08-contact-performance.md', '2026-10-08-linear-contour-index.md', '2026-10-08-whole-block.md', '2026-10-08-exit-preview.md', '2026-10-08-sample-layer.md', '2026-10-08-simple-device-table.md', 'automated-checks.json'):
         shutil.copy2(ROOT / 'tests/evidence' / filename, DEST / 'tests/evidence' / filename)
+    for filename in ('2026-10-08-header-alignment.md', '2026-10-08-header-alignment.json'):
+        shutil.copy2(ROOT / 'tests/evidence' / filename, DEST / 'tests/evidence' / filename)
     readme = f'''# AutoCAD 2020 兼容试用包 v{PACKAGE_NO}
 日期：2026-10-08
 状态：源码、自动回归和编码检查完成；真实 CAD 全流程验收待执行
 
 全部 LISP/DCL 使用严格 GB2312，文档使用 UTF-8。请完整解压，不直接加载仓库的 UTF-8 源码。
 
-v22 将 ELSTAT 简化为两次拾取和一张设备表，不再弹出出口核对、设备角色分类或回路选择。
+v23 修正设备表表头与数据列错位：表头和数据共用等宽字体、制表位及列表内边距。沿用 v22 两次拾取和一张设备表的流程。
 
 1. 从旧 GB2312 包升级时，将旧包 config 中的 .eld 文件复制到新包 config；保留旧包作为备份。不要混用 UTF-8 配置。
-2. APPLOAD 本包根目录的 START-CAD2020.lsp，选择本包内 src/load.lsp，确认 v{PACKAGE_NO}。也可用 {UPDATE_NAME} 更新内存代码，但它沿用已有有效目录，日志可能保存在旧目录；以命令行路径为准。
+2. APPLOAD 本包根目录的 START-CAD2020.lsp，选择本包内 src/load.lsp，确认 v{PACKAGE_NO}。本次同时更新 LISP 和 DCL，请完整加载新包；仅运行更新文件并沿用旧目录会继续读取旧界面。
 3. 运行 ELSTAT：拾取配电箱，再拾取该系统任意一段 LINE 或开放 LWPOLYLINE，导线仅用于确定图层。无需运行 ELSETUP，不用选择出线、设备图层或设备类别。
 4. 设备表三列为“设备图块／数量／单个功率（W）”。首次填写各图块的单个整数 W，点“保存并关闭”，下次自动带入。数量由程序统计。
 
@@ -92,7 +94,7 @@ v22 将 ELSTAT 简化为两次拾取和一张设备表，不再弹出出口核�
 
 只改功率可运行 ELPOWER；改动接线、增删设备后重新运行 ELSTAT。该表汇总整个系统的设备，不用于逐回路 172W 判断或直接 ELGEN。需要原高级分回路流程时单独使用 ELTRACE，旧命令仍保留。
 
-真实 CAD 的表格显示、缩放亮显、数量准确性和执行耗时待实测，尚不能承诺秒级。诊断版本为 022；日志路径在命令行显示，通常为本包 output/ELTRACE-debug.log。验证范围见 tests/evidence/2026-10-08-simple-device-table.md。
+真实 CAD 的表格显示、缩放亮显、数量准确性和执行耗时待实测，尚不能承诺秒级。诊断版本沿用 022；日志路径在命令行显示，通常为本包 output/ELTRACE-debug.log。v22 全量记录见 tests/evidence/2026-10-08-simple-device-table.md，v23 专项记录见 tests/evidence/2026-10-08-header-alignment.md。
 '''
     (DEST / '使用说明.md').write_text(readme, encoding='utf-8')
     for filename in ('cad-plan.dxf', 'cad-plan.expected.json'):

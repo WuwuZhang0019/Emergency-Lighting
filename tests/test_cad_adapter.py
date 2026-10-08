@@ -134,6 +134,8 @@ class CadAdapterTests(unittest.TestCase):
             self.entities['a'].append(Pair(70, flags))
         self.line('b', [20.0, 0.0, 0.0], [30.0, 0.0, 0.0], 'W')
         self.selected = ['a', 'b']
+        self.block('BOX', 'P', 'unused-panel', [10000.0, 0.0, 0.0])
+        self.block('LAMP', 'D', 'unused-lamp', [11000.0, 0.0, 0.0])
         cfg = self.h.lookup('CFG')  # Bind before the command's local cfg shadows it.
         self.messages, self.draws, self.zoom_calls, self.picks = [], [], [], []
         keywords = iter(actions)
@@ -184,19 +186,19 @@ class CadAdapterTests(unittest.TestCase):
 
     def test_gap_range_expands_to_long_gap_without_repick_or_changing_other_values(self):
         self.gap_command(actions=('Range', None))
-        self.line('b', [360.0, 0.0, 0.0], [370.0, 0.0, 0.0], 'W')
+        self.line('b', [2510.0, 0.0, 0.0], [2520.0, 0.0, 0.0], 'W')
         prompts = []
-        self.h.builtins['GETREAL'] = lambda prompt: prompts.append(prompt) or 500.0
+        self.h.builtins['GETREAL'] = lambda prompt: prompts.append(prompt) or 3000.0
         self.h.run('(c:ELGAPTEST)')
         messages = ''.join(self.messages)
         self.assertLess(messages.index('无合格候选'), messages.index('找到一对双向几何匹配'))
-        self.assertIn('350.000', messages)
+        self.assertIn('2500.000', messages)
         self.assertEqual(len(prompts), 1)
         self.assertEqual(len(self.picks), 1)
         preview = self.h.lookup('*EL:PICKPARAMS*')
         saved = self.get('params', self.h.lookup('CFG'))
-        self.assertEqual(self.get('Dmax', preview), 500.0)
-        self.assertEqual(self.get('Dmax', saved), 200.0)
+        self.assertEqual(self.get('Dmax', preview), 3000.0)
+        self.assertEqual(self.get('Dmax', saved), 2000.0)
         for key in ('eps_touch', 'eps_boundary', 'eps_perp', 'eps_z', 'theta_max', 'R0'):
             self.assertEqual(self.get(key, preview), self.get(key, saved))
 
@@ -206,18 +208,33 @@ class CadAdapterTests(unittest.TestCase):
         self.h.builtins['GETREAL'] = lambda prompt: next(values)
         self.h.run('(c:ELGAPTEST)')
         self.assertIn('请重新输入', ''.join(self.messages))
-        self.assertEqual(self.get('Dmax', self.h.lookup('*EL:PICKPARAMS*')), 200.0)
+        self.assertEqual(self.get('Dmax', self.h.lookup('*EL:PICKPARAMS*')), 2000.0)
 
-    def test_gap_advanced_params_enter_preserves_custom_values(self):
-        self.gap_command(actions=('Params', None))
+    def test_gap_command_preserves_current_custom_range_without_advanced_prompts(self):
+        self.gap_command()
         params = self.call('EL:Put', Symbol('DMAX'), 800.0, self.h.run('(EL:SuggestedParams)'))
         cfg = self.call('EL:Put', Symbol('PARAMS'), params, self.h.lookup('CFG'))
         self.h.builtins['EL:LOADCONFIG'] = lambda: cfg
-        prompts = []
-        self.h.builtins['GETREAL'] = lambda prompt: prompts.append(prompt) and None
+        self.h.builtins['GETREAL'] = lambda prompt: self.fail('unexpected parameter prompt')
         self.h.run('(c:ELGAPTEST)')
-        self.assertEqual(len(prompts), 7)  # Only the explicit Params action asks.
         self.assertEqual(self.get('Dmax', self.h.lookup('*EL:PICKPARAMS*')), 800.0)
+
+    def test_gap_command_requires_equipment_samples_before_search(self):
+        self.gap_command()
+        cfg = self.call('EL:Put', Symbol('DEVICE-LAYERS'), None, self.h.lookup('CFG'))
+        self.h.builtins['EL:LOADCONFIG'] = lambda: cfg
+        self.h.run('(c:ELGAPTEST)')
+        self.assertIn('请先运行 ELSETUP', ''.join(self.messages))
+        self.assertFalse(self.picks)
+        self.assertFalse(self.draws)
+
+    def test_gap_command_explains_whole_wire_equipment_exclusion(self):
+        self.gap_command()
+        self.block('BOX', 'P', 'panel', [-1.0, 0.0, 0.0])
+        self.selected.append('panel')  # The unpicked end of a touches this panel.
+        self.h.run('(c:ELGAPTEST)')
+        self.assertIn('这整条导线已接设备或配电箱', ''.join(self.messages))
+        self.assertNotIn('找到一对双向几何匹配', ''.join(self.messages))
 
     def test_gap_command_read_error_reports_entity_and_does_not_continue(self):
         self.gap_command()

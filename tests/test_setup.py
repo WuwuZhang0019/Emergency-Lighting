@@ -124,7 +124,7 @@ class SetupTests(unittest.TestCase):
         self.assertTrue(truth(self.get('calibrated')))
 
     def test_invalid_custom_parameters_do_not_save_or_confirm(self):
-        self.reals = iter([-0.1, 0.1, 0.5, 0.01, 0.01, 20.0, 200.0])
+        self.reals = iter([-0.1, 0.1, 2000.0])
         self.run_setup(2)
         self.assertEqual(self.writes, [])
         self.assertIsNone(self.saved)
@@ -157,7 +157,7 @@ class SetupTests(unittest.TestCase):
         self.run_setup(None, 1)
         params = self.get('params')
         self.prompts.clear()
-        self.reals = iter([None] * 7)
+        self.reals = iter([None] * 3)
         self.run_setup(2)
         self.assertEqual(self.get('params'), params)
         self.assertEqual(len(self.prompts), 1)
@@ -166,7 +166,7 @@ class SetupTests(unittest.TestCase):
     def test_changed_parameter_requires_confirmation_and_can_save_draft(self):
         self.run_setup(None, 1)
         self.prompts.clear()
-        self.reals = iter([None] * 6 + [123.0])
+        self.reals = iter([None] * 2 + [123.0])
         self.run_setup(2, None)
         self.assertEqual(self.get('Dmax', self.get('params')), 123.0)
         self.assertEqual(len(self.prompts), 2)

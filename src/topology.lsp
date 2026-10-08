@@ -41,6 +41,7 @@
     (setq a (EL:By 'key (EL:Get 'a pair) (EL:Get 'ends snapshot))
           b (EL:By 'key (EL:Get 'b pair) (EL:Get 'ends snapshot)))
     (if (and a b (not (EL:Get 'occupied a)) (not (EL:Get 'occupied b))
+             (not (EL:Get 'wire-attached a)) (not (EL:Get 'wire-attached b))
              (not (equal (EL:Get 'wire a) (EL:Get 'wire b)))
              (not (equal (EL:Get 'geometry a) 'INVALID_GEOMETRY)) (not (equal (EL:Get 'geometry b) 'INVALID_GEOMETRY))
              (EL:LayerAllowed (EL:Get 'layer a) (EL:Get 'layer b) cfg)
@@ -137,7 +138,7 @@
         (cons 'connections (EL:Get 'pairs checked)) (cons 'candidates rows)
         (cons 'issues (append portissues issues)) (cons 'unrelated-issues (EL:Unique orphan))
         (cons 'complete (and seeds (not portissues) (not (vl-some '(lambda (c) (not (EL:Get 'complete c))) circuits))))))
-(defun EL:BuildPhysical (snapshot cfg panel / ends out a b block contacts direct edges issues p tol ztol row other hit status ports)
+(defun EL:BuildPhysical (snapshot cfg panel / ends out a b block contacts direct edges issues p tol ztol row other hit status ports attached id)
   (setq ends (EL:Get 'ends snapshot) tol (EL:Get 'eps_touch (EL:Get 'params cfg)) ztol (EL:Get 'eps_z (EL:Get 'params cfg)))
   (foreach a ends
     (setq contacts nil direct nil p (EL:Get 'point a) status nil)
@@ -173,6 +174,14 @@
       (setq edges (cons (EL:Edge (EL:Get 'wire a) (car contacts)) edges)))
     (setq out (cons a out)))
   (setq ends (reverse out))
+  ;; A connection at either end excludes the whole source entity from gap pairing.
+  (foreach a ends
+    (foreach id (EL:Get 'contacts a)
+      (setq block (EL:By 'id id (EL:Get 'blocks snapshot)))
+      (if (member (EL:Get 'role block) '(panel device))
+        (setq attached (EL:Put (EL:Get 'wire a) T attached)))))
+  (setq ends (mapcar '(lambda (e)
+    (EL:Put 'wire-attached (EL:Get (EL:Get 'wire e) attached) e)) ends))
   (foreach block (EL:Get 'blocks snapshot)
     (if (equal (EL:Get 'role block) 'device)
       (progn
@@ -197,7 +206,8 @@
     (if (not (EL:Get 'occupied a))
       (progn
         (setq state nil)
-        (cond ((not (equal (EL:Get 'geometry a) 'straight)) (setq state (EL:Get 'geometry a)))
+        (cond ((EL:Get 'wire-attached a) (setq state 'WIRE_ATTACHED_TO_EQUIPMENT))
+              ((not (equal (EL:Get 'geometry a) 'straight)) (setq state (EL:Get 'geometry a)))
               ((not cs) (setq state 'NO_CANDIDATE))
               ((> (length cs) 1) (setq state 'AMBIGUOUS_CANDIDATES))
               (T

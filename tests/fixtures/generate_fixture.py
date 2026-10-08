@@ -1,4 +1,4 @@
-"""Generate a minimal, synthetic CAD plan. No production parameters or dynamic blocks."""
+"""Synthetic CAD plan. Date: 2026-10-08. No real CAD acceptance."""
 from pathlib import Path
 import json
 
@@ -48,17 +48,22 @@ def build_dxf():
 
 
 EXPECTED = {
-    'version': 1,
+    'version': 2,
+    'gap_rule': 10,
+    'complete': False,
+    'can_generate': False,
     'kind': 'synthetic CAD fixture; not imported or validated in AutoCAD here',
     'units': 'mm for this synthetic fixture only',
     'panel': {'name':'ELA_BOX','insertion':[100,100,0]},
     'layers': {'panel':'ELA_PANEL','wire':'ELA_WIRE','device':'ELA_DEVICE'},
     'circuits': [
-        {'seed':[110,80,0], 'devices':{'ELA_LAMP':2}, 'watts_after_category_confirmation':10},
+        {'seed':[110,80,0], 'devices':{'ELA_LAMP':1}, 'watts_after_category_confirmation':5,
+         'complete':False, 'issue':'WIRE_ATTACHED_TO_EQUIPMENT'},
         {'seed':[110,100,0], 'devices':{'ELA_SIGN':2}, 'watts_after_category_confirmation':2},
         {'seed':[110,120,0], 'devices':{'ELA_LAMP':1}, 'watts_after_category_confirmation':5},
     ],
-    'box_watts_after_category_confirmation':17,
+    'observed_partial_watts':12,
+    'box_watts_after_category_confirmation':7,
     'gap': [[160,80,0],[180,80,0]],
     'unrelated_crossing': [[170,70,0],[170,90,0]],
     'dynamic_templates': 'not provided',

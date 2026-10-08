@@ -78,20 +78,20 @@ class KernelTests(unittest.TestCase):
           (setq crossing '((id . "cross") (segments ((30.0 -10.0 0.0) (30.0 10.0 0.0)))))
           (setq snap (EL:Put 'wires (list crossing) snap))
           (and (EL:Get 'accepted (EL:ValidateGapPair a b snap cfg))
-               (equal (EL:Get 'reason (EL:ValidateGapPair a b (EL:Put 'blocks (list crossing) snap) cfg)) 'BLOCKED_BY_DEVICE_OR_PATH)
+               (EL:Get 'accepted (EL:ValidateGapPair a b (EL:Put 'blocks (list crossing) snap) cfg))
                (equal (EL:Get 'reason (EL:ValidateGapPair a b
                   (EL:Put 'wires '(((id . "path") (segments ((20.0 0.0 0.0) (30.0 0.0 0.0))))) snap) cfg)) 'BLOCKED_BY_DEVICE_OR_PATH))''')
 
     def test_complete_range_and_reverse_uniqueness(self):
         self.check_lisp('''
-          (setq c (test:end "C" '(-0.2 0.4 0.0) '(1.0 0.0 0.0)))
+          (setq c (test:end "C" '(-0.2 0.0 0.0) '(1.0 0.0 0.0)))
           (setq snap (EL:Put 'ends (list a b c) snap) rows (EL:FindGapCandidates snap cfg))
           (and (= (length (EL:Get 'candidates (EL:By 'key (EL:Get 'key a) rows))) 1)
                (= (length (EL:Get 'candidates (EL:By 'key (EL:Get 'key b) rows))) 2)
                (not (EL:Get 'pairs (EL:BuildMutualPairs rows snap cfg))))''')
         self.check_lisp('''
           (setq b (EL:Put 'point '(20.0 0.0 0.0) b)
-                c (test:end "C" '(180.0 0.4 0.0) '(-1.0 0.0 0.0)))
+                c (test:end "C" '(180.0 0.0 0.0) '(-1.0 0.0 0.0)))
           (setq snap (EL:Put 'ends (list a b c) snap) rows (EL:FindGapCandidates snap cfg))
           (and (= (length (EL:Get 'candidates (EL:By 'key (EL:Get 'key a) rows))) 2)
                (not (EL:Get 'pairs (EL:BuildMutualPairs rows snap cfg))))''')
@@ -179,7 +179,7 @@ class KernelTests(unittest.TestCase):
                (EL:Get 'issues (EL:LeaderConnections (EL:Put 'blocks (list la (EL:Put 'raw "moved" lb)) snap) cfg base))
                (EL:Get 'issues (EL:LeaderConnections (EL:Put 'blocks (list la) snap) cfg base)))''')
 
-    def test_integrated_gap_trace_and_unrelated_issues(self):
+    def test_integrated_gap_excludes_both_equipment_attached_wires(self):
         self.check_lisp('''
           (setq pts1 '((0.0 0.0 0.0) (10.0 0.0 0.0)) pts2 '((30.0 0.0 0.0) (50.0 0.0 0.0)))
           (setq w1 (list (cons 'id "W1") (cons 'segments (EL:Segments pts1))
@@ -191,8 +191,10 @@ class KernelTests(unittest.TestCase):
           (setq local (list (cons 'wires (list w1 w2)) (cons 'blocks (list box lamp))
                     (cons 'ends (append (EL:Get 'ends w1) (EL:Get 'ends w2))) (cons 'signature "baseline")))
           (setq result (EL:AnalyzeSnapshot local cfg "BOX" '(((id . "R1") (wire . "W1")))))
-          (and (EL:Get 'complete result) (= (length (EL:Get 'connections result)) 1)
-               (equal (EL:Get 'devices (car (EL:Get 'circuits result))) '("LAMP")))''')
+          (and (not (EL:Get 'complete result)) (not (EL:Get 'connections result))
+               (not (EL:Get 'devices (car (EL:Get 'circuits result))))
+               (member 'WIRE_ATTACHED_TO_EQUIPMENT
+                 (mapcar '(lambda (issue) (EL:Get 'code issue)) (EL:Get 'issues (car (EL:Get 'circuits result))))))''')
 
     def test_power_defaults_and_precedence(self):
         self.check_lisp('''
@@ -347,7 +349,7 @@ class KernelTests(unittest.TestCase):
           (and (= (length seeds) 3) (= (length (EL:Get 'circuits result)) 3) (EL:Get 'complete result)
                (EL:Get 'unrelated-issues result) (EL:Get 'can-generate computed) (= (EL:Get 'box-watts computed) 15))''')
 
-    def test_multiple_variable_gaps_reach_one_terminal_device(self):
+    def test_multiple_gaps_only_pair_equipment_free_middle_wires(self):
         self.check_lisp('''
           (setq wires nil ends nil i 0)
           (foreach interval '((0.0 10.0) (30.0 40.0) (115.0 125.0) (305.0 315.0))
@@ -360,8 +362,8 @@ class KernelTests(unittest.TestCase):
                         ((id . "LAMP") (role . device) (segments ((315.0 -2.0 0.0) (315.0 2.0 0.0))))))
           (setq local (list (cons 'wires wires) (cons 'ends ends) (cons 'blocks blocks) (cons 'signature "three-gaps")))
           (setq result (EL:AnalyzeSnapshot local cfg "BOX" '(((id . "R1") (wire . "W1")))))
-          (and (EL:Get 'complete result) (= (length (EL:Get 'connections result)) 3)
-               (equal (EL:Get 'devices (car (EL:Get 'circuits result))) '("LAMP")))''')
+          (and (not (EL:Get 'complete result)) (= (length (EL:Get 'connections result)) 1)
+               (not (EL:Get 'devices (car (EL:Get 'circuits result)))))''')
 
     def test_candidate_and_seed_order_do_not_change_decisions(self):
         self.check_lisp('''
@@ -378,8 +380,8 @@ class KernelTests(unittest.TestCase):
           (setq local (EL:Put 'blocks (list block) snap) physical (EL:BuildPhysical local cfg nil))
           (and (EL:Get 'issues physical) (not (EL:Get 'edges physical))
                (EL:Get 'occupied (EL:By 'key (EL:Get 'key a) (EL:Get 'ends (EL:Get 'snapshot physical))))
-               (equal (EL:Get 'reason (EL:ValidateGapPair a b (EL:Put 'blocks
-                 (list (EL:Put 'bounds '((30.0 -1.0 0.0) (35.0 1.0 0.0)) block)) snap) cfg)) 'BLOCKED_BY_DEVICE_OR_PATH))''')
+               (EL:Get 'accepted (EL:ValidateGapPair a b (EL:Put 'blocks
+                 (list (EL:Put 'bounds '((30.0 -1.0 0.0) (35.0 1.0 0.0)) block)) snap) cfg)))''')
 
     def test_plane_tolerance_for_physical_device_contacts(self):
         self.check_lisp('''

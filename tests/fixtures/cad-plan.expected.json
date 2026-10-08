@@ -1,5 +1,8 @@
 {
-  "version": 1,
+  "version": 2,
+  "gap_rule": 10,
+  "complete": false,
+  "can_generate": false,
   "kind": "synthetic CAD fixture; not imported or validated in AutoCAD here",
   "units": "mm for this synthetic fixture only",
   "panel": {
@@ -23,9 +26,11 @@
         0
       ],
       "devices": {
-        "ELA_LAMP": 2
+        "ELA_LAMP": 1
       },
-      "watts_after_category_confirmation": 10
+      "watts_after_category_confirmation": 5,
+      "complete": false,
+      "issue": "WIRE_ATTACHED_TO_EQUIPMENT"
     },
     {
       "seed": [
@@ -50,7 +55,8 @@
       "watts_after_category_confirmation": 5
     }
   ],
-  "box_watts_after_category_confirmation": 17,
+  "observed_partial_watts": 12,
+  "box_watts_after_category_confirmation": 7,
   "gap": [
     [
       160,

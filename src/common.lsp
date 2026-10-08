@@ -51,7 +51,8 @@
 (defun EL:RecognitionRules (cfg / rows key)
   (foreach key '(wire-layers panel-layers device-layers leader-layers panel-names device-names leader-names
       layer-pairs params calibrated gap-pairs leader-pairs)
-    (setq rows (cons (cons key (EL:Get key cfg)) rows))) (reverse rows))
+    (setq rows (cons (cons key (EL:Get key cfg)) rows)))
+  (cons '(gap-policy . 10) (reverse rows)))
 (defun EL:SourceCurrent (result cfg fresh)
   (and (equal (EL:Get 'drawing result) (EL:Get 'drawing cfg))
        (equal (EL:Get 'rules result) (EL:RecognitionRules cfg))

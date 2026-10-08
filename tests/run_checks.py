@@ -30,7 +30,7 @@ if __name__=='__main__':
     paths=sorted(list((ROOT/'src').glob('*.lsp'))+list((ROOT/'ui').glob('*.dcl'))+
                  list((ROOT/'tests').glob('*.py'))+list((ROOT/'tests/fixtures').glob('*.*')))
     evidence={
-        'session_date':'2026-10-05',
+        'session_date':'2026-10-08',
         'scope':'actual AutoLISP pure functions in a subset host; source contracts and adapter stubs; no CAD acceptance',
         'passed':result.wasSuccessful(), 'test_count':result.testsRun,
         'failure_count':len(result.failures), 'error_count':len(result.errors),

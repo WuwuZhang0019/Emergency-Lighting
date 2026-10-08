@@ -164,6 +164,7 @@ class PickFeedbackTests(unittest.TestCase):
             'EL:ROLESREADY': lambda cfg: True,
             'EL:CURRENTCONTEXT': lambda cfg, panel: [snapshot, seeds],
             'EL:REVIEWEXITS': lambda rows: [rows[:1]],
+            'EL:BLOCKRECORD': lambda *args: [Pair(Symbol('IDENTITY'), ['BOX', None, 'def'])],
             'EL:SAVECONFIG': lambda cfg: cfg,
             'EL:ANALYZESNAPSHOT': analyze,
             'EL:COLLECTENDPOINTSNAPSHOT': lambda cfg: snapshot,

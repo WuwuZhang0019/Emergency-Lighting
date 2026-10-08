@@ -67,3 +67,8 @@
       (setq ok nil))
     (setq seen (cons (car row) seen))) ok)
 (princ)
+
+(defun EL:Tick (/ value)
+  (setq value (vl-catch-all-apply 'getvar (list "MILLISECS")))
+  (if (numberp value) value 0))
+(defun EL:Elapsed (start) (max 0 (- (EL:Tick) start)))

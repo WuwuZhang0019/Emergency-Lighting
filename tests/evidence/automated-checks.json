@@ -2,7 +2,7 @@
   "session_date": "2026-10-08",
   "scope": "actual AutoLISP pure functions in a subset host; source contracts and adapter stubs; no CAD acceptance",
   "passed": true,
-  "test_count": 102,
+  "test_count": 125,
   "failure_count": 0,
   "error_count": 0,
   "baseline": {
@@ -54,6 +54,86 @@
     ]
   },
   "tests": [
+    {
+      "test": "test_box.BoxTests.test_arc_path_uses_arc_not_chord",
+      "status": "passed"
+    },
+    {
+      "test": "test_box.BoxTests.test_concavity_holes_and_decoration",
+      "status": "passed"
+    },
+    {
+      "test": "test_box.BoxTests.test_crossed_or_nonplanar_loop_does_not_create_interior",
+      "status": "passed"
+    },
+    {
+      "test": "test_box.BoxTests.test_drawing_role_overrides_library_role",
+      "status": "passed"
+    },
+    {
+      "test": "test_box.BoxTests.test_exit_cache_and_source_validity_ignore_only_power_changes",
+      "status": "passed"
+    },
+    {
+      "test": "test_box.BoxTests.test_exit_dialog_bulk_selection_and_scope_confirmation",
+      "status": "passed"
+    },
+    {
+      "test": "test_box.BoxTests.test_interior_crossing_and_elevation",
+      "status": "passed"
+    },
+    {
+      "test": "test_box.BoxTests.test_middle_crossing_panel_never_counts_devices_behind",
+      "status": "passed"
+    },
+    {
+      "test": "test_box.BoxTests.test_migration_preserves_power_and_rejects_unconfirmed_roles",
+      "status": "passed"
+    },
+    {
+      "test": "test_box.BoxTests.test_open_contour_has_no_invented_interior",
+      "status": "passed"
+    },
+    {
+      "test": "test_box.BoxTests.test_power_table_merges_ids_and_keeps_identity_variants",
+      "status": "passed"
+    },
+    {
+      "test": "test_box.BoxTests.test_shared_device_conflicts_and_other_panel_stops_traversal",
+      "status": "passed"
+    },
+    {
+      "test": "test_box.BoxTests.test_source_change_during_role_review_saves_nothing",
+      "status": "passed"
+    },
+    {
+      "test": "test_box.BoxTests.test_spatial_broad_phase_with_real_shaped_bounds_retains_coincident_blocks",
+      "status": "passed"
+    },
+    {
+      "test": "test_box.BoxTests.test_three_exits_and_midpath_device_do_not_merge",
+      "status": "passed"
+    },
+    {
+      "test": "test_box.BoxTests.test_transformed_nested_region_and_explicit_hole_adapter",
+      "status": "passed"
+    },
+    {
+      "test": "test_box.BoxTests.test_unincluded_layer_at_panel_and_scope_extension",
+      "status": "passed"
+    },
+    {
+      "test": "test_box.BoxTests.test_unknown_blocks_gap_and_ignore_does_not_short_wires",
+      "status": "passed"
+    },
+    {
+      "test": "test_box.BoxTests.test_unsampled_block_discovery_and_identity_mapping",
+      "status": "passed"
+    },
+    {
+      "test": "test_box.BoxTests.test_zero_watts_requires_explicit_confirmation",
+      "status": "passed"
+    },
     {
       "test": "test_cad_adapter.CadAdapterTests.test_contour_polyline_missing_flags_matches_explicit_zero",
       "status": "passed"
@@ -327,6 +407,10 @@
       "status": "passed"
     },
     {
+      "test": "test_root_init.PackagedUpdateTests.test_old_ui_directory_requires_complete_new_package",
+      "status": "passed"
+    },
+    {
       "test": "test_root_init.PackagedUpdateTests.test_package_encoding_layout_and_update_forms",
       "status": "passed"
     },
@@ -344,6 +428,10 @@
     },
     {
       "test": "test_root_init.PackagedUpdateTests.test_update_preserves_old_root_and_config_then_stat_reaches_panel_pick",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootFixture.test_old_ui_directory_requires_complete_new_package",
       "status": "passed"
     },
     {
@@ -372,6 +460,10 @@
     },
     {
       "test": "test_root_init.RootInitTests.test_missing_root_is_initialized_before_config_path_is_used",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_old_ui_directory_requires_complete_new_package",
       "status": "passed"
     },
     {
@@ -464,30 +556,33 @@
     }
   ],
   "sha256": {
-    "src\\common.lsp": "b675d7cc57210ed98e2b9941fab3f84759b4735650e503ecc723f27c1dd912f8",
-    "src\\config.lsp": "9e990884e5586e523b51771c16556a97bff7c0f951653c4eeb4446448df87f40",
+    "src\\common.lsp": "da7aa5e8de4876e1de58f93461e052c33c4a07cd006b217e657f1b990917e6b0",
+    "src\\config.lsp": "21bfaca19ebd48e8de273bf1f2a7fbb4b7836d3ada3422f2f76f6761a3f7f15c",
     "src\\generation.lsp": "9b53377d3461c4e7ca5e7b96f5c8860f517360e2d8f88df6000916855e38dbfb",
-    "src\\geometry.lsp": "c03a54b47bb26eb5a4d51a5ffaf2170a6a934533bcd38cf4a4f181ac420d9ae0",
+    "src\\geometry.lsp": "b31e1c7bfcf4e665393e5702b6bef4c63e4644384bbedf0320560a3720efced8",
     "src\\load.lsp": "1903b40c44a3a2886c59252773789d5b64d9dff8c7ab94fbe0fdb9ba7d53c790",
-    "src\\main.lsp": "981688c4a252c7d48183be87896d74e74c9dcb8a2f5230488bf74a8d2e973585",
-    "src\\statistics.lsp": "06edd9e444745a9fdc38a889857c364e57a7a1873fd772692ab651598c65fb03",
-    "src\\topology.lsp": "677a511d67678acc57d6d907b6fa9fbb2ad262102060a4b5cb901b56d5968a7a",
+    "src\\main.lsp": "d581febf774f3e0a233cdfa1fe15aa1f7393baeca17944824d5d186f1377bd94",
+    "src\\statistics.lsp": "45e713b3653d0c204e58cd3feef7cc11de890cc765f6dba36d4da3f85b05ddb7",
+    "src\\topology.lsp": "f5fca3c3cce401a62c7e6606863970652fe5a11a73575daa7fedae07bdbbdadd",
     "tests\\autolisp_host.py": "e2745c58563726e58253a3fea5899e344f109465ab291158c8c4c5587b92e03a",
     "tests\\fixtures\\.gitkeep": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
     "tests\\fixtures\\baseline.json": "e15a30b9196750be2003641b663481c7c647b093b39ee7ca3e01ebdfdca83144",
     "tests\\fixtures\\cad-plan.dxf": "5265eb8a02ff207f7c693ecf4164fad0d5038348e1fbe17a09892232e5366fbb",
     "tests\\fixtures\\cad-plan.expected.json": "542e5f4cade31c75033c4323483d9a07a7197db6a975d1cca7bdfe7e897833e9",
     "tests\\fixtures\\generate_fixture.py": "78f401d22bb17eebf70529966c182531f22f27b99f50cb6a5a95e43dae1c5cd5",
-    "tests\\run_checks.py": "354daee669494e8a77369269a7e6bcacbc33071cedb401ba118ba5399f145ed5",
-    "tests\\test_cad_adapter.py": "693fc5de775f4a2f426d8382e571d61f3d6e2d6288fe002db6d742fe6b3fe430",
+    "tests\\run_checks.py": "5fe178f215df688528ed78f09a70b135a468363e86fcb32f5c7b204680245d17",
+    "tests\\test_box.py": "1b7beb9728619023ef477a31f0fc2817a3aa6e37eb91e5cdd013dc6a7675b03e",
+    "tests\\test_cad_adapter.py": "da83ea60a98b5885e1aefa13331e70184f13584c9988b9149726f3667902fbfb",
     "tests\\test_fixture.py": "512255c64397c6239185a8dbd00f9c1017532fcdaa3752d715a737f7fc4f77ed",
     "tests\\test_gap_index.py": "0522a4476db8e2a50e20edd7648da1183a429abd52929549a94e971941c8de79",
     "tests\\test_kernel.py": "9166bba55024d33a7ed8a913292dc9ae06717e53c1340c8ecd06b7564258e459",
-    "tests\\test_pick_feedback.py": "a5262f5222719a4acfed0753697954d2260f617e1d5d2aefc0582b11be7e53bd",
-    "tests\\test_root_init.py": "540de5f5b02d5c2c2dfcbb3cc5227218373e1037adce51b8c5c83e3b4f7b36b7",
-    "tests\\test_setup.py": "028166373bc200cef679edc56ce056e95042fb880dd52b4b0d1e26fca1df58af",
+    "tests\\test_pick_feedback.py": "61b3cb0a1a9635a29a8e9ed81d94385a2ae0eda376c2a4660eef48a2d6d6e2ff",
+    "tests\\test_root_init.py": "141304f6009c0151ccc27f89af59adcb736706a718b0d588c133a5c44d567121",
+    "tests\\test_setup.py": "85580e1da0757095f036ab6e4d17bc7bd9df6f6ba487152fed90ac990e1a4ba7",
     "tests\\test_source_contracts.py": "1a7eef03f219bec9c4aa3f114c2c9089f59d252b8585413f0799542445f9f634",
-    "ui\\power.dcl": "6dd105bf1003edd4a44849e6be26dbfbc5bafdaee07704e28bf070befd74e92e"
+    "tools\\build_cad2020.py": "d193ee33f9d47d5f04237db3242a29bb36129b48f56694d9efa48a49a9085bb9",
+    "ui\\box-ui-011.marker": "973a3b32f5632f31db12419d9ec6f597005e850b64dacf5d1c47fb7a69c086d4",
+    "ui\\power.dcl": "471760a057f1294db08613148980b1ff3e0a6c6c834605b4d38e995d583e3498"
   },
   "cad_status": "pending; no AutoCAD, representative DWG or real dynamic templates provided"
 }

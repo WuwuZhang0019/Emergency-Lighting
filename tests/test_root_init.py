@@ -38,6 +38,11 @@ def lisp_data(value):
 
 
 class RootFixture(unittest.TestCase):
+    def test_old_ui_directory_requires_complete_new_package(self):
+        marker = self.package / 'ui/box-ui-011.marker'
+        marker.unlink()
+        self.assertFalse(truth(self.h.call(Symbol('EL:ROOTVALID'), [self.root])))
+
     def setUp(self):
         self.assertTrue(CHECK_ROOT.resolve().is_relative_to(ROOT))
         CHECK_ROOT.mkdir(parents=True, exist_ok=True)

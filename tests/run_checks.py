@@ -28,7 +28,8 @@ if __name__=='__main__':
     suite=unittest.defaultTestLoader.discover(str(ROOT/'tests'))
     result=unittest.TextTestRunner(verbosity=2,resultclass=RecordingResult).run(suite)
     paths=sorted(list((ROOT/'src').glob('*.lsp'))+list((ROOT/'ui').glob('*.dcl'))+
-                 list((ROOT/'tests').glob('*.py'))+list((ROOT/'tests/fixtures').glob('*.*')))
+                 list((ROOT/'tests').glob('*.py'))+list((ROOT/'tests/fixtures').glob('*.*'))+
+                 [ROOT/'tools/build_cad2020.py', ROOT/'ui/box-ui-011.marker'])
     evidence={
         'session_date':'2026-10-08',
         'scope':'actual AutoLISP pure functions in a subset host; source contracts and adapter stubs; no CAD acceptance',

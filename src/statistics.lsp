@@ -122,7 +122,7 @@
     (progn
       (setq devices (EL:MergePowers (EL:Get 'devices raw) edits))
       (EL:WriteData path (list (cons 'version 2) (cons 'devices devices) (cons 'roles (EL:Get 'roles raw)))))
-    (princ "\n设备库无效，保留原文件；本图功率不受影响。")))
+    (progn (princ "\n设备库无效，保留原文件；本图功率不受影响。") nil)))
 
 (defun EL:LoadRoleLibrary (/ raw checked)
   (if *EL:Root*
@@ -141,4 +141,4 @@
         (setq old (EL:By 'identity (EL:Get 'identity row) roles)
               roles (if old (subst row old roles) (cons row roles))))
       (EL:WriteData path (list (cons 'version 2) (cons 'devices (EL:Get 'devices raw)) (cons 'roles roles))))
-    (princ "\n设备库无效，角色未写入设备库；原文件保留。")))
+    (progn (princ "\n设备库无效，角色未写入设备库；原文件保留。") nil)))

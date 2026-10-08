@@ -46,6 +46,11 @@ class BoxTests(unittest.TestCase):
         for point, expected in [([3., 4., 0.], False), ([1., 1., 0.], False), ([1., 4., 0.], True)]:
             self.assertEqual(truth(self.call('EL:RegionContains', point, b)), expected)
 
+    def test_crossed_or_nonplanar_loop_does_not_create_interior(self):
+        for points in ["((0 0 0) (2 2 0) (0 2 0) (2 0 0) (0 0 0))",
+                       "((0 0 0) (2 0 0) (2 2 1) (0 2 0) (0 0 0))"]:
+            self.assertFalse(truth(self.h.run(f"(EL:ClosedRings (EL:Segments '{points}))")))
+
     def test_unsampled_block_discovery_and_identity_mapping(self):
         self.block('NEW', 'NEW_LAYER', 'new', [0., 0., 0.])
         self.line('w', [-5., 0., 0.], [5., 0., 0.], 'W')
@@ -176,6 +181,128 @@ class BoxTests(unittest.TestCase):
         self.assertFalse(truth(self.h.run("(EL:SourceCurrent result cfg '((signature . \"changed\")))")))
         self.assertFalse(truth(self.h.run("(EL:SourceCurrent result (EL:Put 'roles '(changed) cfg) snapshot)")))
         self.assertFalse(truth(self.h.run("(EL:ReusableExits (EL:Put 'wire-layers '(\"OTHER\") cfg) \"panel\" snapshot)")))
+
+    def test_arc_path_uses_arc_not_chord(self):
+        self.block('LAMP', 'D', 'arc-lamp', [0., -5., 0.])
+        self.block('LAMP', 'D', 'chord-lamp', [0., 0., 0.])
+        self.entities['arc'] = [Pair(0, 'LWPOLYLINE'), Pair(5, 'arc'), Pair(8, 'W'),
+            Pair(10, [-5., 0.]), Pair(42, 1.), Pair(10, [5., 0.]), Pair(410, 'Model')]
+        cfg = self.h.lookup('CFG')
+        wire = self.call('EL:WireRecord', 'arc', cfg)
+        self.assertTrue(truth(self.call('EL:PathBlockHit', wire, self.record('arc-lamp'), cfg)))
+        self.assertFalse(truth(self.call('EL:PathBlockHit', wire, self.record('chord-lamp'), cfg)))
+
+    def test_transformed_nested_region_and_explicit_hole_adapter(self):
+        self.block('LAMP', 'D', 'nested', [2., 0., 0.])
+        self.entities['outer'] = [Pair(0, 'INSERT'), Pair(5, 'outer'), Pair(8, 'D'), Pair(2, 'OUTER'),
+            Pair(10, [10., 10., 0.]), Pair(41, 2.), Pair(42, 3.), Pair(50, 1.5707963267948966)]
+        self.blocks['OUTER'] = [Pair(10, [0., 0., 0.]), Pair(70, 0), Pair(-2, 'nested')]
+        self.next_entity['nested'] = 'LAMP-end'
+        rec = self.record('outer')
+        self.assertTrue(truth(self.call('EL:RegionContains', [10., 14., 0.], rec)))
+        self.assertFalse(truth(self.call('EL:RegionContains', [14., 10., 0.], rec)))
+        self.entities['hole'] = [Pair(0, 'LWPOLYLINE'), Pair(8, 'EL_HOLE'), Pair(70, 1),
+            *[Pair(10, p) for p in [[-.5, -.5], [.5, -.5], [.5, .5], [-.5, .5]]]]
+        self.next_entity['LAMP-edge-3'] = 'hole'
+        self.next_entity['hole'] = 'LAMP-end'
+        rec = self.record('nested')
+        self.assertFalse(self.get('issues', rec))
+        self.assertFalse(truth(self.call('EL:RegionContains', [2., 0., 0.], rec)))
+        self.assertTrue(truth(self.call('EL:RegionContains', [2.8, 0., 0.], rec)))
+
+    def test_middle_crossing_panel_never_counts_devices_behind(self):
+        self.block('BOX', 'P', 'panel', [0., 0., 0.])
+        self.block('BOX', 'P', 'other', [10., 0., 0.])
+        self.block('LAMP', 'D', 'far', [20., 0., 0.])
+        self.line('w', [1., 0., 0.], [19., 0., 0.], 'W')
+        self.selected = ['panel', 'other', 'far', 'w']
+        result = self.analyze()
+        self.assertFalse(truth(self.get('complete', result)))
+        self.assertNotIn('far', self.get('devices', self.get('circuits', result)[0]) or [])
+
+    def test_spatial_broad_phase_with_real_shaped_bounds_retains_coincident_blocks(self):
+        self.block('LAMP', 'D', 'near', [0., 0., 0.])
+        self.block('LAMP', 'D', 'coincident', [0., 0., 0.])
+        self.block('LAMP', 'D', 'far', [1000., 0., 0.])
+        self.line('w', [-5., 0., 0.], [5., 0., 0.], 'W')
+        self.selected = ['near', 'coincident', 'far', 'w']
+        self.h.builtins['EL:ENTITYBOUNDS'] = lambda e: (
+            [[999., -1., 0.], [1001., 1., 0.]] if e == 'far' else [[-1., -1., 0.], [1., 1., 0.]])
+        snap = self.call('EL:CollectEndpointSnapshot', self.h.lookup('CFG'))
+        self.assertEqual(set(self.get('id', b) for b in self.get('blocks', snap)), {'near', 'coincident'})
+
+    def test_drawing_role_overrides_library_role(self):
+        self.block('LAMP', 'D', 'lamp', [0., 0., 0.])
+        identity = self.get('identity', self.record('lamp'))
+        cfg = self.call('EL:PutRole', self.h.lookup('CFG'), identity, Symbol('IGNORE'))
+        lib_cfg = self.call('EL:PutRole', self.h.lookup('CFG'), identity, Symbol('DEVICE'))
+        self.h.frames[0]['*EL:LIBRARYROLES*'] = self.get('roles', lib_cfg)
+        self.assertEqual(self.get('role', self.call('EL:BlockRecord', 'lamp', cfg)), Symbol('IGNORE'))
+
+    def test_unincluded_layer_at_panel_and_scope_extension(self):
+        self.h.load_definitions(ROOT / 'src/main.lsp')
+        self.block('BOX', 'P', 'panel', [0., 0., 0.])
+        self.line('a', [1., 0., 0.], [10., 0., 0.], 'W')
+        self.line('b', [0., 1., 0.], [0., 10., 0.], 'W2')
+        self.selected = ['panel', 'a', 'b']
+        cfg = self.h.lookup('CFG')
+        snap = self.call('EL:CollectEndpointSnapshot', cfg)
+        self.assertEqual(self.call('EL:OutsidePorts', snap, cfg, 'panel'), [['b', 'W2']])
+        cfg = self.call('EL:ScopeLayer', cfg, 'W2')
+        snap = self.call('EL:CollectEndpointSnapshot', cfg)
+        self.assertFalse(self.call('EL:OutsidePorts', snap, cfg, 'panel'))
+        self.assertEqual(len(self.get('wires', snap)), 2)
+
+    def test_source_change_during_role_review_saves_nothing(self):
+        for module in ('statistics', 'main'):
+            self.h.load_definitions(ROOT / 'src' / f'{module}.lsp')
+        self.block('BOX', 'P', 'panel', [0., 0., 0.])
+        self.block('LAMP', 'D', 'lamp', [12., 0., 0.])
+        self.line('wire', [1., 0., 0.], [11., 0., 0.], 'W')
+        self.selected = ['panel', 'lamp', 'wire']
+        cfg, writes = self.h.lookup('CFG'), []
+
+        def changed(snapshot, config):
+            self.line('wire', [1., 0., 0.], [20., 0., 0.], 'W')
+            return config
+
+        self.h.builtins.update({
+            'EL:LOADCONFIG': lambda: cfg,
+            'ENTSEL': lambda prompt: ['panel' if '配电箱' in prompt else 'wire', [0., 0., 0.]],
+            'HANDENT': lambda handle: handle, 'REDRAW': lambda *args: None,
+            'EL:REVIEWEXITS': lambda seeds: [seeds], 'EL:REVIEWROLES': changed,
+            'EL:SAVECONFIG': lambda config: writes.append(config) or config,
+        })
+        self.h.run('(c:ELTRACE)')
+        self.assertEqual(writes, [])
+        self.assertIsNone(self.h.lookup('*EL:RESULT*'))
+        self.assertIsNone(self.h.lookup('*EL:PICKHIGHLIGHTS*'))
+
+    def test_exit_dialog_bulk_selection_and_scope_confirmation(self):
+        self.h.load_definitions(ROOT / 'src/main.lsp')
+        tiles, callbacks = {}, {}
+        self.h.frames[0]['*EL:ROOT*'] = 'package/'
+        self.h.builtins.update({
+            'LOAD_DIALOG': lambda *args: 1, 'NEW_DIALOG': lambda *args: True,
+            'UNLOAD_DIALOG': lambda *args: None, 'START_LIST': lambda *args: None,
+            'ADD_LIST': lambda *args: None, 'END_LIST': lambda: None,
+            'SET_TILE': lambda k, v: tiles.update({k: v}), 'GET_TILE': lambda k: tiles.get(k, '0'),
+            'ACTION_TILE': lambda k, v: callbacks.update({k: v}), 'DONE_DIALOG': lambda n: n,
+        })
+
+        def start_dialog():
+            tiles.update({'exits': '0 2', 'scope_exclude': '1', 'role_recheck': '1'})
+            return self.h.run(callbacks['accept'])
+
+        self.h.builtins['START_DIALOG'] = start_dialog
+        result = self.h.run('''(EL:ReviewExits '(
+          ((id . "R1") (wire . "a") (key "a" start) (point 1.0 0.0 0.0))
+          ((id . "R2") (wire . "in") (key "in" start) (point 0.0 1.0 0.0))
+          ((id . "R3") (wire . "c") (key "c" start) (point -1.0 0.0 0.0))))''')
+        self.assertEqual([self.get('wire', seed) for seed in result[0]], ['a', 'c'])
+        self.assertTrue(truth(self.h.lookup('*EL:SCOPECONFIRMED*')))
+        self.assertTrue(truth(self.h.lookup('*EL:REVIEWALLROLES*')))
+        self.assertIsNone(self.h.lookup('*EL:DIALOGID*'))
 
 
 if __name__ == '__main__':

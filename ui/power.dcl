@@ -1,3 +1,10 @@
+el_exits : dialog {
+  label = "整箱出口集中核对";
+  : text { label = "请选择全部出线；进线及非出线不选。确认后才建立回路。"; }
+  : list_box { key = "exits"; width = 88; height = 14; multiple_select = true; }
+  : button { key = "add_wire"; label = "补充导线图层"; }
+  ok_cancel;
+}
 el_power : dialog {
   label = "应急照明设备功率表（整数瓦）";
   : list_box { key = "rows"; label = "图块 / 本箱数量 / 各回路数量"; width = 88; height = 12; }

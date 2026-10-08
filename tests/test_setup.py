@@ -84,8 +84,9 @@ class SetupTests(unittest.TestCase):
         self.assertEqual(len(self.writes), 1)
         self.h.load_definitions(ROOT / 'src' / 'main.lsp')
         self.messages.clear()
+        self.h.builtins['EL:PREPAREBOX'] = lambda cfg: None
         self.h.run('(c:ELTRACE)')
-        self.assertIn('先运行 ELSETUP', ''.join(self.messages))
+        self.assertIsNone(self.h.lookup('*EL:RESULT*'))
 
     def test_reopen_draft_reuses_samples_and_only_explicit_choice_confirms(self):
         self.run_setup(None, None)

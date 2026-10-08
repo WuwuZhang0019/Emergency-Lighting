@@ -108,7 +108,9 @@ class CadAdapterTests(unittest.TestCase):
 
         self.h.builtins.update({
             'EL:LOADCONFIG': lambda: cfg,
-            'ENTSEL': lambda prompt: [panel, [0.0, 0.0, 0.0]],
+            'ENTSEL': lambda prompt: [panel if '配电箱' in prompt else 'wire', [0.0, 0.0, 0.0]],
+            'EL:REVIEWEXITS': lambda seeds: [seeds],
+            'EL:SAVECONFIG': lambda config: config,
             'HANDENT': lambda handle: handle,
             'REDRAW': lambda *args: None,
             'INITGET': lambda *args: None,
@@ -118,8 +120,7 @@ class CadAdapterTests(unittest.TestCase):
             'SET_TILE': lambda *args: None,
         })
         self.h.run('(c:ELSTAT)')
-        self.assertEqual(len(prompts), 1)
-        self.assertIn('是否为独立出线', prompts[0])
+        self.assertEqual(len(prompts), 0)
         self.assertEqual(len(dialogs), 1)
         circuits = self.get('circuits', dialogs[0])
         self.assertEqual(self.get('devices', circuits[0]), ['lamp'])

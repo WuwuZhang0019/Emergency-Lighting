@@ -17,7 +17,7 @@ class Cancelled(Exception):
 class PickFeedbackTests(unittest.TestCase):
     def setUp(self):
         self.h = Host()
-        for filename in ('common', 'config', 'main', 'generation'):
+        for filename in ('common', 'config', 'geometry', 'main', 'generation'):
             self.h.load_definitions(ROOT / 'src' / f'{filename}.lsp')
         self.entities = {
             name: [Pair(0, typ), Pair(5, name), Pair(8, layer), Pair(2, block), Pair(410, 'Model')]
@@ -153,8 +153,7 @@ class PickFeedbackTests(unittest.TestCase):
           (EL:Put 'calibrated T test:cfg)''')
         snapshot = [Pair(Symbol('SIGNATURE'), 'snapshot')]
         seeds = [[Pair(Symbol('WIRE'), wire), Pair(Symbol('ID'), wire)] for wire in ('wire', 'wire2')]
-        self.picks = iter(['panel'])
-        self.keywords = iter(['Yes', 'No'])
+        self.picks = iter(['panel', 'wire'])
 
         def analyze(snapshot, cfg, panel, selected):
             self.assertEqual(self.visible, {'panel', 'wire'})
@@ -164,7 +163,8 @@ class PickFeedbackTests(unittest.TestCase):
         self.h.builtins.update({
             'EL:ROLESREADY': lambda cfg: True,
             'EL:CURRENTCONTEXT': lambda cfg, panel: [snapshot, seeds],
-            'EL:BY': lambda *args: None,
+            'EL:REVIEWEXITS': lambda rows: [rows[:1]],
+            'EL:SAVECONFIG': lambda cfg: cfg,
             'EL:ANALYZESNAPSHOT': analyze,
             'EL:COLLECTENDPOINTSNAPSHOT': lambda cfg: snapshot,
         })

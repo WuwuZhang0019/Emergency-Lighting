@@ -261,30 +261,86 @@
       (if (EL:BoundsOverlap (EL:Get 'bounds item) bounds tol) (setq result (list item)))
       (append result (EL:SpatialBoxQuery (cadr tree) bounds tol)
                      (EL:SpatialBoxQuery (caddr tree) bounds tol)))))
-(defun EL:ClosedRings (segments / pending ring start point matches seg loops bad finished)
-  ;; Only unbranched closed components define interiors. Open decoration stays geometry.
-  (setq pending segments)
-  (while pending
-    (setq seg (car pending) pending (cdr pending) ring (list seg)
-          start (car seg) point (cadr seg) finished nil)
-    (while (and (not finished) (not (equal start point 1.0e-7)))
-      (setq matches (vl-remove-if-not '(lambda (s) (or (equal point (car s) 1.0e-7) (equal point (cadr s) 1.0e-7))) pending))
-      (if (= (length matches) 1)
-        (progn
-          (setq seg (car matches) pending (vl-remove seg pending))
-          (if (equal point (cadr seg) 1.0e-7) (setq seg (reverse seg)))
-          (setq ring (append ring (list seg)) point (cadr seg)))
-        (setq finished T)))
-    (if (and (not finished) (> (length ring) 2) (EL:SimpleRing ring)) (setq loops (cons ring loops))))
+(defun EL:RingItems (segments / items seg a b index)
+  ;; Date: 2026-10-08. XY broad phase only; exact 3D endpoint tests follow.
+  (setq index 0)
+  (foreach seg segments
+    (setq a (list (caar seg) (cadr (car seg)) 0.0)
+          b (list (car (cadr seg)) (cadr (cadr seg)) 0.0)
+          items (cons (list (cons 'key index) (cons 'segment seg)
+            (cons 'point (EL:V* 0.5 (EL:V+ a b)))
+            (cons 'bounds (list (mapcar 'min a b) (mapcar 'max a b)))) items)
+          index (1+ index)))
+  (reverse items))
+(defun EL:RingUsed (marks index size / mid)
+  ;; Persistent balanced bit tree: no linear MEMBER/VL-REMOVE per edge.
+  (if marks
+    (if (= size 1) T
+      (progn (setq mid (/ size 2))
+        (if (< index mid) (EL:RingUsed (car marks) index mid)
+          (EL:RingUsed (cadr marks) (- index mid) (- size mid)))))))
+(defun EL:RingMark (marks index size / mid)
+  (if (= size 1) T
+    (progn (setq mid (/ size 2))
+      (if (< index mid)
+        (list (EL:RingMark (car marks) index mid) (cadr marks))
+        (list (car marks) (EL:RingMark (cadr marks) (- index mid) (- size mid)))))))
+(defun EL:RegionProgress (phase completed total)
+  (EL:LogEvent "REGION_PROGRESS" (list (cons 'phase phase) (cons 'completed completed) (cons 'total total)))
+  (if *EL:LogActive*
+    (vl-catch-all-apply 'grtext (list -1 (strcat "闭合区域检查 " phase " " (itoa completed) "/" (itoa total)))))
+  nil)
+(defun EL:ClosedRings (segments / items tree marks count done item candidate ring start point query matches seg loops finished)
+  ;; Only unbranched closed paths define interiors. Keep original input order.
+  (setq count (length segments) done 0 items (EL:RingItems segments))
+  (EL:RegionProgress "index" 0 count)
+  (setq tree (EL:SpatialTree items 0))
+  (foreach item items
+    (if (not (EL:RingUsed marks (EL:Get 'key item) count))
+      (progn
+        (setq seg (EL:Get 'segment item) marks (EL:RingMark marks (EL:Get 'key item) count)
+              done (1+ done) ring (list seg) start (car seg) point (cadr seg) finished nil)
+        (while (and (not finished) (not (equal start point 1.0e-7)))
+          (setq query (list (car point) (cadr point) 0.0) matches nil)
+          (foreach candidate (EL:SpatialBoxQuery tree (list query query) 1.0e-7)
+            (setq seg (EL:Get 'segment candidate))
+            (if (and (not (EL:RingUsed marks (EL:Get 'key candidate) count))
+                (or (equal point (car seg) 1.0e-7) (equal point (cadr seg) 1.0e-7)))
+              (setq matches (cons candidate matches))))
+          (if (= (length matches) 1)
+            (progn
+              (setq candidate (car matches) seg (EL:Get 'segment candidate)
+                    marks (EL:RingMark marks (EL:Get 'key candidate) count) done (1+ done))
+              (if (equal point (cadr seg) 1.0e-7) (setq seg (reverse seg)))
+              (setq ring (cons seg ring) point (cadr seg)))
+            (setq finished T))
+          (if (= (rem done 256) 0) (EL:RegionProgress "link" done count)))
+        (setq ring (reverse ring))
+        (if (and (not finished) (> (length ring) 2) (EL:SimpleRing ring)) (setq loops (cons ring loops))))))
+  (EL:LogEvent "REGION_RESULT" (list (cons 'segments count) (cons 'rings (length loops))))
+  (EL:RegionProgress "done" done count)
   loops)
-(defun EL:SimpleRing (ring / valid a b elevation)
-  (setq valid T elevation (caddr (caar ring)))
+(defun EL:SimpleRing (ring / valid a b elevation items tree item candidates candidate checked total)
+  (setq valid T elevation (caddr (caar ring)) checked 0 total (length ring))
   (foreach a ring
     (if (or (> (abs (- (caddr (car a)) elevation)) (EL:GapEpsilon))
-            (> (abs (- (caddr (cadr a)) elevation)) (EL:GapEpsilon))) (setq valid nil))
-    (foreach b ring
-      (if (and (not (equal a b)) (EL:GapHitsSegment (car a) (cadr a) (car b) (cadr b)))
-        (setq valid nil))))
+            (> (abs (- (caddr (cadr a)) elevation)) (EL:GapEpsilon))) (setq valid nil)))
+  (if valid
+    (progn
+      (setq items (EL:RingItems ring) tree (EL:SpatialTree items 0))
+      (while (and valid items)
+        (setq item (car items) a (EL:Get 'segment item)
+              candidates (EL:SpatialBoxQuery tree (EL:Get 'bounds item) (EL:GapEpsilon)))
+        (while (and valid candidates)
+          (setq candidate (car candidates) b (EL:Get 'segment candidate))
+          ;; Check both directions once: endpoint-to-interior hits are asymmetric.
+          (if (and (< (EL:Get 'key item) (EL:Get 'key candidate)) (not (equal a b))
+              (or (EL:GapHitsSegment (car a) (cadr a) (car b) (cadr b))
+                  (EL:GapHitsSegment (car b) (cadr b) (car a) (cadr a))))
+            (setq valid nil))
+          (setq candidates (cdr candidates)))
+        (setq items (cdr items) checked (1+ checked))
+        (if (= (rem checked 256) 0) (EL:RegionProgress "intersections" checked total)))))
   valid)
 (defun EL:AmbiguousRings (rings holes / ambiguous a b)
   (foreach a rings

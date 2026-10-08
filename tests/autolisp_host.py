@@ -120,10 +120,11 @@ def lisp_type(x):
 
 
 class Host:
-    def __init__(self):
+    def __init__(self, step_limit=10000000):
         self.frames = [{'NIL': None, 'T': True, 'PI': math.pi}]
         self.functions = {}
         self.steps = 0
+        self.step_limit = step_limit
         self.builtins = {
             'CAR': car, 'CDR': cdr, 'CONS': cons, 'LIST': lambda *x: list(x) or None,
             'APPEND': lambda *xs: sum((seq(x) for x in xs), []) or None,
@@ -208,7 +209,7 @@ class Host:
 
     def evaluate(self, form):
         self.steps += 1
-        if self.steps > 10000000: raise RuntimeError('test step limit')
+        if self.steps > self.step_limit: raise RuntimeError('test step limit')
         if isinstance(form,Symbol): return self.lookup(form)
         if not isinstance(form,list): return form
         if not form: return None

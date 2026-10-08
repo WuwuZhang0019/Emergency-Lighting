@@ -88,11 +88,17 @@
   (if *EL:LogActive*
     (progn
       (setq *EL:LogSequence* (1+ *EL:LogSequence*)
-            *EL:LogLast* (list stage context)
-            line (strcat (itoa *EL:LogSequence*) " | " stage " | " (EL:LogText context)))
-      (if *EL:LogPath*
+            *EL:LogLast* (list stage context))
+      ;; Keep current failure context in memory; avoid per-vertex file I/O by default.
+      (if (and *EL:LogPath* (or *EL:LogVerbose* (not (member stage
+          '("POLYLINE_DXF_ROW" "POLYLINE_SEGMENT" "POLYLINE_INPUT" "POLYLINE_DATA_RESULT"
+            "ENTER POLYLINE_TRANS" "LEAVE POLYLINE_TRANS" "POLYLINE_TRANS_RESULT"
+            "ENTER CURVE_TRANS" "LEAVE CURVE_TRANS" "CURVE_TRANS_RESULT"
+            "CONTOUR_ENTITY" "CONTOUR_FILTER_INPUT" "CONTOUR_NEXT"
+            "ENTER CONTOUR_TRANSFORM" "LEAVE CONTOUR_TRANSFORM" "CONTOUR_TRANSFORM_RESULT")))))
         (progn
-          (setq result (vl-catch-all-apply 'EL:LogAppend (list line)))
+          (setq line (strcat (itoa *EL:LogSequence*) " | " stage " | " (EL:LogText context))
+                result (vl-catch-all-apply 'EL:LogAppend (list line)))
           (if (and (not (vl-catch-all-error-p result)) result) (setq *EL:LogWritten* T)
             (setq *EL:LogIOFailed* T *EL:LogPath* nil))))))
   nil)
@@ -101,7 +107,7 @@
         *EL:LogSequence* 0 *EL:LogWritten* nil *EL:LogIOFailed* nil)
   (EL:LogAttach)
   (setq stamp (vl-catch-all-apply 'getvar (list "CDATE")))
-  (EL:LogEvent "BEGIN" (list (cons 'command "ELSTAT/ELTRACE") (cons 'diagnostics "015")
+  (EL:LogEvent "BEGIN" (list (cons 'command "ELSTAT/ELTRACE") (cons 'diagnostics "016") (cons 'verbose *EL:LogVerbose*)
     (cons 'date (if (numberp stamp) stamp "unavailable")))))
 (defun EL:LogAttach (/ stamp)
   (if (and *EL:LogActive* (not *EL:LogPath*) (not *EL:LogIOFailed*)
@@ -109,7 +115,7 @@
     (progn
       (setq *EL:LogPath* (strcat *EL:Root* "output/ELTRACE-debug.log")
             stamp (vl-catch-all-apply 'getvar (list "CDATE")))
-      (EL:LogEvent "ATTACH" (list (cons 'diagnostics "015")
+      (EL:LogEvent "ATTACH" (list (cons 'diagnostics "016")
         (cons 'date (if (numberp stamp) stamp "unavailable")))))))
 (defun EL:LogCall (stage context function arguments / result started)
   ;; Leave the stack intact on an AutoLISP error; the command's *error* records it.

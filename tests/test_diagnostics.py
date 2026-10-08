@@ -23,7 +23,7 @@ class DiagnosticTests(unittest.TestCase):
     def logging(self):
         self.h.load_definitions(ROOT / 'src/statistics.lsp')
         self.h.load_definitions(ROOT / 'src/main.lsp')
-        check_root = ROOT / 'output/cad2020-015-check'
+        check_root = ROOT / 'output/cad2020-016-check'
         check_root.mkdir(exist_ok=True)
         temporary = tempfile.TemporaryDirectory(dir=check_root)
         self.addCleanup(temporary.cleanup)
@@ -31,6 +31,7 @@ class DiagnosticTests(unittest.TestCase):
         (root / 'output').mkdir()
         self.log = root / 'output/ELTRACE-debug.log'
         self.h.frames[0]['*EL:ROOT*'] = root.as_posix() + '/'
+        self.h.frames[0]['*EL:LOGVERBOSE*'] = True
         self.messages, self.handles = [], []
 
         def abort():
@@ -73,7 +74,7 @@ class DiagnosticTests(unittest.TestCase):
         # The subset host does not automatically dispatch AutoCAD's *error* hook.
         self.call('*ERROR*', str(caught.exception))
         text = self.log.read_text(encoding='utf-8')
-        for value in ('BEGIN', '015', 'PICKS', '1FD6', '1FCD', 'PREPARE_BOX',
+        for value in ('BEGIN', '016', 'PICKS', '1FD6', '1FCD', 'PREPARE_BOX',
                       'PANEL_RECORD', 'BLOCK_CONTOUR', 'INSERT_MATRIX', 'ERROR', 'numberp: nil', 'END'):
             self.assertIn(value, text)
         self.assertIn(str(self.log.as_posix()), ''.join(self.messages))
@@ -269,6 +270,19 @@ class DiagnosticTests(unittest.TestCase):
         self.h.run('(EL:LogStart) (EL:LogFailure "original numberp: nil")')
         self.assertTrue(all(f.closed for f in self.handles))
         self.assertIn('日志写入失败', ''.join(self.messages))
+
+    def test_summary_logging_keeps_suppressed_failure_context(self):
+        self.logging()
+        self.h.frames[0]['*EL:LOGVERBOSE*'] = None
+        self.h.run('(EL:LogStart)')
+        for i in range(512):
+            self.call('EL:LogEvent', 'CURVE_TRANS_RESULT', [float(i), 2., 3.])
+        self.call('EL:LogFailure', 'cancelled after sample')
+        log = self.log.read_text(encoding='utf-8')
+        self.assertNotIn('| CURVE_TRANS_RESULT |', log)
+        self.assertIn('CURVE_TRANS_RESULT', log.split('| ERROR |')[-1])
+        self.assertIn('511.0', log)
+        self.assertLess(len(self.handles), 10)
 
 
 if __name__ == '__main__':

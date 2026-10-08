@@ -4,7 +4,7 @@ import shutil
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGE_NO = 20
+PACKAGE_NO = 21
 NAME = f'应急照明-{PACKAGE_NO:03d}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 DEST = ROOT / 'output' / NAME
@@ -69,7 +69,7 @@ def build():
     shutil.copy2(ROOT / 'docs/04_整箱自动分回路统计与设备功率赋值方案.md',
                  DEST / 'docs/04_整箱自动分回路统计与设备功率赋值方案.md')
     (DEST / 'tests/evidence').mkdir(exist_ok=True)
-    for filename in ('2026-10-08-box-statistics.md', '2026-10-08-trace-diagnostics.md', '2026-10-08-contour-diagnostics.md', '2026-10-08-polyline-ocs-fix.md', '2026-10-08-curve-ocs-fix.md', '2026-10-08-region-performance.md', '2026-10-08-contact-performance.md', '2026-10-08-linear-contour-index.md', '2026-10-08-whole-block.md', '2026-10-08-exit-preview.md', 'automated-checks.json'):
+    for filename in ('2026-10-08-box-statistics.md', '2026-10-08-trace-diagnostics.md', '2026-10-08-contour-diagnostics.md', '2026-10-08-polyline-ocs-fix.md', '2026-10-08-curve-ocs-fix.md', '2026-10-08-region-performance.md', '2026-10-08-contact-performance.md', '2026-10-08-linear-contour-index.md', '2026-10-08-whole-block.md', '2026-10-08-exit-preview.md', '2026-10-08-sample-layer.md', 'automated-checks.json'):
         shutil.copy2(ROOT / 'tests/evidence' / filename, DEST / 'tests/evidence' / filename)
     readme = f'''# AutoCAD 2020 兼容试用包 v{PACKAGE_NO}
 日期：2026-10-08
@@ -77,7 +77,7 @@ def build():
 
 全部 LISP/DCL 使用严格 GB2312，文档使用 UTF-8。请完整解压，不直接加载仓库的 UTF-8 源码。
 
-v20 修复出口核对时无法区分导线的问题：点选列表项会暂时关闭窗口，返回图面亮显对应出线并显示黄色路径和方框标记，按 Enter 返回列表。选中项及两个勾选项会保留；也可使用“查看选中出线”按钮，全选后可一次查看。列表显示 R 编号和导线句柄。预览不修改原图，不重新采集。沿用 v19 图块整体识别，不展开内部几何，中段穿过仍算接入。真实 CAD 显示和耗时待复测，日志版本 DIAGNOSTICS 020。
+v21 修复选择出口后续线段时反复要求重选的问题。导线样本仅用于确定参与统计的图层，不要求样本自身接触箱体；已发现的实际箱口导线直接进入核对列表，不会把任意样本强行当作出线。没有候选时也可进入列表补充图层或取消；取消或未选出线后不再额外采集全图，并明确提示没有生成结果。EXIT_CONTEXT 记录箱体整体范围、样本路径和实际出口候选，日志版本 DIAGNOSTICS 021。沿用整体块识别和返回图面的黄色出口预览。
 
 1. 从旧 GB2312 包升级时，将旧包 config 中的 .eld 文件复制到新包 config；保留旧包作为备份。不要混用 UTF-8 配置。
 2. APPLOAD 本包根目录的 START-CAD2020.lsp，选择本包内 src/load.lsp，确认 v{PACKAGE_NO}。也可用 {UPDATE_NAME} 更新内存代码，但它沿用已有有效目录，日志可能保存在旧目录；以命令行路径为准。

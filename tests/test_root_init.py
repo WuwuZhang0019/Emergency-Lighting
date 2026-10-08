@@ -16,7 +16,7 @@ import zipfile
 from autolisp_host import Host, Pair, Symbol, parse, quoted, truth
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-CHECK_ROOT = ROOT / 'output' / 'cad2020-v5-check'
+CHECK_ROOT = ROOT / 'output' / 'cad2020-root-check'
 MODULES = ('common', 'config', 'geometry', 'topology', 'statistics', 'generation', 'main')
 
 
@@ -288,6 +288,52 @@ class PackagedUpdateTests(RootFixture):
         self.assertEqual(len(self.dialogs), 2)
         self.assertEqual(len(self.picks), 1)
         self.assertEqual(self.opens, [])
+
+    def test_packaged_setup_uses_fixed_mm_and_numeric_choices_with_real_data_io(self):
+        self.h.frames[0]['*EL:ROOT*'] = self.root
+        self.h.run(self.update)
+        entities = {
+            name: [Pair(0, typ), Pair(5, name), Pair(8, layer), Pair(2, name + '-block')]
+            for name, typ, layer in (('panel', 'INSERT', 'P'), ('wire', 'LINE', 'W'),
+                                     ('lamp', 'INSERT', 'D'))
+        }
+        picks = iter(entities)
+        choices = iter([None, 1])
+        prompts = []
+
+        def pick(prompt):
+            self.picks.append(prompt)
+            return [next(picks), [0.0, 0.0, 0.0]]
+
+        def choice(prompt):
+            prompts.append(prompt)
+            return next(choices)
+
+        self.h.builtins.update({
+            'ENTSEL': pick,
+            'ENTGET': lambda entity: entities[entity],
+            'EL:EFFECTIVENAME': lambda entity: entity + '-block',
+            'REDRAW': lambda *args: None,
+            'GETSTRING': lambda *args: self.fail('Packaged setup must not ask for units'),
+            'GETKWORD': lambda prompt: None,
+            'GETINT': choice,
+            'INITGET': lambda *args: None,
+        })
+        self.h.run('(c:ELSETUP)')
+        saved = self.h.run('(EL:LoadConfig)')
+        self.assertEqual(self.get('units', saved), 'mm')
+        self.assertTrue(truth(self.get('calibrated', saved)))
+        self.assertEqual(len(self.picks), 3)
+        self.assertEqual(len(prompts), 2)
+        self.assertNotIn('Keep', ''.join(prompts))
+        self.assertTrue(all(not encoding for _, _, encoding in self.opens))
+        self.assertIsNone(self.h.lookup('*EL:PICKHIGHLIGHTS*'))
+        choices = iter([None])
+        prompts.clear()
+        self.h.run('(c:ELSETUP)')
+        self.assertEqual(len(prompts), 1)
+        self.assertEqual(len(self.picks), 3)
+        self.assertTrue(truth(self.get('calibrated', self.h.run('(EL:LoadConfig)'))))
 
     def test_package_encoding_layout_and_update_forms(self):
         for path in self.built.rglob('*'):

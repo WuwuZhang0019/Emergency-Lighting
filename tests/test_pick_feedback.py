@@ -32,6 +32,7 @@ class PickFeedbackTests(unittest.TestCase):
         self.messages = []
         self.picks = iter(())
         self.keywords = iter(())
+        self.integers = iter(())
         self.samples_seen = []
         self.saved = []
         self.cfg = self.h.run('(EL:DefaultConfig "test.dwg")')
@@ -45,7 +46,8 @@ class PickFeedbackTests(unittest.TestCase):
             'HANDENT': lambda handle: handle if handle in self.entities else None,
             'REDRAW': self.redraw,
             'GETKWORD': lambda prompt: next(self.keywords),
-            'GETSTRING': self.units,
+            'GETSTRING': lambda *args: self.fail('ELSETUP must not request units'),
+            'GETINT': self.choice,
             'INITGET': lambda *args: None,
             'PRINC': lambda *args: self.messages.extend(args),
             'GRTEXT': lambda *args: None,
@@ -71,16 +73,20 @@ class PickFeedbackTests(unittest.TestCase):
             raise Cancelled()
         return [choice, [0.0, 0.0, 0.0]] if choice else None
 
-    def units(self, *args):
+    def choice(self, prompt):
         self.assertEqual(self.visible, {'panel', 'wire', 'lamp'})
-        return ''
+        choice = next(self.integers)
+        if choice == 'ESC':
+            self.h.call(Symbol('*ERROR*'), ['Function cancelled'])
+            raise Cancelled()
+        return choice
 
     def get(self, key, record):
         return self.h.call(Symbol('EL:GET'), [Symbol(key.upper()), record])
 
     def test_setup_samples_stay_highlighted_through_next_pick_and_clear_on_completion(self):
         self.picks = iter(['panel', 'wire', 'lamp'])
-        self.keywords = iter([None, None])
+        self.integers = iter([None, None])
         self.h.run('(c:ELSETUP)')
         self.assertEqual(self.samples_seen, [set(), {'panel'}, {'panel', 'wire'}])
         self.assertEqual(len(self.saved), 1)
@@ -91,6 +97,15 @@ class PickFeedbackTests(unittest.TestCase):
             self.assertEqual(self.display_calls.count((entity, 3)), 1)
             self.assertEqual(self.display_calls.count((entity, 4)), 1)
         self.assertIn('已拾取：LINE；图层：W；句柄：wire', ''.join(self.messages))
+
+    def test_escape_during_parameter_confirmation_clears_samples_without_saving(self):
+        self.picks = iter(['panel', 'wire', 'lamp'])
+        self.integers = iter([None, 'ESC'])
+        with self.assertRaises(Cancelled):
+            self.h.run('(c:ELSETUP)')
+        self.assertEqual(self.visible, set())
+        self.assertEqual(self.saved, [])
+        self.assertIsNone(self.h.lookup('*EL:PICKHIGHLIGHTS*'))
 
     def test_escape_after_first_sample_clears_it_without_saving(self):
         self.picks = iter(['panel', 'ESC'])

@@ -1,11 +1,12 @@
 // EL_BOX_UI_011
 el_exits : dialog {
   label = "整箱出口集中核对";
-  : text { label = "请选择全部出线；进线及非出线不选。确认后才建立回路。"; }
+  : text { label = "点选后返回图面查看出线，按 Enter 返回；进线及非出线不选。"; }
   : list_box { key = "exits"; width = 88; height = 14; multiple_select = true; }
   : text { key = "scope_info"; width = 88; }
   : toggle { key = "scope_exclude"; label = "已核对：明确排除上述未纳入图层的箱边导线"; }
   : toggle { key = "role_recheck"; label = "重新核对已知设备角色（需要修正分类时勾选）"; }
+  : button { key = "exit_preview"; label = "查看选中出线（返回图面）"; }
   : button { key = "exit_all"; label = "全选出线（请取消进线）"; }
   : button { key = "add_wire"; label = "补充导线图层"; }
   ok_cancel;

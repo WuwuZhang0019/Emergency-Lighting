@@ -2,7 +2,7 @@
   "session_date": "2026-10-08",
   "scope": "actual AutoLISP pure functions in a subset host; source contracts and adapter stubs; no CAD acceptance",
   "passed": true,
-  "test_count": 161,
+  "test_count": 164,
   "failure_count": 0,
   "error_count": 0,
   "baseline": {
@@ -276,6 +276,18 @@
     },
     {
       "test": "test_diagnostics.DiagnosticTests.test_write_failure_closes_file_and_preserves_original_error",
+      "status": "passed"
+    },
+    {
+      "test": "test_exit_preview.ExitPreviewTests.test_bulk_selection_does_not_draw_inside_modal_dialog",
+      "status": "passed"
+    },
+    {
+      "test": "test_exit_preview.ExitPreviewTests.test_cancel_and_add_layer_after_preview_clear_feedback",
+      "status": "passed"
+    },
+    {
+      "test": "test_exit_preview.ExitPreviewTests.test_each_row_has_its_own_visible_wire_and_state_survives_reopening",
       "status": "passed"
     },
     {
@@ -700,12 +712,12 @@
     }
   ],
   "sha256": {
-    "src\\common.lsp": "c4848fb8ad686b9c84d6717f0998f075db4afe0392fc6904a93d84e499b9fe6f",
+    "src\\common.lsp": "fd73a4f159cea175f0510efad1d8b174e4f08e0bf3919e80a126ccdadb382623",
     "src\\config.lsp": "21bfaca19ebd48e8de273bf1f2a7fbb4b7836d3ada3422f2f76f6761a3f7f15c",
     "src\\generation.lsp": "9b53377d3461c4e7ca5e7b96f5c8860f517360e2d8f88df6000916855e38dbfb",
     "src\\geometry.lsp": "d812ea3bec4e973fa9464155cb2b7fe951eb67c180e61c9ee8ee7d5bda75d18e",
     "src\\load.lsp": "1903b40c44a3a2886c59252773789d5b64d9dff8c7ab94fbe0fdb9ba7d53c790",
-    "src\\main.lsp": "4b02b45c66a26209eb10453cbbb1f49bc40a3e6fd1a88f0540e7dd9eee139b82",
+    "src\\main.lsp": "2e4ba7848697da989c55a45671c1492901c16fe1ae78726f760150e6314eb2d9",
     "src\\statistics.lsp": "45e713b3653d0c204e58cd3feef7cc11de890cc765f6dba36d4da3f85b05ddb7",
     "src\\topology.lsp": "6aacff5fd7a73d8805c037239b4b0a1c43921576bb96dde9de7ffd23050239a7",
     "tests\\autolisp_host.py": "f2bab46cf7bfc09e163617816a84b2919396da8741c62c37f880c31f239facac",
@@ -721,7 +733,8 @@
     "tests\\test_box.py": "7e307b256a7ad9c39b52db288eb062f0d3ed53a331cdb8cd94be36db4c30f502",
     "tests\\test_cad_adapter.py": "4d9bbe8f6880adf3fff86ffd7957fc637c321c44bc43f8d3ec3ebb3aa2c926c6",
     "tests\\test_contact_index.py": "eea49bc151b375f460da0142f5dd402578682516d7adcf86a6d44c84e434e3cd",
-    "tests\\test_diagnostics.py": "8054d26044b583f089295d119e3d81a1f7d0695c8cd2de3dc7ecb881ce6c9dfc",
+    "tests\\test_diagnostics.py": "0284f3673d3b7fdfa78a7d96a4345fd288d165a97cbb887c405a713e9fe558b2",
+    "tests\\test_exit_preview.py": "2efc4ac76505ea5a2f440460e77acfcc917e1dbf647a2c41751e713f980b7136",
     "tests\\test_fixture.py": "e99313bb1f15c79a7726e3e9c3967e29a1b7c9404f3dc3c7284c6d9275135c53",
     "tests\\test_gap_index.py": "0522a4476db8e2a50e20edd7648da1183a429abd52929549a94e971941c8de79",
     "tests\\test_kernel.py": "9166bba55024d33a7ed8a913292dc9ae06717e53c1340c8ecd06b7564258e459",
@@ -733,9 +746,9 @@
     "tests\\test_setup.py": "85580e1da0757095f036ab6e4d17bc7bd9df6f6ba487152fed90ac990e1a4ba7",
     "tests\\test_source_contracts.py": "1a7eef03f219bec9c4aa3f114c2c9089f59d252b8585413f0799542445f9f634",
     "tests\\test_whole_block.py": "a5d64bfe19d325f553bbaf39cfcd3df2fcf48707222cf252e78ae8ff3d031fc0",
-    "tools\\build_cad2020.py": "c696849cd16646fe4d42fb372df747bd1c4a1867b9fb116187e620acd1e8feac",
+    "tools\\build_cad2020.py": "d26dad8a4d92082482eb350752b043119b156dcdce0e1b59efd553f3fbc0b8f7",
     "ui\\box-ui-011.marker": "973a3b32f5632f31db12419d9ec6f597005e850b64dacf5d1c47fb7a69c086d4",
-    "ui\\power.dcl": "471760a057f1294db08613148980b1ff3e0a6c6c834605b4d38e995d583e3498"
+    "ui\\power.dcl": "ed781c85dfbf047ddd2b9b2682281e8c61f285ec1d58df24144fae82227a4fdf"
   },
   "cad_status": "pending; no AutoCAD, representative DWG or real dynamic templates provided"
 }

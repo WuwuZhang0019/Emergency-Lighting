@@ -23,7 +23,7 @@ class DiagnosticTests(unittest.TestCase):
     def logging(self):
         self.h.load_definitions(ROOT / 'src/statistics.lsp')
         self.h.load_definitions(ROOT / 'src/main.lsp')
-        check_root = ROOT / 'output/cad2020-019-check'
+        check_root = ROOT / 'output/cad2020-020-check'
         check_root.mkdir(exist_ok=True)
         temporary = tempfile.TemporaryDirectory(dir=check_root)
         self.addCleanup(temporary.cleanup)
@@ -74,7 +74,7 @@ class DiagnosticTests(unittest.TestCase):
         # The subset host does not automatically dispatch AutoCAD's *error* hook.
         self.call('*ERROR*', str(caught.exception))
         text = self.log.read_text(encoding='utf-8')
-        for value in ('BEGIN', '019', 'PICKS', '1FD6', '1FCD', 'PREPARE_BOX',
+        for value in ('BEGIN', '020', 'PICKS', '1FD6', '1FCD', 'PREPARE_BOX',
                       'PANEL_RECORD', 'BLOCK_BOUNDS', 'ERROR', 'numberp: nil', 'END'):
             self.assertIn(value, text)
         self.assertIn(str(self.log.as_posix()), ''.join(self.messages))

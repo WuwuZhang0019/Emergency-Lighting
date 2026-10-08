@@ -1,7 +1,48 @@
 (defun EL:DrawingID ()
   (if (= (getvar "DWGTITLED") 1)
     (strcase (strcat (getvar "DWGPREFIX") (getvar "DWGNAME")))))
-(defun EL:ConfigPath (id) (strcat *EL:Root* "config/drawing-" (EL:Hash id) ".eld"))
+(defun EL:NormalizeRoot (root)
+  (if (and (equal (type root) 'STR) (/= root ""))
+    (strcat (vl-string-right-trim "/\\" root) "/")))
+(defun EL:RootValid (root / ok file folder)
+  (if (setq root (EL:NormalizeRoot root))
+    (progn
+      (setq ok T)
+      (foreach file '("src/load.lsp" "src/common.lsp" "src/config.lsp" "src/geometry.lsp"
+                     "src/topology.lsp" "src/statistics.lsp" "src/generation.lsp"
+                     "src/main.lsp" "ui/power.dcl")
+        (if (not (findfile (strcat root file))) (setq ok nil)))
+      (foreach folder '("config" "output" "templates")
+        (if (not (vl-file-directory-p (strcat root folder))) (setq ok nil)))
+      ok)))
+(defun EL:RootFromLoad (path / name extension directory root)
+  (if (and (equal (type path) 'STR) (/= path "")
+           (setq name (vl-filename-base path)) (equal (type name) 'STR)
+           (equal (strcase name) "LOAD")
+           (setq extension (vl-filename-extension path)) (equal (type extension) 'STR)
+           (equal (strcase extension) ".LSP")
+           (setq directory (vl-filename-directory path)) (/= directory ""))
+    (progn
+      (setq root (EL:NormalizeRoot (strcat directory "/../")))
+      (if (EL:RootValid root) root))))
+(defun EL:EnsureRoot (/ selected root)
+  ;; A standalone session update may define commands before a data root exists.
+  (if (EL:RootValid *EL:Root*)
+    (setq *EL:Root* (EL:NormalizeRoot *EL:Root*))
+    (progn
+      (setq *EL:Root* nil)
+      (princ "\n尚未设置有效插件目录，请选择完整包内的 src/load.lsp。")
+      (setq selected (getfiled "请选择本包内的 src/load.lsp" "" "lsp" 0))
+      (cond
+        ((not selected) (princ "\n未选择插件目录，本次操作已停止。") nil)
+        ((setq root (EL:RootFromLoad selected))
+          (setq *EL:Root* root)
+          (princ (strcat "\n插件目录已设置：" root)) root)
+        (T (princ "\n请选择 src/load.lsp，并保留完整的 src、ui、config、output、templates 目录。") nil)))))
+(defun EL:ConfigPath (id / root)
+  (if (and (equal (type id) 'STR) (/= id "")
+           (setq root (EL:NormalizeRoot *EL:Root*)))
+    (strcat root "config/drawing-" (EL:Hash id) ".eld")))
 (defun EL:DefaultConfig (id)
   (list (cons 'version 1) (cons 'drawing id) (cons 'revision 0)
         (cons 'calibrated nil) (cons 'units nil) (cons 'params nil)
@@ -75,8 +116,7 @@
       (if (findfile tmp) (vl-file-delete tmp)) result)))
 (defun EL:LoadConfig (/ id path raw checked)
   (if (setq id (EL:DrawingID))
-    (progn
-      (setq path (EL:ConfigPath id))
+    (if (and (EL:EnsureRoot) (setq path (EL:ConfigPath id)))
       (if (not (findfile path)) (EL:DefaultConfig id)
         (progn
           (setq raw (EL:ReadData path)
@@ -84,10 +124,10 @@
           (if (and (not (vl-catch-all-error-p checked)) checked) raw
             (progn (princ (strcat "\n配置失效，请核对或用 ELSETUP 重新采样：" path)) nil)))))
     (progn (princ "\n请先保存 DWG，再建立图纸配置。") nil)))
-(defun EL:SaveConfig (cfg / next)
-  (setq next (EL:Put 'revision (1+ (EL:Get 'revision cfg)) cfg))
-  (if (and (EL:ConfigValid next (EL:DrawingID))
-           (EL:WriteData (EL:ConfigPath (EL:DrawingID)) next)) next
+(defun EL:SaveConfig (cfg / id next path)
+  (setq id (EL:DrawingID) next (EL:Put 'revision (1+ (EL:Get 'revision cfg)) cfg))
+  (if (and (EL:ConfigValid next id) (EL:EnsureRoot)
+           (setq path (EL:ConfigPath id)) (EL:WriteData path next)) next
     (progn (princ "\n配置未保存；检查配置字段和目录写入权限。") nil)))
 (defun EL:RolesReady (cfg / ok key name)
   (setq ok T)
@@ -100,9 +140,9 @@
   (and ok (EL:Get 'wire-layers cfg) (EL:Get 'panel-layers cfg) (EL:Get 'device-layers cfg)))
 (defun EL:SetupConfig (/ cfg id path backup)
   (setq id (EL:DrawingID) cfg (EL:LoadConfig))
-  (if (and id (not cfg))
+  (if (and id (not cfg) (setq path (EL:ConfigPath id)))
     (progn
-      (setq path (EL:ConfigPath id) backup (strcat path ".invalid-" (rtos (getvar "CDATE") 2 8)))
+      (setq backup (strcat path ".invalid-" (rtos (getvar "CDATE") 2 8)))
       (if (or (not (findfile path)) (vl-file-copy path backup))
         (progn (princ (strcat "\n失效配置已保留到 " backup "；重新采样建立配置。")) (setq cfg (EL:DefaultConfig id))))))
   (if cfg
@@ -199,7 +239,7 @@
     (progn
       (initget "Reuse Resample")
       (setq reuse (/= (getkword "\n已有采样 [Reuse沿用/Resample重新拾取] <Reuse>: ") "Resample"))))
-  (if (not reuse)
+  (if (and (not reuse) (or cfg (EL:RootValid *EL:Root*)))
     (progn
       (setq cfg (EL:SetupConfig))
       (if cfg (setq cfg (EL:Sample cfg 'panel "\n拾取配电箱图块样本: ")))

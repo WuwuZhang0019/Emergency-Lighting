@@ -33,6 +33,9 @@ class SetupTests(unittest.TestCase):
             'GETKWORD': lambda prompt: next(self.keywords),
             'GETREAL': lambda prompt: next(self.reals),
             'INITGET': lambda *args: None,
+            'VL-STRING-RIGHT-TRIM': lambda chars, text: text.rstrip(chars),
+            'FINDFILE': lambda path: path if path.endswith(('.lsp', '.dcl')) else None,
+            'VL-FILE-DIRECTORY-P': lambda path: True,
             'PRINC': lambda *args: self.messages.extend(args),
         })
         self.h.frames[0]['*EL:ROOT*'] = 'test-package/'

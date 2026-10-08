@@ -247,10 +247,28 @@
     (progn (setq a (car bounds) b (cadr bounds) z (caddr a))
       (EL:Segments (list (list (car a) (cadr a) z) (list (car b) (cadr a) z)
         (list (car b) (cadr b) z) (list (car a) (cadr b) z) (list (car a) (cadr a) z))))))
-(defun EL:SegmentBounds (segments / points)
-  (setq points (apply 'append segments))
-  (if points (list (list (apply 'min (mapcar 'car points)) (apply 'min (mapcar 'cadr points)) (apply 'min (mapcar 'caddr points)))
-                  (list (apply 'max (mapcar 'car points)) (apply 'max (mapcar 'cadr points)) (apply 'max (mapcar 'caddr points))))))
+(defun EL:SegmentBounds (segments / lo hi seg point)
+  ;; Date: 2026-10-08. Stream endpoints; no large APPLY/APPEND argument list.
+  (foreach seg segments
+    (foreach point seg
+      (if lo (setq lo (mapcar 'min lo point) hi (mapcar 'max hi point))
+        (setq lo point hi point))))
+  (if lo (list lo hi)))
+;; Contour order retains local adjacency. Balanced construction consumes each
+;; item once, without sorting or copying sublists at every recursive level.
+(defun EL:ContourTree (items / *EL:ContourCursor*)
+  (setq *EL:ContourCursor* items)
+  (EL:ContourTreeTake (length items)))
+(defun EL:ContourTreeTake (count / mid left right pivot bounds lo hi child)
+  (if (> count 0)
+    (progn
+      (setq mid (/ count 2) left (EL:ContourTreeTake mid)
+            pivot (car *EL:ContourCursor*) *EL:ContourCursor* (cdr *EL:ContourCursor*)
+            right (EL:ContourTreeTake (- count mid 1))
+            bounds (EL:Get 'bounds pivot) lo (car bounds) hi (cadr bounds))
+      (foreach child (list left right)
+        (if child (setq lo (mapcar 'min lo (nth 3 child)) hi (mapcar 'max hi (nth 4 child)))))
+      (list pivot left right lo hi))))
 (defun EL:BoundsOverlap (a b tol)
   (and a b (<= (caar a) (+ (car (cadr b)) tol)) (>= (car (cadr a)) (- (caar b) tol))
     (<= (cadr (car a)) (+ (cadr (cadr b)) tol)) (>= (cadr (cadr a)) (- (cadr (car b)) tol))
@@ -295,7 +313,7 @@
   ;; Only unbranched closed paths define interiors. Keep original input order.
   (setq count (length segments) done 0 items (EL:RingItems segments))
   (EL:RegionProgress "index" 0 count)
-  (setq tree (EL:SpatialTree items 0))
+  (setq tree (EL:ContourTree items))
   (foreach item items
     (if (not (EL:RingUsed marks (EL:Get 'key item) count))
       (progn
@@ -328,7 +346,7 @@
             (> (abs (- (caddr (cadr a)) elevation)) (EL:GapEpsilon))) (setq valid nil)))
   (if valid
     (progn
-      (setq items (EL:RingItems ring) tree (EL:SpatialTree items 0))
+      (setq items (EL:RingItems ring) tree (EL:ContourTree items))
       (while (and valid items)
         (setq item (car items) a (EL:Get 'segment item)
               candidates (EL:SpatialBoxQuery tree (EL:Get 'bounds item) (EL:GapEpsilon)))
@@ -357,8 +375,9 @@
   (reverse rows))
 (defun EL:PrepareContactBlock (block / segments bounds tree)
   ;; Date: 2026-10-08. Build once per physical pass, never persist in snapshots.
-  (setq segments (EL:Get 'segments block) bounds (EL:SegmentBounds segments))
-  (if (>= (length segments) 64) (setq tree (EL:SpatialTree (EL:RingItems segments) 0)))
+  (setq segments (EL:Get 'segments block)
+        bounds (EL:LogCall "CONTACT_BOUNDS" (EL:Get 'id block) 'EL:SegmentBounds (list segments)))
+  (if (>= (length segments) 64) (setq tree (EL:LogCall "CONTACT_TREE" (EL:Get 'id block) 'EL:ContourTree (list (EL:RingItems segments)))))
   (append block (list (cons 'contact-ready T) (cons 'contact-segment-bounds (EL:XYBounds bounds))
     (cons 'contact-path-bounds (cond ((EL:Get 'bounds block)) (T bounds)))
     (cons 'contact-tree tree) (cons 'contact-regions (EL:ContactRings (EL:Get 'regions block)))

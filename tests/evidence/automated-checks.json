@@ -2,7 +2,7 @@
   "session_date": "2026-10-08",
   "scope": "actual AutoLISP pure functions in a subset host; source contracts and adapter stubs; no CAD acceptance",
   "passed": true,
-  "test_count": 152,
+  "test_count": 155,
   "failure_count": 0,
   "error_count": 0,
   "baseline": {
@@ -447,6 +447,18 @@
       "status": "passed"
     },
     {
+      "test": "test_linear_contour.LinearContourTests.test_build_cost_scales_linearly_without_sorting",
+      "status": "passed"
+    },
+    {
+      "test": "test_linear_contour.LinearContourTests.test_queries_preserve_all_candidates_including_shuffled_duplicates",
+      "status": "passed"
+    },
+    {
+      "test": "test_linear_contour.LinearContourTests.test_stream_bounds_match_xyz_extrema_without_append",
+      "status": "passed"
+    },
+    {
       "test": "test_ocs_transforms.OcsTransformTests.test_arc_crossing_zero_preserves_direction_elevation_and_negative_normal",
       "status": "passed"
     },
@@ -664,10 +676,10 @@
     }
   ],
   "sha256": {
-    "src\\common.lsp": "eb15dfe9815c10799e95d7a6608daeb85b9bbaa23cd44216d5fc28866a5fba9e",
+    "src\\common.lsp": "82e47a76a70a530a6d2387761e3ec7f3429497200259a231da67219d14982bdb",
     "src\\config.lsp": "21bfaca19ebd48e8de273bf1f2a7fbb4b7836d3ada3422f2f76f6761a3f7f15c",
     "src\\generation.lsp": "9b53377d3461c4e7ca5e7b96f5c8860f517360e2d8f88df6000916855e38dbfb",
-    "src\\geometry.lsp": "7291a6dcc4a6cf616087422f7b8f12f8bcadd8ef1ee69df8ea8d8aadd67aca13",
+    "src\\geometry.lsp": "15d6ddfb359fa16457d4ecd570afd275d30a421ba7a35af23237aaf435d443ce",
     "src\\load.lsp": "1903b40c44a3a2886c59252773789d5b64d9dff8c7ab94fbe0fdb9ba7d53c790",
     "src\\main.lsp": "4b02b45c66a26209eb10453cbbb1f49bc40a3e6fd1a88f0540e7dd9eee139b82",
     "src\\statistics.lsp": "45e713b3653d0c204e58cd3feef7cc11de890cc765f6dba36d4da3f85b05ddb7",
@@ -685,17 +697,18 @@
     "tests\\test_box.py": "1b7beb9728619023ef477a31f0fc2817a3aa6e37eb91e5cdd013dc6a7675b03e",
     "tests\\test_cad_adapter.py": "da83ea60a98b5885e1aefa13331e70184f13584c9988b9149726f3667902fbfb",
     "tests\\test_contact_index.py": "eea49bc151b375f460da0142f5dd402578682516d7adcf86a6d44c84e434e3cd",
-    "tests\\test_diagnostics.py": "c757033802ad01add5d8a35d41e30eb2429baadfb0cc8c1713afc8af2031265f",
+    "tests\\test_diagnostics.py": "4c07d18efe1bbe6545238643a0ec58b637111d4a4b40b7f581cec467b35d21c1",
     "tests\\test_fixture.py": "512255c64397c6239185a8dbd00f9c1017532fcdaa3752d715a737f7fc4f77ed",
     "tests\\test_gap_index.py": "0522a4476db8e2a50e20edd7648da1183a429abd52929549a94e971941c8de79",
     "tests\\test_kernel.py": "9166bba55024d33a7ed8a913292dc9ae06717e53c1340c8ecd06b7564258e459",
+    "tests\\test_linear_contour.py": "e5897bd9f84bf1eee53e75181390b3fca65e8166712fd622987a9ca3cd15f036",
     "tests\\test_ocs_transforms.py": "8f57ff475a879aea2f7ebcb7cb96783fb989060eb20bef1234f6719a225ddd83",
     "tests\\test_pick_feedback.py": "61b3cb0a1a9635a29a8e9ed81d94385a2ae0eda376c2a4660eef48a2d6d6e2ff",
     "tests\\test_region_index.py": "67dbc841ac683fe57114c76b2fe3558df81b254fdf2eecf2e5925d3aa751964d",
     "tests\\test_root_init.py": "141304f6009c0151ccc27f89af59adcb736706a718b0d588c133a5c44d567121",
     "tests\\test_setup.py": "85580e1da0757095f036ab6e4d17bc7bd9df6f6ba487152fed90ac990e1a4ba7",
     "tests\\test_source_contracts.py": "1a7eef03f219bec9c4aa3f114c2c9089f59d252b8585413f0799542445f9f634",
-    "tools\\build_cad2020.py": "3efa27a2b2952b0678cac4332c3ea8f33ceca79849d87043ba8de07df3b2b4db",
+    "tools\\build_cad2020.py": "735c8f0422bed3319a2940c750ef88a05c355bb50347944705a2a52712cd593a",
     "ui\\box-ui-011.marker": "973a3b32f5632f31db12419d9ec6f597005e850b64dacf5d1c47fb7a69c086d4",
     "ui\\power.dcl": "471760a057f1294db08613148980b1ff3e0a6c6c834605b4d38e995d583e3498"
   },

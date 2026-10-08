@@ -16,6 +16,7 @@ v10 默认向前搜索 2000 mm，仅匹配共线、相向、同高程断口；�
 
 - [01 应急照明回路统计与系统图生成方案](docs/01_应急照明回路统计与系统图生成方案.md)
 - [02 断线导线几何续接算法方案](docs/02_断线导线几何续接算法方案.md)
+- [04 整箱自动分回路统计与设备功率赋值方案（待实施，含流程图）](docs/04_整箱自动分回路统计与设备功率赋值方案.md)
 - [逐阶段实施状态及证据映射](tests/evidence/implementation-status.md)
 - [集中 CAD 验收清单（未执行）](tests/evidence/cad-acceptance.md)
 - [原始参考 LSP](参考/FAS_topological_graphV2%20-%20副本.lsp)（保留原样，无 XFTJ 依赖）

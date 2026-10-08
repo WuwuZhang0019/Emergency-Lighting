@@ -172,6 +172,53 @@ class CadAdapterTests(unittest.TestCase):
         self.assertEqual(len(self.zoom_calls), 2)
         self.assertEqual(self.zoom_calls[-1], ('app', [0.0, 0.0, 0.0], 100.0))
 
+    def test_gap_command_without_params_uses_defaults_without_numeric_prompts(self):
+        self.gap_command()
+        cfg = self.call('EL:Put', Symbol('PARAMS'), None, self.h.lookup('CFG'))
+        self.h.builtins['EL:LOADCONFIG'] = lambda: cfg
+        self.h.builtins['GETREAL'] = lambda *args: self.fail('unexpected parameter prompt')
+        self.h.run('(c:ELGAPTEST)')
+        self.assertIn('已自动采用默认识别参数', ''.join(self.messages))
+        self.assertIn('找到一对双向几何匹配', ''.join(self.messages))
+        self.assertIsNone(self.get('params', cfg))  # Preview must not persist defaults.
+
+    def test_gap_range_expands_to_long_gap_without_repick_or_changing_other_values(self):
+        self.gap_command(actions=('Range', None))
+        self.line('b', [360.0, 0.0, 0.0], [370.0, 0.0, 0.0], 'W')
+        prompts = []
+        self.h.builtins['GETREAL'] = lambda prompt: prompts.append(prompt) or 500.0
+        self.h.run('(c:ELGAPTEST)')
+        messages = ''.join(self.messages)
+        self.assertLess(messages.index('无合格候选'), messages.index('找到一对双向几何匹配'))
+        self.assertIn('350.000', messages)
+        self.assertEqual(len(prompts), 1)
+        self.assertEqual(len(self.picks), 1)
+        preview = self.h.lookup('*EL:PICKPARAMS*')
+        saved = self.get('params', self.h.lookup('CFG'))
+        self.assertEqual(self.get('Dmax', preview), 500.0)
+        self.assertEqual(self.get('Dmax', saved), 200.0)
+        for key in ('eps_touch', 'eps_boundary', 'eps_perp', 'eps_z', 'theta_max', 'R0'):
+            self.assertEqual(self.get(key, preview), self.get(key, saved))
+
+    def test_gap_range_rejects_invalid_value_and_enter_keeps_existing_range(self):
+        self.gap_command(actions=('Range', None))
+        values = iter((10.0, None))
+        self.h.builtins['GETREAL'] = lambda prompt: next(values)
+        self.h.run('(c:ELGAPTEST)')
+        self.assertIn('请重新输入', ''.join(self.messages))
+        self.assertEqual(self.get('Dmax', self.h.lookup('*EL:PICKPARAMS*')), 200.0)
+
+    def test_gap_advanced_params_enter_preserves_custom_values(self):
+        self.gap_command(actions=('Params', None))
+        params = self.call('EL:Put', Symbol('DMAX'), 800.0, self.h.run('(EL:SuggestedParams)'))
+        cfg = self.call('EL:Put', Symbol('PARAMS'), params, self.h.lookup('CFG'))
+        self.h.builtins['EL:LOADCONFIG'] = lambda: cfg
+        prompts = []
+        self.h.builtins['GETREAL'] = lambda prompt: prompts.append(prompt) and None
+        self.h.run('(c:ELGAPTEST)')
+        self.assertEqual(len(prompts), 7)  # Only the explicit Params action asks.
+        self.assertEqual(self.get('Dmax', self.h.lookup('*EL:PICKPARAMS*')), 800.0)
+
     def test_gap_command_read_error_reports_entity_and_does_not_continue(self):
         self.gap_command()
 

@@ -4,7 +4,7 @@ import shutil
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGE_NO = 8
+PACKAGE_NO = 9
 NAME = f'应急照明-{PACKAGE_NO:03d}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 DEST = ROOT / 'output' / NAME
@@ -69,6 +69,8 @@ def build():
 状态：已完成兼容打包，真实 CAD 全流程验收待完成
 
 适用于简体中文 Windows 上的 AutoCAD 2020。全部 LISP 和 DCL 已转换为 GB2312，无需自行改编码或设置 LISPSYS。文档保持 UTF-8。
+
+v9 的 ELGAPTEST 在没有已保存参数时直接采用默认值，不再逐项要求回车；已有自定义参数仍沿用。预览菜单显示中文操作说明，新增 R（Range）仅修改搜索上限，并立即重查当前端点。断口超过默认 200 mm 时可按实际长度输入更大的上限，例如 500 mm。P（Params）才进入高级参数，回车保留当前值。本次预览修改不保存；正式统计须在 ELSETUP 中设置同样的上限并核对。
 
 v8 补齐多段线导线及图块轮廓缺少标志字段时的默认值，避免空值进入位运算；增加 ELGAPTEST 完整命令回归及报错阶段、采集对象句柄提示。保留 v7 的 numberp: nil 修复。截图尚不能确定实际图纸的唯一根因，加载本包后请复测 ELGAPTEST；如仍报错，请保留包含失败阶段和对象信息的完整命令记录。
 

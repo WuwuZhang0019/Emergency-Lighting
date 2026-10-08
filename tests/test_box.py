@@ -119,6 +119,35 @@ class BoxTests(unittest.TestCase):
         snap = self.call('EL:Put', Symbol('BLOCKS'), [rec], snap)
         self.assertFalse(self.get('edges', self.call('EL:BuildPhysical', snap, cfg, None)))
 
+    def test_power_table_merges_ids_and_keeps_identity_variants(self):
+        self.h.load_definitions(ROOT / 'src/statistics.lsp')
+        self.h.run('''
+          (setq row1 '((identity "lamp" nil "def") (name . "lamp") (ids "a") (count . 1)))
+          (setq row2 '((identity "lamp" nil "def") (name . "lamp") (ids "b") (count . 1)))
+          (setq row3 '((identity "lamp" ((state . "other")) "def") (name . "lamp") (ids "c") (count . 1)))
+          (setq result (list (cons 'circuits (list
+            (list (cons 'id "R1") (cons 'counts (list row1 row3)))
+            (list (cons 'id "R2") (cons 'counts (list row2)))))))''')
+        rows = self.call('EL:PowerTableRows', self.h.lookup('RESULT'))
+        self.assertEqual(len(rows), 2)
+        row = next(r for r in rows if self.get('count', r) == 2)
+        self.assertEqual(set(self.get('ids', row)), {'a', 'b'})
+        self.assertEqual(len(self.get('circuits', row)), 2)
+
+    def test_zero_watts_requires_explicit_confirmation(self):
+        self.h.load_definitions(ROOT / 'src/statistics.lsp')
+        self.h.load_definitions(ROOT / 'src/main.lsp')
+        tiles = {'category': '4', 'display': '控制设备', 'watts': '0', 'zero': '0'}
+        self.h.builtins.update({'GET_TILE': lambda key: tiles[key],
+                               'SET_TILE': lambda key, val: tiles.update({key: val})})
+        self.h.run('''(setq *EL:PowerRows* '(((identity "lamp" nil "def"))))
+          (setq *EL:PowerIndex* 0)''')
+        self.assertFalse(truth(self.h.run('(EL:PowerUISave)')))
+        self.assertIsNone(self.h.lookup('*EL:POWEREDITS*'))
+        tiles['zero'] = '1'
+        self.assertTrue(truth(self.h.run('(EL:PowerUISave)')))
+        self.assertEqual(self.get('watts', self.h.lookup('*EL:POWEREDITS*')[0]), 0)
+
 
 if __name__ == '__main__':
     unittest.main()

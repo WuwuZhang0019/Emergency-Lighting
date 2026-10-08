@@ -67,6 +67,7 @@
   (if (> total 172)
     (setq issues (cons (EL:Issue 'POWER_OVER_LIMIT (EL:Get 'devices circuit)
       (list (cons 'circuit (EL:Get 'id circuit)) (cons 'watts total) (cons 'counts (reverse out)))) issues)))
+  (setq circuit (EL:Put 'power-values-complete good circuit))
   (setq good (and good (EL:Get 'complete circuit)))
   (setq circuit (EL:Put 'counts (reverse out) circuit) circuit (EL:Put 'watts total circuit)
         circuit (EL:Put 'power-complete good circuit) circuit (EL:Put 'power-issues (reverse issues) circuit)
@@ -91,7 +92,8 @@
       (setq old (EL:By 'identity (EL:Get 'identity row) rows))
       (if old
         (setq rows (subst (EL:Put 'circuits (cons (list (EL:Get 'id circuit) (EL:Get 'count row)) (EL:Get 'circuits old))
-          (EL:Put 'count (+ (EL:Get 'count row) (EL:Get 'count old)) old)) old rows))
+          (EL:Put 'ids (EL:Unique (append (EL:Get 'ids old) (EL:Get 'ids row)))
+            (EL:Put 'count (+ (EL:Get 'count row) (EL:Get 'count old)) old))) old rows))
         (setq rows (cons (EL:Put 'circuits (list (list (EL:Get 'id circuit) (EL:Get 'count row))) row) rows)))))
   (reverse rows))
 (defun EL:PrintStatistics (result / circuit row)
@@ -106,3 +108,17 @@
   (if (EL:Get 'box-total-overflow result) (princ "\n合计超出整数范围，上述为部分小计；正式生成禁用。"))
   (if (not (EL:Get 'can-generate result)) (princ "\n存在未解决识别／功率问题或超过 172W，正式生成已禁用。")))
 (princ)
+
+(defun EL:MergePowers (saved edits / row old)
+  (foreach row edits
+    (setq old (EL:By 'identity (EL:Get 'identity row) saved)
+          saved (if old (subst row old saved) (cons row saved))))
+  saved)
+(defun EL:SavePowerLibrary (edits / path raw checked devices)
+  (setq path (strcat *EL:Root* "config/device-library.eld") raw (EL:ReadData path))
+  (setq checked (if raw (vl-catch-all-apply 'EL:LibraryValid (list raw)) (not (findfile path))))
+  (if (and checked (not (vl-catch-all-error-p checked)))
+    (progn
+      (setq devices (EL:MergePowers (EL:Get 'devices raw) edits))
+      (EL:WriteData path (list (cons 'version 1) (cons 'devices devices))))
+    (princ "\n设备库无效，保留原文件；本图功率不受影响。")))

@@ -10,6 +10,8 @@ el_exits : dialog {
 }
 el_power : dialog {
   label = "应急照明设备功率表（整数瓦）";
+  : list_box { key = "circuit_rows"; label = "回路 / 出口 / 数量 / 功率 / 识别状态"; width = 110; height = 6; }
+  : toggle { key = "save_library"; label = "将本次明确确认的功率同时保存到设备库"; }
   : list_box { key = "rows"; label = "图块 / 本箱数量 / 各回路数量"; width = 88; height = 12; }
   : text { key = "source"; width = 80; }
   : popup_list { key = "category"; label = "确认类别"; }

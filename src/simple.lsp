@@ -1,4 +1,14 @@
 ;; Date: 2026-10-08. Two picks, connected devices, one persistent power table.
+(defun EL:SimpleBlockCandidates (wire tree cfg / candidates ep)
+  (setq candidates (EL:SpatialBoxQuery tree (EL:SegmentBounds (EL:Get 'segments wire))
+    (EL:Get 'eps_boundary (EL:Get 'params cfg))))
+  ;; A block wholly inside a gap must still prevent jumping across it.
+  (foreach ep (EL:Get 'ends wire)
+    (if (EL:GapEligible ep)
+      (setq candidates (append candidates (EL:SpatialRayQuery tree (EL:Get 'point ep)
+        (EL:Get 'direction ep) (EL:Get 'Dmax (EL:Get 'params cfg)))))))
+  candidates)
+
 (defun EL:SimpleCollect (cfg / ss i e d bounds items tree wires ends blocks candidates wire candidate id issues block)
   ;; Collect only the sampled wire layer and whole INSERT bounds. No role library,
   ;; outside-layer paths, dynamic-state signatures or block contents are needed.
@@ -18,7 +28,7 @@
                 ends (append (EL:Get 'ends wire) ends) issues (append (EL:Get 'issues wire) issues))))))
   (setq tree (EL:SpatialTree items 0))
   (foreach wire wires
-    (foreach candidate (EL:SpatialBoxQuery tree (EL:SegmentBounds (EL:Get 'segments wire)) (EL:Get 'eps_boundary (EL:Get 'params cfg)))
+    (foreach candidate (EL:SimpleBlockCandidates wire tree cfg)
       (if (not (member (EL:Get 'key candidate) candidates))
         (progn
           (setq id (EL:Get 'key candidate) *EL:SimpleEntity* (list id 'block-name)
@@ -29,7 +39,31 @@
   (EL:LogEvent "SIMPLE_COUNTS" (list (cons 'wires (length wires)) (cons 'blocks (length blocks)) (cons 'issues issues)))
   (list (cons 'drawing (EL:DrawingID)) (cons 'wires wires) (cons 'blocks blocks) (cons 'ends ends) (cons 'issues issues)))
 
-(defun EL:SimpleNetwork (snapshot cfg panel / wires blocks block wire bounds items tree edges attached ends ep other occupied tol ztol rows pairs component)
+(defun EL:SimpleEndState (ep tree cfg / point occupied candidate)
+  (setq point (EL:Get 'point ep) occupied (EL:Get 'occupied ep))
+  (foreach candidate (EL:SpatialBoxQuery tree (list point point) (EL:Get 'eps_boundary (EL:Get 'params cfg)))
+    (if (EL:BlockPointHit point (EL:Get 'block candidate) cfg) (setq occupied T)))
+  ;; Only this endpoint is occupied; a connection elsewhere on its wire does
+  ;; not prevent a free broken end from continuing to its unique counterpart.
+  (EL:Put 'wire-attached nil (EL:Put 'occupied occupied ep)))
+
+(defun EL:SimpleGapLog (snapshot cfg rows pairs / ep count logged)
+  (if *EL:LogActive*
+    (progn
+      (setq count 0 logged 0)
+      (foreach ep (EL:Get 'ends snapshot)
+        (if (not (EL:Get 'occupied ep))
+          (progn
+            (setq count (1+ count))
+            (if (< logged 100)
+              (progn
+                (EL:LogEvent "SIMPLE_GAP_END" (list ep (EL:By 'key (EL:Get 'key ep) rows)))
+                (setq logged (1+ logged)))))))
+      (EL:LogEvent "SIMPLE_GAPS" (list (cons 'max-distance (EL:Get 'Dmax (EL:Get 'params cfg)))
+        (cons 'open-ends count) (cons 'logged-ends logged) (cons 'omitted-ends (- count logged))
+        (cons 'paired-gaps (length (EL:Get 'pairs pairs))))))))
+
+(defun EL:SimpleNetwork (snapshot cfg panel / wires blocks block wire bounds items tree edges ends ep other occupied tol ztol rows pairs component)
   (setq wires (EL:Get 'wires snapshot) tol (EL:Get 'eps_touch (EL:Get 'params cfg)) ztol (EL:GapEpsilon))
   (foreach block (EL:Get 'blocks snapshot)
     (setq blocks (cons (EL:Put 'role (if (equal (EL:Get 'id block) panel) 'panel 'device) block) blocks)))
@@ -60,17 +94,18 @@
     (foreach other (EL:SpatialBoxQuery tree (EL:SegmentBounds (EL:Get 'segments wire)) (max tol (EL:Get 'eps_boundary (EL:Get 'params cfg))))
       (setq block (EL:Get 'block other))
       (if (EL:PathBlockHit wire block cfg)
-        (setq edges (cons (EL:Edge (EL:Get 'id wire) (EL:Get 'id block)) edges)
-              attached (cons (EL:Get 'id wire) attached)))))
-  (setq ends (mapcar '(lambda (e) (EL:Put 'wire-attached (if (member (EL:Get 'wire e) attached) T nil) e)) (reverse ends))
+        (setq edges (cons (EL:Edge (EL:Get 'id wire) (EL:Get 'id block)) edges)))))
+  (setq ends (mapcar '(lambda (e) (EL:SimpleEndState e tree cfg)) (reverse ends))
         snapshot (EL:Put 'ends ends snapshot)
         rows (EL:FindGapCandidates snapshot cfg) pairs (EL:BuildMutualPairs rows snapshot cfg))
+  (EL:SimpleGapLog snapshot cfg rows pairs)
   (foreach other (EL:Get 'pairs pairs)
     (setq edges (cons (EL:Edge (car (EL:Get 'a other)) (car (EL:Get 'b other))) edges)))
   (setq component (EL:Component panel (EL:Unique edges)))
   (list (cons 'snapshot snapshot) (cons 'panel panel)
     (cons 'devices (vl-remove-if-not '(lambda (b) (and (not (equal (EL:Get 'id b) panel)) (member (EL:Get 'id b) component))) blocks))
     (cons 'wire-ids (vl-remove-if-not '(lambda (id) (member id component)) (mapcar '(lambda (w) (EL:Get 'id w)) wires)))
+    (cons 'gap-pairs (vl-remove-if-not '(lambda (p) (member (car (EL:Get 'a p)) component)) (EL:Get 'pairs pairs)))
     (cons 'gap-issues (EL:Get 'issues pairs))))
 
 (defun EL:SimplePowersValid (data / ok seen row)
@@ -204,7 +239,8 @@
             result (EL:LogCall "SIMPLE_NETWORK" (cdr (assoc 5 pd)) 'EL:SimpleNetwork (list snapshot cfg (cdr (assoc 5 pd)))))
       (EL:ClearPickHighlights)
       (EL:LogEvent "SIMPLE_RESULT" (list (cons 'device-count (length (EL:Get 'devices result)))
-        (cons 'wire-count (length (EL:Get 'wire-ids result))) (cons 'gap-issues (EL:Get 'gap-issues result))))
+        (cons 'wire-count (length (EL:Get 'wire-ids result))) (cons 'gap-count (length (EL:Get 'gap-pairs result)))
+        (cons 'gap-issues (EL:Get 'gap-issues result))))
       (if (EL:Get 'devices result)
         (progn (setq *EL:DeviceResult* result) (EL:SimpleEdit result))
         (princ "\n未找到与该配电箱连通的设备，请检查所选导线图层和箱口接线。"))))

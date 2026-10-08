@@ -1,6 +1,6 @@
 # 应急照明回路统计与系统图生成
 
-日期：2026-10-08。状态：v23 已修正设备表头布局；真实 CAD 验收待完成。
+日期：2026-10-08。状态：v24 已修复悬空断口后的设备续接；真实 CAD 验收待完成。
 
 运行 `ELSTAT`，拾取配电箱，再拾取该系统的一条导线，直接显示设备表：**设备图块／数量／单个功率（W）**。首次输入功率，保存后按图块名自动记住。无需出线核对、角色分类或设备图层采样。
 
@@ -8,11 +8,13 @@
 
 目标：Windows AutoCAD 2021+，LISPSYS=1/2。保留整个仓库目录，在可信、可写的位置加载 `src/load.lsp`。详细路径设置、命令顺序和支持边界见 [03 加载使用与验收说明](docs/03_加载使用与验收说明.md)。
 
-AutoCAD 2020 使用完整的 GB2312 交付包 [应急照明-023.zip](output/应急照明-023.zip)。APPLOAD 包内 `START-CAD2020.lsp`，选择同包 `src/load.lsp`，确认 v23 后运行 `ELSTAT`。不要直接加载仓库的 UTF-8 源码。v23 表头和数据共用列布局，修正“数量／单个功率”偏右；升级时复制旧包 `config/block-powers.eld` 保留已填功率。
+AutoCAD 2020 使用完整的 GB2312 交付包 [应急照明-024.zip](output/应急照明-024.zip)。APPLOAD 包内 `START-CAD2020.lsp`，选择同包 `src/load.lsp`，确认 v24 后运行 `ELSTAT`。不要直接加载仓库的 UTF-8 源码。升级时复制旧包 `config/block-powers.eld` 保留已填功率。
 
 点选设备行会返回图面，缩放、亮显并用黄色框标出该类设备，按 Enter 返回，输入保留。单个功率接受非负整数 W，保存至 `config/block-powers.eld`，不同图纸同名图块也可复用。更换插件目录时复制该文件；旧版角色功率不自动转换。改功率用 `ELPOWER`，改接线或设备后重新 `ELSTAT`。
 
 只统计沿选定图层导线能从配电箱到达的图块，其余连通图块均按设备处理；同图层但不连通的不计入。图块作为整体，不展开内部几何，中段穿过也算接入。新入口省去其他图层导线解析、角色库读取和逐回路确认；真实耗时尚待 CAD 测量。详见 [v22 实施与验证记录](tests/evidence/2026-10-08-simple-device-table.md)。
+
+v24 改为逐端点判断断口是否悬空，导线另一端或中段接设备不会阻止续接。2000 mm 内满足共线、相向、同高程且双向唯一的直线断口自动接入统计，支持连续多处断口；端点已接线、落在设备范围内，或断口中有设备／同路径导线时不跳接。日志新增断口坐标、候选／拒绝理由和续接数量。见 [v24 断口修复记录](tests/evidence/2026-10-08-free-end-gaps.md)。
 
 原分回路、模板与系统图生成作为高级流程保留：`ELTRACE` → `ELPOWER` → `ELTEMPLATE` → `ELGEN`。新设备表为系统汇总，不能代替逐回路 172W 校验或直接生成系统图。`ELSTAT`／`ELTRACE` 的日志仍保存在插件目录 `output/ELTRACE-debug.log`，结束时显示路径。
 
@@ -32,7 +34,7 @@ python3 tests/fixtures/generate_fixture.py
 python -X utf8 tests/run_checks.py
 ```
 
-v22 全量历史记录保存在 [automated-checks.json](tests/evidence/automated-checks.json)，v23 的 33 项专项结果和当前源码哈希见 [表头对齐检查](tests/evidence/2026-10-08-header-alignment.json)。测试解释实际 LSP 纯函数并检查源码／替代接口，不代表 AutoCAD 编译或实操通过。
+v24 专项结果与当前源码哈希见 [断口检查](tests/evidence/2026-10-08-free-end-gaps.json)；v22 全量和 v23 表头检查作为历史记录保留。测试解释实际 LSP 纯函数并检查源码／替代接口，不代表 AutoCAD 编译或实操通过。
 
 [合成 CAD 样图](tests/fixtures/cad-plan.dxf) 包含三出线、混合导线类型、设备边界、断口与横穿线；[人工规则预期](tests/fixtures/cad-plan.expected.json) 为 第一回路仅识别到 1 盏灯并报告未完成；已识别负载为 5W／2W／5W，部分负载合计 12W，完整回路合计仅 7W，禁止生成。该 DXF 未在本环境导入 CAD，也不包含真实动态块。
 

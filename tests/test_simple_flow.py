@@ -1,6 +1,6 @@
 """Two-pick device table and persistent block powers. Date: 2026-10-08."""
 import unittest
-from autolisp_host import Symbol, truth
+from autolisp_host import Pair, Symbol, truth
 import test_cad_adapter as adapter
 import test_root_init as roots
 
@@ -38,6 +38,95 @@ class SimpleFlowTests(unittest.TestCase):
         self.assertEqual(len(rows),1)
         self.assertEqual(self.get('count',rows[0]),2)
         self.assertIsNone(self.get('watts',rows[0]))
+
+    def gap_plan(self, target_start=(20.,0.,0.), target_end=(29.,0.,0.), device=(30.,0.,0.)):
+        self.block('BOX','P','panel',[0.,0.,0.])
+        self.block('LAMP','D','after',list(device))
+        self.line('before',[1.,0.,0.],[10.,0.,0.],'W')
+        self.line('after-wire',list(target_start),list(target_end),'W')
+        self.selected=['panel','after','before','after-wire']
+
+    def test_free_gap_ends_reconnect_when_opposite_ends_touch_panel_and_device(self):
+        self.gap_plan()
+        result=self.network()
+        self.assertEqual([self.get('id',b) for b in self.get('devices',result)],['after'])
+        ends=self.get('ends',self.get('snapshot',result))
+        for key in (['before',Symbol('END')],['after-wire',Symbol('START')]):
+            ep=self.call('EL:By',Symbol('KEY'),key,ends)
+            self.assertTrue(truth(self.call('EL:GapEligible',ep)))
+        self.assertEqual(len(self.get('gap-pairs',result)),1)
+
+    def test_multiple_breaks_continue_past_middle_device_and_t_branch(self):
+        self.gap_plan(target_end=(30.,0.,0.),device=(50.,0.,0.))
+        self.block('LAMP','D','middle',[5.,0.,0.])
+        self.block('LAMP','D','branch',[25.,10.,0.])
+        self.line('last',[40.,0.,0.],[49.,0.,0.],'W')
+        self.line('branch-wire',[25.,0.,0.],[25.,9.,0.],'W')
+        self.selected += ['middle','branch','last','branch-wire']
+        result=self.network()
+        self.assertEqual(sorted(self.get('id',b) for b in self.get('devices',result)),['after','branch','middle'])
+        self.assertEqual(len(self.get('gap-pairs',result)),2)
+        rows=self.call('EL:SimpleRows',self.get('devices',result),None)
+        self.assertEqual(self.get('count',rows[0]),3)
+
+    def test_endpoint_on_device_does_not_continue_to_remote_wire(self):
+        self.gap_plan()
+        self.block('LAMP','D','terminal',[10.,0.,0.]);self.selected.append('terminal')
+        result=self.network()
+        self.assertEqual([self.get('id',b) for b in self.get('devices',result)],['terminal'])
+        self.assertFalse(self.get('gap-pairs',result))
+        ep=self.call('EL:By',Symbol('KEY'),['before',Symbol('END')],self.get('ends',self.get('snapshot',result)))
+        self.assertTrue(truth(self.get('occupied',ep)))
+
+    def test_gap_does_not_jump_to_parallel_other_elevation_or_out_of_range_wire(self):
+        for y,z,x in ((0.2,0.,20.),(0.,2.,20.),(0.,0.,2011.)):
+            with self.subTest(y=y,z=z,x=x):
+                self.setUp()
+                self.gap_plan((x,y,z),(x+9.,y,z),(x+10.,y,z))
+                self.assertFalse(self.get('devices',self.network()))
+
+    def test_noncollinear_crossing_in_gap_is_not_a_connection_or_blocker(self):
+        self.gap_plan()
+        self.line('cross',[15.,-5.,0.],[15.,5.,0.],'W')
+        self.block('LAMP','D','cross-device',[15.,6.,0.]);self.selected += ['cross','cross-device']
+        result=self.network()
+        self.assertEqual([self.get('id',b) for b in self.get('devices',result)],['after'])
+        self.assertNotIn('cross',self.get('wire-ids',result))
+
+    def test_block_inside_gap_is_not_skipped_by_wire_bounds_filter(self):
+        self.gap_plan()
+        self.block('LAMP','D','obstacle',[15.,0.,0.]);self.selected.append('obstacle')
+        result=self.network()
+        self.assertFalse(self.get('devices',result))
+        issues=self.get('gap-issues',result)
+        reasons=[self.get('reason',rejected) for issue in issues
+                 for rejected in (self.get('rejected',self.get('detail',issue)) or [])]
+        self.assertIn(Symbol('BLOCKED_BY_DEVICE_OR_PATH'),reasons)
+
+    def test_bent_polylines_continue_along_the_actual_broken_end_direction(self):
+        self.gap_plan(device=(30.,25.,0.))
+        for name,points in (('before',[(1.,0.),(5.,0.),(5.,10.)]),
+                            ('after-wire',[(5.,20.),(5.,25.),(29.,25.)])):
+            self.entities[name]=[Pair(0,'LWPOLYLINE'),Pair(5,name),Pair(8,'W'),Pair(410,'Model'),
+                Pair(90,len(points)),Pair(70,0),Pair(38,0.),Pair(210,[0.,0.,1.])]+[
+                Pair(10,list(point)) for point in points]
+        result=self.network()
+        self.assertEqual([self.get('id',b) for b in self.get('devices',result)],['after'])
+        self.assertEqual(len(self.get('gap-pairs',result)),1)
+
+    def test_gap_log_records_endpoint_coordinates_candidates_and_pair_count(self):
+        self.gap_plan();events=[]
+        self.h.frames[0]['*EL:LOGACTIVE*']=True
+        self.h.builtins['EL:LOGEVENT']=lambda stage,detail:events.append((stage,detail))
+        self.network()
+        summary=[detail for stage,detail in events if stage=='SIMPLE_GAPS'][0]
+        self.assertEqual(self.get('paired-gaps',summary),1)
+        self.assertEqual(self.get('open-ends',summary),2)
+        self.assertEqual(self.get('max-distance',summary),2000.)
+        entries=[detail for stage,detail in events if stage=='SIMPLE_GAP_END']
+        self.assertEqual(len(entries),2)
+        self.assertEqual(sorted(self.get('point',ep)[0] for ep,row in entries),[10.,20.])
+        self.assertTrue(all(len(self.get('candidates',row))==1 for ep,row in entries))
 
     def test_other_wire_layer_and_bare_crossing_do_not_merge_systems(self):
         self.plan()

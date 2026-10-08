@@ -60,6 +60,12 @@ class FixtureTests(unittest.TestCase):
                 previous = handle
             else:
                 adapter.selected.append(handle)
+                if typ == 'INSERT':
+                    # Explicit COM bounds for this rectangular synthetic fixture.
+                    position = next(row.cdr for row in data if row.car == 10)
+                    dx, dy = (10., 40.) if raw[2] == 'ELA_BOX' else (2., 2.)
+                    adapter.bounds[handle] = [[position[0]-dx, position[1]-dy, position[2]],
+                                              [position[0]+dx, position[1]+dy, position[2]]]
 
         cfg = h.run('''(EL:Put 'device-names '("ELA_LAMP" "ELA_SIGN")
             (EL:Put 'panel-names '("ELA_BOX") (EL:Put 'wire-layers '("ELA_WIRE")

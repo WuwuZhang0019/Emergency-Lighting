@@ -2,7 +2,7 @@
   "session_date": "2026-10-08",
   "scope": "actual AutoLISP pure functions in a subset host; source contracts and adapter stubs; no CAD acceptance",
   "passed": true,
-  "test_count": 155,
+  "test_count": 161,
   "failure_count": 0,
   "error_count": 0,
   "baseline": {
@@ -83,7 +83,7 @@
       "status": "passed"
     },
     {
-      "test": "test_box.BoxTests.test_middle_crossing_panel_never_counts_devices_behind",
+      "test": "test_box.BoxTests.test_middle_crossing_other_panel_records_connection_and_requires_review",
       "status": "passed"
     },
     {
@@ -91,7 +91,7 @@
       "status": "passed"
     },
     {
-      "test": "test_box.BoxTests.test_open_contour_has_no_invented_interior",
+      "test": "test_box.BoxTests.test_open_symbol_uses_whole_block_interior",
       "status": "passed"
     },
     {
@@ -115,10 +115,6 @@
       "status": "passed"
     },
     {
-      "test": "test_box.BoxTests.test_transformed_nested_region_and_explicit_hole_adapter",
-      "status": "passed"
-    },
-    {
       "test": "test_box.BoxTests.test_unincluded_layer_at_panel_and_scope_extension",
       "status": "passed"
     },
@@ -128,6 +124,10 @@
     },
     {
       "test": "test_box.BoxTests.test_unsampled_block_discovery_and_identity_mapping",
+      "status": "passed"
+    },
+    {
+      "test": "test_box.BoxTests.test_whole_bounds_use_wcs_and_ignore_internal_holes",
       "status": "passed"
     },
     {
@@ -673,17 +673,41 @@
     {
       "test": "test_source_contracts.SourceContracts.test_rollback_only_deletes_created_objects_even_if_one_delete_fails",
       "status": "passed"
+    },
+    {
+      "test": "test_whole_block.WholeBlockTests.test_bounds_change_invalidates_source_signature",
+      "status": "passed"
+    },
+    {
+      "test": "test_whole_block.WholeBlockTests.test_collection_never_reads_internal_geometry_or_builds_contour_tree",
+      "status": "passed"
+    },
+    {
+      "test": "test_whole_block.WholeBlockTests.test_gap_indexes_one_row_for_whole_block_and_blocks_crossing",
+      "status": "passed"
+    },
+    {
+      "test": "test_whole_block.WholeBlockTests.test_middle_crossing_tangent_and_inside_hit_but_aabb_only_overlap_does_not",
+      "status": "passed"
+    },
+    {
+      "test": "test_whole_block.WholeBlockTests.test_missing_bounds_is_explicit_and_never_expands",
+      "status": "passed"
+    },
+    {
+      "test": "test_whole_block.WholeBlockTests.test_panel_middle_crossing_is_one_seed_and_device_connection",
+      "status": "passed"
     }
   ],
   "sha256": {
-    "src\\common.lsp": "82e47a76a70a530a6d2387761e3ec7f3429497200259a231da67219d14982bdb",
+    "src\\common.lsp": "c4848fb8ad686b9c84d6717f0998f075db4afe0392fc6904a93d84e499b9fe6f",
     "src\\config.lsp": "21bfaca19ebd48e8de273bf1f2a7fbb4b7836d3ada3422f2f76f6761a3f7f15c",
     "src\\generation.lsp": "9b53377d3461c4e7ca5e7b96f5c8860f517360e2d8f88df6000916855e38dbfb",
-    "src\\geometry.lsp": "15d6ddfb359fa16457d4ecd570afd275d30a421ba7a35af23237aaf435d443ce",
+    "src\\geometry.lsp": "d812ea3bec4e973fa9464155cb2b7fe951eb67c180e61c9ee8ee7d5bda75d18e",
     "src\\load.lsp": "1903b40c44a3a2886c59252773789d5b64d9dff8c7ab94fbe0fdb9ba7d53c790",
     "src\\main.lsp": "4b02b45c66a26209eb10453cbbb1f49bc40a3e6fd1a88f0540e7dd9eee139b82",
     "src\\statistics.lsp": "45e713b3653d0c204e58cd3feef7cc11de890cc765f6dba36d4da3f85b05ddb7",
-    "src\\topology.lsp": "57a5927ac680e9ce7a62335cee681ad0fcbd2847fc8040e1227a1dd041b177e0",
+    "src\\topology.lsp": "6aacff5fd7a73d8805c037239b4b0a1c43921576bb96dde9de7ffd23050239a7",
     "tests\\autolisp_host.py": "f2bab46cf7bfc09e163617816a84b2919396da8741c62c37f880c31f239facac",
     "tests\\fixtures\\.gitkeep": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
     "tests\\fixtures\\baseline.json": "e15a30b9196750be2003641b663481c7c647b093b39ee7ca3e01ebdfdca83144",
@@ -694,11 +718,11 @@
     "tests\\fixtures\\contour-1de0.json": "ca84afa83edd6fba7f658dc616d33122f4e389573529d337982b4a0f89436842",
     "tests\\fixtures\\generate_fixture.py": "78f401d22bb17eebf70529966c182531f22f27b99f50cb6a5a95e43dae1c5cd5",
     "tests\\run_checks.py": "5fe178f215df688528ed78f09a70b135a468363e86fcb32f5c7b204680245d17",
-    "tests\\test_box.py": "1b7beb9728619023ef477a31f0fc2817a3aa6e37eb91e5cdd013dc6a7675b03e",
-    "tests\\test_cad_adapter.py": "da83ea60a98b5885e1aefa13331e70184f13584c9988b9149726f3667902fbfb",
+    "tests\\test_box.py": "7e307b256a7ad9c39b52db288eb062f0d3ed53a331cdb8cd94be36db4c30f502",
+    "tests\\test_cad_adapter.py": "4d9bbe8f6880adf3fff86ffd7957fc637c321c44bc43f8d3ec3ebb3aa2c926c6",
     "tests\\test_contact_index.py": "eea49bc151b375f460da0142f5dd402578682516d7adcf86a6d44c84e434e3cd",
-    "tests\\test_diagnostics.py": "4c07d18efe1bbe6545238643a0ec58b637111d4a4b40b7f581cec467b35d21c1",
-    "tests\\test_fixture.py": "512255c64397c6239185a8dbd00f9c1017532fcdaa3752d715a737f7fc4f77ed",
+    "tests\\test_diagnostics.py": "8054d26044b583f089295d119e3d81a1f7d0695c8cd2de3dc7ecb881ce6c9dfc",
+    "tests\\test_fixture.py": "e99313bb1f15c79a7726e3e9c3967e29a1b7c9404f3dc3c7284c6d9275135c53",
     "tests\\test_gap_index.py": "0522a4476db8e2a50e20edd7648da1183a429abd52929549a94e971941c8de79",
     "tests\\test_kernel.py": "9166bba55024d33a7ed8a913292dc9ae06717e53c1340c8ecd06b7564258e459",
     "tests\\test_linear_contour.py": "e5897bd9f84bf1eee53e75181390b3fca65e8166712fd622987a9ca3cd15f036",
@@ -708,7 +732,8 @@
     "tests\\test_root_init.py": "141304f6009c0151ccc27f89af59adcb736706a718b0d588c133a5c44d567121",
     "tests\\test_setup.py": "85580e1da0757095f036ab6e4d17bc7bd9df6f6ba487152fed90ac990e1a4ba7",
     "tests\\test_source_contracts.py": "1a7eef03f219bec9c4aa3f114c2c9089f59d252b8585413f0799542445f9f634",
-    "tools\\build_cad2020.py": "735c8f0422bed3319a2940c750ef88a05c355bb50347944705a2a52712cd593a",
+    "tests\\test_whole_block.py": "a5d64bfe19d325f553bbaf39cfcd3df2fcf48707222cf252e78ae8ff3d031fc0",
+    "tools\\build_cad2020.py": "c696849cd16646fe4d42fb372df747bd1c4a1867b9fb116187e620acd1e8feac",
     "ui\\box-ui-011.marker": "973a3b32f5632f31db12419d9ec6f597005e850b64dacf5d1c47fb7a69c086d4",
     "ui\\power.dcl": "471760a057f1294db08613148980b1ff3e0a6c6c834605b4d38e995d583e3498"
   },

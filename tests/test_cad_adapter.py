@@ -17,11 +17,13 @@ class CadAdapterTests(unittest.TestCase):
         for name in ('common', 'config', 'geometry', 'topology'):
             self.h.load_definitions(ROOT / 'src' / f'{name}.lsp')
         self.entities = {}
+        self.bounds = {}
         self.blocks = {}
         self.next_entity = {}
         self.selected = []
         self.h.frames[0][':VLAX-TRUE'] = -1
         self.h.builtins.update({
+            'EL:ENTITYBOUNDS': lambda entity: self.bounds.get(entity),
             'ENTGET': lambda entity: self.entities[entity],
             'TBLSEARCH': lambda table, name: self.blocks.get(name) if table == 'BLOCK' else [Pair(2, name)],
             'ENTNEXT': lambda entity: self.next_entity.get(entity),
@@ -57,6 +59,7 @@ class CadAdapterTests(unittest.TestCase):
             self.entities[name].append(Pair(60, visibility))
 
     def block(self, name, layer, handle, position, visibility=None):
+        self.bounds[handle] = [[position[0]-1., position[1]-1., position[2]], [position[0]+1., position[1]+1., position[2]]]
         self.entities[handle] = [Pair(0, 'INSERT'), Pair(5, handle), Pair(8, layer),
                                  Pair(2, name), Pair(10, position), Pair(410, 'Model')]
         corners = [(-1.0, -1.0, 0.0), (1.0, -1.0, 0.0), (1.0, 1.0, 0.0), (-1.0, 1.0, 0.0)]

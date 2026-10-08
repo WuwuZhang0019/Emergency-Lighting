@@ -29,11 +29,11 @@ class BoxTests(unittest.TestCase):
         self.assertFalse(self.path_hit([-5., 0., 2.], [5., 0., 2.], rec))
         self.assertFalse(self.path_hit([-5., 2., 0.], [5., 2., 0.], rec))
 
-    def test_open_contour_has_no_invented_interior(self):
+    def test_open_symbol_uses_whole_block_interior(self):
         self.block('LAMP', 'D', 'lamp', [0., 0., 0.])
         self.next_entity['LAMP-edge-2'] = 'LAMP-end'
         rec = self.record('lamp')
-        self.assertFalse(truth(self.call('EL:RegionContains', [0., 0., 0.], rec)))
+        self.assertTrue(truth(self.call('EL:RegionContains', [0., 0., 0.], rec)))
         self.assertTrue(self.path_hit([0., -1., 0.], [0., -2., 0.], rec))
 
     def test_concavity_holes_and_decoration(self):
@@ -192,12 +192,13 @@ class BoxTests(unittest.TestCase):
         self.assertTrue(truth(self.call('EL:PathBlockHit', wire, self.record('arc-lamp'), cfg)))
         self.assertFalse(truth(self.call('EL:PathBlockHit', wire, self.record('chord-lamp'), cfg)))
 
-    def test_transformed_nested_region_and_explicit_hole_adapter(self):
+    def test_whole_bounds_use_wcs_and_ignore_internal_holes(self):
         self.block('LAMP', 'D', 'nested', [2., 0., 0.])
         self.entities['outer'] = [Pair(0, 'INSERT'), Pair(5, 'outer'), Pair(8, 'D'), Pair(2, 'OUTER'),
             Pair(10, [10., 10., 0.]), Pair(41, 2.), Pair(42, 3.), Pair(50, 1.5707963267948966)]
         self.blocks['OUTER'] = [Pair(10, [0., 0., 0.]), Pair(70, 0), Pair(-2, 'nested')]
         self.next_entity['nested'] = 'LAMP-end'
+        self.bounds['outer'] = [[7., 12., 0.], [13., 16., 0.]]
         rec = self.record('outer')
         self.assertTrue(truth(self.call('EL:RegionContains', [10., 14., 0.], rec)))
         self.assertFalse(truth(self.call('EL:RegionContains', [14., 10., 0.], rec)))
@@ -207,10 +208,10 @@ class BoxTests(unittest.TestCase):
         self.next_entity['hole'] = 'LAMP-end'
         rec = self.record('nested')
         self.assertFalse(self.get('issues', rec))
-        self.assertFalse(truth(self.call('EL:RegionContains', [2., 0., 0.], rec)))
+        self.assertTrue(truth(self.call('EL:RegionContains', [2., 0., 0.], rec)))
         self.assertTrue(truth(self.call('EL:RegionContains', [2.8, 0., 0.], rec)))
 
-    def test_middle_crossing_panel_never_counts_devices_behind(self):
+    def test_middle_crossing_other_panel_records_connection_and_requires_review(self):
         self.block('BOX', 'P', 'panel', [0., 0., 0.])
         self.block('BOX', 'P', 'other', [10., 0., 0.])
         self.block('LAMP', 'D', 'far', [20., 0., 0.])
@@ -218,7 +219,8 @@ class BoxTests(unittest.TestCase):
         self.selected = ['panel', 'other', 'far', 'w']
         result = self.analyze()
         self.assertFalse(truth(self.get('complete', result)))
-        self.assertNotIn('far', self.get('devices', self.get('circuits', result)[0]) or [])
+        self.assertIn(['w', 'other'], self.get('path-contacts', self.get('snapshot', result)))
+        self.assertIn(Symbol('OTHER_PANEL'), [self.get('code', i) for i in self.get('issues', self.get('circuits', result)[0])])
 
     def test_spatial_broad_phase_with_real_shaped_bounds_retains_coincident_blocks(self):
         self.block('LAMP', 'D', 'near', [0., 0., 0.])

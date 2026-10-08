@@ -52,7 +52,7 @@
   (foreach key '(wire-layers panel-layers device-layers leader-layers panel-names device-names leader-names
       layer-pairs params calibrated gap-pairs leader-pairs roles exits)
     (setq rows (cons (cons key (EL:Get key cfg)) rows)))
-  (cons '(box-policy . 1) (cons '(gap-policy . 10) (reverse rows))))
+  (cons '(box-policy . 19) (cons '(gap-policy . 10) (reverse rows))))
 (defun EL:SourceCurrent (result cfg fresh)
   (and (equal (EL:Get 'drawing result) (EL:Get 'drawing cfg))
        (equal (EL:Get 'rules result) (EL:RecognitionRules cfg))
@@ -107,7 +107,7 @@
         *EL:LogSequence* 0 *EL:LogWritten* nil *EL:LogIOFailed* nil)
   (EL:LogAttach)
   (setq stamp (vl-catch-all-apply 'getvar (list "CDATE")))
-  (EL:LogEvent "BEGIN" (list (cons 'command "ELSTAT/ELTRACE") (cons 'diagnostics "018") (cons 'verbose *EL:LogVerbose*)
+  (EL:LogEvent "BEGIN" (list (cons 'command "ELSTAT/ELTRACE") (cons 'diagnostics "019") (cons 'verbose *EL:LogVerbose*)
     (cons 'date (if (numberp stamp) stamp "unavailable")))))
 (defun EL:LogAttach (/ stamp)
   (if (and *EL:LogActive* (not *EL:LogPath*) (not *EL:LogIOFailed*)
@@ -115,7 +115,7 @@
     (progn
       (setq *EL:LogPath* (strcat *EL:Root* "output/ELTRACE-debug.log")
             stamp (vl-catch-all-apply 'getvar (list "CDATE")))
-      (EL:LogEvent "ATTACH" (list (cons 'diagnostics "018")
+      (EL:LogEvent "ATTACH" (list (cons 'diagnostics "019")
         (cons 'date (if (numberp stamp) stamp "unavailable")))))))
 (defun EL:LogCall (stage context function arguments / result started)
   ;; Leave the stack intact on an AutoLISP error; the command's *error* records it.

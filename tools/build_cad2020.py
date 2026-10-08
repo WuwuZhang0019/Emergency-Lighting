@@ -4,7 +4,7 @@ import shutil
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGE_NO = 7
+PACKAGE_NO = 8
 NAME = f'应急照明-{PACKAGE_NO:03d}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 DEST = ROOT / 'output' / NAME
@@ -69,6 +69,8 @@ def build():
 状态：已完成兼容打包，真实 CAD 全流程验收待完成
 
 适用于简体中文 Windows 上的 AutoCAD 2020。全部 LISP 和 DCL 已转换为 GB2312，无需自行改编码或设置 LISPSYS。文档保持 UTF-8。
+
+v8 补齐多段线导线及图块轮廓缺少标志字段时的默认值，避免空值进入位运算；增加 ELGAPTEST 完整命令回归及报错阶段、采集对象句柄提示。保留 v7 的 numberp: nil 修复。截图尚不能确定实际图纸的唯一根因，加载本包后请复测 ELGAPTEST；如仍报错，请保留包含失败阶段和对象信息的完整命令记录。
 
 v7 修复 ELSTAT 选中配电箱后，对象快照处理空列表时触发 numberp: nil 的代码缺陷；类型、角色及可能为空的交互选项改用 EQUAL 比较。同步修复回车确认出线、退出断口预览及未配置设备类别时的同类问题。自动回归覆盖选择箱体到进入功率表，真实 CAD 图纸仍需复测。
 

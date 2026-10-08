@@ -126,6 +126,89 @@ class CadAdapterTests(unittest.TestCase):
         self.assertTrue(truth(self.get('complete', circuits[0])))
         self.assertIsNone(self.h.lookup('*EL:PICKHIGHLIGHTS*'))
 
+    def gap_command(self, flags=None, actions=(None,)):
+        self.h.load_definitions(ROOT / 'src/main.lsp')
+        self.entities['a'] = [Pair(0, 'LWPOLYLINE'), Pair(5, 'a'), Pair(8, 'W'),
+                              Pair(10, [0.0, 0.0]), Pair(10, [10.0, 0.0]), Pair(410, 'Model')]
+        if flags is not None:
+            self.entities['a'].append(Pair(70, flags))
+        self.line('b', [20.0, 0.0, 0.0], [30.0, 0.0, 0.0], 'W')
+        self.selected = ['a', 'b']
+        cfg = self.h.lookup('CFG')  # Bind before the command's local cfg shadows it.
+        self.messages, self.draws, self.zoom_calls, self.picks = [], [], [], []
+        keywords = iter(actions)
+
+        def pick(prompt):
+            self.picks.append(prompt)
+            return ['a', [10.0, 0.0, 0.0]]
+
+        self.h.builtins.update({
+            'EL:LOADCONFIG': lambda: cfg,
+            'VLAX-GET-ACAD-OBJECT': lambda: 'app',
+            'GETVAR': lambda name: {'VIEWSIZE': 100.0, 'VIEWCTR': [0.0, 0.0]}[name],
+            'ENTSEL': pick, 'HANDENT': lambda handle: handle,
+            'REDRAW': lambda *args: None, 'GRTEXT': lambda *args: None,
+            'GRDRAW': lambda *args: self.draws.append(args),
+            'VLAX-3D-POINT': lambda point: point,
+            'VLA-ZOOMCENTER': lambda *args: self.zoom_calls.append(args),
+            'INITGET': lambda *args: None, 'GETKWORD': lambda prompt: next(keywords),
+            'PRINC': lambda *args: self.messages.extend(args),
+        })
+
+    def test_gap_command_missing_polyline_flags_previews_and_cleans_up(self):
+        self.gap_command()
+        self.h.run('(c:ELGAPTEST)')
+        self.assertEqual(len(self.picks), 1)
+        self.assertIn('找到一对双向几何匹配', ''.join(self.messages))
+        self.assertTrue(self.draws)
+        self.assertIsNone(self.h.lookup('*EL:HIGHLIGHT*'))
+        self.assertIsNone(self.h.lookup('*EL:PICKHIGHLIGHTS*'))
+        self.assertIsNone(self.h.lookup('*EL:RESULT*'))
+        self.assertIsNone(self.get('gap-pairs', self.h.lookup('CFG')))
+
+    def test_gap_command_locate_then_enter_restores_view(self):
+        self.gap_command(flags=0, actions=('Locate', None))
+        self.h.run('(c:ELGAPTEST)')
+        self.assertEqual(len(self.zoom_calls), 2)
+        self.assertEqual(self.zoom_calls[-1], ('app', [0.0, 0.0, 0.0], 100.0))
+
+    def test_gap_command_read_error_reports_entity_and_does_not_continue(self):
+        self.gap_command()
+
+        def fail_record(*args):
+            # Invoke the command handler while its dynamic bindings are active.
+            self.call('*error*', 'bad argument type: numberp: nil')
+            raise RuntimeError('injected CAD read failure')
+
+        self.h.builtins['EL:WIRERECORD'] = fail_record
+        with self.assertRaisesRegex(RuntimeError, 'injected CAD read failure'):
+            self.h.run('(c:ELGAPTEST)')
+        messages = ''.join(self.messages)
+        self.assertIn('numberp: nil', messages)
+        self.assertIn('ELGAPTEST 失败阶段：采集对象', messages)
+        self.assertIn('LWPOLYLINE', messages)
+        self.assertIn("'a'", messages)
+        self.assertFalse(self.picks)
+        self.assertFalse(self.draws)
+        self.assertIsNone(self.h.lookup('*EL:GAPSTAGE*'))
+        self.assertIsNone(self.h.lookup('*EL:HIGHLIGHT*'))
+
+    def test_contour_polyline_missing_flags_matches_explicit_zero(self):
+        panel = self.block('BOX', 'P', 'panel', [0.0, 0.0, 0.0])
+        child = 'BOX-edge-0'
+        self.entities[child] = [Pair(0, 'LWPOLYLINE'), Pair(10, [-1.0, -1.0]),
+                                Pair(10, [1.0, -1.0]), Pair(10, [1.0, 1.0])]
+        implicit = self.contour(panel)
+        self.entities[child].append(Pair(70, 0))
+        self.assertTrue(equal(implicit, self.contour(panel)))
+        self.assertIsNone(self.get('issues', implicit))
+
+    def test_gap_command_closed_polyline_keeps_closed_diagnostic(self):
+        self.gap_command(flags=1)
+        wire = self.call('EL:WireRecord', 'a', self.h.lookup('CFG'))
+        self.assertIn(Symbol('CLOSED_WIRE'), [self.get('code', i) for i in self.get('issues', wire)])
+        self.assertIsNone(self.get('ends', wire))
+
     def test_visible_block_without_optional_visibility_code_has_contour(self):
         handle = self.block('BOX', 'P', 'panel', [10.0, 20.0, 0.0])
         result = self.contour(handle)

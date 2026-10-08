@@ -91,7 +91,7 @@
   (cond ((= typ "LINE") (setq pts (list (cdr (assoc 10 d)) (cdr (assoc 11 d))) bs '(0.0 0.0)))
         ((= typ "LWPOLYLINE")
          (setq pts (EL:PolylineData e) bs (cadr pts) pts (car pts)
-               closed (= (logand 1 (cdr (assoc 70 d))) 1)))
+               closed (= (logand 1 (cond ((cdr (assoc 70 d))) (T 0))) 1)))
         (T (setq issues (list (EL:Issue 'UNSUPPORTED_WIRE id typ)))))
   (if (and normal (> (+ (abs (car normal)) (abs (cadr normal))) 1.0e-9))
     (setq issues (cons (EL:Issue 'UNSUPPORTED_PLANE id normal) issues)))
@@ -133,7 +133,7 @@
                ((= typ "LWPOLYLINE")
                 (setq pd (EL:PolylineData child)
                       local (EL:PolylineSegments (car pd) (cadr pd)
-                        (= 1 (logand 1 (cdr (assoc 70 cd)))) (/ tol (* 8.0 scale))))
+                        (= 1 (logand 1 (cond ((cdr (assoc 70 cd))) (T 0)))) (/ tol (* 8.0 scale))))
                 (if (not local) (setq issues (cons (EL:Issue 'CONTOUR_RESOLUTION name typ) issues))))
                ((member typ '("CIRCLE" "ARC"))
                 (setq sweep (if (= typ "CIRCLE") (* 2.0 pi)
@@ -197,6 +197,9 @@
   (if ss
     (repeat (sslength ss)
       (setq e (ssname ss i) d (entget e) layer (cdr (assoc 8 d)) i (1+ i))
+      (if (and *EL:GapStage* (member layer layers))
+        (setq *EL:GapStage* (strcat "采集对象 " (vl-prin1-to-string (cdr (assoc 5 d)))
+          "；类型 " (vl-prin1-to-string (cdr (assoc 0 d))) "；图层 " (vl-prin1-to-string layer))))
       (cond
         ((and (member layer layers) (= (cdr (assoc 0 d)) "INSERT"))
          (setq rec (EL:BlockRecord e cfg) blocks (cons rec blocks)))

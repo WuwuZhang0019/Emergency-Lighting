@@ -6,3 +6,8 @@ output/*.eld
 *.tmp
 config/*.bak
 config/*.invalid-*
+*.zip
+*.7z
+*.rar
+/output/Emergency-Lighting-CAD*/
+/output/cad2020*-check/

@@ -148,6 +148,35 @@ class BoxTests(unittest.TestCase):
         self.assertTrue(truth(self.h.run('(EL:PowerUISave)')))
         self.assertEqual(self.get('watts', self.h.lookup('*EL:POWEREDITS*')[0]), 0)
 
+    def test_migration_preserves_power_and_rejects_unconfirmed_roles(self):
+        self.h.load_definitions(ROOT / 'src/statistics.lsp')
+        self.h.run('''
+          (setq power '((identity "LAMP" nil "definition") (category . lighting)
+            (display . "lamp") (watts . 5)))
+          (setq legacy (EL:Put 'version 1 (EL:Put 'powers (list power) cfg)))
+          (setq migrated (EL:MigrateBoxConfig (EL:Put 'gap-pairs '(stale) legacy)))''')
+        migrated = self.h.lookup('MIGRATED')
+        self.assertEqual(self.get('version', migrated), 2)
+        self.assertEqual(self.get('watts', self.get('powers', migrated)[0]), 5)
+        self.assertFalse(self.get('gap-pairs', migrated))
+        self.assertTrue(truth(self.call('EL:ConfigValid', migrated, 'adapter-fixture.dwg')))
+        self.assertFalse(truth(self.h.run('''(EL:ConfigValid
+          (EL:Put 'roles '(((identity "LAMP" nil "definition") (role . device))) migrated)
+          "adapter-fixture.dwg")''')))
+
+    def test_exit_cache_and_source_validity_ignore_only_power_changes(self):
+        self.h.run('''
+          (setq snapshot '((signature . "source")))
+          (setq seeds '(((id . "R1") (key "wire" start))))
+          (setq cfg (EL:RememberExits cfg "panel" snapshot seeds T))
+          (setq result (list (cons 'drawing "adapter-fixture.dwg")
+            (cons 'rules (EL:RecognitionRules cfg)) (cons 'snapshot snapshot)))''')
+        self.assertTrue(truth(self.h.run('(EL:ReusableExits cfg "panel" snapshot)')))
+        self.assertTrue(truth(self.h.run("(EL:SourceCurrent result (EL:Put 'powers '(new-power) cfg) snapshot)")))
+        self.assertFalse(truth(self.h.run("(EL:SourceCurrent result cfg '((signature . \"changed\")))")))
+        self.assertFalse(truth(self.h.run("(EL:SourceCurrent result (EL:Put 'roles '(changed) cfg) snapshot)")))
+        self.assertFalse(truth(self.h.run("(EL:ReusableExits (EL:Put 'wire-layers '(\"OTHER\") cfg) \"panel\" snapshot)")))
+
 
 if __name__ == '__main__':
     unittest.main()

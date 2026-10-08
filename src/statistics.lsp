@@ -22,7 +22,8 @@
         (if valid (setq n (+ (* n 10) (- c 48)))))))
   (if valid n))
 (defun EL:LibraryValid (raw)
-  (and (EL:OnlyKeys raw '(version devices)) (= (EL:Get 'version raw) 1)
+  (and (EL:OnlyKeys raw '(version devices roles)) (member (EL:Get 'version raw) '(1 2))
+    (not (vl-some '(lambda (row) (not (EL:RoleShape row))) (EL:Get 'roles raw)))
     (not (vl-some '(lambda (row) (not (EL:PowerShape row))) (EL:Get 'devices raw)))))
 (defun EL:LoadLibrary (/ raw result)
   (setq raw (EL:ReadData (strcat *EL:Root* "config/device-library.eld")))
@@ -120,5 +121,24 @@
   (if (and checked (not (vl-catch-all-error-p checked)))
     (progn
       (setq devices (EL:MergePowers (EL:Get 'devices raw) edits))
-      (EL:WriteData path (list (cons 'version 1) (cons 'devices devices))))
+      (EL:WriteData path (list (cons 'version 2) (cons 'devices devices) (cons 'roles (EL:Get 'roles raw)))))
     (princ "\n设备库无效，保留原文件；本图功率不受影响。")))
+
+(defun EL:LoadRoleLibrary (/ raw checked)
+  (if *EL:Root*
+    (progn
+      (setq raw (EL:ReadData (strcat *EL:Root* "config/device-library.eld")))
+      (if raw
+        (progn (setq checked (vl-catch-all-apply 'EL:LibraryValid (list raw)))
+          (if (and checked (not (vl-catch-all-error-p checked))) (EL:Get 'roles raw)))))))
+(defun EL:SaveRoleLibrary (edits / raw path checked row old roles)
+  (setq path (strcat *EL:Root* "config/device-library.eld") raw (EL:ReadData path)
+        checked (if raw (vl-catch-all-apply 'EL:LibraryValid (list raw)) (not (findfile path))))
+  (if (and checked (not (vl-catch-all-error-p checked)))
+    (progn
+      (setq roles (EL:Get 'roles raw))
+      (foreach row edits
+        (setq old (EL:By 'identity (EL:Get 'identity row) roles)
+              roles (if old (subst row old roles) (cons row roles))))
+      (EL:WriteData path (list (cons 'version 2) (cons 'devices (EL:Get 'devices raw)) (cons 'roles roles))))
+    (princ "\n设备库无效，角色未写入设备库；原文件保留。")))

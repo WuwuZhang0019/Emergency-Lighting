@@ -106,11 +106,16 @@ class CadAdapterTests(unittest.TestCase):
             self.h.run('(EL:PowerUISelect 0)')
             return None
 
+        def save_config(updated):
+            nonlocal cfg
+            cfg = updated
+            return cfg
+
         self.h.builtins.update({
             'EL:LOADCONFIG': lambda: cfg,
             'ENTSEL': lambda prompt: [panel if '配电箱' in prompt else 'wire', [0.0, 0.0, 0.0]],
             'EL:REVIEWEXITS': lambda seeds: [seeds],
-            'EL:SAVECONFIG': lambda config: config,
+            'EL:SAVECONFIG': save_config,
             'HANDENT': lambda handle: handle,
             'REDRAW': lambda *args: None,
             'INITGET': lambda *args: None,

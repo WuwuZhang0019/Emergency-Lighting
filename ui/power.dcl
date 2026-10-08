@@ -29,6 +29,7 @@ el_power : dialog {
 
 el_roles : dialog {
   label = "连接图块按身份集中分类";
+  : toggle { key = "role_library"; label = "将已确认角色同时保存到设备库"; }
   : list_box { key = "role_rows"; width = 88; height = 12; }
   : popup_list { key = "role_choice"; label = "角色"; }
   : text { key = "role_status"; width = 80; }

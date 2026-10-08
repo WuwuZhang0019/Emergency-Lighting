@@ -72,3 +72,74 @@
   (setq value (vl-catch-all-apply 'getvar (list "MILLISECS")))
   (if (numberp value) value 0))
 (defun EL:Elapsed (start) (max 0 (- (EL:Tick) start)))
+
+;; Date: 2026-10-08. Diagnostics never change recognition or propagate I/O errors.
+(defun EL:LogText (value / textdata)
+  (setq textdata (vl-catch-all-apply 'vl-prin1-to-string (list value)))
+  (if (vl-catch-all-error-p textdata) "<unprintable>"
+    (if (> (strlen textdata) 16000) (strcat (substr textdata 1 16000) " <truncated>") textdata)))
+(defun EL:LogAppend (line / logfile result)
+  (if (setq logfile (open *EL:LogPath* "a" "utf8"))
+    (progn
+      (setq result (vl-catch-all-apply 'write-line (list line logfile)))
+      (vl-catch-all-apply 'close (list logfile))
+      (not (vl-catch-all-error-p result)))))
+(defun EL:LogEvent (stage context / line result)
+  (if *EL:LogActive*
+    (progn
+      (setq *EL:LogSequence* (1+ *EL:LogSequence*)
+            *EL:LogLast* (list stage context)
+            line (strcat (itoa *EL:LogSequence*) " | " stage " | " (EL:LogText context)))
+      (if *EL:LogPath*
+        (progn
+          (setq result (vl-catch-all-apply 'EL:LogAppend (list line)))
+          (if (and (not (vl-catch-all-error-p result)) result) (setq *EL:LogWritten* T)
+            (setq *EL:LogIOFailed* T *EL:LogPath* nil))))))
+  nil)
+(defun EL:LogStart (/ stamp)
+  (setq *EL:LogActive* T *EL:LogPath* nil *EL:LogStack* nil *EL:LogLast* nil
+        *EL:LogSequence* 0 *EL:LogWritten* nil *EL:LogIOFailed* nil)
+  (EL:LogAttach)
+  (setq stamp (vl-catch-all-apply 'getvar (list "CDATE")))
+  (EL:LogEvent "BEGIN" (list (cons 'command "ELSTAT/ELTRACE") (cons 'diagnostics "012")
+    (cons 'date (if (numberp stamp) stamp "unavailable")))))
+(defun EL:LogAttach (/ stamp)
+  (if (and *EL:LogActive* (not *EL:LogPath*) (not *EL:LogIOFailed*)
+           (equal (type *EL:Root*) 'STR) (/= *EL:Root* ""))
+    (progn
+      (setq *EL:LogPath* (strcat *EL:Root* "output/ELTRACE-debug.log")
+            stamp (vl-catch-all-apply 'getvar (list "CDATE")))
+      (EL:LogEvent "ATTACH" (list (cons 'diagnostics "012")
+        (cons 'date (if (numberp stamp) stamp "unavailable")))))))
+(defun EL:LogCall (stage context function arguments / result started)
+  ;; Leave the stack intact on an AutoLISP error; the command's *error* records it.
+  (if *EL:LogActive*
+    (progn (setq *EL:LogStack* (cons (list stage context) *EL:LogStack*))
+      (EL:LogEvent (strcat "ENTER " stage) context)))
+  (setq started (if *EL:LogActive* (EL:Tick)) result (apply function arguments))
+  (if *EL:LogActive*
+    (progn
+      (EL:LogEvent (strcat "LEAVE " stage) (list (cons 'elapsed-ms (EL:Elapsed started)) (cons 'result-type (type result))))
+      (setq *EL:LogStack* (cdr *EL:LogStack*))))
+  result)
+(defun EL:LogEntity (entity / data)
+  (setq data (entget entity))
+  (list (cons 'handle (cdr (assoc 5 data))) (cons 'type (cdr (assoc 0 data)))
+    (cons 'layer (cdr (assoc 8 data))) (cons 'block (cdr (assoc 2 data)))
+    (cons 'dxf (vl-remove-if-not '(lambda (pair) (member (car pair)
+      '(0 2 5 8 10 11 38 40 41 42 43 50 51 60 70 90 210 410))) data))))
+(defun EL:LogFinish (status)
+  (if *EL:LogActive*
+    (progn
+      (EL:LogEvent "END" status)
+      (cond
+        (*EL:LogIOFailed* (princ "\n诊断日志写入失败；请保留命令行的失败阶段和上下文。"))
+        (*EL:LogWritten* (princ (strcat "\n诊断日志：" *EL:LogPath*)))
+        (T (princ "\n未建立日志文件；请保留命令行信息。")))))
+  (setq *EL:LogActive* nil *EL:LogStack* nil))
+(defun EL:LogFailure (message / laststate stack)
+  (setq laststate *EL:LogLast* stack *EL:LogStack*)
+  (EL:LogEvent "ERROR" (list (cons 'message message) (cons 'stack stack) (cons 'last-event laststate)))
+  (princ (strcat "\n原始错误：" (EL:LogText message)
+    "\n失败阶段：" (EL:LogText stack) "\n最后上下文：" (EL:LogText laststate)))
+  (EL:LogFinish 'failed))

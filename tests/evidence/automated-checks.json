@@ -2,7 +2,7 @@
   "session_date": "2026-10-08",
   "scope": "actual AutoLISP pure functions in a subset host; source contracts and adapter stubs; no CAD acceptance",
   "passed": true,
-  "test_count": 125,
+  "test_count": 129,
   "failure_count": 0,
   "error_count": 0,
   "baseline": {
@@ -204,6 +204,22 @@
     },
     {
       "test": "test_cad_adapter.CadAdapterTests.test_visible_block_without_optional_visibility_code_has_contour",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagnostics.DiagnosticTests.test_real_command_failure_captures_nested_panel_context_before_cleanup",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagnostics.DiagnosticTests.test_success_returns_original_value_and_sessions_append",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagnostics.DiagnosticTests.test_unwritable_log_does_not_break_recognition",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagnostics.DiagnosticTests.test_write_failure_closes_file_and_preserves_original_error",
       "status": "passed"
     },
     {
@@ -556,14 +572,14 @@
     }
   ],
   "sha256": {
-    "src\\common.lsp": "da7aa5e8de4876e1de58f93461e052c33c4a07cd006b217e657f1b990917e6b0",
+    "src\\common.lsp": "37283aa309c3c1a3aa55fc109c86b0a58480b0c7d30611072841a0fc1d4c8abf",
     "src\\config.lsp": "21bfaca19ebd48e8de273bf1f2a7fbb4b7836d3ada3422f2f76f6761a3f7f15c",
     "src\\generation.lsp": "9b53377d3461c4e7ca5e7b96f5c8860f517360e2d8f88df6000916855e38dbfb",
-    "src\\geometry.lsp": "b31e1c7bfcf4e665393e5702b6bef4c63e4644384bbedf0320560a3720efced8",
+    "src\\geometry.lsp": "9203e8cc00f1a823f89526b12209273bdd57c936858ef0c7e7a7040f4cdd46b5",
     "src\\load.lsp": "1903b40c44a3a2886c59252773789d5b64d9dff8c7ab94fbe0fdb9ba7d53c790",
-    "src\\main.lsp": "d581febf774f3e0a233cdfa1fe15aa1f7393baeca17944824d5d186f1377bd94",
+    "src\\main.lsp": "4b02b45c66a26209eb10453cbbb1f49bc40a3e6fd1a88f0540e7dd9eee139b82",
     "src\\statistics.lsp": "45e713b3653d0c204e58cd3feef7cc11de890cc765f6dba36d4da3f85b05ddb7",
-    "src\\topology.lsp": "f5fca3c3cce401a62c7e6606863970652fe5a11a73575daa7fedae07bdbbdadd",
+    "src\\topology.lsp": "bd90b40f9afec19fe5e521b09ace83cecede202d9f6519b4e893085ecfcc3fe6",
     "tests\\autolisp_host.py": "e2745c58563726e58253a3fea5899e344f109465ab291158c8c4c5587b92e03a",
     "tests\\fixtures\\.gitkeep": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
     "tests\\fixtures\\baseline.json": "e15a30b9196750be2003641b663481c7c647b093b39ee7ca3e01ebdfdca83144",
@@ -573,6 +589,7 @@
     "tests\\run_checks.py": "5fe178f215df688528ed78f09a70b135a468363e86fcb32f5c7b204680245d17",
     "tests\\test_box.py": "1b7beb9728619023ef477a31f0fc2817a3aa6e37eb91e5cdd013dc6a7675b03e",
     "tests\\test_cad_adapter.py": "da83ea60a98b5885e1aefa13331e70184f13584c9988b9149726f3667902fbfb",
+    "tests\\test_diagnostics.py": "43e25e928171dbfc27ae1d2bc0b34b3046c87d2309dd0ccf6f73bbcfe4ea34db",
     "tests\\test_fixture.py": "512255c64397c6239185a8dbd00f9c1017532fcdaa3752d715a737f7fc4f77ed",
     "tests\\test_gap_index.py": "0522a4476db8e2a50e20edd7648da1183a429abd52929549a94e971941c8de79",
     "tests\\test_kernel.py": "9166bba55024d33a7ed8a913292dc9ae06717e53c1340c8ecd06b7564258e459",
@@ -580,7 +597,7 @@
     "tests\\test_root_init.py": "141304f6009c0151ccc27f89af59adcb736706a718b0d588c133a5c44d567121",
     "tests\\test_setup.py": "85580e1da0757095f036ab6e4d17bc7bd9df6f6ba487152fed90ac990e1a4ba7",
     "tests\\test_source_contracts.py": "1a7eef03f219bec9c4aa3f114c2c9089f59d252b8585413f0799542445f9f634",
-    "tools\\build_cad2020.py": "d193ee33f9d47d5f04237db3242a29bb36129b48f56694d9efa48a49a9085bb9",
+    "tools\\build_cad2020.py": "946b5ea8601d4a3b2224b4570934450938d86d3ea03d052230e70641af53a679",
     "ui\\box-ui-011.marker": "973a3b32f5632f31db12419d9ec6f597005e850b64dacf5d1c47fb7a69c086d4",
     "ui\\power.dcl": "471760a057f1294db08613148980b1ff3e0a6c6c834605b4d38e995d583e3498"
   },

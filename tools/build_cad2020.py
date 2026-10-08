@@ -4,7 +4,7 @@ import shutil
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGE_NO = 11
+PACKAGE_NO = 12
 NAME = f'应急照明-{PACKAGE_NO:03d}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 DEST = ROOT / 'output' / NAME
@@ -30,6 +30,7 @@ def build():
                 text = replace_once(text, '(open path "r" "utf8")', '(open path "r")')
                 text = replace_once(text, '(open tmp "w" "utf8")', '(open tmp "w")')
             if source.name == 'common.lsp':
+                text = replace_once(text, '(open *EL:LogPath* "a" "utf8")', '(open *EL:LogPath* "a")')
                 text = replace_once(text, 'AutoCAD 2021+, LISPSYS=1/2.', 'AutoCAD 2020 trial, GB2312 source and system-codepage data.')
             data = text.encode('gb2312', errors='strict')
             assert data.decode('gb2312') == text
@@ -68,13 +69,15 @@ def build():
     shutil.copy2(ROOT / 'docs/04_整箱自动分回路统计与设备功率赋值方案.md',
                  DEST / 'docs/04_整箱自动分回路统计与设备功率赋值方案.md')
     (DEST / 'tests/evidence').mkdir(exist_ok=True)
-    for filename in ('2026-10-08-box-statistics.md', 'automated-checks.json'):
+    for filename in ('2026-10-08-box-statistics.md', '2026-10-08-trace-diagnostics.md', 'automated-checks.json'):
         shutil.copy2(ROOT / 'tests/evidence' / filename, DEST / 'tests/evidence' / filename)
     readme = f'''# AutoCAD 2020 兼容试用包 v{PACKAGE_NO}
 日期：2026-10-08
 状态：源码、自动回归和编码检查完成；真实 CAD 全流程验收待执行
 
 全部 LISP/DCL 使用严格 GB2312，文档使用 UTF-8。请完整解压，不直接加载仓库的 UTF-8 源码。
+
+v12 增加 ELSTAT/ELTRACE 自动诊断日志，尚未凭截图确定 numberp: nil 的唯一来源。复现后将命令行提示的 output/ELTRACE-debug.log 发回；日志包含阶段调用栈、箱体／导线句柄、关键 DXF 字段、块标志、变换参数和原始错误。即使目录不可写，也保留命令行失败上下文。日志追加保存，不修改图形。
 
 1. 从旧 GB2312 包升级时，将旧包 config 中的 .eld 文件复制到新包 config；保留旧包作为备份。不要混用 UTF-8 配置。
 2. APPLOAD 本包根目录的 {UPDATE_NAME}，选择本包内 src/load.lsp。旧界面目录因缺少 011 标记会请求重新选择，不能只替换单个更新文件。

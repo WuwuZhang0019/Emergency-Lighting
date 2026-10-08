@@ -3,6 +3,7 @@ __pycache__/
 config/drawing-*.eld
 config/device-library.eld
 output/*.eld
+/output/*-debug.log
 *.tmp
 config/*.bak
 config/*.invalid-*

@@ -1,6 +1,6 @@
 # 应急照明回路统计与系统图生成
 
-日期：2026-10-08。状态：B01—B05 整箱统计与 B06 自动验证／011 打包已实施；真实 DWG、动态块适配及集中 CAD 验收待完成。
+日期：2026-10-08。状态：整箱统计及 v12 诊断日志已实现；真实 DWG、动态块适配及集中 CAD 验收待完成。
 
 从模型空间拾取应急照明配电箱及任一靠近出口的导线样本，集中核对全部出口和设备类型，按独立出线识别回路，统计设备，确认整数瓦功率，检查每回路不超过 172W，再用用户真实动态块排布系统图。图层采样、断口试查／配对、跨层引线、功率 DCL、模板采集、预览和生成均已提供源码。
 
@@ -10,7 +10,9 @@
 
 基本流程：`ELSTAT`（箱体＋导线样本 → 出口表 → 角色表 → 功率表）→ `ELTEMPLATE` → `ELGEN`。需要调整识别参数时使用 `ELSETUP`，局部断口可用 `ELGAPTEST` 试查。不完整、功率缺项、归属冲突、超限或源图变化均禁用正式生成；统计可先用 `ELSAVERESULT` 独立保存。
 
-v10 默认向前搜索 2000 mm，仅匹配共线、相向、同高程断口；整条导线任一端接设备或箱体即排除，非共线交叉线忽略。空间索引及规则验证见 [v10 实施记录](tests/evidence/2026-10-08-gap-rule10.md)。内部端点和中段接设备同样排除整条导线。AutoCAD 2020 请使用构建后的 GB2312 完整交付包 [应急照明-011.zip](output/应急照明-011.zip)，升级时同时使用新 DCL。整箱实施及边界见 [B01—B06 验证记录](tests/evidence/2026-10-08-box-statistics.md)。
+v10 默认向前搜索 2000 mm，仅匹配共线、相向、同高程断口；整条导线任一端接设备或箱体即排除，非共线交叉线忽略。空间索引及规则验证见 [v10 实施记录](tests/evidence/2026-10-08-gap-rule10.md)。内部端点和中段接设备同样排除整条导线。AutoCAD 2020 请使用构建后的 GB2312 完整交付包 [应急照明-012.zip](output/应急照明-012.zip)，升级时同时使用新 DCL。整箱实施及边界见 [B01—B06 验证记录](tests/evidence/2026-10-08-box-statistics.md)。
+
+`ELSTAT`／`ELTRACE` 现在自动记录诊断日志，结束或报错时显示完整路径（当前插件目录的 `output/ELTRACE-debug.log`）。v12 用于定位实际图纸中的 `numberp: nil`；未根据截图假定根因已经修复。详情见 [诊断记录](tests/evidence/2026-10-08-trace-diagnostics.md)。
 
 ## 方案与进度
 
@@ -28,7 +30,7 @@ python3 tests/fixtures/generate_fixture.py
 python -X utf8 tests/run_checks.py
 ```
 
-当前 125 项自动检查通过，证据保存在 [automated-checks.json](tests/evidence/automated-checks.json)。测试解释实际 LSP 纯函数并检查源码／替代接口，不代表 AutoCAD 编译或实操通过。
+当前 129 项自动检查通过，证据保存在 [automated-checks.json](tests/evidence/automated-checks.json)。测试解释实际 LSP 纯函数并检查源码／替代接口，不代表 AutoCAD 编译或实操通过。
 
 [合成 CAD 样图](tests/fixtures/cad-plan.dxf) 包含三出线、混合导线类型、设备边界、断口与横穿线；[人工规则预期](tests/fixtures/cad-plan.expected.json) 为 第一回路仅识别到 1 盏灯并报告未完成；已识别负载为 5W／2W／5W，部分负载合计 12W，完整回路合计仅 7W，禁止生成。该 DXF 未在本环境导入 CAD，也不包含真实动态块。
 

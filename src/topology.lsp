@@ -155,6 +155,7 @@
 (defun EL:BuildPhysical (snapshot cfg panel / ends out a b block contacts direct edges issues p tol ztol row other hit status ports attached id wire pathcontacts bid portcount blockedwires)
   (setq ends (EL:Get 'ends snapshot) tol (EL:Get 'eps_touch (EL:Get 'params cfg)) ztol (EL:Get 'eps_z (EL:Get 'params cfg)))
   (foreach a ends
+    (EL:LogEvent "PHYSICAL_ENDPOINT" a)
     (setq contacts nil direct nil p (EL:Get 'point a) status nil)
     (foreach block (EL:Get 'blocks snapshot)
       (if (and (not (equal (EL:Get 'role block) 'ignore)) (or (EL:BlockPointHit p block cfg)
@@ -191,6 +192,7 @@
   (setq ends (reverse out))
   ;; Virtual incidences attach whole paths without modifying CAD entities.
   (foreach wire (EL:Get 'wires snapshot)
+    (EL:LogEvent "PHYSICAL_WIRE" (list (EL:Get 'id wire) (EL:Get 'ends wire) (EL:Get 'issues wire)))
     (foreach block (EL:Get 'blocks snapshot)
       (setq bid (EL:Get 'id block))
       (if (and (not (equal (EL:Get 'role block) 'ignore))

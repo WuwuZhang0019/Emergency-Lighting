@@ -21,3 +21,16 @@ el_power : dialog {
   : text { label = "先保存每个修改行；数量来自识别，不能直接手改。未知类别请明确选择。"; }
   ok_cancel;
 }
+
+el_roles : dialog {
+  label = "连接图块按身份集中分类";
+  : list_box { key = "role_rows"; width = 88; height = 12; }
+  : popup_list { key = "role_choice"; label = "角色"; }
+  : text { key = "role_status"; width = 80; }
+  : row {
+    : button { key = "role_apply"; label = "确认本类角色"; }
+    : button { key = "role_locate"; label = "定位全部实例"; }
+  }
+  : text { label = "未确认的类型保留为未知，不参与导通或负载计算。"; }
+  ok_cancel;
+}

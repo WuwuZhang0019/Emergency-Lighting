@@ -4,7 +4,7 @@ import shutil
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGE_NO = 16
+PACKAGE_NO = 17
 NAME = f'应急照明-{PACKAGE_NO:03d}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 DEST = ROOT / 'output' / NAME
@@ -69,7 +69,7 @@ def build():
     shutil.copy2(ROOT / 'docs/04_整箱自动分回路统计与设备功率赋值方案.md',
                  DEST / 'docs/04_整箱自动分回路统计与设备功率赋值方案.md')
     (DEST / 'tests/evidence').mkdir(exist_ok=True)
-    for filename in ('2026-10-08-box-statistics.md', '2026-10-08-trace-diagnostics.md', '2026-10-08-contour-diagnostics.md', '2026-10-08-polyline-ocs-fix.md', '2026-10-08-curve-ocs-fix.md', '2026-10-08-region-performance.md', 'automated-checks.json'):
+    for filename in ('2026-10-08-box-statistics.md', '2026-10-08-trace-diagnostics.md', '2026-10-08-contour-diagnostics.md', '2026-10-08-polyline-ocs-fix.md', '2026-10-08-curve-ocs-fix.md', '2026-10-08-region-performance.md', '2026-10-08-contact-performance.md', 'automated-checks.json'):
         shutil.copy2(ROOT / 'tests/evidence' / filename, DEST / 'tests/evidence' / filename)
     readme = f'''# AutoCAD 2020 兼容试用包 v{PACKAGE_NO}
 日期：2026-10-08
@@ -77,7 +77,7 @@ def build():
 
 全部 LISP/DCL 使用严格 GB2312，文档使用 UTF-8。请完整解压，不直接加载仓库的 UTF-8 源码。
 
-v16 根据 v15 实测日志优化闭合区域检查：用户取消时正在检查块 1FE1 的 3107 条线段，先前单个圆轮廓已耗时约 8 秒。现在用空间索引筛选端点及相交候选，用平衡标记树记录已处理线段，保留原精确判断、圆弧精度和凹口／孔洞规则。默认日志保留阶段、耗时、进度和异常，逐点上下文仍保留在内存，避免大量逐点磁盘写入。必要时在命令行输入 (setq *EL:LogVerbose* T) 开启完整日志，输入 (setq *EL:LogVerbose* nil) 恢复摘要模式。实际 CAD 耗时和最终统计结果待原图复测；若仍卡住或失败，请发回 output/ELTRACE-debug.log，末次会话应为 DIAGNOSTICS 016。
+v17 根据 v16 实测日志优化接线判断：采集已在 29.25 秒完成，取消时位于 BUILD_PHYSICAL，涉及 44 条导线和 48 个图块。现在每次接线计算只为复杂图块建立一次线段空间索引，端点和路径仅检查局部候选；闭合区域先按各自范围筛选，确认命中后立即停止扫描。保留原连接、孔洞、高程、未知角色和不可靠轮廓判定，索引不保存到图纸或结果。新增索引、端点、路径进度及逐组导线／图块耗时。默认保留摘要日志；(setq *EL:LogVerbose* T) 开启完整日志，(setq *EL:LogVerbose* nil) 恢复摘要模式。真实 CAD 耗时和最终统计仍待原图复测；若仍卡住或失败，请发回 output/ELTRACE-debug.log，末次会话应为 DIAGNOSTICS 017。
 
 1. 从旧 GB2312 包升级时，将旧包 config 中的 .eld 文件复制到新包 config；保留旧包作为备份。不要混用 UTF-8 配置。
 2. APPLOAD 本包根目录的 START-CAD2020.lsp，选择本包内 src/load.lsp，确认 v{PACKAGE_NO}。也可用 {UPDATE_NAME} 更新内存代码，但它沿用已有有效目录，日志可能保存在旧目录；以命令行路径为准。

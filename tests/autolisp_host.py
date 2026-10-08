@@ -133,8 +133,8 @@ class Host:
             'ASSOC': lambda k,x: next((p for p in seq(x) if equal(car(p), k)), None),
             'MEMBER': lambda k,x: next((x[i:] for i,p in enumerate(seq(x)) if equal(k,p)), None),
             'SUBST': lambda new,old,x: [new if equal(p,old) else p for p in seq(x)] or None,
-            'EQUAL': equal, '=': lambda *xs: all(equal(x,xs[0]) for x in xs),
-            '/=': lambda a,b: not equal(a,b), '<': lambda a,b: a<b, '<=': lambda a,b: a<=b,
+            'EQUAL': equal, '=': self.compare_equal,
+            '/=': lambda a,b: not self.compare_equal(a,b), '<': lambda a,b: a<b, '<=': lambda a,b: a<=b,
             '>': lambda a,b: a>b, '>=': lambda a,b: a>=b,
             '+': lambda *xs: sum(xs), '*': lambda *xs: math.prod(xs),
             '-': lambda a,*xs: a-sum(xs) if xs else -a,
@@ -164,6 +164,15 @@ class Host:
         }
         for op in ['CADR','CADDR','CADDDR','CAAR','CDAR','CDDR','CDDDR','CADAR','CADR']:
             self.builtins[op] = self.accessor(op)
+
+    @staticmethod
+    def compare_equal(*values):
+        # CAD's numeric comparisons reject an absent optional DXF value (nil).
+        # Keep symbol comparisons used by this project distinct from that case.
+        if any(isinstance(x, (int, float)) and not isinstance(x, bool) for x in values):
+            if any(x is None for x in values):
+                raise TypeError('bad argument type: numberp: nil')
+        return all(equal(value, values[0]) for value in values)
 
     @staticmethod
     def accessor(op):

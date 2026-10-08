@@ -123,7 +123,8 @@
                scale (max 1.0 (+ (abs (nth 0 m)) (abs (nth 1 m)) (abs (nth 2 m)) (abs (nth 3 m)))))
          (while (and child (/= (cdr (assoc 0 (entget child))) "ENDBLK"))
            (setq cd (entget child) typ (cdr (assoc 0 cd)) local nil normal (cdr (assoc 210 cd)))
-           (if (not (= (cdr (assoc 60 cd)) 1))
+           ;; Code 60 is optional: absent means visible. EQUAL accepts nil.
+           (if (not (equal (cdr (assoc 60 cd)) 1))
              (cond
                ((member typ '("TEXT" "MTEXT" "ATTDEF" "ATTRIB" "POINT" "SEQEND")) nil)
                ((and normal (> (+ (abs (car normal)) (abs (cadr normal))) 1.0e-9))

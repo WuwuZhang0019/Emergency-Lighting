@@ -38,10 +38,10 @@ class KernelTests(unittest.TestCase):
         self.check_lisp('''
           (setq cfg '((panel-layers "E") (device-layers "E") (leader-layers "E")
                       (panel-names "box") (leader-names "arrow") (device-names "lamp")))
-          (and (= (EL:Role "E" "box" cfg) 'panel)
-               (= (EL:Role "E" "arrow" cfg) 'leader)
-               (= (EL:Role "E" "lamp" cfg) 'device)
-               (= (EL:Role "E" "unknown" cfg) 'unknown))''')
+          (and (equal (EL:Role "E" "box" cfg) 'panel)
+               (equal (EL:Role "E" "arrow" cfg) 'leader)
+               (equal (EL:Role "E" "lamp" cfg) 'device)
+               (equal (EL:Role "E" "unknown" cfg) 'unknown))''')
 
     def test_parameters_and_symmetric_layers(self):
         self.check_lisp('''
@@ -78,8 +78,8 @@ class KernelTests(unittest.TestCase):
           (setq crossing '((id . "cross") (segments ((30.0 -10.0 0.0) (30.0 10.0 0.0)))))
           (setq snap (EL:Put 'wires (list crossing) snap))
           (and (EL:Get 'accepted (EL:ValidateGapPair a b snap cfg))
-               (= (EL:Get 'reason (EL:ValidateGapPair a b (EL:Put 'blocks (list crossing) snap) cfg)) 'BLOCKED_BY_DEVICE_OR_PATH)
-               (= (EL:Get 'reason (EL:ValidateGapPair a b
+               (equal (EL:Get 'reason (EL:ValidateGapPair a b (EL:Put 'blocks (list crossing) snap) cfg)) 'BLOCKED_BY_DEVICE_OR_PATH)
+               (equal (EL:Get 'reason (EL:ValidateGapPair a b
                   (EL:Put 'wires '(((id . "path") (segments ((20.0 0.0 0.0) (30.0 0.0 0.0))))) snap) cfg)) 'BLOCKED_BY_DEVICE_OR_PATH))''')
 
     def test_complete_range_and_reverse_uniqueness(self):
@@ -101,8 +101,8 @@ class KernelTests(unittest.TestCase):
           (setq pts '((0.0 0.0 0.0) (0.0 0.0 0.0) (5.0 0.0 0.0) (5.0 8.0 0.0)))
           (and (equal (EL:Get 'direction (EL:MakeEnd "P" 'start pts '(0.0 0.0 0.0 0.0) "E")) '(-1.0 0.0 0.0))
                (equal (EL:Get 'direction (EL:MakeEnd "P" 'end pts '(0.0 0.0 0.0 0.0) "E")) '(0.0 1.0 0.0))
-               (= (EL:Get 'geometry (EL:MakeEnd "P" 'end pts '(0.0 0.0 1.0 0.0) "E")) 'UNSUPPORTED_END_GEOMETRY)
-               (= (EL:Get 'geometry (EL:MakeEnd "P" 'start '((0.0 0.0 0.0) (0.0 0.0 0.0)) '(0.0 0.0) "E")) 'INVALID_GEOMETRY))''')
+               (equal (EL:Get 'geometry (EL:MakeEnd "P" 'end pts '(0.0 0.0 1.0 0.0) "E")) 'UNSUPPORTED_END_GEOMETRY)
+               (equal (EL:Get 'geometry (EL:MakeEnd "P" 'start '((0.0 0.0 0.0) (0.0 0.0 0.0)) '(0.0 0.0) "E")) 'INVALID_GEOMETRY))''')
 
     def test_rotation_mirror_nonuniform_nested_transform(self):
         self.check_lisp('''
@@ -137,7 +137,7 @@ class KernelTests(unittest.TestCase):
           (setq seeds '(((id . "R1") (wire . "A")) ((id . "R2") (wire . "B"))))
           (setq checked (EL:ValidatePairSet snap cfg nil (list pair) seeds))
           (and (not (EL:Get 'pairs checked)) (not (EL:Get 'edges checked))
-               (= (EL:Get 'code (car (EL:Get 'issues checked))) 'CIRCUIT_CONFLICT))''')
+               (equal (EL:Get 'code (car (EL:Get 'issues checked))) 'CIRCUIT_CONFLICT))''')
 
     def test_endpoint_occupation_is_order_independent(self):
         self.check_lisp('''
@@ -230,8 +230,8 @@ class KernelTests(unittest.TestCase):
                 (EL:Put 'powers (list (EL:Put 'watts {watts} power)) cfg) nil nil))''')
             self.assertEqual(str(status),expected)
         self.check_lisp('''
-          (and (= (EL:Get 'power-status (EL:CircuitStatistics circuit blocks nil cfg nil nil)) 'incomplete)
-               (= (EL:Get 'power-status (EL:CircuitStatistics (EL:Put 'complete nil circuit) blocks nil
+          (and (equal (EL:Get 'power-status (EL:CircuitStatistics circuit blocks nil cfg nil nil)) 'incomplete)
+               (equal (EL:Get 'power-status (EL:CircuitStatistics (EL:Put 'complete nil circuit) blocks nil
                   (EL:Put 'powers (list power) cfg) nil nil)) 'incomplete)
                (= (length (EL:Get 'counts (EL:CircuitStatistics circuit blocks nil cfg nil nil))) 1))''')
 
@@ -260,7 +260,7 @@ class KernelTests(unittest.TestCase):
           (setq circuit (list (cons 'id "R1") (cons 'devices (cons "LEADER" ids)) (cons 'complete T)))
           (setq computed (EL:CircuitStatistics circuit blocks nil (EL:Put 'powers powers cfg) nil nil))
           (and (= (EL:Get 'watts computed) 120) (= (length (EL:Get 'counts computed)) 3)
-               (= (EL:Get 'power-status computed) 'pass))''')
+               (equal (EL:Get 'power-status computed) 'pass))''')
 
     def generation_fixture(self):
         self.h.run('''
@@ -378,7 +378,7 @@ class KernelTests(unittest.TestCase):
           (setq local (EL:Put 'blocks (list block) snap) physical (EL:BuildPhysical local cfg nil))
           (and (EL:Get 'issues physical) (not (EL:Get 'edges physical))
                (EL:Get 'occupied (EL:By 'key (EL:Get 'key a) (EL:Get 'ends (EL:Get 'snapshot physical))))
-               (= (EL:Get 'reason (EL:ValidateGapPair a b (EL:Put 'blocks
+               (equal (EL:Get 'reason (EL:ValidateGapPair a b (EL:Put 'blocks
                  (list (EL:Put 'bounds '((30.0 -1.0 0.0) (35.0 1.0 0.0)) block)) snap) cfg)) 'BLOCKED_BY_DEVICE_OR_PATH))''')
 
     def test_plane_tolerance_for_physical_device_contacts(self):
@@ -394,8 +394,8 @@ class KernelTests(unittest.TestCase):
           (setq power (list (cons 'identity identity) (cons 'category 'lighting) (cons 'display "lamp") (cons 'watts 2147483647)))
           (setq computed (EL:CircuitStatistics '((id . "R1") (devices "D1" "D2") (complete . T)) blocks nil
                              (EL:Put 'powers (list power) cfg) nil nil))
-          (and (not (EL:TemplateRuntimeValid nil cfg)) (= (EL:Get 'power-status computed) 'incomplete)
-               (= (EL:Get 'code (car (EL:Get 'power-issues computed))) 'POWER_OVERFLOW))''')
+          (and (not (EL:TemplateRuntimeValid nil cfg)) (equal (EL:Get 'power-status computed) 'incomplete)
+               (equal (EL:Get 'code (car (EL:Get 'power-issues computed))) 'POWER_OVERFLOW))''')
 
     def test_library_schema_rejects_unknown_fields_and_invalid_power(self):
         self.check_lisp('''

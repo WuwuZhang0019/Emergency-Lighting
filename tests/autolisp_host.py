@@ -111,7 +111,7 @@ def quoted(x):
 
 
 def lisp_type(x):
-    if x is None: return Symbol('LIST')
+    if x is None or x is False: return None
     if isinstance(x, Symbol): return Symbol('SYM')
     if isinstance(x, str): return Symbol('STR')
     if isinstance(x, int): return Symbol('INT')
@@ -167,11 +167,12 @@ class Host:
 
     @staticmethod
     def compare_equal(*values):
-        # CAD's numeric comparisons reject an absent optional DXF value (nil).
-        # Keep symbol comparisons used by this project distinct from that case.
-        if any(isinstance(x, (int, float)) and not isinstance(x, bool) for x in values):
-            if any(x is None for x in values):
+        # Documented = arguments are numbers or strings; NIL is not a number.
+        for value in values:
+            if value is None or value is False:
                 raise TypeError('bad argument type: numberp: nil')
+            if isinstance(value, (Symbol, bool)) or not isinstance(value, (int, float, str)):
+                raise TypeError(f'bad argument type for =: {value!r}')
         return all(equal(value, values[0]) for value in values)
 
     @staticmethod

@@ -42,7 +42,7 @@
           b (EL:By 'key (EL:Get 'b pair) (EL:Get 'ends snapshot)))
     (if (and a b (not (EL:Get 'occupied a)) (not (EL:Get 'occupied b))
              (not (equal (EL:Get 'wire a) (EL:Get 'wire b)))
-             (not (= (EL:Get 'geometry a) 'INVALID_GEOMETRY)) (not (= (EL:Get 'geometry b) 'INVALID_GEOMETRY))
+             (not (equal (EL:Get 'geometry a) 'INVALID_GEOMETRY)) (not (equal (EL:Get 'geometry b) 'INVALID_GEOMETRY))
              (EL:LayerAllowed (EL:Get 'layer a) (EL:Get 'layer b) cfg)
              (<= (abs (- (caddr (EL:Get 'point a)) (caddr (EL:Get 'point b)))) (EL:Get 'eps_z (EL:Get 'params cfg))))
       (progn
@@ -82,7 +82,7 @@
   (foreach pair (EL:Get 'leader-pairs cfg)
     (setq a (EL:By 'id (EL:Get 'a pair) (EL:Get 'blocks snapshot))
           b (EL:By 'id (EL:Get 'b pair) (EL:Get 'blocks snapshot)))
-    (if (and a b (= (EL:Get 'role a) 'leader) (= (EL:Get 'role b) 'leader)
+    (if (and a b (equal (EL:Get 'role a) 'leader) (equal (EL:Get 'role b) 'leader)
              (not (equal (EL:Get 'id a) (EL:Get 'id b)))
              (equal (EL:Get 'a-state pair) (EL:Get 'raw a)) (equal (EL:Get 'b-state pair) (EL:Get 'raw b))
              (= (EL:Get (EL:Get 'id a) counts) 1) (= (EL:Get (EL:Get 'id b) counts) 1)
@@ -96,7 +96,7 @@
       (foreach id (list (EL:Get 'a pair) (EL:Get 'b pair))
         (setq issues (cons (EL:Issue 'STALE_LEADER_PAIR id pair) issues)))))
   (foreach block (EL:Get 'blocks snapshot)
-    (if (and (= (EL:Get 'role block) 'leader) (not (member (EL:Get 'id block) used)))
+    (if (and (equal (EL:Get 'role block) 'leader) (not (member (EL:Get 'id block) used)))
       (setq issues (cons (EL:Issue 'UNPAIRED_LEADER (EL:Get 'id block) nil) issues))))
   (list (cons 'edges (EL:Unique edges)) (cons 'issues issues)))
 (defun EL:MergePairs (manual automatic / pairs issues claims pair key same)
@@ -174,13 +174,13 @@
     (setq out (cons a out)))
   (setq ends (reverse out))
   (foreach block (EL:Get 'blocks snapshot)
-    (if (= (EL:Get 'role block) 'device)
+    (if (equal (EL:Get 'role block) 'device)
       (progn
         (setq ports (vl-remove-if-not '(lambda (e) (member (EL:Get 'id block) (EL:Get 'contacts e))) ends))
         (if (> (length ports) 2)
           (setq issues (cons (EL:Issue 'ABNORMAL_BRANCH (EL:Get 'id block) (mapcar '(lambda (e) (EL:Get 'key e)) ports)) issues))))))
   (foreach a ends
-    (setq b (EL:By 'key (list (EL:Get 'wire a) (if (= (EL:Get 'side a) 'start) 'end 'start)) ends))
+    (setq b (EL:By 'key (list (EL:Get 'wire a) (if (equal (EL:Get 'side a) 'start) 'end 'start)) ends))
     (if (and b (= (length (EL:Get 'contacts a)) 1) (equal (EL:Get 'contacts a) (EL:Get 'contacts b)))
       (setq issues (cons (EL:Issue 'CLOSED_CIRCUIT (EL:Get 'wire a) (EL:Get 'contacts a)) issues))))
   (foreach a ends
@@ -197,7 +197,7 @@
     (if (not (EL:Get 'occupied a))
       (progn
         (setq state nil)
-        (cond ((not (= (EL:Get 'geometry a) 'straight)) (setq state (EL:Get 'geometry a)))
+        (cond ((not (equal (EL:Get 'geometry a) 'straight)) (setq state (EL:Get 'geometry a)))
               ((not cs) (setq state 'NO_CANDIDATE))
               ((> (length cs) 1) (setq state 'AMBIGUOUS_CANDIDATES))
               (T
@@ -219,8 +219,8 @@
       (progn
         (setq visited (cons id visited) block (EL:By 'id id (EL:Get 'blocks snapshot)))
         (if block
-          (cond ((= (EL:Get 'role block) 'device) (setq devices (cons id devices)))
-                ((= (EL:Get 'role block) 'panel) (setq problems (cons (EL:Issue 'OTHER_PANEL id nil) problems)))
+          (cond ((equal (EL:Get 'role block) 'device) (setq devices (cons id devices)))
+                ((equal (EL:Get 'role block) 'panel) (setq problems (cons (EL:Issue 'OTHER_PANEL id nil) problems)))
                 ((member (EL:Get 'role block) '(unknown ambiguous))
                  (setq problems (cons (EL:Issue 'UNKNOWN_ROLE id nil) problems))))
           (setq wires (cons id wires)))

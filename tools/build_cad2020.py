@@ -4,7 +4,7 @@ import shutil
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGE_NO = 6
+PACKAGE_NO = 7
 NAME = f'应急照明-{PACKAGE_NO:03d}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 DEST = ROOT / 'output' / NAME
@@ -70,6 +70,8 @@ def build():
 
 适用于简体中文 Windows 上的 AutoCAD 2020。全部 LISP 和 DCL 已转换为 GB2312，无需自行改编码或设置 LISPSYS。文档保持 UTF-8。
 
+v7 修复 ELSTAT 选中配电箱后，对象快照处理空列表时触发 numberp: nil 的代码缺陷；类型、角色及可能为空的交互选项改用 EQUAL 比较。同步修复回车确认出线、退出断口预览及未配置设备类别时的同类问题。自动回归覆盖选择箱体到进入功率表，真实 CAD 图纸仍需复测。
+
 v6 将 ELSETUP 的单位固定为 mm，取消单位输入和确认。参数选择改成中文数字提示：回车或输入 1 直接使用显示值，输入 2 才逐项调整。首次或改动后的参数，最后输入 1 表示已核对并启用统计；回车或输入 2 保存草稿。已有毫米配置的采样和参数未改变时，直接沿用确认结果，不再次询问。
 
 v5 修复独立加载更新文件后，ELSETUP / ELSTAT 在拾取前出现 stringp nil 的问题。更新文件现在先确认完整插件目录，再显示可用提示；根目录为空、类型错误或已失效时，会请求选择本包内的 src/load.lsp。取消选择会停止本次操作，不会建立配置或继续拼接空路径。
@@ -105,6 +107,11 @@ tests/fixtures/cad-plan.dxf 是合成样图，预期回路功率为 10W、2W、5
         assert z.testzip() is None
         for folder in ('config', 'output', 'templates'):
             assert f'{NAME}/{folder}/' in z.namelist()
+        for name in z.namelist():
+            if Path(name).suffix.lower() in ('.lsp', '.dcl'):
+                data = z.read(name)
+                assert data.decode('gb2312').encode('gb2312') == data, name
+                assert data == (DEST.parent / name).read_bytes(), name
     print(archive)
 
 

@@ -76,6 +76,56 @@ class CadAdapterTests(unittest.TestCase):
             self.h.run('(= nil 1)')
         self.assertFalse(truth(self.h.run('(equal nil 1)')))
 
+    def test_nil_type_and_snapshot_signature_match_autolisp(self):
+        self.assertIsNone(self.h.run('(type nil)'))
+        with self.assertRaisesRegex(TypeError, 'numberp: nil'):
+            self.h.run("(= (type nil) 'ENAME)")
+        self.assertIsNone(self.h.run('(EL:StableData nil)'))
+        data = [[Symbol('EMPTY')], [1, None, 'box']]
+        self.assertTrue(equal(self.call('EL:StableData', data), data))
+        self.assertIsInstance(self.call('EL:Signature', data), str)
+
+    def test_elstat_pick_panel_enter_default_reaches_power_dialog(self):
+        for name in ('statistics', 'main'):
+            self.h.load_definitions(ROOT / 'src' / f'{name}.lsp')
+        panel = self.block('BOX', 'P', 'panel', [0.0, 0.0, 0.0])
+        lamp = self.block('LAMP', 'D', 'lamp', [12.0, 0.0, 0.0])
+        self.line('wire', [1.0, 0.0, 0.0], [11.0, 0.0, 0.0], layer='W')
+        self.selected = [panel, lamp, 'wire']
+        cfg = self.h.run("(setq cfg (EL:Put 'calibrated T cfg))")
+        prompts, dialogs = [], []
+
+        def keyword(prompt):
+            prompts.append(prompt)
+            return None  # Enter accepts the default outgoing circuit.
+
+        def power_dialog(result, config, library):
+            dialogs.append(result)
+            # Exercise the actual empty-power row initialization as well.
+            self.h.run("(setq *EL:PowerRows* (EL:PowerTableRows *EL:Result*))")
+            self.h.run('(EL:PowerUISelect 0)')
+            return None
+
+        self.h.builtins.update({
+            'EL:LOADCONFIG': lambda: cfg,
+            'ENTSEL': lambda prompt: [panel, [0.0, 0.0, 0.0]],
+            'HANDENT': lambda handle: handle,
+            'REDRAW': lambda *args: None,
+            'INITGET': lambda *args: None,
+            'GETKWORD': keyword,
+            'EL:LOADLIBRARY': lambda: None,
+            'EL:POWERDIALOG': power_dialog,
+            'SET_TILE': lambda *args: None,
+        })
+        self.h.run('(c:ELSTAT)')
+        self.assertEqual(len(prompts), 1)
+        self.assertIn('是否为独立出线', prompts[0])
+        self.assertEqual(len(dialogs), 1)
+        circuits = self.get('circuits', dialogs[0])
+        self.assertEqual(self.get('devices', circuits[0]), ['lamp'])
+        self.assertTrue(truth(self.get('complete', circuits[0])))
+        self.assertIsNone(self.h.lookup('*EL:PICKHIGHLIGHTS*'))
+
     def test_visible_block_without_optional_visibility_code_has_contour(self):
         handle = self.block('BOX', 'P', 'panel', [10.0, 20.0, 0.0])
         result = self.contour(handle)

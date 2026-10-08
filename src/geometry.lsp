@@ -77,7 +77,7 @@
     (setq tail (cdr tail) bs (cdr bs))) out)
 (defun EL:MakeEnd (id side points bulges layer / p q b rest state direction)
   ;; Last vertex has no outgoing segment: use the penultimate original bulge.
-  (if (= side 'end) (setq points (reverse points) bulges (cdr (reverse bulges))))
+  (if (equal side 'end) (setq points (reverse points) bulges (cdr (reverse bulges))))
   (setq p (car points) rest (cdr points) b (car bulges))
   (while (and rest (< (EL:Norm (EL:V- (car rest) p)) 1.0e-9))
     (setq rest (cdr rest) bulges (cdr bulges) b (car bulges)))
@@ -244,7 +244,7 @@
         tdir (EL:Get 'direction a) u (EL:Get 'direction b))
   (cond ((or (EL:Get 'occupied a) (EL:Get 'occupied b)) (setq reason 'ENDPOINT_OCCUPIED))
         ((equal (EL:Get 'wire a) (EL:Get 'wire b)) (setq reason 'SAME_ENTITY))
-        ((not (and (= (EL:Get 'geometry a) 'straight) (= (EL:Get 'geometry b) 'straight)))
+        ((not (and (equal (EL:Get 'geometry a) 'straight) (equal (EL:Get 'geometry b) 'straight)))
          (setq reason 'UNSUPPORTED_END_GEOMETRY))
         ((not (EL:LayerAllowed (EL:Get 'layer a) (EL:Get 'layer b) cfg)) (setq reason 'LAYER_REJECTED))
         ((> (abs (- (caddr p) (caddr q))) (EL:Get 'eps_z params)) (setq reason 'PLANE_REJECTED))

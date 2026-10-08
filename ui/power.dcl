@@ -2,6 +2,9 @@ el_exits : dialog {
   label = "整箱出口集中核对";
   : text { label = "请选择全部出线；进线及非出线不选。确认后才建立回路。"; }
   : list_box { key = "exits"; width = 88; height = 14; multiple_select = true; }
+  : text { key = "scope_info"; width = 88; }
+  : toggle { key = "scope_exclude"; label = "已核对：明确排除上述未纳入图层的箱边导线"; }
+  : button { key = "exit_all"; label = "全选出线（请取消进线）"; }
   : button { key = "add_wire"; label = "补充导线图层"; }
   ok_cancel;
 }

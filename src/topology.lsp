@@ -112,7 +112,7 @@
              (setq issues (cons (EL:Issue 'ENDPOINT_OCCUPIED (car key) pair) issues))))
           (T (setq pairs (cons pair pairs)))))
   (list (cons 'pairs pairs) (cons 'issues issues)))
-(defun EL:AnalyzeSnapshot (snapshot cfg panel seeds / physical leaders manual rows automatic merged checked issues resolved pair issue circuits circuit seed allobjects orphan portissues endrec)
+(defun EL:AnalyzeSnapshot (snapshot cfg panel seeds / physical leaders manual rows automatic merged checked issues resolved pair issue circuits circuit seed allobjects orphan portissues endrec other shared updated conflict)
   (setq physical (EL:BuildPhysical snapshot cfg panel) snapshot (EL:Get 'snapshot physical)
         leaders (EL:LeaderConnections snapshot cfg (EL:Get 'edges physical))
         manual (EL:LoadValidGapPairs cfg snapshot) rows (EL:FindGapCandidates snapshot cfg)
@@ -128,6 +128,17 @@
   (foreach seed seeds
     (setq circuit (EL:TraceCircuit seed snapshot (EL:Get 'edges checked) issues)
           circuits (cons circuit circuits) allobjects (append allobjects (EL:Get 'objects circuit))))
+  (foreach circuit circuits
+    (setq shared nil)
+    (foreach other circuits
+      (if (not (equal (EL:Get 'id circuit) (EL:Get 'id other)))
+        (foreach conflict (EL:Get 'objects circuit)
+          (if (member conflict (EL:Get 'objects other)) (setq shared (cons conflict shared))))))
+    (if shared
+      (setq circuit (EL:Put 'complete nil (EL:Put 'issues
+        (cons (EL:Issue 'CIRCUIT_OWNERSHIP_CONFLICT (EL:Get 'id circuit) (EL:Unique shared)) (EL:Get 'issues circuit)) circuit))))
+    (setq updated (cons circuit updated)))
+  (setq circuits (reverse updated))
   (foreach issue (append issues (EL:Get 'issues snapshot))
     (if (not (member (EL:Get 'object issue) allobjects)) (setq orphan (cons issue orphan))))
   (foreach endrec (EL:Get 'ends snapshot)
@@ -138,13 +149,13 @@
         (cons 'connections (EL:Get 'pairs checked)) (cons 'candidates rows)
         (cons 'issues (append portissues issues)) (cons 'unrelated-issues (EL:Unique orphan))
         (cons 'complete (and seeds (not portissues) (not (vl-some '(lambda (c) (not (EL:Get 'complete c))) circuits))))))
-(defun EL:BuildPhysical (snapshot cfg panel / ends out a b block contacts direct edges issues p tol ztol row other hit status ports attached id)
+(defun EL:BuildPhysical (snapshot cfg panel / ends out a b block contacts direct edges issues p tol ztol row other hit status ports attached id wire pathcontacts bid portcount)
   (setq ends (EL:Get 'ends snapshot) tol (EL:Get 'eps_touch (EL:Get 'params cfg)) ztol (EL:Get 'eps_z (EL:Get 'params cfg)))
   (foreach a ends
     (setq contacts nil direct nil p (EL:Get 'point a) status nil)
     (foreach block (EL:Get 'blocks snapshot)
-      (if (or (EL:Touches p (EL:Get 'segments block) (EL:Get 'eps_boundary (EL:Get 'params cfg)) ztol)
-              (EL:InBounds p (EL:Get 'bounds block) (EL:Get 'eps_boundary (EL:Get 'params cfg))))
+      (if (and (not (equal (EL:Get 'role block) 'ignore)) (or (EL:BlockPointHit p block cfg)
+              (and (EL:Get 'issues block) (EL:InBounds p (EL:Get 'bounds block) (EL:Get 'eps_boundary (EL:Get 'params cfg))))))
         (progn
           (setq contacts (cons (EL:Get 'id block) contacts))
           (if (EL:Get 'issues block) (setq status 'UNVERIFIED_CONTOUR)))))
@@ -170,10 +181,37 @@
     (if status (setq issues (cons (EL:Issue status (EL:Get 'wire a) (EL:Get 'key a)) issues)))
     (setq a (EL:Put 'contacts contacts a) a (EL:Put 'direct direct a)
           a (EL:Put 'occupied (or contacts direct status) a) a (EL:Put 'status status a))
-    (if (and (= (length contacts) 1) (not status) (not (equal (car contacts) panel)))
+    (if (and (= (length contacts) 1) (not status) (not (equal (car contacts) panel))
+             (member (EL:Get 'role block) '(device panel leader)))
       (setq edges (cons (EL:Edge (EL:Get 'wire a) (car contacts)) edges)))
     (setq out (cons a out)))
   (setq ends (reverse out))
+  ;; Virtual incidences attach whole paths without modifying CAD entities.
+  (foreach wire (EL:Get 'wires snapshot)
+    (foreach block (EL:Get 'blocks snapshot)
+      (setq bid (EL:Get 'id block))
+      (if (and (not (equal (EL:Get 'role block) 'ignore))
+               (EL:BoundsOverlap (EL:SegmentBounds (EL:Get 'segments wire))
+                 (cond ((EL:Get 'bounds block)) (T (EL:SegmentBounds (EL:Get 'segments block)))) tol))
+        (cond
+          ((EL:PathBlockHit wire block cfg)
+            (setq pathcontacts (cons (list (EL:Get 'id wire) bid) pathcontacts))
+            (if (member (EL:Get 'role block) '(device panel unknown ambiguous))
+              (setq attached (EL:Put (EL:Get 'id wire) T attached)))
+            (cond
+              ((member (EL:Get 'role block) '(unknown ambiguous))
+                (setq issues (cons (EL:Issue 'UNKNOWN_ROLE (EL:Get 'id wire) bid) issues)))
+              ((equal (EL:Get 'role block) 'device)
+                (setq edges (cons (EL:Edge (EL:Get 'id wire) bid) edges)))
+              ((equal (EL:Get 'role block) 'panel)
+                (if (not (vl-some '(lambda (ep) (member bid (EL:Get 'contacts ep)))
+                          (vl-remove-if-not '(lambda (ep) (equal (EL:Get 'wire ep) (EL:Get 'id wire))) ends)))
+                  (setq issues (cons (EL:Issue 'PANEL_PATH_CROSSING (EL:Get 'id wire) bid) issues)))))
+            (if (EL:Get 'issues block)
+              (setq issues (cons (EL:Issue 'UNVERIFIED_CONTOUR (EL:Get 'id wire) bid) issues))))
+          ((or (not (EL:Get 'regions block)) (EL:Get 'issues block))
+            (setq attached (EL:Put (EL:Get 'id wire) T attached)
+                  issues (cons (EL:Issue 'UNVERIFIED_REGION (EL:Get 'id wire) bid) issues)))))))
   ;; A connection at either end excludes the whole source entity from gap pairing.
   (foreach a ends
     (foreach id (EL:Get 'contacts a)
@@ -185,9 +223,16 @@
   (foreach block (EL:Get 'blocks snapshot)
     (if (equal (EL:Get 'role block) 'device)
       (progn
-        (setq ports (vl-remove-if-not '(lambda (e) (member (EL:Get 'id block) (EL:Get 'contacts e))) ends))
-        (if (> (length ports) 2)
-          (setq issues (cons (EL:Issue 'ABNORMAL_BRANCH (EL:Get 'id block) (mapcar '(lambda (e) (EL:Get 'key e)) ports)) issues))))))
+        (setq ports nil portcount 0)
+        (foreach wire (EL:Get 'wires snapshot)
+          (if (member (list (EL:Get 'id wire) (EL:Get 'id block)) pathcontacts)
+            (progn
+              (setq ports (cons (EL:Get 'id wire) ports))
+              (setq portcount (+ portcount
+                (if (vl-some '(lambda (ep) (member (EL:Get 'id block) (EL:Get 'contacts ep)))
+                      (vl-remove-if-not '(lambda (ep) (equal (EL:Get 'wire ep) (EL:Get 'id wire))) ends)) 1 2))))))
+        (if (> portcount 2)
+          (setq issues (cons (EL:Issue 'ABNORMAL_BRANCH (EL:Get 'id block) ports) issues))))))
   (foreach a ends
     (setq b (EL:By 'key (list (EL:Get 'wire a) (if (equal (EL:Get 'side a) 'start) 'end 'start)) ends))
     (if (and b (= (length (EL:Get 'contacts a)) 1) (equal (EL:Get 'contacts a) (EL:Get 'contacts b)))
@@ -199,7 +244,7 @@
         (if (and (= (length (EL:Get 'direct b)) 1) (not (EL:Get 'status b)))
           (setq edges (cons (EL:Edge (EL:Get 'wire a) (EL:Get 'wire b)) edges))
           (setq issues (cons (EL:Issue 'AMBIGUOUS_CONTACT (EL:Get 'wire a) (EL:Get 'key b)) issues))))))
-  (list (cons 'snapshot (EL:Put 'ends ends snapshot)) (cons 'edges (EL:Unique edges)) (cons 'issues issues)))
+  (list (cons 'snapshot (EL:Put 'path-contacts (EL:Unique pathcontacts) (EL:Put 'ends ends snapshot))) (cons 'edges (EL:Unique edges)) (cons 'issues issues)))
 (defun EL:BuildMutualPairs (rows snapshot cfg / pairs issues row cs target other rec a b state)
   (foreach row rows
     (setq a (EL:By 'key (EL:Get 'key row) (EL:Get 'ends snapshot)) cs (EL:Get 'candidates row))
@@ -234,8 +279,8 @@
                 ((member (EL:Get 'role block) '(unknown ambiguous))
                  (setq problems (cons (EL:Issue 'UNKNOWN_ROLE id nil) problems))))
           (setq wires (cons id wires)))
-        (setq neighbours (EL:Neighbours id edges))
-        (if (> (length neighbours) 2) (setq problems (cons (EL:Issue 'ABNORMAL_BRANCH id neighbours) problems)))
+        (setq neighbours (if (or (not block) (member (EL:Get 'role block) '(device leader))) (EL:Neighbours id edges)))
+        (if (and block (> (length neighbours) 2)) (setq problems (cons (EL:Issue 'ABNORMAL_BRANCH id neighbours) problems)))
         (foreach next neighbours
           (if (not (equal next parent))
             (if (member next visited) (setq problems (cons (EL:Issue 'CLOSED_CIRCUIT id next) problems))

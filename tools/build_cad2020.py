@@ -4,7 +4,7 @@ import shutil
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGE_NO = 13
+PACKAGE_NO = 14
 NAME = f'应急照明-{PACKAGE_NO:03d}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 DEST = ROOT / 'output' / NAME
@@ -69,7 +69,7 @@ def build():
     shutil.copy2(ROOT / 'docs/04_整箱自动分回路统计与设备功率赋值方案.md',
                  DEST / 'docs/04_整箱自动分回路统计与设备功率赋值方案.md')
     (DEST / 'tests/evidence').mkdir(exist_ok=True)
-    for filename in ('2026-10-08-box-statistics.md', '2026-10-08-trace-diagnostics.md', '2026-10-08-contour-diagnostics.md', 'automated-checks.json'):
+    for filename in ('2026-10-08-box-statistics.md', '2026-10-08-trace-diagnostics.md', '2026-10-08-contour-diagnostics.md', '2026-10-08-polyline-ocs-fix.md', 'automated-checks.json'):
         shutil.copy2(ROOT / 'tests/evidence' / filename, DEST / 'tests/evidence' / filename)
     readme = f'''# AutoCAD 2020 兼容试用包 v{PACKAGE_NO}
 日期：2026-10-08
@@ -77,10 +77,10 @@ def build():
 
 全部 LISP/DCL 使用严格 GB2312，文档使用 UTF-8。请完整解压，不直接加载仓库的 UTF-8 源码。
 
-v13 根据收到的 v12 日志细分多段线 DXF 行、顶点坐标转换、线段生成与轮廓变换日志。已定位到箱体 1FD6 内部轮廓 1DE0；相同数据在宿主中未复现，真实 CAD 根因仍待确认。复现后将命令行提示的 output/ELTRACE-debug.log 发回；日志包含阶段调用栈、箱体／导线句柄、关键 DXF 字段、块标志、变换参数和原始错误。即使目录不可写，也保留命令行失败上下文。日志追加保存，不修改图形。
+v14 根据 v13 实测日志修复多段线顶点转换路径：箱体 1FD6 内部轮廓 1DE0 的四次实体坐标转换均返回 nil，随后触发 numberp: nil。现使用 DXF 210 法向量指定 OCS，块插入变换仍只应用一次；转换返回无效点时立即停止并记录句柄、顶点、高程、法向量、目标坐标系和返回值。宿主回归已通过，实际 CAD 效果待原图复测。若仍失败，将命令行提示的 output/ELTRACE-debug.log 发回。即使目录不可写，也保留命令行失败上下文。日志追加保存，不修改图形。
 
 1. 从旧 GB2312 包升级时，将旧包 config 中的 .eld 文件复制到新包 config；保留旧包作为备份。不要混用 UTF-8 配置。
-2. APPLOAD 本包根目录的 START-CAD2020.lsp，选择本包内 src/load.lsp，确认 v13。也可用 {UPDATE_NAME} 更新内存代码，但它沿用已有有效目录，日志可能保存在旧目录；以命令行路径为准。
+2. APPLOAD 本包根目录的 START-CAD2020.lsp，选择本包内 src/load.lsp，确认 v{PACKAGE_NO}。也可用 {UPDATE_NAME} 更新内存代码，但它沿用已有有效目录，日志可能保存在旧目录；以命令行路径为准。
 3. 运行 ELSTAT：拾取待统计箱体，再拾取该箱靠近出口的一段 LINE 或开放 LWPOLYLINE。无需先录入全部设备。
 4. 集中核对出口表：勾选全部出线，取消进线。列表选择会高亮。需要其他导线图层时点“补充导线图层”；未纳入的箱边线须补充或明确排除，否则整箱未完成。
 5. 未知类型在分类表按身份确认设备、配电箱、跨层引线或忽略；同名异定义／动态状态分开。未确认类型保留问题，取消不保存本次分类。

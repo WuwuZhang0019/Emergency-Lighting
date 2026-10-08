@@ -23,7 +23,7 @@ class DiagnosticTests(unittest.TestCase):
     def logging(self):
         self.h.load_definitions(ROOT / 'src/statistics.lsp')
         self.h.load_definitions(ROOT / 'src/main.lsp')
-        check_root = ROOT / 'output/cad2020-013-check'
+        check_root = ROOT / 'output/cad2020-014-check'
         check_root.mkdir(exist_ok=True)
         temporary = tempfile.TemporaryDirectory(dir=check_root)
         self.addCleanup(temporary.cleanup)
@@ -32,6 +32,9 @@ class DiagnosticTests(unittest.TestCase):
         self.log = root / 'output/ELTRACE-debug.log'
         self.h.frames[0]['*EL:ROOT*'] = root.as_posix() + '/'
         self.messages, self.handles = [], []
+
+        def abort():
+            raise RuntimeError('quit / exit abort')
 
         def open_file(path, mode, *encoding):
             if mode == 'r' and not Path(path).exists():
@@ -47,6 +50,7 @@ class DiagnosticTests(unittest.TestCase):
             'PRINC': lambda *args: self.messages.extend(str(v) for v in args),
             'HANDENT': lambda handle: handle, 'REDRAW': lambda *args: None,
             'GRTEXT': lambda *args: None,
+            'EXIT': abort,
         })
 
     def test_real_command_failure_captures_nested_panel_context_before_cleanup(self):
@@ -69,7 +73,7 @@ class DiagnosticTests(unittest.TestCase):
         # The subset host does not automatically dispatch AutoCAD's *error* hook.
         self.call('*ERROR*', str(caught.exception))
         text = self.log.read_text(encoding='utf-8')
-        for value in ('BEGIN', '013', 'PICKS', '1FD6', '1FCD', 'PREPARE_BOX',
+        for value in ('BEGIN', '014', 'PICKS', '1FD6', '1FCD', 'PREPARE_BOX',
                       'PANEL_RECORD', 'BLOCK_CONTOUR', 'INSERT_MATRIX', 'ERROR', 'numberp: nil', 'END'):
             self.assertIn(value, text)
         self.assertIn(str(self.log.as_posix()), ''.join(self.messages))
@@ -125,11 +129,36 @@ class DiagnosticTests(unittest.TestCase):
             self.assertIn(stage, log)
         self.assertNotIn('INVALID_AFFINE_INPUT', log)
 
+    def test_nil_entity_trans_uses_normal_and_keeps_complete_contour(self):
+        self.logged_contour_fixture()
+        calls = []
+
+        def trans(point, source, target, *args):
+            calls.append((point, source, target))
+            # Reproduce v13: the block-definition entity path returns nil.
+            if source == '1DE0':
+                return None
+            if isinstance(source, list):
+                self.assertEqual(source, [0., 0., 1.])
+                self.assertEqual(target, 0)
+            return point
+
+        self.h.builtins['TRANS'] = trans
+        result = self.run_logged_contour()
+        edges = self.get('segments', result)
+        self.assertEqual(len(edges), 4)
+        self.assertFalse(truth(self.get('issues', result)))
+        self.assertEqual(edges[-1][1], edges[0][0])
+        for edge, expected in zip(edges, [600., 240., 600., 240.]):
+            self.assertAlmostEqual(sum((b-a)**2 for a, b in zip(*edge)) ** .5, expected)
+        self.assertEqual(sum(isinstance(source, list) for _, source, _ in calls), 4)
+        self.assertFalse(any(source == '1DE0' for _, source, _ in calls))
+
     def test_vertex_trans_failure_retains_point_and_precise_stage(self):
         self.logged_contour_fixture()
 
         def trans(point, entity, *args):
-            if entity == '1DE0':
+            if isinstance(entity, list):
                 raise TypeError('bad argument type: numberp: nil')
             return point
 
@@ -141,16 +170,68 @@ class DiagnosticTests(unittest.TestCase):
         for value in ('POLYLINE_TRANS', 'POLYLINE_DATA', '1DE0', '-0.599992', '0.48001'):
             self.assertIn(value, log)
 
-    def test_short_trans_result_reports_affine_input_without_filling_z(self):
+    def test_short_trans_result_stops_before_segments_without_filling_z(self):
         self.logged_contour_fixture()
-        self.h.builtins['TRANS'] = lambda point, entity, *args: point[:2] if entity == '1DE0' else point
-        with self.assertRaises(TypeError) as error:
+        self.h.builtins['TRANS'] = lambda point, entity, *args: point[:2] if isinstance(entity, list) else point
+        with self.assertRaisesRegex(RuntimeError, 'quit / exit abort') as error:
             self.run_logged_contour()
         self.call('EL:LogFailure', str(error.exception))
         log = self.log.read_text(encoding='utf-8').split('| ERROR |')[-1]
-        self.assertIn('CONTOUR_TRANSFORM', log)
-        self.assertIn('INVALID_AFFINE_INPUT', log)
+        self.assertIn('POLYLINE_TRANS', log)
+        self.assertIn('INVALID_POLYLINE_TRANS_RESULT', log)
         self.assertIn('1DE0', log)
+        self.assertNotIn('ENTER POLYLINE_SEGMENTS', self.log.read_text(encoding='utf-8'))
+
+    def test_nil_vector_trans_stops_at_first_vertex_with_input_context(self):
+        self.logged_contour_fixture()
+        self.h.builtins['TRANS'] = lambda point, source, *args: None if isinstance(source, list) else point
+        with self.assertRaisesRegex(RuntimeError, 'quit / exit abort') as error:
+            self.run_logged_contour()
+        self.call('EL:LogFailure', str(error.exception))
+        log = self.log.read_text(encoding='utf-8')
+        self.assertEqual(log.count('| ENTER POLYLINE_TRANS |'), 1)
+        self.assertNotIn('ENTER POLYLINE_SEGMENTS', log)
+        for value in ('INVALID_POLYLINE_TRANS_RESULT', 'NORMAL', 'TARGET', 'EXTRUSION-VECTOR', '1DE0'):
+            self.assertIn(value, log)
+        self.assertIn('未返回有效三维点', ''.join(self.messages))
+
+    def test_polyline_ocs_preserves_elevation_and_negative_normal_bulge(self):
+        self.logged_contour_fixture()
+        normals = []
+
+        def trans(point, normal, target):
+            normals.append(normal)
+            self.assertEqual(target, 0)
+            # Axis-aligned OCS adapter: -Z reflects X and Z, not Y.
+            return [-point[0], point[1], -point[2]] if normal[2] < 0 else point
+
+        self.h.builtins['TRANS'] = trans
+        for normal in (None, [0., 0., 1.], [0., 0., -1.]):
+            with self.subTest(normal=normal):
+                self.entities['WIRE'] = [Pair(0, 'LWPOLYLINE'), Pair(5, 'WIRE'),
+                    Pair(38, 7.), Pair(10, [2., 3.]), Pair(42, .25),
+                    Pair(10, [4., 5.]), Pair(42, 0.)]
+                if normal is not None:
+                    self.entities['WIRE'].append(Pair(210, normal))
+                points, bulges = self.call('EL:PolylineData', 'WIRE')
+                sign = -1 if normal and normal[2] < 0 else 1
+                self.assertEqual(points, [[sign * 2., 3., sign * 7.], [sign * 4., 5., sign * 7.]])
+                self.assertEqual(bulges, [sign * .25, 0.])
+                self.assertEqual(normals[-1], normal or [0., 0., 1.])
+
+    def test_invalid_normal_stops_before_native_conversion(self):
+        self.logged_contour_fixture()
+
+        def forbidden_trans(*args):
+            self.fail('invalid normal must not reach trans')
+
+        self.h.builtins['TRANS'] = forbidden_trans
+        self.entities['BAD'] = [Pair(0, 'LWPOLYLINE'), Pair(5, 'BAD'),
+            Pair(10, [2., 3.]), Pair(210, [0., 0., 0.])]
+        with self.assertRaisesRegex(RuntimeError, 'quit / exit abort') as error:
+            self.call('EL:PolylineData', 'BAD')
+        self.call('EL:LogFailure', str(error.exception))
+        self.assertIn('INVALID_POLYLINE_TRANS_INPUT', self.log.read_text(encoding='utf-8'))
 
     def test_invalid_dxf_row_keeps_original_numeric_error_context(self):
         self.logged_contour_fixture()

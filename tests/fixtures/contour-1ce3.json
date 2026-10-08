@@ -1,0 +1,7 @@
+{
+  "date": "2026-10-08",
+  "source": "Rounded CIRCLE 1CE3 and INSERT 2037 fields from user ELTRACE-debug (2).log; sanitized block name; not a full DWG export",
+  "block_table": [[2, "LOG_CIRCLE"], [70, 2], [10, [0.0, 0.0, 0.0]], [-2, "1CE3"]],
+  "insert": [[0, "INSERT"], [5, "2037"], [2, "LOG_CIRCLE"], [8, "D"], [10, [1193230.0, 399792.0, 0.0]], [41, 500.0], [42, 500.0], [43, 500.0], [50, 3.14159], [210, [0.0, 0.0, 1.0]]],
+  "circle": [[0, "CIRCLE"], [5, "1CE3"], [8, "0"], [10, [3.63798e-12, 0.208333, 0.0]], [40, 0.208333], [210, [0.0, 0.0, 1.0]]]
+}

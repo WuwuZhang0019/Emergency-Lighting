@@ -101,7 +101,7 @@
         *EL:LogSequence* 0 *EL:LogWritten* nil *EL:LogIOFailed* nil)
   (EL:LogAttach)
   (setq stamp (vl-catch-all-apply 'getvar (list "CDATE")))
-  (EL:LogEvent "BEGIN" (list (cons 'command "ELSTAT/ELTRACE") (cons 'diagnostics "014")
+  (EL:LogEvent "BEGIN" (list (cons 'command "ELSTAT/ELTRACE") (cons 'diagnostics "015")
     (cons 'date (if (numberp stamp) stamp "unavailable")))))
 (defun EL:LogAttach (/ stamp)
   (if (and *EL:LogActive* (not *EL:LogPath*) (not *EL:LogIOFailed*)
@@ -109,7 +109,7 @@
     (progn
       (setq *EL:LogPath* (strcat *EL:Root* "output/ELTRACE-debug.log")
             stamp (vl-catch-all-apply 'getvar (list "CDATE")))
-      (EL:LogEvent "ATTACH" (list (cons 'diagnostics "014")
+      (EL:LogEvent "ATTACH" (list (cons 'diagnostics "015")
         (cons 'date (if (numberp stamp) stamp "unavailable")))))))
 (defun EL:LogCall (stage context function arguments / result started)
   ;; Leave the stack intact on an AutoLISP error; the command's *error* records it.

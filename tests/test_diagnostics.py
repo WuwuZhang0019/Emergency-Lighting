@@ -23,7 +23,7 @@ class DiagnosticTests(unittest.TestCase):
     def logging(self):
         self.h.load_definitions(ROOT / 'src/statistics.lsp')
         self.h.load_definitions(ROOT / 'src/main.lsp')
-        check_root = ROOT / 'output/cad2020-014-check'
+        check_root = ROOT / 'output/cad2020-015-check'
         check_root.mkdir(exist_ok=True)
         temporary = tempfile.TemporaryDirectory(dir=check_root)
         self.addCleanup(temporary.cleanup)
@@ -73,7 +73,7 @@ class DiagnosticTests(unittest.TestCase):
         # The subset host does not automatically dispatch AutoCAD's *error* hook.
         self.call('*ERROR*', str(caught.exception))
         text = self.log.read_text(encoding='utf-8')
-        for value in ('BEGIN', '014', 'PICKS', '1FD6', '1FCD', 'PREPARE_BOX',
+        for value in ('BEGIN', '015', 'PICKS', '1FD6', '1FCD', 'PREPARE_BOX',
                       'PANEL_RECORD', 'BLOCK_CONTOUR', 'INSERT_MATRIX', 'ERROR', 'numberp: nil', 'END'):
             self.assertIn(value, text)
         self.assertIn(str(self.log.as_posix()), ''.join(self.messages))
@@ -151,14 +151,14 @@ class DiagnosticTests(unittest.TestCase):
         self.assertEqual(edges[-1][1], edges[0][0])
         for edge, expected in zip(edges, [600., 240., 600., 240.]):
             self.assertAlmostEqual(sum((b-a)**2 for a, b in zip(*edge)) ** .5, expected)
-        self.assertEqual(sum(isinstance(source, list) for _, source, _ in calls), 4)
+        self.assertEqual(sum(isinstance(source, list) for _, source, _ in calls), 8)
         self.assertFalse(any(source == '1DE0' for _, source, _ in calls))
 
     def test_vertex_trans_failure_retains_point_and_precise_stage(self):
         self.logged_contour_fixture()
 
         def trans(point, entity, *args):
-            if isinstance(entity, list):
+            if self.h.lookup('*EL:LOGSTACK*')[0][0] == 'POLYLINE_TRANS':
                 raise TypeError('bad argument type: numberp: nil')
             return point
 
@@ -172,7 +172,8 @@ class DiagnosticTests(unittest.TestCase):
 
     def test_short_trans_result_stops_before_segments_without_filling_z(self):
         self.logged_contour_fixture()
-        self.h.builtins['TRANS'] = lambda point, entity, *args: point[:2] if isinstance(entity, list) else point
+        self.h.builtins['TRANS'] = lambda point, entity, *args: (
+            point[:2] if self.h.lookup('*EL:LOGSTACK*')[0][0] == 'POLYLINE_TRANS' else point)
         with self.assertRaisesRegex(RuntimeError, 'quit / exit abort') as error:
             self.run_logged_contour()
         self.call('EL:LogFailure', str(error.exception))
@@ -184,7 +185,8 @@ class DiagnosticTests(unittest.TestCase):
 
     def test_nil_vector_trans_stops_at_first_vertex_with_input_context(self):
         self.logged_contour_fixture()
-        self.h.builtins['TRANS'] = lambda point, source, *args: None if isinstance(source, list) else point
+        self.h.builtins['TRANS'] = lambda point, source, *args: (
+            None if self.h.lookup('*EL:LOGSTACK*')[0][0] == 'POLYLINE_TRANS' else point)
         with self.assertRaisesRegex(RuntimeError, 'quit / exit abort') as error:
             self.run_logged_contour()
         self.call('EL:LogFailure', str(error.exception))
@@ -199,7 +201,7 @@ class DiagnosticTests(unittest.TestCase):
         self.logged_contour_fixture()
         normals = []
 
-        def trans(point, normal, target):
+        def trans(point, normal, target, *args):
             normals.append(normal)
             self.assertEqual(target, 0)
             # Axis-aligned OCS adapter: -Z reflects X and Z, not Y.

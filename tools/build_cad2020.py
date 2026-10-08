@@ -4,7 +4,7 @@ import shutil
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGE_NO = 14
+PACKAGE_NO = 15
 NAME = f'应急照明-{PACKAGE_NO:03d}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 DEST = ROOT / 'output' / NAME
@@ -69,7 +69,7 @@ def build():
     shutil.copy2(ROOT / 'docs/04_整箱自动分回路统计与设备功率赋值方案.md',
                  DEST / 'docs/04_整箱自动分回路统计与设备功率赋值方案.md')
     (DEST / 'tests/evidence').mkdir(exist_ok=True)
-    for filename in ('2026-10-08-box-statistics.md', '2026-10-08-trace-diagnostics.md', '2026-10-08-contour-diagnostics.md', '2026-10-08-polyline-ocs-fix.md', 'automated-checks.json'):
+    for filename in ('2026-10-08-box-statistics.md', '2026-10-08-trace-diagnostics.md', '2026-10-08-contour-diagnostics.md', '2026-10-08-polyline-ocs-fix.md', '2026-10-08-curve-ocs-fix.md', 'automated-checks.json'):
         shutil.copy2(ROOT / 'tests/evidence' / filename, DEST / 'tests/evidence' / filename)
     readme = f'''# AutoCAD 2020 兼容试用包 v{PACKAGE_NO}
 日期：2026-10-08
@@ -77,7 +77,7 @@ def build():
 
 全部 LISP/DCL 使用严格 GB2312，文档使用 UTF-8。请完整解压，不直接加载仓库的 UTF-8 源码。
 
-v14 根据 v13 实测日志修复多段线顶点转换路径：箱体 1FD6 内部轮廓 1DE0 的四次实体坐标转换均返回 nil，随后触发 numberp: nil。现使用 DXF 210 法向量指定 OCS，块插入变换仍只应用一次；转换返回无效点时立即停止并记录句柄、顶点、高程、法向量、目标坐标系和返回值。宿主回归已通过，实际 CAD 效果待原图复测。若仍失败，将命令行提示的 output/ELTRACE-debug.log 发回。即使目录不可写，也保留命令行失败上下文。日志追加保存，不修改图形。
+v15 根据 v14 实测日志补齐圆、圆弧及嵌套图块的 OCS 转换。原箱体多段线 1DE0 在 v14 已成功转换；本次故障发生在设备 2037 的圆 1CE3，圆采样点经旧实体转换得到空坐标。现在几何 OCS 转换统一采用 DXF 210 法向量，并校验输入和返回值；保留圆弧离散误差与父块变换，记录圆心、半径、角度、采样序号、原始点和返回值。宿主回归已通过，实际 CAD 效果待原图复测。若仍失败，将命令行提示的 output/ELTRACE-debug.log 发回，末次会话应为 DIAGNOSTICS 015。即使目录不可写，也保留命令行失败上下文。日志追加保存，不修改图形。
 
 1. 从旧 GB2312 包升级时，将旧包 config 中的 .eld 文件复制到新包 config；保留旧包作为备份。不要混用 UTF-8 配置。
 2. APPLOAD 本包根目录的 START-CAD2020.lsp，选择本包内 src/load.lsp，确认 v{PACKAGE_NO}。也可用 {UPDATE_NAME} 更新内存代码，但它沿用已有有效目录，日志可能保存在旧目录；以命令行路径为准。

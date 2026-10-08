@@ -109,7 +109,7 @@
       (vla-put-Value property (vlax-make-variant value (vlax-variant-type (vla-get-Value property))))
       (equal value (vlax-variant-value (vla-get-Value property)) 1.0e-9))))
 (defun EL:CaptureText (block / pick data obj typ matrix point scale align)
-  (if (setq pick (entsel "\n拾取该档位的统计文字样本（TEXT/MTEXT）: "))
+  (if (setq pick (EL:PickEntity "\n拾取该档位的统计文字样本（TEXT/MTEXT）: "))
     (progn
       (setq data (entget (car pick)) typ (cdr (assoc 0 data)) obj (vlax-ename->vla-object (car pick))
             matrix (EL:InsertMatrix block) scale (abs (cdr (assoc 42 (entget block)))))
@@ -131,7 +131,7 @@
   (foreach option options
     (if valid
       (progn
-        (setq pick (entsel (strcat "\n拾取已显示 " (EL:OptionLabel option) " 档位的" kind "动态块: ")))
+        (setq pick (EL:PickEntity (strcat "\n拾取已显示 " (EL:OptionLabel option) " 档位的" kind "动态块: ")))
         (if (and pick (= (cdr (assoc 0 (entget (car pick)))) "INSERT"))
           (progn
             (setq e (car pick) obj (vlax-ename->vla-object e) matrix (EL:InsertMatrix e))
@@ -193,7 +193,11 @@
     (if (not (tblsearch "STYLE" (EL:Get 'style (EL:Get 'text state)))) (setq good nil)))
   (if (and (tblsearch "LAYER" layer) (or (/= 0 (logand 5 (cdr (assoc 70 (tblsearch "LAYER" layer)))))
          (< (cdr (assoc 62 (tblsearch "LAYER" layer))) 0))) (setq good nil)) good)))
-(defun c:ELTEMPLATE (/ cfg panel circuit anchor next step formattext reserve layer template)
+(defun c:ELTEMPLATE (/ *error* cfg panel circuit anchor next step formattext reserve layer template)
+  (defun *error* (msg)
+    (EL:ClearPickHighlights)
+    (if msg (princ (strcat "\n模板采集取消，拾取亮显已清理：" msg))) (princ))
+  (EL:ClearPickHighlights)
   (if (and (setq cfg (EL:LoadConfig)) (EL:ParamsValid (EL:Get 'params cfg)))
     (progn
       (setq panel (EL:CaptureTemplate '(cap300 cap600 cap1000) "箱体" cfg))
@@ -213,7 +217,8 @@
                       (cons 'reserve-format (if (= reserve "") "预留" reserve)) (cons 'layer (if (= layer "") "EL-SYSTEM" layer))))
               (if (EL:TemplateRuntimeValid template cfg)
                 (EL:SaveConfig (EL:Put 'template template cfg))
-                (princ "\n模板字段、样本定义、文字样式或输出图层校验失败，未保存。")))))))) (princ))
+                (princ "\n模板字段、样本定义、文字样式或输出图层校验失败，未保存。"))))))))
+  (EL:ClearPickHighlights) (princ))
 (defun EL:ChooseOutputs (result / circuits order textdata parsed count i circuit label mode outputs reserve good seen)
   (setq circuits (EL:Get 'circuits result) count (length circuits) i 0)
   (foreach circuit circuits (setq i (1+ i)) (princ (strcat "\n" (itoa i) " = " (EL:Get 'id circuit) " / " (itoa (EL:Get 'watts circuit)) "W")))

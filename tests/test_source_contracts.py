@@ -57,7 +57,7 @@ class SourceContracts(unittest.TestCase):
 
     def test_geometry_and_topology_do_not_mutate_drawing(self):
         forbidden={'ENTMOD','ENTMAKE','ENTMAKEX','ENTDEL','COMMAND','COMMAND-S','SETVAR'}
-        for filename in ['geometry.lsp','topology.lsp']:
+        for filename in ['geometry.lsp','topology.lsp','simple.lsp']:
             for form in parse((ROOT/'src'/filename).read_text()):
                 for expr in expressions(form):
                     if isinstance(expr[0],Symbol):
@@ -67,7 +67,7 @@ class SourceContracts(unittest.TestCase):
     def test_dcl_keys_and_callback_syntax(self):
         ui = (ROOT/'ui/power.dcl').read_text()
         keys=set(re.findall(r'key\s*=\s*"([^"]+)"',ui)) | {'accept','cancel'}
-        code=(ROOT/'src/main.lsp').read_text()
+        code='\n'.join((ROOT/'src'/name).read_text() for name in ('main.lsp','simple.lsp'))
         used=set(re.findall(r'\((?:action_tile|set_tile|get_tile|start_list)\s+"([^"]+)"',code))
         self.assertTrue(used <= keys, used-keys)
         for form in parse(code):

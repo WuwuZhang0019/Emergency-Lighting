@@ -43,3 +43,23 @@ el_roles : dialog {
   : text { label = "未确认的类型保留为未知，不参与导通或负载计算。"; }
   ok_cancel;
 }
+
+// Date: 2026-10-08. Simple device table: two picks, no role/exit review.
+el_devices : dialog {
+  label = "设备数量与功率";
+  : text { label = "点选设备可在图面查看，按 Enter 返回；功率按图块名自动记住。"; }
+  : row {
+    : text { label = "设备图块"; width = 54; fixed_width = true; }
+    : text { label = "数量"; width = 10; fixed_width = true; }
+    : text { label = "单个功率（W）"; width = 18; fixed_width = true; }
+  }
+  : list_box { key = "s_names"; width = 85; height = 13; fixed_width_font = true; tabs = "54 64"; tab_truncate = true; }
+  : text { key = "s_selected"; width = 85; }
+  : edit_box { key = "s_edit"; label = "单个功率（W）"; edit_width = 12; }
+  : text { key = "s_status"; width = 85; }
+  : button { key = "s_locate"; label = "在图上查看该设备"; }
+  : row {
+    : button { key = "accept"; label = "保存并关闭"; is_default = true; }
+    : button { key = "cancel"; label = "取消"; is_cancel = true; }
+  }
+}

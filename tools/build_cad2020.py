@@ -4,7 +4,7 @@ import shutil
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGE_NO = 21
+PACKAGE_NO = 22
 NAME = f'应急照明-{PACKAGE_NO:03d}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 DEST = ROOT / 'output' / NAME
@@ -51,13 +51,13 @@ def build():
     (DEST / 'START-CAD2020.lsp').write_bytes(launcher.encode('gb2312'))
     # Keep an existing valid data root; initialize it for a standalone update.
     # All modules are included; readiness requires a complete package directory.
-    modules = ('common', 'config', 'geometry', 'topology', 'statistics', 'generation', 'main')
+    modules = ('common', 'config', 'geometry', 'topology', 'statistics', 'generation', 'main', 'simple')
     update = (';; Date: 2026-10-08. Validate or initialize the plugin data root.\n'
               '(vl-load-com)\n' + '\n'.join(
                   (DEST / 'src' / f'{module}.lsp').read_bytes().decode('gb2312') for module in modules) +
-              '\n(EL:ClearPickHighlights)\n(setq *EL:Result* nil)\n'
+              '\n(EL:ClearPickHighlights)\n(setq *EL:Result* nil *EL:DeviceResult* nil)\n'
               '(if (EL:EnsureRoot)\n'
-              f'  (princ "\\n已加载（CAD2020 v{PACKAGE_NO}）：目录已确认。输入 ELSETUP 或 ELSTAT 继续，已有有效图纸设置可沿用。")\n'
+              f'  (princ "\\n已加载（CAD2020 v{PACKAGE_NO}）：目录已确认。输入 ELSTAT，拾取配电箱和导线后填写设备功率。")\n'
               f'  (princ "\\nCAD2020 v{PACKAGE_NO} 模块已载入，但未确认插件目录。运行 ELSETUP 或 ELSTAT 后选择完整包内的 src/load.lsp。"))\n'
               '(princ)\n')
     (DEST / UPDATE_NAME).write_bytes(update.encode('gb2312'))
@@ -69,7 +69,7 @@ def build():
     shutil.copy2(ROOT / 'docs/04_整箱自动分回路统计与设备功率赋值方案.md',
                  DEST / 'docs/04_整箱自动分回路统计与设备功率赋值方案.md')
     (DEST / 'tests/evidence').mkdir(exist_ok=True)
-    for filename in ('2026-10-08-box-statistics.md', '2026-10-08-trace-diagnostics.md', '2026-10-08-contour-diagnostics.md', '2026-10-08-polyline-ocs-fix.md', '2026-10-08-curve-ocs-fix.md', '2026-10-08-region-performance.md', '2026-10-08-contact-performance.md', '2026-10-08-linear-contour-index.md', '2026-10-08-whole-block.md', '2026-10-08-exit-preview.md', '2026-10-08-sample-layer.md', 'automated-checks.json'):
+    for filename in ('2026-10-08-box-statistics.md', '2026-10-08-trace-diagnostics.md', '2026-10-08-contour-diagnostics.md', '2026-10-08-polyline-ocs-fix.md', '2026-10-08-curve-ocs-fix.md', '2026-10-08-region-performance.md', '2026-10-08-contact-performance.md', '2026-10-08-linear-contour-index.md', '2026-10-08-whole-block.md', '2026-10-08-exit-preview.md', '2026-10-08-sample-layer.md', '2026-10-08-simple-device-table.md', 'automated-checks.json'):
         shutil.copy2(ROOT / 'tests/evidence' / filename, DEST / 'tests/evidence' / filename)
     readme = f'''# AutoCAD 2020 兼容试用包 v{PACKAGE_NO}
 日期：2026-10-08
@@ -77,23 +77,22 @@ def build():
 
 全部 LISP/DCL 使用严格 GB2312，文档使用 UTF-8。请完整解压，不直接加载仓库的 UTF-8 源码。
 
-v21 修复选择出口后续线段时反复要求重选的问题。导线样本仅用于确定参与统计的图层，不要求样本自身接触箱体；已发现的实际箱口导线直接进入核对列表，不会把任意样本强行当作出线。没有候选时也可进入列表补充图层或取消；取消或未选出线后不再额外采集全图，并明确提示没有生成结果。EXIT_CONTEXT 记录箱体整体范围、样本路径和实际出口候选，日志版本 DIAGNOSTICS 021。沿用整体块识别和返回图面的黄色出口预览。
+v22 将 ELSTAT 简化为两次拾取和一张设备表，不再弹出出口核对、设备角色分类或回路选择。
 
 1. 从旧 GB2312 包升级时，将旧包 config 中的 .eld 文件复制到新包 config；保留旧包作为备份。不要混用 UTF-8 配置。
 2. APPLOAD 本包根目录的 START-CAD2020.lsp，选择本包内 src/load.lsp，确认 v{PACKAGE_NO}。也可用 {UPDATE_NAME} 更新内存代码，但它沿用已有有效目录，日志可能保存在旧目录；以命令行路径为准。
-3. 运行 ELSTAT：拾取待统计箱体，再拾取该箱靠近出口的一段 LINE 或开放 LWPOLYLINE。无需先录入全部设备。
-4. 集中核对出口表：勾选全部出线，取消进线。点选列表会返回图面亮显，按 Enter 返回，勾选状态保留。需要其他导线图层时点“补充导线图层”；未纳入的箱边线须补充或明确排除，否则整箱未完成。
-5. 未知类型在分类表按身份确认设备、配电箱、跨层引线或忽略；不同图纸／实际块名／动态状态分开。未确认类型保留问题，取消不保存本次分类。
-6. 功率窗口上方选择回路，下面按类型填写整数 W。每行点“保存此行”，最后 OK 应用到本图；仅显式勾选时另存设备库。0W 需要用途确认。
-7. ELPOWER 可重改功率；ELISSUES 定位问题；ELSAVERESULT 保存当前有效结果。ELGEN 仍需真实系统图模板，未完成、冲突、缺功率或超过 172W 均不能生成。
+3. 运行 ELSTAT：拾取配电箱，再拾取该系统任意一段 LINE 或开放 LWPOLYLINE，导线仅用于确定图层。无需运行 ELSETUP，不用选择出线、设备图层或设备类别。
+4. 设备表三列为“设备图块／数量／单个功率（W）”。首次填写各图块的单个整数 W，点“保存并关闭”，下次自动带入。数量由程序统计。
 
-设备内部端点和中段穿越接入内存拓扑，不切断 CAD 原线。接设备的整条导线均不搜索断口。断口继续使用 v10：默认 2000 mm、共线、相向、同高程、双向唯一。
+点选设备行或“在图上查看该设备”，会暂时关闭表格，缩放至该类设备并亮显、加黄色框。按 Enter 返回表格，已输入的功率保留。切换行会保留输入，无需逐行点保存。取消不写功率文件。
 
-图块仅有一个整体包围盒，凹口、孔洞和符号空白不扣除。中段穿过配电箱也列入出线候选供确认；未知类型、多设备接触歧义和异常分支仍需处理。缺少整体包围盒时报告问题。
+功率自动保存在本包 config/block-powers.eld，同名图块沿用同一功率，跨图纸也可复用。更换交付目录时保留并复制该文件。旧版按角色／图纸保存的功率不自动转换；首次使用本表需录入一次。0W 可以保存，不预设灯具默认功率。
 
-ELSETUP 仍可调整既有识别参数；ELGAPTEST 预览与 ELSTAT 整箱确认是不同操作。旧配置功率／模板保留，版本迁移会清理不兼容的旧断口配对并提示重核。
+范围为所选配电箱通过所选导线图层连接到的设备；选中箱体之外的连通图块全部视为设备，同层但不连通的不计入。每个图块只按整体包围盒识别，端点落入或导线中段穿过都算接入，不扫描内部线、圆弧或嵌套块。T 接自动连通，单纯导线中段交叉不自动并线。断口沿用共线、相向、同高程、双向唯一规则；接设备的整条导线不再续接断口。
 
-实际模型空间接线、DCL 显示／高亮、保存重开、真实动态块和大小图性能仍待 CAD 验收。阶段耗时与数量由 ELTRACE 输出并随结果保存。详细验收记录见 docs/03_加载使用与验收说明.md。
+只改功率可运行 ELPOWER；改动接线、增删设备后重新运行 ELSTAT。该表汇总整个系统的设备，不用于逐回路 172W 判断或直接 ELGEN。需要原高级分回路流程时单独使用 ELTRACE，旧命令仍保留。
+
+真实 CAD 的表格显示、缩放亮显、数量准确性和执行耗时待实测，尚不能承诺秒级。诊断版本为 022；日志路径在命令行显示，通常为本包 output/ELTRACE-debug.log。验证范围见 tests/evidence/2026-10-08-simple-device-table.md。
 '''
     (DEST / '使用说明.md').write_text(readme, encoding='utf-8')
     for filename in ('cad-plan.dxf', 'cad-plan.expected.json'):

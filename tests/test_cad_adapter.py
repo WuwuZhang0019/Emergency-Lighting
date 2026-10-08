@@ -88,7 +88,7 @@ class CadAdapterTests(unittest.TestCase):
         self.assertTrue(equal(self.call('EL:StableData', data), data))
         self.assertIsInstance(self.call('EL:Signature', data), str)
 
-    def test_elstat_pick_panel_enter_default_reaches_power_dialog(self):
+    def test_advanced_trace_then_power_still_reaches_legacy_dialog(self):
         for name in ('statistics', 'main'):
             self.h.load_definitions(ROOT / 'src' / f'{name}.lsp')
         panel = self.block('BOX', 'P', 'panel', [0.0, 0.0, 0.0])
@@ -127,7 +127,7 @@ class CadAdapterTests(unittest.TestCase):
             'EL:POWERDIALOG': power_dialog,
             'SET_TILE': lambda *args: None,
         })
-        self.h.run('(c:ELSTAT)')
+        self.h.run('(c:ELTRACE) (c:ELPOWER)')
         self.assertEqual(len(prompts), 0)
         self.assertEqual(len(dialogs), 1)
         circuits = self.get('circuits', dialogs[0])

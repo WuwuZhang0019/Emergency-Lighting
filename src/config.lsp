@@ -10,7 +10,7 @@
       (setq ok T)
       (foreach file '("src/load.lsp" "src/common.lsp" "src/config.lsp" "src/geometry.lsp"
                      "src/topology.lsp" "src/statistics.lsp" "src/generation.lsp"
-                     "src/main.lsp" "ui/power.dcl")
+                     "src/main.lsp" "src/simple.lsp" "ui/power.dcl")
         (if (not (findfile (strcat root file))) (setq ok nil)))
       (foreach folder '("config" "output" "templates")
         (if (not (vl-file-directory-p (strcat root folder))) (setq ok nil)))

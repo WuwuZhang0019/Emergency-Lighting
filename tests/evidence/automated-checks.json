@@ -2,7 +2,7 @@
   "session_date": "2026-10-08",
   "scope": "actual AutoLISP pure functions in a subset host; source contracts and adapter stubs; no CAD acceptance",
   "passed": true,
-  "test_count": 167,
+  "test_count": 176,
   "failure_count": 0,
   "error_count": 0,
   "baseline": {
@@ -135,11 +135,11 @@
       "status": "passed"
     },
     {
-      "test": "test_cad_adapter.CadAdapterTests.test_contour_polyline_missing_flags_matches_explicit_zero",
+      "test": "test_cad_adapter.CadAdapterTests.test_advanced_trace_then_power_still_reaches_legacy_dialog",
       "status": "passed"
     },
     {
-      "test": "test_cad_adapter.CadAdapterTests.test_elstat_pick_panel_enter_default_reaches_power_dialog",
+      "test": "test_cad_adapter.CadAdapterTests.test_contour_polyline_missing_flags_matches_explicit_zero",
       "status": "passed"
     },
     {
@@ -679,6 +679,42 @@
       "status": "passed"
     },
     {
+      "test": "test_simple_flow.SimpleFlowTests.test_collection_does_not_parse_outside_wire_layers",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_connected_system_joins_t_branches_and_groups_without_roles",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_dialog_preview_restores_current_row_and_unsaved_values",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_elstat_only_two_picks_and_one_table_then_remembers_powers",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_other_wire_layer_and_bare_crossing_do_not_merge_systems",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_power_edit_requires_valid_values_and_keeps_zero",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_whole_block_middle_crossing_connects_and_never_reads_contents",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimplePersistenceTests.test_corrupt_power_file_is_not_overwritten",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimplePersistenceTests.test_file_reload_and_merge_preserve_unrelated_block_types",
+      "status": "passed"
+    },
+    {
       "test": "test_source_contracts.SourceContracts.test_atomic_config_write_restores_previous_file_on_failure",
       "status": "passed"
     },
@@ -724,12 +760,13 @@
     }
   ],
   "sha256": {
-    "src\\common.lsp": "2acedd851383d208ddc2326dcf30d13dc1ee96abd8c0f35179a0f5170621b99c",
-    "src\\config.lsp": "21bfaca19ebd48e8de273bf1f2a7fbb4b7836d3ada3422f2f76f6761a3f7f15c",
+    "src\\common.lsp": "d4657662a990d9f4f5739f53a8b57426b81f92b9bc85369da94efc2b86dd44df",
+    "src\\config.lsp": "de99065ce969ea113b8d9d6f12883cb4ecf9c0d374b41668e95d6b7c1cc6423c",
     "src\\generation.lsp": "9b53377d3461c4e7ca5e7b96f5c8860f517360e2d8f88df6000916855e38dbfb",
     "src\\geometry.lsp": "d812ea3bec4e973fa9464155cb2b7fe951eb67c180e61c9ee8ee7d5bda75d18e",
-    "src\\load.lsp": "1903b40c44a3a2886c59252773789d5b64d9dff8c7ab94fbe0fdb9ba7d53c790",
-    "src\\main.lsp": "b38d44c080e78d9b9f0c0c7ca454fe3970b8bfec89086c2c8c55f53dd7ccfef9",
+    "src\\load.lsp": "23e1ddef02887bc7e24d834a7bc9f1f1413d0737930cbf910dcef436dee0137f",
+    "src\\main.lsp": "28a18bcfddea9577db574dea929f151b8fc4a3e3d67104dc425603482f736dd9",
+    "src\\simple.lsp": "e6e2326dbcf0611948218f94623b55abd211b4c7028ce45be1306640b99d1ac4",
     "src\\statistics.lsp": "45e713b3653d0c204e58cd3feef7cc11de890cc765f6dba36d4da3f85b05ddb7",
     "src\\topology.lsp": "6aacff5fd7a73d8805c037239b4b0a1c43921576bb96dde9de7ffd23050239a7",
     "tests\\autolisp_host.py": "f2bab46cf7bfc09e163617816a84b2919396da8741c62c37f880c31f239facac",
@@ -743,9 +780,9 @@
     "tests\\fixtures\\generate_fixture.py": "78f401d22bb17eebf70529966c182531f22f27b99f50cb6a5a95e43dae1c5cd5",
     "tests\\run_checks.py": "5fe178f215df688528ed78f09a70b135a468363e86fcb32f5c7b204680245d17",
     "tests\\test_box.py": "7e307b256a7ad9c39b52db288eb062f0d3ed53a331cdb8cd94be36db4c30f502",
-    "tests\\test_cad_adapter.py": "4d9bbe8f6880adf3fff86ffd7957fc637c321c44bc43f8d3ec3ebb3aa2c926c6",
+    "tests\\test_cad_adapter.py": "047dcbca3ea3a26075834069d39007a4def48fca93be98b6a7f74d5b1875017c",
     "tests\\test_contact_index.py": "eea49bc151b375f460da0142f5dd402578682516d7adcf86a6d44c84e434e3cd",
-    "tests\\test_diagnostics.py": "39c6ff576db60e0197744d7b5c9b27666bce4d423fd072378507aaafd5653998",
+    "tests\\test_diagnostics.py": "c59dfbcc12b62648d7f0020cfd07966142a0f4328600b1c1e05f747b6566b107",
     "tests\\test_exit_preview.py": "2efc4ac76505ea5a2f440460e77acfcc917e1dbf647a2c41751e713f980b7136",
     "tests\\test_fixture.py": "e99313bb1f15c79a7726e3e9c3967e29a1b7c9404f3dc3c7284c6d9275135c53",
     "tests\\test_gap_index.py": "0522a4476db8e2a50e20edd7648da1183a429abd52929549a94e971941c8de79",
@@ -754,14 +791,15 @@
     "tests\\test_ocs_transforms.py": "8f57ff475a879aea2f7ebcb7cb96783fb989060eb20bef1234f6719a225ddd83",
     "tests\\test_pick_feedback.py": "61b3cb0a1a9635a29a8e9ed81d94385a2ae0eda376c2a4660eef48a2d6d6e2ff",
     "tests\\test_region_index.py": "67dbc841ac683fe57114c76b2fe3558df81b254fdf2eecf2e5925d3aa751964d",
-    "tests\\test_root_init.py": "141304f6009c0151ccc27f89af59adcb736706a718b0d588c133a5c44d567121",
+    "tests\\test_root_init.py": "fb2ac03c58e3c1701adff6cf1314f5c1d7df931948f73a69c0acbaa881d463f3",
     "tests\\test_sample_layer.py": "9ea248bd16b0ea987b11c9d4e6e1f19b7c26c9d191cbb25737050263cfca6dbb",
     "tests\\test_setup.py": "85580e1da0757095f036ab6e4d17bc7bd9df6f6ba487152fed90ac990e1a4ba7",
-    "tests\\test_source_contracts.py": "1a7eef03f219bec9c4aa3f114c2c9089f59d252b8585413f0799542445f9f634",
+    "tests\\test_simple_flow.py": "3f6bbc70f71ffb86ea714d8d8d516bb13d4ba17819538ebcd752c4cc5a695678",
+    "tests\\test_source_contracts.py": "484c10b49a0a87ac903beb35740bb65324f48524d7fd8d1fae3a9d644c1f4c85",
     "tests\\test_whole_block.py": "a5d64bfe19d325f553bbaf39cfcd3df2fcf48707222cf252e78ae8ff3d031fc0",
-    "tools\\build_cad2020.py": "4a8b4a7c91e4b9a44d04847ea3b82d430fead9c3f71ae2f44df1f632cafabc86",
+    "tools\\build_cad2020.py": "2510e858fbda8d5a074e50a2103fe94087be5331f0ac849ac77550778d2a6ac0",
     "ui\\box-ui-011.marker": "973a3b32f5632f31db12419d9ec6f597005e850b64dacf5d1c47fb7a69c086d4",
-    "ui\\power.dcl": "ed781c85dfbf047ddd2b9b2682281e8c61f285ec1d58df24144fae82227a4fdf"
+    "ui\\power.dcl": "8a6d3aefd2d66f942c9140b6809a8273aa92f4a58f40e119df74b093eec256e4"
   },
   "cad_status": "pending; no AutoCAD, representative DWG or real dynamic templates provided"
 }

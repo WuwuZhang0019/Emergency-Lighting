@@ -17,7 +17,7 @@ from autolisp_host import Host, Pair, Symbol, parse, quoted, truth
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 CHECK_ROOT = ROOT / 'output' / 'cad2020-root-check'
-MODULES = ('common', 'config', 'geometry', 'topology', 'statistics', 'generation', 'main')
+MODULES = ('common', 'config', 'geometry', 'topology', 'statistics', 'generation', 'main', 'simple')
 
 
 def lisp_data(value):
@@ -278,7 +278,7 @@ class PackagedUpdateTests(RootFixture):
         self.h.run('(c:ELSTAT)')
         self.assertEqual(self.dialogs, [])
         self.assertEqual(len(self.picks), 1)
-        self.assertIn('拾取待统计配电箱', self.picks[0])
+        self.assertIn('拾取配电箱', self.picks[0])
         self.assertEqual(self.config_path().read_bytes(), before)
         self.assertTrue(all(not encoding for _, _, encoding in self.opens))
 

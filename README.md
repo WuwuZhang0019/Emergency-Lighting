@@ -1,18 +1,20 @@
 # 应急照明回路统计与系统图生成
 
-日期：2026-10-08。状态：整箱统计及 v13 轮廓诊断日志已实现；真实 DWG、动态块适配及集中 CAD 验收待完成。
+日期：2026-10-08。状态：v22 两次拾取与设备功率表已实现；真实 CAD 验收待完成。
 
-从模型空间拾取应急照明配电箱及任一靠近出口的导线样本，集中核对全部出口和设备类型，按独立出线识别回路，统计设备，确认整数瓦功率，检查每回路不超过 172W，再用用户真实动态块排布系统图。图层采样、断口试查／配对、跨层引线、功率 DCL、模板采集、预览和生成均已提供源码。
+运行 `ELSTAT`，拾取配电箱，再拾取该系统的一条导线，直接显示设备表：**设备图块／数量／单个功率（W）**。首次输入功率，保存后按图块名自动记住。无需出线核对、角色分类或设备图层采样。
 
 ## 加载与使用
 
 目标：Windows AutoCAD 2021+，LISPSYS=1/2。保留整个仓库目录，在可信、可写的位置加载 `src/load.lsp`。详细路径设置、命令顺序和支持边界见 [03 加载使用与验收说明](docs/03_加载使用与验收说明.md)。
 
-基本流程：`ELSTAT`（箱体＋导线样本 → 出口表 → 角色表 → 功率表）→ `ELTEMPLATE` → `ELGEN`。需要调整识别参数时使用 `ELSETUP`，局部断口可用 `ELGAPTEST` 试查。不完整、功率缺项、归属冲突、超限或源图变化均禁用正式生成；统计可先用 `ELSAVERESULT` 独立保存。
+AutoCAD 2020 使用完整的 GB2312 交付包 [应急照明-022.zip](output/应急照明-022.zip)。APPLOAD 包内 `START-CAD2020.lsp`，选择同包 `src/load.lsp`，确认 v22 后运行 `ELSTAT`。不要直接加载仓库的 UTF-8 源码。
 
-v10 默认向前搜索 2000 mm，仅匹配共线、相向、同高程断口；整条导线任一端接设备或箱体即排除，非共线交叉线忽略。空间索引及规则验证见 [v10 实施记录](tests/evidence/2026-10-08-gap-rule10.md)。内部端点和中段接设备同样排除整条导线。AutoCAD 2020 请使用构建后的 GB2312 完整交付包 [应急照明-013.zip](output/应急照明-013.zip)，升级时同时使用新 DCL。整箱实施及边界见 [B01—B06 验证记录](tests/evidence/2026-10-08-box-statistics.md)。
+点选设备行会返回图面，缩放、亮显并用黄色框标出该类设备，按 Enter 返回，输入保留。单个功率接受非负整数 W，保存至 `config/block-powers.eld`，不同图纸同名图块也可复用。更换插件目录时复制该文件；旧版角色功率不自动转换。改功率用 `ELPOWER`，改接线或设备后重新 `ELSTAT`。
 
-`ELSTAT`／`ELTRACE` 现在自动记录诊断日志，结束或报错时显示完整路径（当前插件目录的 `output/ELTRACE-debug.log`）。v13 已根据实际日志细分箱体内部多段线处理阶段；日志数据在宿主中未复现错误，真实 CAD 根因仍待确认。详情见 [轮廓诊断记录](tests/evidence/2026-10-08-contour-diagnostics.md)。
+只统计沿选定图层导线能从配电箱到达的图块，其余连通图块均按设备处理；同图层但不连通的不计入。图块作为整体，不展开内部几何，中段穿过也算接入。新入口省去其他图层导线解析、角色库读取和逐回路确认；真实耗时尚待 CAD 测量。详见 [v22 实施与验证记录](tests/evidence/2026-10-08-simple-device-table.md)。
+
+原分回路、模板与系统图生成作为高级流程保留：`ELTRACE` → `ELPOWER` → `ELTEMPLATE` → `ELGEN`。新设备表为系统汇总，不能代替逐回路 172W 校验或直接生成系统图。`ELSTAT`／`ELTRACE` 的日志仍保存在插件目录 `output/ELTRACE-debug.log`，结束时显示路径。
 
 ## 方案与进度
 
@@ -30,7 +32,7 @@ python3 tests/fixtures/generate_fixture.py
 python -X utf8 tests/run_checks.py
 ```
 
-当前 133 项自动检查通过，证据保存在 [automated-checks.json](tests/evidence/automated-checks.json)。测试解释实际 LSP 纯函数并检查源码／替代接口，不代表 AutoCAD 编译或实操通过。
+最新检查结果、数量及源码哈希保存在 [automated-checks.json](tests/evidence/automated-checks.json)。测试解释实际 LSP 纯函数并检查源码／替代接口，不代表 AutoCAD 编译或实操通过。
 
 [合成 CAD 样图](tests/fixtures/cad-plan.dxf) 包含三出线、混合导线类型、设备边界、断口与横穿线；[人工规则预期](tests/fixtures/cad-plan.expected.json) 为 第一回路仅识别到 1 盏灯并报告未完成；已识别负载为 5W／2W／5W，部分负载合计 12W，完整回路合计仅 7W，禁止生成。该 DXF 未在本环境导入 CAD，也不包含真实动态块。
 

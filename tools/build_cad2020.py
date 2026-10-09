@@ -4,7 +4,7 @@ import shutil
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGE_NO = 47
+PACKAGE_NO = 48
 NAME = f'应急照明-{PACKAGE_NO:03d}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 DEST = ROOT / 'output' / NAME
@@ -35,7 +35,7 @@ def build():
             data = text.encode('gb2312', errors='strict')
             assert data.decode('gb2312') == text
             (DEST / folder / source.name).write_bytes(data)
-    standalone = (DEST / 'src/insert-circuit.lsp').read_bytes() + '\n(princ "\\nCCKK 已加载：输入 CCKK，移动鼠标并点击插入配电回路图块。")\n(princ)\n'.encode('gb2312', errors='strict')
+    standalone = (DEST / 'src/insert-circuit.lsp').read_bytes() + '\n(princ "\\nCCKK 已加载：输入 CCKK，点击插入回路图块及两行文字（v48）。")\n(princ)\n'.encode('gb2312', errors='strict')
     (DEST / 'CCKK.lsp').write_bytes(standalone)
     shutil.copy2(ROOT / 'ui/box-ui-011.marker', DEST / 'ui/box-ui-011.marker')
     shutil.copy2(ROOT / 'ui/diagram-ui-044.marker', DEST / 'ui/diagram-ui-044.marker')

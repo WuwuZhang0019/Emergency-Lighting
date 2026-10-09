@@ -34,7 +34,10 @@
       (strcat textdata ")"))
     (T (vl-prin1-to-string value))))
 (defun EL:StoreWrite (store / textdata chunks entry entity data i)
-  (setq textdata (EL:StoreText store) i 1)
+  (setq textdata (EL:LogCall "STORE_SERIALIZE" nil 'EL:StoreText (list store)) i 1)
+  ;; Validate serialization before modifying the DWG.
+  (if (not (equal store (EL:LogCall "STORE_PARSE" (list (cons 'chars (strlen textdata))) 'read (list textdata))))
+    (progn (princ "\n草稿序列化回读不一致，未写入 DWG。") (exit)))
   ;; Keep each DXF string well below the byte limit even in GB2312.
   (while (<= i (strlen textdata))
     (setq chunks (cons (cons 1 (substr textdata i 100)) chunks) i (+ i 100)))
@@ -46,7 +49,7 @@
     (progn
       (setq entity (entmakex (append '((0 . "XRECORD") (100 . "AcDbXrecord") (280 . 1)) (reverse chunks))))
       (if (or (not entity) (not (dictadd (namedobjdict) "EL_FIXED_V1" entity))) (exit))))
-  (if (not (equal store (EL:StoreRead))) (exit)) T)
+  (if (not (equal store (EL:LogCall "STORE_READBACK" nil 'EL:StoreRead nil))) (exit)) T)
 (defun EL:DiagramForPanel (panel store / found rows)
   (setq rows (vl-remove-if-not '(lambda (r) (equal panel (EL:Get 'source-panel-handle r))) (EL:Get 'diagrams store)))
   (if (> (length rows) 1) (progn (princ "\n来源箱体存在重复系统图关联，需修复。") (exit)))
@@ -101,18 +104,18 @@
   (if *EL:TransactionOpen*
     (progn
       (setq doc (vla-get-ActiveDocument (vlax-get-acad-object)))
-      (vla-EndUndoMark doc) (setq *EL:TransactionOpen* nil)
+      (vla-EndUndoMark doc)
       ;; The single group contains INSERT/TEXT, deletes, dynamic state and XRecord.
       (if *EL:TransactionDirty* (command-s "_.UNDO" "1"))
-      (setq *EL:Created* nil *EL:TransactionDirty* nil)))
+      (setq *EL:TransactionOpen* nil *EL:Created* nil *EL:TransactionDirty* nil)))
   (redraw))
 (defun EL:TransactionBody (function args / marker outcome)
   ;; An owned temporary record ensures even an early failed edit has an undo
   ;; entry. An empty failed group must never undo the user's preceding action.
-  (setq marker (entmakex '((0 . "XRECORD") (100 . "AcDbXrecord") (1 . "transaction"))))
+  (setq marker (EL:LogCall "TX_MARKER_CREATE" nil 'entmakex (list '((0 . "XRECORD") (100 . "AcDbXrecord") (1 . "transaction")))))
   (if marker (setq *EL:TransactionDirty* T))
   (EL:Require (and marker (dictadd (namedobjdict) "EL_FIXED_TX" marker)) "无法建立事务记录。")
-  (setq outcome (apply function args))
+  (setq outcome (EL:LogCall "TX_WRITE" nil function args))
   (EL:Require (dictremove (namedobjdict) "EL_FIXED_TX") "无法清理事务记录。")
   (EL:Require (entdel marker) "无法删除事务记录。") outcome)
 (defun EL:TransactionStart (doc / state)
@@ -129,20 +132,35 @@
       (if (/= 0 (logand 8 state)) (vla-EndUndoMark doc))
       (if (/= 0 (logand 8 (getvar "UNDOCTL")))
         (progn (princ "\n无法结束已有撤销组，本次未写入。") nil)
-        (progn (vla-StartUndoMark doc)
+        (progn (EL:LogCall "UNDO_BEGIN" nil 'vla-StartUndoMark (list doc))
           (setq *EL:TransactionOpen* T *EL:Created* nil *EL:TransactionDirty* nil) T)))))
-(defun EL:Transaction (function args / *error* doc outcome)
-  (defun *error* (msg)
-    (EL:TransactionRollback) (EL:ClearPickHighlights)
-    (if msg (princ (strcat "\n系统图事务取消，已撤销本次修改：" msg))) (princ))
-  (setq doc (vla-get-ActiveDocument (vlax-get-acad-object)))
-  (EL:Require (not (dictsearch (namedobjdict) "EL_FIXED_TX")) "检测到未结束的系统图事务，请先 UNDO 或恢复图纸。")
+(defun EL:TransactionRun (doc function args / outcome)
   (if (EL:TransactionStart doc)
     (progn
-      (setq outcome (vl-catch-all-apply 'EL:TransactionBody (list function args)))
-      (if (or (vl-catch-all-error-p outcome) (not outcome))
-        (progn (EL:TransactionRollback) (princ "\n本次系统图更新失败，已撤销图形及 DWG 记录修改。") nil)
-        (progn (vla-EndUndoMark doc) (setq *EL:TransactionOpen* nil *EL:TransactionDirty* nil *EL:Created* nil) outcome)))))
+      (setq outcome (EL:TransactionBody function args))
+      (EL:Require outcome "事务写入未完成。")
+      (EL:LogCall "UNDO_END" nil 'vla-EndUndoMark (list doc))
+      (setq *EL:TransactionOpen* nil *EL:TransactionDirty* nil *EL:Created* nil)
+      outcome)))
+(defun EL:Transaction (function args / doc outcome rollback stack)
+  ;; Date: 2026-10-09. Catch start, write and commit together. Never let an
+  ;; error during rollback hide the original failure or report success.
+  (setq doc (vla-get-ActiveDocument (vlax-get-acad-object)) stack *EL:LogStack*)
+  (EL:Require (not (dictsearch (namedobjdict) "EL_FIXED_TX")) "检测到未结束的系统图事务，请先 UNDO 或恢复图纸。")
+  (setq outcome (vl-catch-all-apply 'EL:TransactionRun (list doc function args)))
+  (if (vl-catch-all-error-p outcome)
+    (progn
+      (EL:LogEvent "TRANSACTION_ERROR" (list (cons 'message (vl-catch-all-error-message outcome))
+        (cons 'stack *EL:LogStack*)))
+      (princ (strcat "\n系统图事务失败：" (vl-catch-all-error-message outcome)))
+      (setq rollback (vl-catch-all-apply 'EL:TransactionRollback nil))
+      (if (vl-catch-all-error-p rollback)
+        (progn
+          (EL:LogEvent "ROLLBACK_ERROR" (list (cons 'message (vl-catch-all-error-message rollback))))
+          (princ "\n自动撤销未完成，请停止继续生成，使用 UNDO 或恢复图纸。"))
+        (princ "\n本次事务已停止；已撤销本次已记录的修改。"))
+      (setq *EL:LogStack* stack) nil)
+    outcome))
 (defun EL:ConfirmDiagram (/ answer)
   ;; Date: 2026-10-09. Enter keeps the preview; only explicit No cancels it.
   (initget "Yes No")

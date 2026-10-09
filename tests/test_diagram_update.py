@@ -236,6 +236,43 @@ class UpdateTests(unittest.TestCase):
         self.assertEqual(self.h.run("(EL:Get 'capacity-source (EL:PreparedResult fresh-result reopened))"), Symbol('MANUAL'))
         self.assertEqual(self.h.run("(EL:Get 'draft-capacity-source reopened)"), Symbol('MANUAL'))
 
+    def test_start_failure_is_caught_without_writing_or_undoing_user_work(self):
+        self.install_transaction()
+        self.h.builtins['VLA-STARTUNDOMARK'] = lambda _: (_ for _ in ()).throw(RuntimeError('start failed'))
+        messages = []
+        self.h.builtins['PRINC'] = lambda value='': messages.append(value) or value
+        self.assertIsNone(self.h.run("(EL:Transaction 'EL:StoreWrite (list store))"))
+        self.assertNotIn('EL_FIXED_V1', self.dictionary)
+        self.assertEqual(self.undo, [])
+        self.assertIn('start failed', ''.join(messages))
+
+    def test_commit_failure_rolls_back_and_keeps_original_error(self):
+        self.install_transaction()
+        before = copy.deepcopy((self.entities, self.dictionary, self.dynamic))
+        calls, messages = [], []
+        def end(_):
+            calls.append(1)
+            if len(calls) == 1:
+                raise RuntimeError('commit failed')
+        self.h.builtins.update({'VLA-ENDUNDOMARK': end,
+                               'PRINC': lambda value='': messages.append(value) or value})
+        self.assertIsNone(self.h.run("(EL:Transaction 'EL:StoreWrite (list store))"))
+        self.assertEqual((self.entities, self.dictionary, self.dynamic), before)
+        self.assertIn('commit failed', ''.join(messages))
+
+    def test_rollback_failure_is_reported_without_erasing_original_error(self):
+        self.install_transaction()
+        messages = []
+        self.h.builtins.update({
+            'EL:STOREWRITE': lambda _: (_ for _ in ()).throw(RuntimeError('write failed')),
+            'COMMAND-S': lambda *args: (_ for _ in ()).throw(RuntimeError('undo failed')),
+            'PRINC': lambda value='': messages.append(value) or value,
+        })
+        self.assertIsNone(self.h.run("(EL:Transaction 'EL:StoreWrite (list store))"))
+        self.assertIn('write failed', ''.join(messages))
+        self.assertIn('自动撤销未完成', ''.join(messages))
+        self.assertTrue(truth(self.h.lookup('*EL:TRANSACTIONOPEN*')))
+
     def test_disabled_or_unclosed_undo_is_not_a_truthy_message(self):
         self.install_transaction()
         self.h.builtins['PRINC'] = lambda *args: args[0] if args else None

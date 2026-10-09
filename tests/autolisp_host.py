@@ -163,6 +163,7 @@ class Host:
             'VL-SORT': lambda xs,fn: sorted(seq(xs),key=cmp_to_key(lambda a,b: -1 if truth(self.call(fn,[a,b])) else (1 if truth(self.call(fn,[b,a])) else 0))) or None,
             'VL-CATCH-ALL-APPLY': self.catch,
             'VL-CATCH-ALL-ERROR-P': lambda x:isinstance(x,CaughtError),
+            'VL-CATCH-ALL-ERROR-MESSAGE': lambda x:str(x.exception),
         }
         for op in ['CADR','CADDR','CADDDR','CAAR','CDAR','CDDR','CDDDR','CADAR','CADR']:
             self.builtins[op] = self.accessor(op)

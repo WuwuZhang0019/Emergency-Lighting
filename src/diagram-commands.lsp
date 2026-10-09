@@ -76,6 +76,11 @@
         (princ "\n功率库写入失败，请保留当前窗口数值并检查插件目录写入权限。"))
       (if (EL:FreshResult result cfg)
         (progn
+          ;; Keep accepted setup and draft outside the preview undo group.
+          (setq *EL:Result* result *EL:FixedConfig* cfg)
+          (if (and syncable (EL:Get 'generate edited)
+              (not (EL:Get 'panel-output-handle record)))
+            (EL:Require (EL:SaveDraft result cfg powers capacity) "生成前保存草稿失败，请重试。"))
           (setq saved (if syncable
             (EL:SyncDiagram result cfg powers capacity (EL:Get 'generate edited) T)
             (progn (EL:MarkStale (EL:Get 'panel result) 'review-or-template-pending) T)))

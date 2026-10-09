@@ -129,6 +129,11 @@
       (if (or (vl-catch-all-error-p outcome) (not outcome))
         (progn (EL:TransactionRollback) (princ "\n本次系统图更新失败，已撤销图形及 DWG 记录修改。") nil)
         (progn (vla-EndUndoMark doc) (setq *EL:TransactionOpen* nil *EL:TransactionDirty* nil *EL:Created* nil) outcome)))))
+(defun EL:ConfirmDiagram (/ answer)
+  ;; Date: 2026-10-09. Enter keeps the preview; only explicit No cancels it.
+  (initget "Yes No")
+  (setq answer (getkword "\n保留本次系统图？[Yes/No] <Yes>："))
+  (or (not answer) (member (strcase answer) '("YES" "Y"))))
 (defun EL:CreateDiagram (result template capacity plan record store / doc space layer object handles row h)
   (setq doc (vla-get-ActiveDocument (vlax-get-acad-object)) space (vla-get-ModelSpace doc) layer (EL:Get 'layer template))
   (if (not (tblsearch "LAYER" layer)) (vla-Add (vla-get-Layers doc) layer))
@@ -149,7 +154,6 @@
     (progn
       (vla-Regen doc 1)
       (princ "\n请检查实际动态块预览：接线、母线覆盖、普通/地面/预留状态及文字。")
-      (initget "Yes No")
-      (EL:Require (equal (getkword "\n保留本次系统图？[Yes/No] <No>：") "Yes") "预览取消。")
+      (EL:Require (EL:ConfirmDiagram) "预览取消。")
       (EL:Require (EL:FreshResult result (EL:Get 'config record)) "SOURCE_CHANGED：预览后源图变化。")))
   (EL:StoreWrite (EL:StorePutDiagram record store)) record)

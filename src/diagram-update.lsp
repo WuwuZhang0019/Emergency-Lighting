@@ -211,10 +211,9 @@
           (EL:Require (and (= (getvar "TILEMODE") 1) (> (getvar "CVPORT") 1)) "请进入模型空间生成系统图。")
           (setq point (getpoint "\n选择系统图箱体插入点："))
           (EL:Require point "插入取消。")
-          (setq rotation (getreal "\n绕 WCS Z 轴旋转角度（度）<0>："))
-          (initget 6) (setq scale (getreal "\n正等比缩放 <1>："))
+          ;; Date: 2026-10-09. New diagrams use the agreed 0-degree, 1:1 defaults.
           (setq transform (list (cons 'position (trans point 1 0))
-            (cons 'rotation (* (/ pi 180.0) (cond (rotation) (T 0.0)))) (cons 'scale (cond (scale) (T 1.0))))
+            '(rotation . 0.0) '(scale . 1.0))
             *EL:NativePreview* interactive)))
       (setq plan (EL:FixedPlan result template capacity (EL:Get 'position transform) (EL:Get 'rotation transform) (EL:Get 'scale transform))
         structural (not (EL:SameStructure record plan)))

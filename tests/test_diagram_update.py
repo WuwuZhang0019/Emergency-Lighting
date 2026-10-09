@@ -305,6 +305,34 @@ class UpdateTests(unittest.TestCase):
         self.h.run('(c:ELRECOVER)')
         self.assertEqual((self.entities, self.dictionary), before)
 
+    def test_save_recovers_inline_and_continues_without_separate_command(self):
+        self.install_interrupted_marker()
+        before = copy.deepcopy(self.entities)
+        self.h.builtins.update({'INITGET': lambda *args: None, 'GETKWORD': lambda *args: 'Yes',
+                               'EL:TEMPLATEREADY': lambda *args: None})
+        self.assertTrue(truth(self.h.run("(EL:SaveDraft result nil nil 'cap600)")))
+        self.assertNotIn('EL_FIXED_TX', self.dictionary)
+        self.assertIn('EL_FIXED_TX_INTERRUPTED_1', self.dictionary)
+        self.assertIn('EL_FIXED_V1', self.dictionary)
+        for entity, data in before.items():
+            self.assertEqual(self.entities[entity], data)
+
+    def test_inline_recovery_cancel_does_not_start_transaction(self):
+        self.install_interrupted_marker()
+        before = copy.deepcopy((self.entities, self.dictionary))
+        self.h.builtins.update({'INITGET': lambda *args: None, 'GETKWORD': lambda *args: None})
+        self.assertIsNone(self.h.run("(EL:Transaction 'EL:StoreWrite (list store))"))
+        self.assertEqual((self.entities, self.dictionary), before)
+        self.assertEqual(self.undo, [])
+
+    def test_running_transaction_cannot_be_recovered_or_nested(self):
+        self.install_interrupted_marker()
+        self.h.run('(setq *EL:TransactionRunning* T)')
+        self.h.builtins['GETKWORD'] = lambda *args: self.fail('must not prompt during active transaction')
+        self.assertIsNone(self.h.run("(EL:Transaction 'EL:StoreWrite (list store))"))
+        self.assertIn('EL_FIXED_TX', self.dictionary)
+        self.assertEqual(self.undo, [])
+
     def test_recovery_command_yes_archives_marker(self):
         self.install_interrupted_marker()
         self.h.builtins.update({'INITGET': lambda *args: None, 'GETKWORD': lambda *args: 'Yes'})

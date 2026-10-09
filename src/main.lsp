@@ -292,6 +292,7 @@
                 (setq result (EL:Put 'complete nil (EL:Put 'issues
                   (cons (EL:Issue 'WIRE_SCOPE_UNCONFIRMED panel *EL:OutsidePorts*) (EL:Get 'issues result)) result))))
               (setq *EL:Result* result)
+              (EL:PublishDiagram result cfg)
               (princ (strcat "\n阶段耗时与数量：" (vl-prin1-to-string (EL:Get 'timing result))))
               (foreach circuit (EL:Get 'circuits result)
                 (princ (strcat "\n" (EL:Get 'id circuit) "：设备 " (itoa (length (EL:Get 'devices circuit)))
@@ -471,7 +472,8 @@
           (EL:Put 'powers (EL:MergePowers (EL:Get 'powers cfg) *EL:PowerEdits*) cfg))))
     (princ "\n无法打开 DCL 功率表。")))
 (defun c:ELPOWER ()
-  (if *EL:DeviceResult* (EL:SimpleEdit *EL:DeviceResult*) (EL:AdvancedPower)) (princ))
+  (if (equal (EL:Get 'engine *EL:Result*) 'fixed) (EL:EditPanel *EL:Result* *EL:FixedConfig*)
+    (if *EL:DeviceResult* (EL:SimpleEdit *EL:DeviceResult*) (EL:AdvancedPower))) (princ))
 (defun EL:AdvancedPower (/ *error* cfg library edited)
   (defun *error* (msg) (EL:ClearGapPreview) (EL:ClearPickHighlights) (EL:ReleasePowerUI) (if msg (princ (strcat "\n功率编辑取消，未应用的行未保存：" msg))) (princ))
   (EL:ClearPickHighlights)
@@ -485,7 +487,7 @@
         (if (and (EL:SourceCurrent *EL:Result* edited (EL:CollectEndpointSnapshot edited)) (setq cfg (EL:SaveConfig edited)))
           (progn
             (if *EL:SaveLibrary* (EL:SavePowerLibrary *EL:LibraryEdits*))
-            (setq *EL:Result* (EL:BoxStatistics *EL:Result* cfg library nil)) (EL:PrintStatistics *EL:Result*)))))
+            (setq *EL:Result* (EL:BoxStatistics *EL:Result* cfg library nil)) (EL:PrintStatistics *EL:Result*) (EL:PublishDiagram *EL:Result* cfg)))))
     (princ "\n本图没有有效统计或源图／识别配置已变化，请运行 ELTRACE。")) (EL:ClearPickHighlights) (princ))
 (defun c:ELISSUES (/ rows index i issue object)
   (if *EL:Result*
@@ -504,7 +506,7 @@
               (setq object (EL:Get 'object (nth (1- index) rows)))
               (if (equal (type object) 'STR) (EL:LocateID object)
                 (foreach i object (if (equal (type i) 'STR) (EL:LocateID i)))))))))) (princ))
-(defun c:ELSTAT () (EL:SimpleStat) (princ))
+(defun c:ELSTAT () (EL:FixedStat) (princ))
 (defun c:ELSAVERESULT (/ path cfg)
   (if (and *EL:Result* (setq cfg (EL:LoadConfig))
        (EL:SourceCurrent *EL:Result* cfg (EL:CollectEndpointSnapshot cfg)))

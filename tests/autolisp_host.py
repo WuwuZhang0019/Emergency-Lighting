@@ -153,7 +153,7 @@ class Host:
             'VL-STRING-SEARCH': lambda token,textdata,offset=0: (i if (i:=textdata.find(token,offset))>=0 else None),
             'SUBSTR': lambda s,start,n=None:s[start-1:] if n is None else s[start-1:start-1+n],
             'VL-PRIN1-TO-STRING': repr, 'VL-REMOVE': lambda x,xs:[y for y in seq(xs) if not equal(x,y)] or None,
-            'PRINC': lambda *x: None, 'READ': lambda x:parse(x)[0],
+            'PRINC': lambda *x: None, 'READ': lambda x:quoted(parse(x)[0]),
             'MAPCAR': lambda fn,*xs: [self.call(fn,list(a)) for a in zip(*(seq(x) for x in xs))] or None,
             'APPLY': lambda fn,xs:self.call(fn,seq(xs)),
             'VL-REMOVE-IF': lambda fn,xs:[x for x in seq(xs) if not truth(self.call(fn,[x]))] or None,

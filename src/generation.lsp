@@ -177,7 +177,7 @@
   (setq good (EL:TemplateValid template) layer (EL:Get 'layer template))
   (if good
     (progn
-  (if (member layer (append (EL:Get 'wire-layers cfg) (EL:Get 'panel-layers cfg) (EL:Get 'device-layers cfg) (EL:Get 'leader-layers cfg))) (setq good nil))
+  (if (and (not (equal (EL:Get 'name (EL:Get 'panel template)) "dfgjhdrtyjtfgj4SADFG3")) (member layer (append (EL:Get 'wire-layers cfg) (EL:Get 'panel-layers cfg) (EL:Get 'device-layers cfg) (EL:Get 'leader-layers cfg)))) (setq good nil))
   (foreach definition (list (EL:Get 'panel template) (EL:Get 'circuit template))
     (if (or (not (tblsearch "BLOCK" (EL:Get 'name definition)))
       (not (equal (EL:Get 'definition definition) (EL:Signature (EL:DefinitionData (EL:Get 'name definition) nil))))) (setq good nil))
@@ -302,7 +302,7 @@
   (foreach object *EL:Created* (setq handles (cons (vla-get-Handle object) handles)))
   (vla-EndUndoMark doc) (setq undo-open nil *EL:Created* nil) (redraw)
   handles)
-(defun c:ELGEN (/ *error* cfg library fresh template capacity outputs point rotation scale plan handles record)
+(defun EL:LegacyGenerate (/ *error* cfg library fresh template capacity outputs point rotation scale plan handles record)
   (defun *error* (msg) (redraw) (if msg (princ (strcat "\n生成取消：" msg))) (princ))
   (if (and *EL:Result* (setq cfg (EL:LoadConfig)))
     (progn

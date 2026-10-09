@@ -35,6 +35,7 @@ class CadAdapterTests(unittest.TestCase):
             'VLAX-PROPERTY-AVAILABLE-P': lambda *args: None,
             'VLA-GET-ISDYNAMICBLOCK': lambda entity: 0,
             'EL:DRAWINGID': lambda: 'adapter-fixture.dwg',
+            'NAMEDOBJDICT': lambda:'NOD', 'DICTSEARCH': lambda *args:None,
         })
         self.h.run('''
           (setq cfg (EL:DefaultConfig "adapter-fixture.dwg"))
@@ -89,7 +90,7 @@ class CadAdapterTests(unittest.TestCase):
         self.assertIsInstance(self.call('EL:Signature', data), str)
 
     def test_advanced_trace_then_power_still_reaches_legacy_dialog(self):
-        for name in ('statistics', 'main'):
+        for name in ('statistics', 'main', 'diagram-commands'):
             self.h.load_definitions(ROOT / 'src' / f'{name}.lsp')
         panel = self.block('BOX', 'P', 'panel', [0.0, 0.0, 0.0])
         lamp = self.block('LAMP', 'D', 'lamp', [12.0, 0.0, 0.0])

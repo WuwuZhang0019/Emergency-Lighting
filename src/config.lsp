@@ -10,13 +10,14 @@
       (setq ok T)
       (foreach file '("src/load.lsp" "src/common.lsp" "src/config.lsp" "src/geometry.lsp"
                      "src/topology.lsp" "src/statistics.lsp" "src/generation.lsp"
-                     "src/main.lsp" "src/simple.lsp" "ui/power.dcl")
+                     "src/main.lsp" "src/simple.lsp" "src/fixed.lsp" "src/panel.lsp"
+                     "src/diagram-store.lsp" "src/diagram-update.lsp" "src/diagram-commands.lsp" "ui/power.dcl")
         (if (not (findfile (strcat root file))) (setq ok nil)))
       (foreach folder '("config" "output" "templates")
         (if (not (vl-file-directory-p (strcat root folder))) (setq ok nil)))
       (and ok (EL:BoxUIValid root)))))
 (defun EL:BoxUIValid (root)
-  (findfile (strcat root "ui/box-ui-011.marker")))
+  (and (findfile (strcat root "ui/box-ui-011.marker")) (findfile (strcat root "ui/diagram-ui-025.marker"))))
 (defun EL:RootFromLoad (path / name extension directory root)
   (if (and (equal (type path) 'STR) (/= path "")
            (setq name (vl-filename-base path)) (equal (type name) 'STR)

@@ -67,13 +67,19 @@ class SourceContracts(unittest.TestCase):
     def test_dcl_keys_and_callback_syntax(self):
         ui = (ROOT/'ui/power.dcl').read_text()
         keys=set(re.findall(r'key\s*=\s*"([^"]+)"',ui)) | {'accept','cancel'}
-        code='\n'.join((ROOT/'src'/name).read_text() for name in ('main.lsp','simple.lsp'))
+        code='\n'.join((ROOT/'src'/name).read_text() for name in ('main.lsp','simple.lsp','panel.lsp'))
         used=set(re.findall(r'\((?:action_tile|set_tile|get_tile|start_list)\s+"([^"]+)"',code))
         self.assertTrue(used <= keys, used-keys)
         for form in parse(code):
             for expr in expressions(form):
                 if expr[0] == Symbol('ACTION_TILE'):
-                    self.assertTrue(parse(expr[2]))
+                    if isinstance(expr[2], str):
+                        self.assertTrue(parse(expr[2]))
+                    else:
+                        for index in range(8):
+                            self.h.frames[0]['KEY'] = str(index)
+                            self.assertIn(self.h.evaluate(expr[1]), keys)
+                            self.assertTrue(parse(self.h.evaluate(expr[2])))
         self.assertEqual(ui.count('{'),ui.count('}'))
 
     def test_atomic_config_write_restores_previous_file_on_failure(self):

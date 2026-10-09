@@ -87,3 +87,54 @@ class UpdateTests(unittest.TestCase):
     def test_ground_change_updates_state_and_not_power(self):
         self.h.run("(setq result (EL:Put 'circuits (cons (EL:Put 'is-ground T (car cs)) (cdr cs)) result)) (setq plan (EL:FixedPlan result template 'cap300 '(0.0 0.0 0.0) 0.0 1.0))")
         self.update();self.assertEqual(self.dynamic['b0'],'GROUND'); self.assertEqual(self.writes,[])
+
+    def install_transaction(self):
+        self.undo=[]
+        def begin(_): self.undo.append(copy.deepcopy((self.entities,self.dictionary,self.dynamic)))
+        def rollback(*args):
+            self.assertEqual(args,('_.UNDO','1'))
+            self.entities,self.dictionary,self.dynamic=copy.deepcopy(self.undo.pop())
+        def remove(_,key): return self.dictionary.pop(key,None)
+        self.h.builtins.update({'VLA-STARTUNDOMARK':begin,'VLA-ENDUNDOMARK':lambda _:None,
+          'COMMAND-S':rollback,'REDRAW':lambda:None,'DICTREMOVE':remove,
+          'GETVAR':lambda key:1 if key=='UNDOCTL' else 'drawing-guid',
+          'EXIT':lambda:(_ for _ in ()).throw(RuntimeError('LISP exit'))})
+
+    def test_failed_write_rolls_back_modified_deleted_created_and_dictionary(self):
+        self.install_transaction()
+        before=copy.deepcopy((self.entities,self.dictionary,self.dynamic))
+        self.h.run("(setq result (EL:Put 'circuits (cdr cs) result)) (setq plan (EL:FixedPlan result template 'cap600 '(0.0 0.0 0.0) 0.0 1.0))")
+        self.h.builtins['EL:STOREWRITE']=lambda store:(_ for _ in ()).throw(RuntimeError('XRecord write failure'))
+        outcome=self.h.run("(EL:Transaction 'EL:ApplyUpdate (list result template plan record store T))")
+        self.assertFalse(truth(outcome));self.assertEqual((self.entities,self.dictionary,self.dynamic),before)
+        self.assertFalse(truth(self.h.lookup('*EL:TRANSACTIONOPEN*')))
+
+    def test_successful_single_undo_restores_both_graphics_and_record(self):
+        self.install_transaction(); before=copy.deepcopy((self.entities,self.dictionary,self.dynamic))
+        self.h.run("(setq result (EL:Put 'circuits (cons (EL:Put 'watts 135 (car cs)) (cdr cs)) result)) (setq plan (EL:FixedPlan result template 'cap300 '(0.0 0.0 0.0) 0.0 1.0))")
+        self.assertTrue(truth(self.h.run("(EL:Transaction 'EL:ApplyUpdate (list result template plan record store nil))")))
+        self.assertIn('EL_FIXED_V1',self.dictionary);self.assertNotIn('EL_FIXED_TX',self.dictionary)
+        self.h.builtins['COMMAND-S']('_.UNDO','1')
+        self.assertEqual((self.entities,self.dictionary,self.dynamic),before)
+
+    def test_layout_conflict_and_locked_layer_preflight(self):
+        self.h.builtins['TBLSEARCH']=lambda table,name:[Pair(70,0)]
+        self.assertFalse(truth(self.h.run("(EL:Get 'layout-conflict (EL:CheckLayout record store))")))
+        self.entities['t0']=[Pair(10,[99.,88.,0.]) if isinstance(p,Pair) and p.car==10 else p for p in self.entities['t0']]
+        self.assertTrue(truth(self.h.run("(EL:Get 'layout-conflict (EL:CheckLayout record store))")))
+        self.h.builtins['TBLSEARCH']=lambda table,name:[Pair(70,4)]
+        with self.assertRaises(RuntimeError): self.h.run('(EL:CheckLayout record store)')
+
+    def test_identical_update_is_noop_and_manual_text_content_is_repaired(self):
+        self.h.run("(setq record (EL:Put 'template template (EL:Put 'status 'current (EL:Put 'capacity-option 'cap300 (EL:Put 'power-signature (EL:Signature (EL:Get 'power-config result)) record)))))")
+        self.assertTrue(truth(self.h.run('(EL:DiagramUnchanged record result plan store)')))
+        self.h.builtins['VLA-PUT-TEXTSTRING']('t0','manual')
+        self.assertFalse(truth(self.h.run('(EL:DiagramUnchanged record result plan store)')))
+
+    def test_new_row_appends_before_existing_reserve_handles(self):
+        self.h.run("(setq result (EL:Put 'circuits (append cs '(((id . \"R3\") (circuit-uid . \"u3\") (watts . 12) (output-order . 3)))) result)) (setq plan (EL:FixedPlan result template 'cap300 '(0.0 0.0 0.0) 0.0 1.0))")
+        updated=self.update(True)
+        rows=self.get('rows',updated)
+        self.assertEqual(len(rows),5); self.assertEqual(self.counter,2)
+        self.assertEqual([self.get('block-handle',r) for r in rows[-2:]],['b2','b3'])
+        self.assertTrue(all(self.get('text-handle',r) is None for r in rows[-2:]))

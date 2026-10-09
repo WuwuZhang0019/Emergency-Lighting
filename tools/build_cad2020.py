@@ -36,6 +36,7 @@ def build():
             assert data.decode('gb2312') == text
             (DEST / folder / source.name).write_bytes(data)
     shutil.copy2(ROOT / 'ui/box-ui-011.marker', DEST / 'ui/box-ui-011.marker')
+    shutil.copy2(ROOT / 'ui/diagram-ui-025.marker', DEST / 'ui/diagram-ui-025.marker')
     launcher = ''';; Date: 2026-10-08. Select this package's src/load.lsp explicitly.
 (vl-load-com)
 (defun EL2020:Start (/ selected)

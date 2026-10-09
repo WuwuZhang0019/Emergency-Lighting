@@ -38,7 +38,7 @@
         (if (not old)
           (progn
             (while (EL:By 'circuit-uid (strcat prefix "/" (itoa next)) saved) (setq next (1+ next)))
-            (setq old (list (cons 'circuit-uid (strcat prefix "/" (itoa next)))
+            (setq old (list (cons 'circuit-uid (strcat prefix "/" (EL:Hash (EL:Signature key)) "/" (itoa next)))
               (cons 'output-order next) '(is-ground) '(ground-source . default))
               next (1+ next) added T)))
         (foreach key '(circuit-uid output-order is-ground ground-source ground-rule ground-evidence)
@@ -116,6 +116,11 @@
   (if (EL:PanelStore)
     (progn (setq *EL:PanelPage* (max 0 (min (+ *EL:PanelPage* delta)
       (* 8 (fix (/ (1+ (length (EL:Get 'circuits *EL:PanelDraft*))) 8)))))) (EL:PanelFill))))
+(defun EL:PanelCapacity (value)
+  (if (EL:PanelStore)
+    (setq *EL:PanelCapacity* (cond ((equal value "p_600") 'cap600) ((equal value "p_1000") 'cap1000) (T 'cap300)))
+    (set_tile "p_capacity" (cond ((equal *EL:PanelCapacity* 'cap600) "p_600")
+      ((equal *EL:PanelCapacity* 'cap1000) "p_1000") (T "p_300")))))
 (defun EL:PanelDialog (result cfg powers capacity / dialog status i key row
     *EL:PanelDraft* *EL:PanelPowers* *EL:PanelCapacity* *EL:PanelConfig*
     *EL:PanelIndex* *EL:PanelPage* *EL:PanelDevice*)
@@ -133,7 +138,7 @@
           (setq i (1+ i)))
         (action_tile "p_prev" "(EL:PanelPage -8)") (action_tile "p_next" "(EL:PanelPage 8)")
         (action_tile "p_devices" "(if (EL:PanelStore) (progn (setq *EL:PanelDevice* (atoi $value)) (EL:PanelFill)) (set_tile \"p_devices\" (itoa *EL:PanelDevice*)))")
-        (action_tile "p_capacity" "(if (EL:PanelStore) (setq *EL:PanelCapacity* (cond ((equal $value \"p_600\") 'cap600) ((equal $value \"p_1000\") 'cap1000) (T 'cap300))))")
+        (action_tile "p_capacity" "(EL:PanelCapacity $value)")
         (action_tile "p_locate" "(if (EL:PanelStore) (done_dialog 3))")
         (action_tile "accept" "(if (EL:PanelStore) (done_dialog 1))")
         (action_tile "p_generate" "(if (EL:PanelStore) (if (EL:Get 'can-generate *EL:PanelDraft*) (done_dialog 2) (set_tile \"p_error\" \"识别或功率未通过，不能生成；可保存草稿。\")))")

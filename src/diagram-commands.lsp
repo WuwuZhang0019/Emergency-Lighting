@@ -2,7 +2,9 @@
 (defun EL:FixedPowers (record / data powers row)
   (setq data (EL:SimpleLoadPowers) powers (EL:Get 'powers record))
   (EL:Require data "图块功率库无效，原文件保留。")
-  (foreach row (EL:Get 'powers data) (setq powers (EL:Put (car row) (cdr row) powers))) powers)
+  (foreach row (EL:Get 'powers data) (setq powers (EL:Put (car row) (cdr row) powers)))
+  (if (EL:Get 'draft-circuits record)
+    (foreach row (EL:Get 'powers record) (setq powers (EL:Put (car row) (cdr row) powers)))) powers)
 (defun EL:SaveNamePowers (powers / data row merged)
   (if (setq data (EL:SimpleLoadPowers))
     (progn

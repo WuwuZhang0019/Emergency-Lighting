@@ -1,3 +1,65 @@
+;; Date: 2026-10-09. Read-only ordinary block thumbnails, separate from recognition.
+(defun EL:ThumbGeometry (name / e d typ a b i n pts segs partial)
+  (setq e (cdr (assoc -2 (tblsearch "BLOCK" name))))
+  (while (and e (/= (cdr (assoc 0 (entget e))) "ENDBLK"))
+    (setq d (entget e) typ (cdr (assoc 0 d)))
+    (if (not (equal (cdr (assoc 60 d)) 1))
+      (if (member typ '("LINE" "ARC" "CIRCLE" "LWPOLYLINE" "POLYLINE" "ELLIPSE" "SPLINE"))
+        (progn
+          (setq a (vlax-curve-getStartParam e) b (vlax-curve-getEndParam e)
+            n (cond ((= typ "LINE") 1)
+              ((member typ '("LWPOLYLINE" "POLYLINE")) (* 16 (max 1 (fix (- b a))))) (T 128)) i 0 pts nil)
+          (repeat (1+ n)
+            (setq pts (cons (vlax-curve-getPointAtParam e (+ a (* (- b a) (/ (float i) n)))) pts) i (1+ i)))
+          (setq segs (append segs (EL:Segments (reverse pts)))))
+        (if (not (member typ '("SEQEND" "VERTEX" "POINT"))) (setq partial T))))
+    (setq e (entnext e)))
+  (list segs partial))
+(defun EL:ThumbPixel (p lo scale ox oy height)
+  (list (fix (+ ox (* scale (- (car p) (car lo)))))
+    (fix (- height (+ oy (* scale (- (cadr p) (cadr lo))))))))
+(defun EL:ThumbDraw (key geometry / segs bounds lo hi w h scale ox oy seg a b)
+  (setq segs (car geometry) w (dimx_tile key) h (dimy_tile key))
+  (start_image key) (fill_image 0 0 w h 0)
+  (if segs
+    (progn
+      (setq bounds (EL:SegmentBounds segs) lo (car bounds) hi (cadr bounds)
+        scale (min (/ (- w 12.0) (max 1.0e-9 (- (car hi) (car lo))))
+                   (/ (- h 12.0) (max 1.0e-9 (- (cadr hi) (cadr lo)))))
+        ox (/ (- w (* scale (- (car hi) (car lo)))) 2.0)
+        oy (/ (- h (* scale (- (cadr hi) (cadr lo)))) 2.0))
+      (foreach seg segs
+        (setq a (EL:ThumbPixel (car seg) lo scale ox oy h) b (EL:ThumbPixel (cadr seg) lo scale ox oy h))
+        (vector_image (car a) (cadr a) (car b) (cadr b) 7))))
+  (end_image))
+(defun EL:ThumbFill (/ i row key cached geometry)
+  (setq i 0)
+  (repeat 4
+    (setq key (itoa i) row (nth (+ *EL:ThumbPage* i) *EL:ThumbRows*) geometry nil)
+    (if row
+      (progn
+        (setq cached (assoc (EL:Get 'name row) *EL:ThumbCache*))
+        (if cached (setq geometry (cdr cached))
+          (progn
+            (setq geometry (vl-catch-all-apply 'EL:ThumbGeometry (list (EL:Get 'name row))))
+            (if (vl-catch-all-error-p geometry) (setq geometry (list nil T)))
+            (setq *EL:ThumbCache* (cons (cons (EL:Get 'name row) geometry) *EL:ThumbCache*))))))
+    (EL:ThumbDraw (strcat "f_image" key) geometry)
+    (set_tile (strcat "f_count" key) (if row (strcat "数量：" (itoa (EL:Get 'count row))) ""))
+    (set_tile (strcat "f_hint" key) (cond ((not row) "") ((not (car geometry)) "请在图面查看")
+      ((cadr geometry) "部分图形，请核对图面") (T "")))
+    (setq i (1+ i)))
+  (set_tile "f_page" (strcat (itoa (1+ (fix (/ *EL:ThumbPage* 4)))) " / "
+    (itoa (max 1 (fix (/ (+ (length *EL:ThumbRows*) 3) 4))))))
+  (mode_tile "f_prev" (if (> *EL:ThumbPage* 0) 0 1))
+  (mode_tile "f_next" (if (< (+ *EL:ThumbPage* 4) (length *EL:ThumbRows*)) 0 1)))
+(defun EL:ThumbPage (delta)
+  (setq *EL:ThumbPage* (max 0 (min (+ *EL:ThumbPage* delta)
+    (* 4 (fix (/ (max 0 (1- (length *EL:ThumbRows*))) 4))))))
+  (EL:ThumbFill))
+(defun EL:ThumbActions ()
+  (action_tile "f_prev" "(EL:ThumbPage -4)")
+  (action_tile "f_next" "(EL:ThumbPage 4)"))
 ;; Date: 2026-10-09. Draft-only paged circuit table with real per-row toggles.
 (defun EL:CircuitSnapshot (snapshot panel / blocks b)
   (foreach b (EL:Get 'blocks snapshot)
@@ -39,9 +101,8 @@
     (setq c (nth i (EL:Get 'circuits *EL:FixedExitResult*)) ids (append (EL:Get 'devices c) ids)))
   (setq ids (EL:Unique ids) rows (EL:SimpleRows
     (vl-remove-if-not '(lambda (b) (member (EL:Get 'id b) ids)) (EL:Get 'blocks *EL:ExitSnapshot*)) nil))
-  (start_list "f_devices")
-  (foreach row rows (add_list (strcat (EL:Get 'name row) "\t" (itoa (EL:Get 'count row)))))
-  (end_list)
+  (setq *EL:ThumbRows* rows *EL:ThumbPage* 0)
+  (EL:ThumbFill)
   (set_tile "f_status" (cond
     ((not indices) "尚未选择出线，请选择实际回路。")
     ((not ids) "所选出线未识别到设备，请核对连接。")
@@ -84,7 +145,7 @@
   (EL:ClearGapPreview) (EL:ClearPickHighlights)
   (if (vl-catch-all-error-p checked)
     (EL:Require nil (strcat "回路预览已停止：" (vl-catch-all-error-message checked)))))
-(defun EL:ReviewFixedExits (result record / dialog status c i selected excluded keys *EL:ExitRows* *EL:ExitSnapshot* *EL:FixedExitSelection* *EL:FixedExitResult*)
+(defun EL:ReviewFixedExits (result record / dialog status c i selected excluded keys *EL:ExitRows* *EL:ExitSnapshot* *EL:FixedExitSelection* *EL:FixedExitResult* *EL:ThumbRows* *EL:ThumbPage* *EL:ThumbCache*)
   (setq keys (EL:Get 'candidate-keys result))
   (if (equal keys (EL:Get 'candidate-keys record)) (EL:SelectFixedExits result (EL:Get 'excluded-seeds record))
     (progn
@@ -104,7 +165,7 @@
                 " / 已识别设备 " (itoa (length (EL:Get 'devices c))) " 个"
                 (if (EL:Get 'complete c) "" " / 连接待核对")))) (end_list)
             (set_tile "f_exits" *EL:FixedExitSelection*)
-            (EL:FixedExitDevices)
+            (EL:FixedExitDevices) (EL:ThumbActions)
             (action_tile "f_exits" "(setq *EL:FixedExitSelection* $value) (EL:FixedExitDevices)")
             (action_tile "f_preview" "(done_dialog 2)")
             (action_tile "accept" "(done_dialog 1)") (action_tile "cancel" "(done_dialog 0)")
@@ -278,7 +339,7 @@
 (defun EL:PanelDialog (result cfg powers capacity / dialog status i key row captured
     *EL:PanelDraft* *EL:PanelPowers* *EL:PanelCapacity* *EL:PanelConfig*
     *EL:PanelIndex* *EL:PanelPage* *EL:PanelDevice* *EL:PanelTemplateReady*
-    *EL:FixedExitResult* *EL:FixedExitSelection* *EL:ExitSnapshot*)
+    *EL:FixedExitResult* *EL:FixedExitSelection* *EL:ExitSnapshot* *EL:ThumbRows* *EL:ThumbPage* *EL:ThumbCache*)
   (setq *EL:FixedExitResult* result *EL:ExitSnapshot* (EL:Get 'snapshot result)
     *EL:FixedExitSelection* "" i 0)
   (foreach row (EL:Get 'circuits result)
@@ -294,7 +355,7 @@
       (progn
         (EL:LogCall "PANEL_FILL" (list (cons 'panel (EL:Get 'panel result))
           (cons 'circuits (length (EL:Get 'circuits *EL:PanelDraft*)))) 'EL:PanelFill nil) (setq i 0)
-        (EL:PanelExitFill)
+        (EL:PanelExitFill) (EL:ThumbActions)
         (action_tile "f_exits" "(EL:PanelExitApply $value)")
         (action_tile "f_apply" "(EL:PanelExitApply *EL:FixedExitSelection*)")
         (action_tile "f_preview" "(if (EL:PanelStore) (done_dialog 5))")

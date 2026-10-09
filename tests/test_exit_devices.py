@@ -33,7 +33,7 @@ class ExitDeviceTests(unittest.TestCase):
         def start():
             self.assertEqual(self.dialogs, ['el_panel'])
             self.assertIn('设备 2', self.lists['f_exits'][0])
-            self.assertEqual(self.lists['f_devices'], ['LAMP\t2'])
+            self.assertEqual(self.tiles['f_count0'], '数量：2')
             self.assertEqual(self.lists['p_devices'], ['LAMP\t2\t待填写'])
             return 0
         self.h.builtins['START_DIALOG'] = start
@@ -91,10 +91,10 @@ class ExitDeviceTests(unittest.TestCase):
             if not calls:
                 self.h.frames[0]['$VALUE'] = '0'
                 self.h.run(self.actions['f_exits'])
-                self.assertEqual(self.lists['f_devices'], ['SIGN\t1'])
+                self.assertEqual(self.tiles['f_count0'], '数量：1')
                 return 2
             self.assertEqual(self.tiles['f_exits'], '0')
-            self.assertEqual(self.lists['f_devices'], ['SIGN\t1'])
+            self.assertEqual(self.tiles['f_count0'], '数量：1')
             return 1
         self.h.builtins['START_DIALOG'] = start
         reviewed = self.call('EL:ReviewFixedExits', result, None)
@@ -108,10 +108,10 @@ class ExitDeviceTests(unittest.TestCase):
         self.h.frames[0].update({'*EL:FIXEDEXITRESULT*': result,
             '*EL:EXITSNAPSHOT*': self.get('snapshot', result), '*EL:FIXEDEXITSELECTION*': '0 1'})
         self.call('EL:FixedExitDevices')
-        self.assertEqual(self.lists['f_devices'], ['LAMP\t2'])
+        self.assertEqual(self.tiles['f_count0'], '数量：2')
         self.h.frames[0]['*EL:FIXEDEXITSELECTION*'] = ''
         self.call('EL:FixedExitDevices')
-        self.assertEqual(self.lists['f_devices'], [])
+        self.assertEqual(self.tiles['f_count0'], '')
         self.assertIn('尚未选择出线', self.tiles['f_status'])
         empty = self.call('EL:Put', Symbol('DEVICES'), None, circuit)
         self.h.frames[0]['*EL:FIXEDEXITRESULT*'] = self.call('EL:Put', Symbol('CIRCUITS'), [empty], result)

@@ -57,6 +57,9 @@ class FixedDiagnosticTests(unittest.TestCase):
             'SET_TILE': tile, 'MODE_TILE': lambda *args: None,
             'START_LIST': lambda *args: None, 'ADD_LIST': lambda *args: None,
             'END_LIST': lambda: None, 'ACTION_TILE': lambda *args: None,
+            'DIMX_TILE': lambda key: 160, 'DIMY_TILE': lambda key: 60,
+            'START_IMAGE': lambda key: None, 'END_IMAGE': lambda: None,
+            'FILL_IMAGE': lambda *args: None, 'VECTOR_IMAGE': lambda *args: None,
             'START_DIALOG': lambda: 0,  # Cancel must preserve all persistent data.
             'EL:STOREWRITE': lambda value: self.writes.append(value),
             'EL:WRITEDATA': lambda *args: self.writes.append(args),

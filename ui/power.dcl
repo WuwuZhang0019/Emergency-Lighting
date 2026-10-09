@@ -73,7 +73,13 @@ el_fixed_exits : dialog {
   label = "已完成识别：核对出线与连接设备";
   : text { label = "默认全选。仅取消明确的进线或非本箱出线；有问题的实际回路仍须保留。"; }
   : list_box { key = "f_exits"; label = "实际出线候选 / 已识别设备数量"; width = 88; height = 6; multiple_select = true; }
-  : list_box { key = "f_devices"; label = "所选出线连接的设备：图块 / 数量"; width = 88; height = 8; tabs = "65"; fixed_width_font = true; }
+  : boxed_column { label = "所选出线设备：图形 / 数量";
+    : row { : image { key = "f_image0"; width = 16; height = 3; fixed_width = true; fixed_height = true; color = 0; } : column { : text { key = "f_count0"; width = 26; } : text { key = "f_hint0"; width = 26; } } }
+    : row { : image { key = "f_image1"; width = 16; height = 3; fixed_width = true; fixed_height = true; color = 0; } : column { : text { key = "f_count1"; width = 26; } : text { key = "f_hint1"; width = 26; } } }
+    : row { : image { key = "f_image2"; width = 16; height = 3; fixed_width = true; fixed_height = true; color = 0; } : column { : text { key = "f_count2"; width = 26; } : text { key = "f_hint2"; width = 26; } } }
+    : row { : image { key = "f_image3"; width = 16; height = 3; fixed_width = true; fixed_height = true; color = 0; } : column { : text { key = "f_count3"; width = 26; } : text { key = "f_hint3"; width = 26; } } }
+    : row { : button { key = "f_prev"; label = "上一页"; } : text { key = "f_page"; width = 10; } : button { key = "f_next"; label = "下一页"; } }
+  }
   : text { key = "f_status"; width = 88; }
   : button { key = "f_preview"; label = "在图面查看所选回路导线和设备"; }
   : row {
@@ -87,7 +93,13 @@ el_panel : dialog {
     : boxed_column { label = "出线核对";
       : text { label = "默认全选，仅取消明确的进线或非本箱出线。"; }
       : list_box { key = "f_exits"; width = 52; height = 9; multiple_select = true; }
-      : list_box { key = "f_devices"; label = "所选出线设备 / 数量"; width = 52; height = 12; tabs = "42"; fixed_width_font = true; }
+  : boxed_column { label = "所选出线设备：图形 / 数量";
+    : row { : image { key = "f_image0"; width = 16; height = 3; fixed_width = true; fixed_height = true; color = 0; } : column { : text { key = "f_count0"; width = 26; } : text { key = "f_hint0"; width = 26; } } }
+    : row { : image { key = "f_image1"; width = 16; height = 3; fixed_width = true; fixed_height = true; color = 0; } : column { : text { key = "f_count1"; width = 26; } : text { key = "f_hint1"; width = 26; } } }
+    : row { : image { key = "f_image2"; width = 16; height = 3; fixed_width = true; fixed_height = true; color = 0; } : column { : text { key = "f_count2"; width = 26; } : text { key = "f_hint2"; width = 26; } } }
+    : row { : image { key = "f_image3"; width = 16; height = 3; fixed_width = true; fixed_height = true; color = 0; } : column { : text { key = "f_count3"; width = 26; } : text { key = "f_hint3"; width = 26; } } }
+    : row { : button { key = "f_prev"; label = "上一页"; } : text { key = "f_page"; width = 10; } : button { key = "f_next"; label = "下一页"; } }
+  }
       : text { key = "f_status"; width = 52; }
       : button { key = "f_preview"; label = "在图面查看所选回路导线和设备"; }
       : button { key = "f_apply"; label = "确认出线，刷新右侧功率表"; }

@@ -168,7 +168,8 @@
   (while (and (> dialog 0) (= status 3))
     (if (new_dialog "el_panel" dialog)
       (progn
-        (EL:PanelFill) (setq i 0)
+        (EL:LogCall "PANEL_FILL" (list (cons 'panel (EL:Get 'panel result))
+          (cons 'circuits (length (EL:Get 'circuits *EL:PanelDraft*)))) 'EL:PanelFill nil) (setq i 0)
         (repeat 8
           (setq key (itoa i))
           (action_tile (strcat "p_row" key) (strcat "(EL:PanelSelect (+ *EL:PanelPage* " key "))"))

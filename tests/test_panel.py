@@ -52,7 +52,7 @@ class PanelTests(unittest.TestCase):
         self.h.builtins.update({'EL:ENSUREROOT':lambda:True,'EL:PICKMODEL':pick,
           'EL:LOADCONFIG':lambda:self.cfg,'HANDENT':lambda e:e if e in self.entities else None,
           'EL:SIMPLELOADPOWERS':lambda:self.call('EL:Put',Symbol('VERSION'),1,self.call('EL:Put',Symbol('POWERS'),self.call('EL:Put','LAMP',5,None),None)),
-          'GETVAR':lambda key:'guid' if key=='FINGERPRINTGUID' else 'A0',
+          'GETVAR':lambda key:{'FINGERPRINTGUID':'guid','CDATE':20261009.12,'MILLISECS':100}.get(key),
           'EL:REVIEWFIXEDEXITS':lambda result,record:result,
           'EL:PANELDIALOG':lambda result,cfg,powers,cap:panels.append(result) and None,
           'EL:CLEARPICKHIGHLIGHTS':lambda:None})

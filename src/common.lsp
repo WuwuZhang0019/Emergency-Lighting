@@ -73,7 +73,7 @@
   (if (numberp value) value 0))
 (defun EL:Elapsed (start) (max 0 (- (EL:Tick) start)))
 
-;; Date: 2026-10-08. Diagnostics never change recognition or propagate I/O errors.
+;; Date: 2026-10-09. Diagnostics never change recognition or propagate I/O errors.
 (defun EL:LogText (value / textdata)
   (setq textdata (vl-catch-all-apply 'vl-prin1-to-string (list value)))
   (if (vl-catch-all-error-p textdata) "<unprintable>"
@@ -107,7 +107,7 @@
         *EL:LogSequence* 0 *EL:LogWritten* nil *EL:LogIOFailed* nil)
   (EL:LogAttach)
   (setq stamp (vl-catch-all-apply 'getvar (list "CDATE")))
-  (EL:LogEvent "BEGIN" (list (cons 'command "ELSTAT/ELTRACE") (cons 'diagnostics "024") (cons 'verbose *EL:LogVerbose*)
+  (EL:LogEvent "BEGIN" (list (cons 'command "ELSTAT/ELTRACE/ELPOWER") (cons 'diagnostics "026") (cons 'verbose *EL:LogVerbose*)
     (cons 'date (if (numberp stamp) stamp "unavailable")))))
 (defun EL:LogAttach (/ stamp)
   (if (and *EL:LogActive* (not *EL:LogPath*) (not *EL:LogIOFailed*)
@@ -115,7 +115,7 @@
     (progn
       (setq *EL:LogPath* (strcat *EL:Root* "output/ELTRACE-debug.log")
             stamp (vl-catch-all-apply 'getvar (list "CDATE")))
-      (EL:LogEvent "ATTACH" (list (cons 'diagnostics "024")
+      (EL:LogEvent "ATTACH" (list (cons 'diagnostics "026")
         (cons 'date (if (numberp stamp) stamp "unavailable")))))))
 (defun EL:LogCall (stage context function arguments / result started)
   ;; Leave the stack intact on an AutoLISP error; the command's *error* records it.

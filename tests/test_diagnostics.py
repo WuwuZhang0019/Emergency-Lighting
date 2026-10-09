@@ -1,4 +1,4 @@
-"""Persistent diagnostic/error context regressions. Date: 2026-10-08.
+"""Persistent diagnostic/error context regressions. Date: 2026-10-09.
 
 Runs actual LISP with file and CAD adapters; not real AutoCAD acceptance.
 """
@@ -74,7 +74,7 @@ class DiagnosticTests(unittest.TestCase):
         # The subset host does not automatically dispatch AutoCAD's *error* hook.
         self.call('*ERROR*', str(caught.exception))
         text = self.log.read_text(encoding='utf-8')
-        for value in ('BEGIN', '024', 'PICKS', '1FD6', '1FCD', 'PREPARE_BOX',
+        for value in ('BEGIN', '026', 'PICKS', '1FD6', '1FCD', 'PREPARE_BOX',
                       'PANEL_RECORD', 'BLOCK_BOUNDS', 'ERROR', 'numberp: nil', 'END'):
             self.assertIn(value, text)
         self.assertIn(str(self.log.as_posix()), ''.join(self.messages))

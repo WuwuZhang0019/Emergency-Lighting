@@ -106,8 +106,15 @@
       (setq record (EL:Put 'status 'stale (EL:Put 'stale-reason reason record)))
       (EL:Transaction 'EL:StoreWrite (list (EL:StorePutDiagram record store)))
       (princ "\n原系统图未更新，仍为上次结果。"))) nil)
-(defun EL:NewRecord (panel store / id)
-  (setq id (strcat (EL:Get 'drawing-uuid store) "/" panel "/" (getvar "HANDSEED")))
+(defun EL:NewRecord (panel store / id prefix serial)
+  ;; HANDSEED is not a portable GETVAR string. Allocate within this DWG store.
+  (EL:Require (and (equal (type panel) 'STR) (/= panel "")
+    (equal (type (EL:Get 'drawing-uuid store)) 'STR) (/= (EL:Get 'drawing-uuid store) ""))
+    "无法建立系统图身份：图纸标识或来源箱体句柄为空。")
+  (setq prefix (strcat (EL:Get 'drawing-uuid store) "/" panel "/") serial 1
+    id (strcat prefix (itoa serial)))
+  (while (EL:By 'diagram-id id (EL:Get 'diagrams store))
+    (setq serial (1+ serial) id (strcat prefix (itoa serial))))
   (list (cons 'diagram-id id) (cons 'source-panel-handle panel) '(capacity-option . cap300)
     '(template-version . 1) '(status . unverified)))
 (defun EL:RecognizeFixed (cfg panel / snapshot network result record keys)

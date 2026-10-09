@@ -209,3 +209,56 @@ class UpdateTests(unittest.TestCase):
         self.h.run("(setq result (EL:Put 'circuits (cons (EL:Put 'is-ground T (car cs)) (cdr cs)) result)) (setq plan (EL:FixedPlan result template 'cap600 '(0.0 0.0 0.0) 0.0 1.0))")
         self.assertFalse(truth(self.h.run("(EL:Transaction 'EL:ApplyUpdate (list result template plan record store nil))")))
         self.assertEqual((self.entities,self.dictionary,self.dynamic),before)
+
+    def test_existing_undo_group_saves_capacity_and_powers_with_real_transaction(self):
+        self.install_transaction()
+        state, events = [9], []
+        begin = self.h.builtins['VLA-STARTUNDOMARK']
+        def end(doc):
+            events.append('end')
+            state[0] = 1
+        def start(doc):
+            events.append('start')
+            state[0] = 9
+            begin(doc)
+        self.h.builtins.update({
+            'GETVAR': lambda key: state[0] if key == 'UNDOCTL' else 'drawing-guid',
+            'VLA-ENDUNDOMARK': end, 'VLA-STARTUNDOMARK': start,
+            'PRINC': lambda *args: args[0] if args else None,
+            'EL:TEMPLATEREADY': lambda *args: None,
+        })
+        self.h.run("(setq fresh-result result result (EL:Put 'capacity-source 'manual result))")
+        self.assertTrue(truth(self.h.run("(EL:SaveDraft result nil '((\"LAMP\" . 7)) 'cap600)")))
+        self.assertEqual(events, ['end', 'start', 'end'])
+        self.h.run('(setq reopened (EL:DiagramForPanel "source" (EL:StoreRead)))')
+        self.assertEqual(self.h.run("(EL:Get 'draft-capacity reopened)"), Symbol('CAP600'))
+        self.assertEqual(self.h.run("(EL:Get 'powers reopened)"), self.h.run("'((\"LAMP\" . 7))"))
+        self.assertEqual(self.h.run("(EL:Get 'capacity-source (EL:PreparedResult fresh-result reopened))"), Symbol('MANUAL'))
+        self.assertEqual(self.h.run("(EL:Get 'draft-capacity-source reopened)"), Symbol('MANUAL'))
+
+    def test_disabled_or_unclosed_undo_is_not_a_truthy_message(self):
+        self.install_transaction()
+        self.h.builtins['PRINC'] = lambda *args: args[0] if args else None
+        for state in (0, 9):
+            with self.subTest(state=state):
+                self.h.builtins['GETVAR'] = lambda key: state if key == 'UNDOCTL' else 'drawing-guid'
+                self.assertIsNone(self.h.run("(EL:Transaction 'EL:StoreWrite (list store))"))
+                self.assertNotIn('EL_FIXED_V1', self.dictionary)
+                self.assertEqual(self.undo, [])
+
+    def test_sync_rejects_prompt_string_and_does_not_export_or_report_success(self):
+        self.install_sync()
+        messages, exports = [], []
+        self.h.builtins.update({
+            'EL:TRANSACTION': lambda *args: '请启用 UNDO 并结束已有撤销组。',
+            'PRINC': lambda value='': messages.append(value) or value,
+            'EL:WRITEDATA': lambda *args: exports.append(args) or True,
+        })
+        self.assertIsNone(self.h.run("(EL:SyncDiagram result nil nil 'cap600 T nil)"))
+        self.assertEqual(exports, [])
+        self.assertNotIn('系统图已同步', ''.join(messages))
+
+    def test_draft_requires_store_readback_not_only_success_flag(self):
+        self.h.builtins.update({'EL:TRANSACTION': lambda *args: True,
+                               'EL:TEMPLATEREADY': lambda *args: None})
+        self.assertFalse(truth(self.h.run("(EL:SaveDraft result nil nil 'cap600)")))

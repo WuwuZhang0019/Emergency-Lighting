@@ -420,7 +420,7 @@
         (if (= status 6) (progn (EL:ThumbLocatePreview) (setq status 7)))
         (if (= status 4)
           (progn
-            (princ "\n首次生成或模板已变化：请完成模板设置；取消会返回统计面板，保留当前草稿。")
+            (princ "\n正在自动查找系统图块并读取状态；缺少图块时会提示拷入。")
             (setq captured (vl-catch-all-apply 'EL:CaptureFixedTemplate (list *EL:PanelConfig*)))
             (EL:ClearPickHighlights)
             (if (and (not (vl-catch-all-error-p captured)) captured)

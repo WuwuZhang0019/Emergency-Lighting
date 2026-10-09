@@ -57,7 +57,9 @@ class TemplateChoiceTests(unittest.TestCase):
             'VLA-PUT-VALUE': lambda p, v: (self.updated.append(v.value), p.update(current=v.value)),
             'EL:EFFECTIVENAME': lambda e: self.names[e],
             'EL:DEFINITIONDATA': lambda name, stack: ['definition', name],
-            'EL:PICKENTITY': lambda prompt: next(self.picks),
+            'EL:PICKENTITY': lambda prompt: self.fail('automatic template must not pick samples'),
+            'SSGET': lambda *args: list(self.names),
+            'SSLENGTH': len, 'SSNAME': lambda ss, i: ss[i],
             'ENTGET': lambda e: [Pair(0, 'INSERT'), Pair(5, e), Pair(2, self.names[e])],
             'HANDENT': lambda h: h,
             'TBLSEARCH': table,
@@ -200,6 +202,76 @@ class TemplateChoiceTests(unittest.TestCase):
         template = self.call('EL:CaptureFixedTemplate', self.cfg)
         self.assertTrue(truth(template))
         self.assertEqual(self.saved, [])
+
+    def test_fixed_text_matches_user_properties_without_current_style_or_pick(self):
+        self.h.builtins['GETVAR'] = lambda key: self.fail('text appearance must be fixed')
+        self.h.run('(setq spec (EL:FixedText))')
+        for key, value in [('style', '_TEL_DIM'), ('height', 350.), ('factor', .7),
+                           ('align', 0), ('rotation', 0.), ('layer', 'TEL_TEXT')]:
+            self.assertEqual(self.h.run(f"(EL:Get '{key} spec)"), value)
+
+    def test_missing_block_prompts_copy_instead_of_picking(self):
+        table = self.h.builtins['TBLSEARCH']
+        self.h.builtins['SSGET'] = lambda *args: None
+        self.h.builtins['TBLSEARCH'] = lambda kind, name: None if kind == 'BLOCK' else table(kind, name)
+        self.assertIsNone(self.call('EL:CaptureFixedTemplate', self.cfg))
+        self.assertIn('请将该图块拷入', ''.join(self.messages))
+        self.assertIn('dfgjhdrtyjtfgj4SADFG3', ''.join(self.messages))
+        self.assertEqual(self.saved, [])
+
+    def test_definition_only_probes_are_deleted_and_do_not_save_dead_handles(self):
+        deleted = []
+        self.h.builtins.update({
+            'SSGET': lambda *args: None,
+            'VLAX-GET-ACAD-OBJECT': lambda: 'app',
+            'VLA-GET-ACTIVEDOCUMENT': lambda app: 'doc',
+            'VLA-GET-MODELSPACE': lambda doc: 'space',
+            'VLAX-3D-POINT': lambda p: p,
+            'VLA-INSERTBLOCK': lambda space, pos, name, *args: next(k for k, v in self.names.items() if v == name),
+            'VLAX-VLA-OBJECT->ENAME': lambda obj: obj,
+            'VLA-DELETE': lambda obj: deleted.append(obj),
+        })
+        self.h.frames[0]['CAPTURED'] = self.call('EL:CaptureFixedTemplate', self.cfg)
+        self.assertTrue(truth(self.h.lookup('CAPTURED')))
+        self.assertEqual(deleted, ['panel', 'circuit', 'panel', 'circuit'])
+        self.assertIsNone(self.h.run("(EL:Get 'source-handle (EL:Get 'panel captured))"))
+        self.assertIsNone(self.h.run("(EL:Get 'source-handle (EL:Get 'circuit captured))"))
+
+    def test_probe_exception_still_deletes_temporary_block(self):
+        deleted = []
+        self.h.builtins.update({
+            'SSGET': lambda *args: None,
+            'VLAX-GET-ACAD-OBJECT': lambda: 'app',
+            'VLA-GET-ACTIVEDOCUMENT': lambda app: 'doc',
+            'VLA-GET-MODELSPACE': lambda doc: 'space',
+            'VLAX-3D-POINT': lambda p: p,
+            'VLA-INSERTBLOCK': lambda *args: 'panel',
+            'VLAX-VLA-OBJECT->ENAME': lambda obj: obj,
+            'VLA-DELETE': lambda obj: deleted.append(obj),
+            'VLA-GET-ISDYNAMICBLOCK': lambda obj: (_ for _ in ()).throw(RuntimeError('bad property')),
+        })
+        self.assertIsNone(self.call('EL:CaptureFixedTemplate', self.cfg))
+        self.assertEqual(deleted, ['panel'])
+
+    def test_created_annotation_uses_text_layer_and_bylayer_appearance(self):
+        assigned = {}
+        self.h.builtins.update({
+            'VLAX-GET-ACAD-OBJECT': lambda: 'app',
+            'VLA-GET-ACTIVEDOCUMENT': lambda app: 'doc',
+            'VLA-GET-LAYERS': lambda doc: 'layers',
+            'VLA-ADD': lambda layers, name: assigned.update(created_layer=name),
+            'VLAX-3D-POINT': lambda p: p,
+            'VLA-ADDTEXT': lambda space, text, pos, height: assigned.update(text=text, pos=pos, initial_height=height) or 'text',
+        })
+        for key in ['Layer', 'StyleName', 'Color', 'Linetype', 'LinetypeScale', 'Lineweight',
+                    'Height', 'Rotation', 'Alignment', 'ScaleFactor', 'ObliqueAngle', 'Thickness', 'TextGenerationFlag']:
+            self.h.builtins['VLA-PUT-' + key.upper()] = lambda obj, value, key=key: assigned.update({key: value})
+        self.h.run("(setq row (list (cons 'annotation (EL:FixedText)) '(text . \"85W\") '(text-position 17063.0 -5938.0 0.0)))")
+        self.h.run("(EL:CreateAnnotation nil row '((scale . 1.0) (rotation . 0.0)) \"EL-SYSTEM\")")
+        for key, value in {'Layer': 'TEL_TEXT', 'StyleName': '_TEL_DIM', 'Height': 350.,
+                           'ScaleFactor': .7, 'Alignment': 0, 'Rotation': 0., 'Color': 256,
+                           'Linetype': 'ByLayer', 'Lineweight': -1, 'text': '85W'}.items():
+            self.assertEqual(assigned[key], value)
 
 
 if __name__ == '__main__':

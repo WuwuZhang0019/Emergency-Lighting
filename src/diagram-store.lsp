@@ -115,16 +115,30 @@
   (setq outcome (apply function args))
   (EL:Require (dictremove (namedobjdict) "EL_FIXED_TX") "无法清理事务记录。")
   (EL:Require (entdel marker) "无法删除事务记录。") outcome)
+(defun EL:TransactionStart (doc / state)
+  ;; Date: 2026-10-09. Close an existing mark without undoing its edits.
+  ;; PRINC returns its argument in native AutoLISP: failures MUST return nil.
+  (setq state (getvar "UNDOCTL"))
+  (EL:LogEvent "TRANSACTION_START" (list (cons 'undoctl state)))
+  (cond
+    ((= 0 (logand 1 state))
+      (princ "\nUNDO 已关闭，未写入。请执行 UNDO 的 Control/All 后重试。") nil)
+    (*EL:TransactionOpen*
+      (princ "\n已有插件事务正在执行，本次未写入。") nil)
+    (T
+      (if (/= 0 (logand 8 state)) (vla-EndUndoMark doc))
+      (if (/= 0 (logand 8 (getvar "UNDOCTL")))
+        (progn (princ "\n无法结束已有撤销组，本次未写入。") nil)
+        (progn (vla-StartUndoMark doc)
+          (setq *EL:TransactionOpen* T *EL:Created* nil *EL:TransactionDirty* nil) T)))))
 (defun EL:Transaction (function args / *error* doc outcome)
   (defun *error* (msg)
     (EL:TransactionRollback) (EL:ClearPickHighlights)
     (if msg (princ (strcat "\n系统图事务取消，已撤销本次修改：" msg))) (princ))
-  (if (or (= 0 (logand 1 (getvar "UNDOCTL"))) (/= 0 (logand 8 (getvar "UNDOCTL"))))
-    (princ "\n请启用 UNDO 并结束已有撤销组。")
+  (setq doc (vla-get-ActiveDocument (vlax-get-acad-object)))
+  (EL:Require (not (dictsearch (namedobjdict) "EL_FIXED_TX")) "检测到未结束的系统图事务，请先 UNDO 或恢复图纸。")
+  (if (EL:TransactionStart doc)
     (progn
-      (setq doc (vla-get-ActiveDocument (vlax-get-acad-object)))
-      (EL:Require (not (dictsearch (namedobjdict) "EL_FIXED_TX")) "检测到未结束的系统图事务，请先 UNDO 或恢复图纸。")
-      (vla-StartUndoMark doc) (setq *EL:TransactionOpen* T *EL:Created* nil *EL:TransactionDirty* nil)
       (setq outcome (vl-catch-all-apply 'EL:TransactionBody (list function args)))
       (if (or (vl-catch-all-error-p outcome) (not outcome))
         (progn (EL:TransactionRollback) (princ "\n本次系统图更新失败，已撤销图形及 DWG 记录修改。") nil)

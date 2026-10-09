@@ -244,7 +244,9 @@
         (if (EL:Get 'panel-output-handle record)
           (EL:Transaction 'EL:ApplyUpdate (list result template plan record store structural))
           (EL:Transaction 'EL:CreateDiagram (list result template capacity plan record store))))))
-      (if outcome
+      (if (and outcome (listp outcome)
+          (EL:Get 'panel-output-handle outcome)
+          (equal outcome (EL:DiagramForPanel (EL:Get 'panel result) (EL:StoreRead))))
         (progn
           (if (not (EL:WriteData (strcat *EL:Root* "output/diagram-" (EL:Hash (EL:Get 'diagram-id record)) ".eld") outcome))
             (princ "\nDWG 主记录已保存；外部诊断副本导出失败。"))

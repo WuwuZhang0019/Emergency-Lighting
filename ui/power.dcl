@@ -67,3 +67,38 @@ el_devices : dialog {
     : button { key = "cancel"; label = "取消"; is_cancel = true; }
   }
 }
+
+// Date: 2026-10-09. Eight synchronized rows; real last-column toggles.
+el_panel : dialog {
+  label = "配电箱回路与设备功率";
+  : radio_row { key = "p_capacity"; label = "当前配电箱容量档位";
+    : radio_button { key = "p_300"; label = "0.3kW"; }
+    : radio_button { key = "p_600"; label = "0.6kW"; }
+    : radio_button { key = "p_1000"; label = "1kW"; }
+  }
+  : row {
+    : boxed_column { label = "回路 / 类型 / 功率 / 状态                  是否为地面";
+      : row { : button { key = "p_row0"; width = 43; fixed_width = true; } : toggle { key = "p_ground0"; label = "是"; } }
+      : row { : button { key = "p_row1"; width = 43; fixed_width = true; } : toggle { key = "p_ground1"; label = "是"; } }
+      : row { : button { key = "p_row2"; width = 43; fixed_width = true; } : toggle { key = "p_ground2"; label = "是"; } }
+      : row { : button { key = "p_row3"; width = 43; fixed_width = true; } : toggle { key = "p_ground3"; label = "是"; } }
+      : row { : button { key = "p_row4"; width = 43; fixed_width = true; } : toggle { key = "p_ground4"; label = "是"; } }
+      : row { : button { key = "p_row5"; width = 43; fixed_width = true; } : toggle { key = "p_ground5"; label = "是"; } }
+      : row { : button { key = "p_row6"; width = 43; fixed_width = true; } : toggle { key = "p_ground6"; label = "是"; } }
+      : row { : button { key = "p_row7"; width = 43; fixed_width = true; } : toggle { key = "p_ground7"; label = "是"; } }
+      : row { : button { key = "p_prev"; label = "上一页"; } : button { key = "p_next"; label = "下一页"; } }
+    }
+    : boxed_column { label = "当前回路设备：图块 / 数量 / 单个功率(W)";
+      : list_box { key = "p_devices"; width = 48; height = 16; tabs = "30 36"; fixed_width_font = true; }
+      : edit_box { key = "p_watts"; label = "单个功率(W)"; edit_width = 12; }
+      : button { key = "p_locate"; label = "在图上查看该设备"; }
+    }
+  }
+  : text { key = "p_total"; width = 100; }
+  : text { key = "p_error"; width = 100; }
+  : row {
+    : button { key = "accept"; label = "保存"; is_default = true; }
+    : button { key = "p_generate"; label = "生成或更新"; }
+    : button { key = "cancel"; label = "取消"; is_cancel = true; }
+  }
+}

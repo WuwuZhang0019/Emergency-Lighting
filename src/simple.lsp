@@ -102,7 +102,7 @@
   (foreach other (EL:Get 'pairs pairs)
     (setq edges (cons (EL:Edge (car (EL:Get 'a other)) (car (EL:Get 'b other))) edges)))
   (setq component (EL:Component panel (EL:Unique edges)))
-  (list (cons 'snapshot snapshot) (cons 'panel panel)
+  (list (cons 'edges (EL:Unique edges)) (cons 'snapshot snapshot) (cons 'panel panel)
     (cons 'devices (vl-remove-if-not '(lambda (b) (and (not (equal (EL:Get 'id b) panel)) (member (EL:Get 'id b) component))) blocks))
     (cons 'wire-ids (vl-remove-if-not '(lambda (id) (member id component)) (mapcar '(lambda (w) (EL:Get 'id w)) wires)))
     (cons 'gap-pairs (vl-remove-if-not '(lambda (p) (member (car (EL:Get 'a p)) component)) (EL:Get 'pairs pairs)))

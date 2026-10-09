@@ -159,6 +159,7 @@ class Host:
             'VL-REMOVE-IF': lambda fn,xs:[x for x in seq(xs) if not truth(self.call(fn,[x]))] or None,
             'VL-REMOVE-IF-NOT': lambda fn,xs:[x for x in seq(xs) if truth(self.call(fn,[x]))] or None,
             'VL-SOME': lambda fn,xs:next((v for x in seq(xs) if truth(v:=self.call(fn,[x]))),None),
+            'VL-EVERY': lambda fn,xs:all(truth(self.call(fn,[x])) for x in seq(xs)),
             'VL-SORT': lambda xs,fn: sorted(seq(xs),key=cmp_to_key(lambda a,b: -1 if truth(self.call(fn,[a,b])) else (1 if truth(self.call(fn,[b,a])) else 0))) or None,
             'VL-CATCH-ALL-APPLY': self.catch,
             'VL-CATCH-ALL-ERROR-P': lambda x:isinstance(x,CaughtError),

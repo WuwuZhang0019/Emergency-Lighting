@@ -1,12 +1,12 @@
 """Fixed diagram pure-function checks. Date: 2026-10-09."""
 import unittest
 from autolisp_host import truth
-from test_kernel import KernelTests
+import test_kernel as kernel
 
 class FixedTests(unittest.TestCase):
-    setUp = KernelTests.setUp
-    generation_fixture = KernelTests.generation_fixture
-    check_lisp = KernelTests.check_lisp
+    setUp = kernel.KernelTests.setUp
+    generation_fixture = kernel.KernelTests.generation_fixture
+    check_lisp = kernel.KernelTests.check_lisp
 
     def fixture(self):
         self.h.load_definitions(__import__('pathlib').Path(__file__).resolve().parents[1]/'src/fixed.lsp')

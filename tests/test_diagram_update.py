@@ -392,14 +392,12 @@ class UpdateTests(unittest.TestCase):
         self.h.run('(EL:StoreWrite store)')
         self.install_transaction()
         before=copy.deepcopy((self.entities,self.dictionary,self.dynamic))
-        original=self.h.builtins['ENTMOD']
+        original=self.h.builtins['VLA-SETXRECORDDATA']
         entity=self.dictionary['EL_FIXED_V1']
-        def corrupt(data):
-            if any(p.car==-1 and p.cdr==entity for p in data):
-                data=list(data)
-                data[-1]=Pair(1,data[-1].cdr[:-1])
-            return original(data)
-        self.h.builtins['ENTMOD']=corrupt
+        def corrupt(target,codes,values):
+            original(target,codes,values)
+            if target==entity: self.entities[entity][-1]=Pair(2,'BROKEN')
+        self.h.builtins['VLA-SETXRECORDDATA']=corrupt
         self.assertIsNone(self.h.run("(EL:Transaction 'EL:StoreWrite (list (EL:Put 'notes \"new\" store)))"))
         self.assertEqual((self.entities,self.dictionary,self.dynamic),before)
         self.assertFalse(truth(self.h.lookup('*EL:TRANSACTIONOPEN*')))
@@ -425,13 +423,13 @@ class UpdateTests(unittest.TestCase):
         self.h.run('(EL:StoreWrite store)')
         self.install_transaction()
         before=copy.deepcopy((self.entities,self.dictionary,self.dynamic))
-        original=self.h.builtins['ENTMOD']; entity=self.dictionary['EL_FIXED_V1']; events=[]
+        original=self.h.builtins['VLA-SETXRECORDDATA']; entity=self.dictionary['EL_FIXED_V1']; events=[]
         self.h.builtins['EL:LOGEVENT']=lambda stage,context:events.append((stage,context))
-        def corrupt(data):
-            if any(p.car==-1 and p.cdr==entity for p in data):
-                data=[Pair(40,0.0) if p.car==40 else p for p in data]
-            return original(data)
-        self.h.builtins['ENTMOD']=corrupt
+        def corrupt(target,codes,values):
+            original(target,codes,values)
+            if target==entity:
+                self.entities[entity]=[Pair(40,0.0) if p.car==40 else p for p in self.entities[entity]]
+        self.h.builtins['VLA-SETXRECORDDATA']=corrupt
         next_store=self.call('EL:Put',Symbol('TEST-REAL'),1e-20,self.h.lookup('STORE'))
         self.assertIsNone(self.call('EL:Transaction',Symbol('EL:STOREWRITE'),[next_store]))
         self.assertEqual((self.entities,self.dictionary,self.dynamic),before)

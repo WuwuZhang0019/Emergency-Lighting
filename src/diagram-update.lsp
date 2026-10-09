@@ -223,7 +223,9 @@
         (setq transform (EL:CheckLayout record store))
         (progn
           (EL:Require (and (= (getvar "TILEMODE") 1) (> (getvar "CVPORT") 1)) "请进入模型空间生成系统图。")
-          (setq point (getpoint "\n选择系统图箱体插入点："))
+          ;; CCKK2 places the real block with native -INSERT inside the transaction.
+          (setq point (if *EL:CCKK2Request* '(0.0 0.0 0.0)
+            (getpoint "\n选择系统图箱体插入点：")))
           (EL:Require point "插入取消。")
           ;; Date: 2026-10-09. New diagrams use the agreed 0-degree, 1:1 defaults.
           (setq transform (list (cons 'position (trans point 1 0))
@@ -258,7 +260,8 @@
       (setq outcome
         (if (EL:Get 'panel-output-handle record)
           (EL:Transaction 'EL:ApplyUpdate (list result template plan record store structural))
-          (EL:Transaction 'EL:CreateDiagram (list result template capacity plan record store))))))
+          (EL:Transaction (if *EL:CCKK2Request* 'EL:CCKK2CreateDiagram 'EL:CreateDiagram)
+            (list result template capacity plan record store))))))
       (if (and outcome (listp outcome)
           (EL:Get 'panel-output-handle outcome)
           (equal outcome (EL:DiagramForPanel (EL:Get 'panel result) (EL:StoreRead))))

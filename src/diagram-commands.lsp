@@ -42,6 +42,16 @@
     (setq store (EL:Put 'fixed-template (EL:Get 'template cfg) store)))
   (and (equal T (EL:Transaction 'EL:StoreWrite (list (EL:StorePutDiagram record store))))
     (equal record (EL:DiagramForPanel (EL:Get 'panel result) (EL:StoreRead)))))
+(defun EL:InvokeCCKK2 (result cfg powers capacity / *EL:CCKK2Request*)
+  (setq *EL:CCKK2Request* (list result cfg powers capacity))
+  (c:CCKK2))
+(defun EL:CCKK2FromPanel (request / result)
+  (setq result (car request))
+  (princ (strcat "\n调用 CCKK2：" (itoa (length (EL:Get 'circuits result)))
+    " 条实际回路，功率采用本次统计；无需再输入回路数。"))
+  (EL:LogCall "CCKK2" (list (cons 'circuits (length (EL:Get 'circuits result)))
+      (cons 'watts (mapcar '(lambda (row) (EL:Get 'watts row)) (EL:Get 'circuits result))))
+    'EL:SyncDiagram (append request '(T T))))
 (defun EL:EditPanel (result cfg / *error* store record powers capacity edited prepared saved ownlog syncable template)
   (defun *error* (msg)
     (EL:LogFailure msg)
@@ -85,7 +95,9 @@
               (not (EL:Get 'panel-output-handle record)))
             (EL:Require (EL:LogCall "SAVE_GENERATION_DRAFT" nil 'EL:SaveDraft (list result cfg powers capacity)) "生成前保存草稿失败，请重试。"))
           (setq saved (if syncable
-            (EL:SyncDiagram result cfg powers capacity (EL:Get 'generate edited) T)
+            (if (EL:Get 'generate edited)
+              (EL:InvokeCCKK2 result cfg powers capacity)
+              (EL:SyncDiagram result cfg powers capacity nil T))
             (progn (EL:MarkStale (EL:Get 'panel result) 'review-or-template-pending) T)))
           (if saved
             (progn

@@ -126,7 +126,7 @@
       (progn
         (setq result (vl-catch-all-apply 'entdel (list entity)))
         (if (or (vl-catch-all-error-p result) (not result)) (setq good nil))))) good)
-(defun c:CCKK2 (/ *error* *EL:CCKK2Created* saved item count rows panel cleanup)
+(defun EL:CCKK2Standalone (/ *error* *EL:CCKK2Created* saved item count rows panel cleanup)
   (defun *error* (message)
     (setq cleanup (EL:CCKK2Cleanup))
     (foreach item saved (vl-catch-all-apply 'setvar (list (car item) (cdr item))))
@@ -156,4 +156,10 @@
   (foreach item saved (setvar (car item) (cdr item)))
   (princ (strcat "\n已插入配电箱、" (itoa count) " 条实际回路和 "
     (itoa (- (length rows) count)) " 条预留回路。")) (princ))
+;; Date: 2026-10-09. Panel invocation supplies statistics; manual invocation
+;; keeps the standalone sample workflow and needs no other loaded modules.
+(defun c:CCKK2 ()
+  (if *EL:CCKK2Request*
+    (EL:CCKK2FromPanel *EL:CCKK2Request*)
+    (EL:CCKK2Standalone)))
 (princ)

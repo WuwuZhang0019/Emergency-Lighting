@@ -38,10 +38,28 @@ class StoreTests(unittest.TestCase):
             e=str(len(self.entities)+1); self.entities[e]=[Pair(-1,e),Pair(5,e)]+data; return e
         def modify(data):
             e=next(p.cdr for p in data if p.car==-1); self.entities[e]=data; return e
+        def fill(array, values):
+            self.assertEqual(len(array['values']),len(values))
+            array['values']=list(values)
+            return array
+        def replace(entity, codes, values):
+            self.assertEqual(codes['kind'],2)
+            self.assertEqual(values['kind'],12)
+            payload=[]
+            for code,variant in zip(codes['values'],values['values']):
+                expected=5 if code==40 else 3 if code==90 else 8
+                self.assertEqual(variant[1],expected)
+                payload.append(Pair(code,variant[2]))
+            self.entities[entity]=[p for p in self.entities[entity]
+                                   if p.car not in (1,2,3,40,90,300)]+payload
         self.h.builtins.update({'VL-PRIN1-TO-STRING':dump,'NAMEDOBJDICT':lambda:'NOD',
           'DICTSEARCH':lambda _,key:self.entities.get(self.dictionary.get(key)),
           'DICTADD':lambda _,key,e:self.dictionary.setdefault(key,e),
           'ENTMAKEX':create,'ENTMOD':modify,'ENTGET':lambda e,*apps:self.entities.get(e),
+          'VLAX-ENAME->VLA-OBJECT':lambda e:e,
+          'VLAX-MAKE-SAFEARRAY':lambda kind,bounds:{'kind':kind,'values':[None]*(bounds.cdr-bounds.car+1)},
+          'VLAX-SAFEARRAY-FILL':fill,'VLAX-MAKE-VARIANT':lambda value,kind:('variant',kind,value),
+          'VLA-SETXRECORDDATA':replace,
           'HANDENT':lambda e:e if e in self.entities else None,
           'GETVAR':lambda name:'drawing-guid' if name=='FINGERPRINTGUID' else None})
 
@@ -231,6 +249,28 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(self.h.run('(EL:StoreRead)'),store)
         self.assertIn(Pair(330,'NOD'),self.entities[entity])
         self.assertIn(Pair(280,1),self.entities[entity])
+
+    def test_74_legacy_fields_are_replaced_even_when_entmod_would_retain_them(self):
+        store=self.h.run('(EL:StoreInitial)')+[Pair(Symbol('NOTES'),'')]
+        store[-1]=Pair(Symbol('NOTES'),'x'*(7400-len(dump(store))))
+        text=dump(store)
+        self.assertEqual(len(text),7400)
+        entity=self.h.builtins['ENTMAKEX']([Pair(0,'XRECORD'),Pair(100,'AcDbXrecord'),
+            Pair(280,1),Pair(330,'NOD')]+[Pair(1,text[i:i+100]) for i in range(0,7400,100)])
+        self.dictionary['EL_FIXED_V1']=entity
+        calls=[]
+        def retaining_entmod(data):
+            calls.append(data)
+            self.entities[entity]+=[p for p in data if p.car in (1,2,3,40,90,300)]
+            return data
+        self.h.builtins['ENTMOD']=retaining_entmod
+        self.h.frames[0]['STORE']=store
+        self.assertTrue(truth(self.h.run('(EL:StoreWrite store)')))
+        self.assertEqual(calls,[])
+        self.assertEqual(self.h.run('(EL:StorePayload (dictsearch (namedobjdict) "EL_FIXED_V1"))'),
+                         self.h.run('(EL:StoreEncode store)'))
+        self.assertEqual(self.h.run('(EL:StoreRead)'),store)
+        self.assertEqual(self.dictionary['EL_FIXED_V1'],entity)
 
     def test_typed_decoder_rejects_missing_end_wrong_types_and_unknown_version(self):
         cases=[[],[Pair(300,'EL_TYPED_V2'),Pair(2,'N')],

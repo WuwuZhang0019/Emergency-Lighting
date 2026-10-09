@@ -21,7 +21,7 @@ class FixedDiagnosticTests(unittest.TestCase):
     def setUp(self):
         panel.PanelTests.setUp(self)
         self.logging()
-        for name in ('generation', 'fixed', 'diagram-update', 'diagram-commands'):
+        for name in ('generation', 'fixed', 'diagram-update', 'diagram-commands', 'insert-circuit'):
             self.h.load_definitions(adapter.ROOT / 'src' / f'{name}.lsp')
         self.plan()
         self.tiles, self.dialogs, self.writes, self.variables = {}, [], [], []

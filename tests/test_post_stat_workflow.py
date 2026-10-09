@@ -138,12 +138,23 @@ class PostStatWorkflowTests(unittest.TestCase):
         self.h.builtins['EL:SIMPLELOADPOWERS'] = lambda: self.h.run("'((version . 1) (powers (\"LAMP\" . 5)))")
         self.h.builtins['EL:FRESHRESULT'] = lambda *args: True
         synced = []
+        commands = []
+        def cckk2():
+            commands.append(self.h.lookup('*EL:CCKK2REQUEST*'))
+            del self.h.builtins['C:CCKK2']
+            try:
+                return self.h.run('(c:CCKK2)')
+            finally:
+                self.h.builtins['C:CCKK2']=cckk2
+        self.h.builtins['C:CCKK2']=cckk2
         self.h.builtins['EL:SYNCDIAGRAM'] = lambda *args: synced.append(args) or True
         self.h.builtins['EL:SAVEDRAFT'] = lambda *args: True
         self.h.builtins['EL:SAVENAMEPOWERS'] = lambda *args: True
         self.actions = [lambda: (self.confirm(), self.call('EL:PanelGenerate'))]
         self.call('EL:EditPanel', self.result, self.cfg)
         self.assertEqual(len(synced), 1)
+        self.assertEqual(len(commands),1)
+        self.assertIsNone(self.h.lookup('*EL:CCKK2REQUEST*'))
         result, cfg, powers, capacity, generate, interactive = synced[0]
         self.assertEqual(self.get('template', cfg), template)
         self.assertEqual(capacity, Symbol('CAP600'))

@@ -70,11 +70,16 @@ el_devices : dialog {
 
 // Date: 2026-10-09. Eight synchronized rows; real last-column toggles.
 el_fixed_exits : dialog {
-  label = "首次或出线候选变化：集中确认实际出线";
+  label = "已完成识别：核对出线与连接设备";
   : text { label = "默认全选。仅取消明确的进线或非本箱出线；有问题的实际回路仍须保留。"; }
-  : list_box { key = "f_exits"; width = 88; height = 14; multiple_select = true; }
+  : list_box { key = "f_exits"; label = "实际出线候选 / 已识别设备数量"; width = 88; height = 6; multiple_select = true; }
+  : list_box { key = "f_devices"; label = "所选出线连接的设备：图块 / 数量"; width = 88; height = 8; tabs = "65"; fixed_width_font = true; }
+  : text { key = "f_status"; width = 88; }
   : button { key = "f_preview"; label = "在图面查看选中候选"; }
-  ok_cancel;
+  : row {
+    : button { key = "accept"; label = "确认出线，进入功率表"; is_default = true; }
+    : button { key = "cancel"; label = "取消"; is_cancel = true; }
+  }
 }
 el_panel : dialog {
   label = "配电箱回路与设备功率";

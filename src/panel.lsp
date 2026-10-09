@@ -31,13 +31,28 @@
   (EL:Put 'candidate-keys keys (EL:Put 'excluded-seeds excluded (EL:Put 'circuits circuits
     (EL:Put 'complete (and circuits (not (EL:Get 'issues (EL:Get 'snapshot result)))
       (vl-every '(lambda (c) (EL:Get 'complete c)) circuits)) result)))))
-(defun EL:ReviewFixedExits (result record / dialog status c i selected excluded keys *EL:ExitRows* *EL:ExitSnapshot* *EL:FixedExitSelection*)
+(defun EL:FixedExitDevices (/ indices ids i c rows row)
+  ;; Show recognition already completed before exit confirmation. Counts are
+  ;; unique block instances even when conflicting candidates share devices.
+  (setq indices (read (strcat "(" *EL:FixedExitSelection* ")")))
+  (foreach i indices
+    (setq c (nth i (EL:Get 'circuits *EL:FixedExitResult*)) ids (append (EL:Get 'devices c) ids)))
+  (setq ids (EL:Unique ids) rows (EL:SimpleRows
+    (vl-remove-if-not '(lambda (b) (member (EL:Get 'id b) ids)) (EL:Get 'blocks *EL:ExitSnapshot*)) nil))
+  (start_list "f_devices")
+  (foreach row rows (add_list (strcat (EL:Get 'name row) "\t" (itoa (EL:Get 'count row)))))
+  (end_list)
+  (set_tile "f_status" (cond
+    ((not indices) "尚未选择出线，请选中实际回路后进入功率表。")
+    ((not ids) "所选出线未识别到设备：请核对导线图层、箱口和断口连接。")
+    (T (strcat "所选出线已识别 " (itoa (length ids)) " 个设备（按实例去重），确认后填写功率。")))))
+(defun EL:ReviewFixedExits (result record / dialog status c i selected excluded keys *EL:ExitRows* *EL:ExitSnapshot* *EL:FixedExitSelection* *EL:FixedExitResult*)
   (setq keys (EL:Get 'candidate-keys result))
   (if (equal keys (EL:Get 'candidate-keys record)) (EL:SelectFixedExits result (EL:Get 'excluded-seeds record))
     (progn
       (setq dialog (load_dialog (strcat *EL:Root* "ui/power.dcl")) *EL:DialogID* dialog status 2
         *EL:ExitRows* (mapcar '(lambda (c) (EL:Get 'seed c)) (EL:Get 'circuits result))
-        *EL:ExitSnapshot* (EL:Get 'snapshot result) i 0 *EL:FixedExitSelection* "")
+        *EL:ExitSnapshot* (EL:Get 'snapshot result) *EL:FixedExitResult* result i 0 *EL:FixedExitSelection* "")
       (foreach c *EL:ExitRows*
         (if (not (member (EL:Get 'key c) (EL:Get 'excluded-seeds record)))
           (setq *EL:FixedExitSelection* (strcat *EL:FixedExitSelection* (itoa i) " ")))
@@ -46,9 +61,13 @@
         (if (new_dialog "el_fixed_exits" dialog)
           (progn
             (start_list "f_exits")
-            (foreach c *EL:ExitRows* (add_list (strcat (EL:Get 'id c) " / 导线 " (EL:Get 'wire c)))) (end_list)
+            (foreach c (EL:Get 'circuits result)
+              (add_list (strcat (EL:Get 'id c) " / 导线 " (EL:Get 'wire (EL:Get 'seed c))
+                " / 已识别设备 " (itoa (length (EL:Get 'devices c))) " 个"
+                (if (EL:Get 'complete c) "" " / 连接待核对")))) (end_list)
             (set_tile "f_exits" *EL:FixedExitSelection*)
-            (action_tile "f_exits" "(setq *EL:FixedExitSelection* $value)")
+            (EL:FixedExitDevices)
+            (action_tile "f_exits" "(setq *EL:FixedExitSelection* $value) (EL:FixedExitDevices)")
             (action_tile "f_preview" "(done_dialog 2)")
             (action_tile "accept" "(done_dialog 1)") (action_tile "cancel" "(done_dialog 0)")
             (setq status (start_dialog))

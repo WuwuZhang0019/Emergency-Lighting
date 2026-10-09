@@ -4,7 +4,7 @@ import shutil
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGE_NO = 28
+PACKAGE_NO = 29
 NAME = f'应急照明-{PACKAGE_NO:03d}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 DEST = ROOT / 'output' / NAME
@@ -36,7 +36,7 @@ def build():
             assert data.decode('gb2312') == text
             (DEST / folder / source.name).write_bytes(data)
     shutil.copy2(ROOT / 'ui/box-ui-011.marker', DEST / 'ui/box-ui-011.marker')
-    shutil.copy2(ROOT / 'ui/diagram-ui-028.marker', DEST / 'ui/diagram-ui-028.marker')
+    shutil.copy2(ROOT / 'ui/diagram-ui-029.marker', DEST / 'ui/diagram-ui-029.marker')
     launcher = ''';; Date: 2026-10-09. Select this package's src/load.lsp explicitly.
 (vl-load-com)
 (defun EL2020:Start (/ selected)
@@ -79,7 +79,8 @@ def build():
         shutil.copy2(ROOT / 'docs' / filename, DEST / 'docs' / filename)
     for filename in ('2026-10-09-fixed-diagram.md', '2026-10-09-fixed-diagram.json',
                      '2026-10-09-panel-stringp-nil.md', '2026-10-09-template-choices.md',
-                     '2026-10-09-post-stat-workflow.md', '2026-10-09-post-stat-workflow.json'):
+                     '2026-10-09-post-stat-workflow.md', '2026-10-09-post-stat-workflow.json',
+                     '2026-10-09-exit-devices.md', '2026-10-09-exit-devices.json'):
         shutil.copy2(ROOT / 'tests/evidence' / filename, DEST / 'tests/evidence' / filename)
     readme = guide
     (DEST / '使用说明.md').write_text(readme, encoding='utf-8')

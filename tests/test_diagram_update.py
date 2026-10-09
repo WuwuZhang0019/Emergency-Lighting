@@ -5,6 +5,7 @@ import unittest
 import test_diagram_store as db
 import test_kernel as kernel
 from autolisp_host import Pair, Symbol, truth
+from test_cckk_assembly import field
 
 class UpdateTests(unittest.TestCase):
     generation_fixture=kernel.KernelTests.generation_fixture
@@ -27,14 +28,26 @@ class UpdateTests(unittest.TestCase):
             self.writes.append((e,value))
             self.entities[e]=[Pair(1,value) if isinstance(p,Pair) and p.car==1 else p for p in self.entities[e]]
         def move(e,start,end):
-            self.entities[e]=[Pair(10,end) if isinstance(p,Pair) and p.car==10 else p for p in self.entities[e]]
+            updated=[]
+            for p in self.entities[e]:
+                code=p.car if isinstance(p,Pair) else p[0]
+                if code in (10,11):
+                    point=p.cdr if isinstance(p,Pair) else p[1:]
+                    p=Pair(code,[point[i]+end[i]-start[i] for i in range(3)])
+                updated.append(p)
+            self.entities[e]=updated
         def create_text(space,row,plan,layer):
             self.counter+=1; e='new-text-'+str(self.counter)
             self.entity(e,'TEXT',self.get('text-position',row),self.get('text',row)); return e
         def create_block(space,name,pos,scale,rotation,prop,value,layer):
             self.counter+=1; e='new-block-'+str(self.counter); self.entity(e,'INSERT',pos)
             self.dynamic[e]=value; return e
-        self.h.builtins.update({'TBLSEARCH':lambda *args:[Pair(70,0),Pair(62,7)],'VLAX-GET-ACAD-OBJECT':lambda:'app','VLA-GET-ACTIVEDOCUMENT':lambda _:'doc',
+        self.last=None
+        def make_text(data):
+            self.counter+=1; self.last='new-text-'+str(self.counter)
+            self.entities[self.last]=[Pair(-1,self.last),Pair(5,self.last),Pair(410,'Model')]+data
+            return data
+        self.h.builtins.update({'ENTMAKE':make_text,'ENTLAST':lambda:self.last,'TBLSEARCH':lambda *args:[Pair(70,0),Pair(62,7)],'VLAX-GET-ACAD-OBJECT':lambda:'app','VLA-GET-ACTIVEDOCUMENT':lambda _:'doc',
           'VLA-GET-MODELSPACE':lambda _:'space','VLAX-ENAME->VLA-OBJECT':lambda e:e,
           'VLAX-VLA-OBJECT->ENAME':lambda e:e,'VLAX-3D-POINT':lambda p:p,
           'EL:DYNAMICPROPERTY':lambda e,name:e,'VLA-GET-VALUE':lambda e:self.dynamic.get(e),
@@ -59,9 +72,14 @@ class UpdateTests(unittest.TestCase):
         labels=[]
         for label in self.call('EL:CCKKLabels',self.h.lookup('PLAN')):
             uid=self.get('uid',label); entity='caption-'+uid
-            self.entity(entity,'TEXT',self.get('text-position',label),self.get('text',label))
+            parent='panel' if uid=='panel-label' else 'b'+str(int(uid[-1])-1)
+            made=self.call('EL:CCKKCaptionText',parent,self.get('kind',label))
+            self.entities[entity]=[Pair(p.car,entity) if isinstance(p,Pair) and p.car in (-1,5) else p
+                                   for p in self.entities.pop(made)]
             self.call('EL:TagEntity',entity,self.h.lookup('STORE'),self.h.lookup('RECORD'),'text',uid)
+            label=self.call('EL:Put',Symbol('CCKK-TEXT-VERSION'),1,label)
             labels.append(self.call('EL:Put',Symbol('HANDLE'),entity,label))
+        self.counter=0
         self.h.frames[0]['LABELS']=labels
         self.h.run("(setq record (EL:Put 'cckk-labels labels record))")
 
@@ -111,6 +129,22 @@ class UpdateTests(unittest.TestCase):
         self.assertIn('t1',self.deleted)
         self.assertEqual(self.counter,5)
         self.assertEqual([self.get('block-handle',r) for r in self.get('rows',updated)],['b0','b1','b2','b3'])
+
+    def test_v53_caption_upgrade_keeps_manual_offset_and_repairs_native_text(self):
+        self.h.run("""(setq record (EL:Put 'cckk-labels (mapcar '(lambda (label)
+          (EL:Put 'cckk-text-version nil label)) (EL:Get 'cckk-labels record)) record))""")
+        self.call('EL:MoveManaged','caption-label/u1',[77.,88.,0.])
+        updated=self.update()
+        self.assertEqual(self.counter,3)
+        label=self.call('EL:By',Symbol('UID'),'label/u1',self.get('cckk-labels',updated))
+        self.assertEqual(field(self.entities[self.get('handle',label)],11),[77.,88.,0.])
+        self.assertNotEqual(self.get('text-position',label),[77.,88.,0.])
+        self.assertEqual([self.get('block-handle',r) for r in self.get('rows',updated)],['b0','b1','b2','b3'])
+        self.assertTrue(truth(self.call('EL:CCKKLabelsCurrent',self.h.lookup('PLAN'),updated,self.h.lookup('STORE'))))
+
+    def test_caption_requirements_do_not_depend_on_v52_plan_marker(self):
+        plan=self.call('EL:Put',Symbol('CCKK-LAYOUT'),None,self.h.lookup('PLAN'))
+        self.assertEqual(len(self.call('EL:CCKKLabels',plan)),3)
 
     def test_power_update_keeps_handles_manual_position_and_no_reserve_text(self):
         self.entities['t0']=[Pair(10,[99.,88.,0.]) if isinstance(p,Pair) and p.car==10 else p for p in self.entities['t0']]
@@ -239,11 +273,16 @@ class UpdateTests(unittest.TestCase):
         self.h.builtins['TBLSEARCH']=lambda *args:[Pair(70,0)]
         import math
         for e,data in list(self.entities.items()):
-            pos=next(p.cdr for p in data if isinstance(p,Pair) and p.car==10)
-            transformed=[100.-2.*pos[1],200.+2.*pos[0],2.*pos[2]]
-            self.entities[e]=[Pair(10,transformed) if isinstance(p,Pair) and p.car==10 else
-              Pair(p.car,2.) if isinstance(p,Pair) and p.car in (41,42,43) else
-              Pair(50,math.pi/2) if isinstance(p,Pair) and p.car==50 else p for p in data]
+            updated=[]
+            for p in data:
+                code=p.car if isinstance(p,Pair) else p[0]
+                value=p.cdr if isinstance(p,Pair) else p[1:]
+                if code in (10,11): p=Pair(code,[100.-2.*value[1],200.+2.*value[0],2.*value[2]])
+                elif code in (41,42,43) and field(data,0)=='INSERT': p=Pair(code,2.)
+                elif code==40: p=Pair(code,2.*value)
+                elif code==50: p=Pair(code,math.pi/2)
+                updated.append(p)
+            self.entities[e]=updated
         transform=self.h.run('(EL:CheckLayout record store)')
         self.assertFalse(truth(self.get('layout-conflict',transform)))
         self.assertEqual(self.get('scale',transform),2.)

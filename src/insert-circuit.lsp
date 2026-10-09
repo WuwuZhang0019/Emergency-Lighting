@@ -104,7 +104,7 @@
     (equal (cdr (assoc 0 (entget entity))) "INSERT")) "未插入新图块。")
   (EL:CCKK2Track entity))
 (defun EL:CCKK2Build (panel rows / row circuit point normal origin)
-  (EL:CCKK2Track (EL:CCKKText panel "CK-B1AL1" 2450.0 -455.0 "SYS_系统标注_E" "ICDA-STYLE1" 0))
+  (EL:CCKK2Track (EL:CCKKCaptionText panel 'panel))
   (setq normal (cdr (assoc 210 (entget panel))))
   (if (not normal) (setq normal '(0.0 0.0 1.0)))
   (foreach row rows
@@ -117,8 +117,15 @@
     ;; Reserve labels are already part of the dynamic block.
     (if (not (equal (caddr row) "预留"))
       (progn
-        (EL:CCKK2Track (EL:CCKKText circuit "商铺疏散指示及应急照明" 10983.0 65.0 "TEL_TEXT" "_TEL_DIM" 256))
+        (EL:CCKK2Track (EL:CCKKCaptionText circuit 'purpose))
         (EL:CCKK2Track (EL:CCKKText circuit "132W" 10983.0 -450.0 "TEL_TEXT" "_TEL_DIM" 256))))) T)
+;; Date: 2026-10-09. One caption definition for standalone and panel generation.
+(defun EL:CCKKCaptionDef (kind)
+  (if (equal kind 'panel)
+    '("CK-B1AL1" 2450.0 -455.0 "SYS_系统标注_E" "ICDA-STYLE1" 0)
+    '("商铺疏散指示及应急照明" 10983.0 65.0 "TEL_TEXT" "_TEL_DIM" 256)))
+(defun EL:CCKKCaptionText (block kind)
+  (apply 'EL:CCKKText (cons block (EL:CCKKCaptionDef kind))))
 (defun EL:CCKK2Cleanup (/ entity result good)
   (setq good T)
   (foreach entity *EL:CCKK2Created*

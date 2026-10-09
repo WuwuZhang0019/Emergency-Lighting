@@ -3,6 +3,7 @@ import copy
 import unittest
 from autolisp_host import Symbol, Pair, truth
 import test_diagram_update as update
+from test_cckk_assembly import field
 
 
 class PanelCommandTests(unittest.TestCase):
@@ -65,11 +66,44 @@ class PanelCommandTests(unittest.TestCase):
         record=self.h.run('(EL:DiagramForPanel "source" (EL:StoreRead))')
         row=self.get('rows',record)[0]
         self.assertIn(Pair(1,'85W'),self.entities[self.get('text-handle',row)])
+        labels=self.get('cckk-labels',record)
+        self.assertEqual(len(labels),2)
+        for label,text,point,style,layer,color in zip(labels,
+                ['CK-B1AL1','商铺疏散指示及应急照明'],[[2550.,-255.,0.],[17510.,-5235.,0.]],
+                ['ICDA-STYLE1','_TEL_DIM'],['SYS_系统标注_E','TEL_TEXT'],[0,256]):
+            data=self.entities[self.get('handle',label)]
+            for code,expected in [(0,'TEXT'),(1,text),(11,point),(7,style),(8,layer),(62,color),
+                                  (40,350.),(41,.7),(72,1),(73,0),(440,0)]:
+                self.assertEqual(field(data,code),expected)
         self.assertEqual(self.get('position',self.get('plan',record)),[100.,200.,0.])
         self.assertEqual(self.variables,self.original)
         self.assertIsNone(self.h.lookup('*EL:CCKK2REQUEST*'))
         self.assertTrue(truth(self.invoke()))
         self.assertEqual(len(self.commands),4)  # existing diagram is updated, never duplicated
+
+    def test_missing_v53_captions_repaired_without_reinserting_blocks(self):
+        self.assertTrue(truth(self.invoke()))
+        record=self.h.run('(EL:DiagramForPanel "source" (EL:StoreRead))')
+        for label in self.get('cckk-labels',record):
+            del self.entities[self.get('handle',label)]
+        self.assertTrue(truth(self.invoke()))
+        self.assertEqual(len(self.commands),4)
+        record=self.h.run('(EL:DiagramForPanel "source" (EL:StoreRead))')
+        self.assertEqual([field(self.entities[self.get('handle',label)],1)
+                          for label in self.get('cckk-labels',record)],
+                         ['CK-B1AL1','商铺疏散指示及应急照明'])
+        count=len(self.entities)
+        self.assertTrue(truth(self.invoke()))
+        self.assertEqual(len(self.entities),count)
+
+    def test_caption_creation_failure_rolls_back_instead_of_silent_omission(self):
+        original=self.h.builtins['ENTMAKE']
+        self.h.builtins['ENTMAKE']=lambda data:None if field(data,1)=='商铺疏散指示及应急照明' else original(data)
+        before=set(self.entities)
+        self.assertFalse(truth(self.invoke()))
+        self.assertFalse(any(e.startswith('native-') for e in self.entities))
+        self.assertEqual(set(self.entities),before)
+        self.assertEqual(self.variables,self.original)
 
     def test_escape_restores_variables_and_undoes_partial_native_objects(self):
         for fail_at in (1,3):

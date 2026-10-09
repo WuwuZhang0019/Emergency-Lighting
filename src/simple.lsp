@@ -18,6 +18,7 @@
       (setq e (ssname ss i) d (entget e) i (1+ i) id (cdr (assoc 5 d))
             *EL:SimpleEntity* (list id (cdr (assoc 0 d)) (cdr (assoc 8 d))))
       (cond
+        ((EL:ManagedEntity e) nil)
         ((equal (cdr (assoc 0 d)) "INSERT")
           (if (setq bounds (EL:EntityBounds e))
             (setq items (cons (list (cons 'key id) (cons 'entity e) (cons 'layer (cdr (assoc 8 d)))

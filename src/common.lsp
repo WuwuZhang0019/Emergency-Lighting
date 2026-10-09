@@ -149,3 +149,10 @@
   (princ (strcat "\n原始错误：" (EL:LogText message)
     "\n失败阶段：" (EL:LogText stack) "\n最后上下文：" (EL:LogText laststate)))
   (EL:LogFinish 'failed))
+
+;; Date: 2026-10-09. Managed outputs never enter source recognition.
+(defun EL:DiagramTag (entity / data)
+  (if entity
+    (progn (setq data (entget entity '("EL_FIXED_V1")))
+      (cdr (assoc "EL_FIXED_V1" (cdr (assoc -3 data)))))))
+(defun EL:ManagedEntity (entity) (if (EL:DiagramTag entity) T nil))

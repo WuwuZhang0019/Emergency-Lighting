@@ -479,6 +479,7 @@
     (repeat (sslength ss)
       (setq e (ssname ss i) d (entget e) layer (cdr (assoc 8 d)) i (1+ i))
       (if *EL:GapStage* (setq *EL:GapStage* (strcat "采集对象 " (vl-prin1-to-string (cdr (assoc 5 d))) "；类型 " (vl-prin1-to-string (cdr (assoc 0 d))))))
+      (if (not (EL:ManagedEntity e)) (progn
       (cond
         ((equal (cdr (assoc 0 d)) "INSERT")
           (setq bounds (EL:EntityBounds e))
@@ -489,7 +490,7 @@
           (setq rec (EL:LogCall "WIRE_RECORD" (EL:LogEntity e) 'EL:WireRecord (list e cfg)) wires (cons rec wires) ends (append ends (EL:Get 'ends rec))))
         ((member (cdr (assoc 0 d)) '("LINE" "LWPOLYLINE"))
           (setq outside (cons (EL:LogCall "OUTSIDE_WIRE_RECORD" (EL:LogEntity e) 'EL:WireRecord (list e cfg)) outside))))
-      (setq data (cons (list (cdr (assoc 5 d)) d) data))))
+      (setq data (cons (list (cdr (assoc 5 d)) d) data))))))
   (setq collected (EL:Elapsed started) parsed (EL:Tick) tree (EL:LogCall "BLOCK_INDEX" (list (cons 'count (length inserts))) 'EL:SpatialTree (list inserts 0)))
   (foreach rec wires
     (foreach candidate (EL:SpatialBoxQuery tree (EL:SegmentBounds (EL:Get 'segments rec)) tol)

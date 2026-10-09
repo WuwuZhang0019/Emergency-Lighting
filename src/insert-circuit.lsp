@@ -114,8 +114,8 @@
     (EL:CCKKVisibility circuit (caddr row))
     (EL:CCKK2Require (equal origin (cdr (assoc 10 (entget circuit))) 1.0e-6)
       "切换可见性后回路基点发生变化。")
-    (if (equal (caddr row) "预留")
-      (EL:CCKK2Track (EL:CCKKText circuit "预留" 10983.0 65.0 "TEL_TEXT" "_TEL_DIM" 256))
+    ;; Reserve labels are already part of the dynamic block.
+    (if (not (equal (caddr row) "预留"))
       (progn
         (EL:CCKK2Track (EL:CCKKText circuit "商铺疏散指示及应急照明" 10983.0 65.0 "TEL_TEXT" "_TEL_DIM" 256))
         (EL:CCKK2Track (EL:CCKKText circuit "132W" 10983.0 -450.0 "TEL_TEXT" "_TEL_DIM" 256))))) T)

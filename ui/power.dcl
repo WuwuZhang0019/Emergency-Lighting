@@ -79,10 +79,12 @@ el_fixed_exits : dialog {
 el_panel : dialog {
   label = "配电箱回路与设备功率";
   : radio_row { key = "p_capacity"; label = "当前配电箱容量档位";
+    : radio_button { key = "p_pending"; label = "待核对"; }
     : radio_button { key = "p_300"; label = "0.3kW"; }
     : radio_button { key = "p_600"; label = "0.6kW"; }
     : radio_button { key = "p_1000"; label = "1kW"; }
   }
+  : text { key = "p_capacity_status"; width = 110; }
   : row {
     : boxed_column { label = "回路 / 类型 / 功率 / 状态                  是否为地面";
       : row { : button { key = "p_row0"; width = 43; fixed_width = true; } : toggle { key = "p_ground0"; label = "是"; } }
@@ -94,6 +96,7 @@ el_panel : dialog {
       : row { : button { key = "p_row6"; width = 43; fixed_width = true; } : toggle { key = "p_ground6"; label = "是"; } }
       : row { : button { key = "p_row7"; width = 43; fixed_width = true; } : toggle { key = "p_ground7"; label = "是"; } }
       : row { : button { key = "p_prev"; label = "上一页"; } : button { key = "p_next"; label = "下一页"; } }
+      : button { key = "p_confirm_types"; label = "确认全部页回路类型（未勾选为普通）"; }
     }
     : boxed_column { label = "当前回路设备：图块 / 数量 / 单个功率(W)";
       : list_box { key = "p_devices"; width = 48; height = 16; tabs = "30 36"; fixed_width_font = true; }
@@ -102,6 +105,7 @@ el_panel : dialog {
     }
   }
   : text { key = "p_total"; width = 100; }
+  : text { key = "p_template_status"; width = 110; }
   : text { key = "p_error"; width = 100; }
   : row {
     : button { key = "accept"; label = "保存"; is_default = true; }

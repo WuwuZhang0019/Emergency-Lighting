@@ -21,7 +21,7 @@ class FixedDiagnosticTests(unittest.TestCase):
     def setUp(self):
         panel.PanelTests.setUp(self)
         self.logging()
-        for name in ('fixed', 'diagram-update', 'diagram-commands'):
+        for name in ('generation', 'fixed', 'diagram-update', 'diagram-commands'):
             self.h.load_definitions(adapter.ROOT / 'src' / f'{name}.lsp')
         self.plan()
         self.tiles, self.dialogs, self.writes, self.variables = {}, [], [], []
@@ -70,7 +70,7 @@ class FixedDiagnosticTests(unittest.TestCase):
         self.assertEqual(self.writes, [])
         self.assertNotIn('HANDSEED', self.variables)
         log = self.log.read_text(encoding='utf-8')
-        for value in ('027', 'PICKS', 'panel', 'w1', 'PREPARE_PANEL', 'PANEL_FILL', 'END'):
+        for value in ('028', 'PICKS', 'panel', 'w1', 'PREPARE_PANEL', 'PANEL_FILL', 'END'):
             self.assertIn(value, log)
         self.assertFalse(truth(self.h.lookup('*EL:LOGACTIVE*')))
 

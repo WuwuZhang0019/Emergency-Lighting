@@ -177,6 +177,30 @@ class TemplateChoiceTests(unittest.TestCase):
         self.assertEqual(self.prompts, [])
         self.assertIn('没有找到', ''.join(self.messages))
 
+    def test_capacity_whitespace_and_fixed_buried_alias_are_automatic(self):
+        self.properties['panel'] = [self.prop('可见性1', [' 0.3 kw ', '0.6kW', '1 kW'])]
+        self.properties['circuit'] = [self.prop('可见性1', ['普通', '埋地', '预留'])]
+        self.h.run('(c:ELTEMPLATE)')
+        self.assertEqual(self.prompts, [])
+        self.assertEqual(len(self.saved), 1)
+        self.h.frames[0]['SAVED'] = self.saved[0]
+        self.assertEqual(self.h.run("(EL:Get 'value (EL:State 'cap1000 (EL:Get 'panel (EL:Get 'template saved))))"), '1 kW')
+        self.assertEqual(self.h.run("(EL:Get 'value (EL:State 'ground (EL:Get 'circuit (EL:Get 'template saved))))"), '埋地')
+        self.assertFalse(truth(self.call('EL:TemplateMatches', '埋地', Symbol('GROUND'), '箱体容量')))
+
+    def test_multiple_alias_matches_require_explicit_choice(self):
+        self.properties['circuit'] = [self.prop('可见性1', ['普通', '地面', '埋地', '预留'])]
+        self.answers = iter([2])
+        self.h.run('(c:ELTEMPLATE)')
+        self.assertEqual(len(self.prompts), 1)
+        self.assertIn('1. 地面', ''.join(self.messages))
+        self.assertIn('2. 埋地', ''.join(self.messages))
+
+    def test_capture_returns_template_without_saving_config(self):
+        template = self.call('EL:CaptureFixedTemplate', self.cfg)
+        self.assertTrue(truth(template))
+        self.assertEqual(self.saved, [])
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -139,7 +139,7 @@ class UpdateTests(unittest.TestCase):
         self.assertEqual([self.get('block-handle',r) for r in rows[-2:]],['b2','b3'])
         self.assertTrue(all(self.get('text-handle',r) is None for r in rows[-2:]))
 
-    def test_common_sync_noop_and_invalid_result_never_reports_saved(self):
+    def install_sync(self):
         self.install_transaction()
         self.h.frames[0][':VLAX-FALSE']=0
         self.h.builtins.update({'TBLSEARCH':lambda *args:[Pair(70,0)],
@@ -153,6 +153,9 @@ class UpdateTests(unittest.TestCase):
           (setq record (EL:Put 'template template (EL:Put 'status 'current (EL:Put 'capacity-option 'cap300
             (EL:Put 'power-signature (EL:Signature (EL:Get 'power-config result)) record)))))
           (EL:StoreWrite (EL:StorePutDiagram record store))''')
+
+    def test_common_sync_noop_and_invalid_result_never_reports_saved(self):
+        self.install_sync()
         before=copy.deepcopy(self.entities)
         self.assertTrue(truth(self.h.run("(EL:SyncDiagram result nil nil 'cap300 T nil)")))
         self.assertEqual(self.entities,before);self.assertEqual(self.undo,[])
@@ -160,6 +163,29 @@ class UpdateTests(unittest.TestCase):
         self.assertFalse(truth(self.h.run("(EL:SyncDiagram (EL:Put 'can-generate nil result) nil nil 'cap300 T nil)")))
         self.assertEqual(self.h.run("(EL:Get 'status (EL:DiagramForPanel \"source\" (EL:StoreRead)))"),Symbol('STALE'))
         self.assertEqual(self.writes,[])
+
+    def test_confirmed_fixed_update_uses_new_template_and_persists_sources(self):
+        self.install_sync()
+        self.h.builtins['EL:ALLOWEDVALUES'] = lambda e: ['CAP300','CAP600','CAP1000'] if e == 'panel' else ['NORMAL','GROUND','BURIED','RESERVE']
+        self.h.run('''(setq cs (mapcar '(lambda (c) (EL:Put 'ground-source 'manual c)) cs))
+          (setq cs (cons (EL:Put 'is-ground T (car cs)) (cdr cs)))
+          (setq result (EL:Put 'engine 'fixed (EL:Put 'capacity-source 'manual (EL:Put 'circuits cs result))))
+          (setq circuit (EL:Get 'circuit template))
+          (setq states (mapcar '(lambda (s) (if (equal (EL:Get 'option s) 'ground) (EL:Put 'value "BURIED" s) s)) (EL:Get 'states circuit)))
+          (setq new-template (EL:Put 'circuit (EL:Put 'states states circuit) template))
+          (setq cfg (list (cons 'template new-template)))''')
+        self.assertTrue(truth(self.h.run("(EL:SyncDiagram result cfg nil 'cap600 T nil)")))
+        self.assertEqual(self.dynamic['panel'], 'CAP600')
+        self.assertEqual(self.dynamic['b0'], 'BURIED')
+        self.assertEqual(self.writes, [])
+        record = self.h.run('(EL:DiagramForPanel "source" (EL:StoreRead))')
+        self.assertEqual(self.get('capacity-source', record), Symbol('MANUAL'))
+        self.assertEqual(self.get('capacity-option', record), Symbol('CAP600'))
+        self.assertEqual(self.get('template', record), self.h.lookup('NEW-TEMPLATE'))
+        self.assertEqual(self.h.run("(EL:Get 'fixed-template (EL:StoreRead))"), self.h.lookup('NEW-TEMPLATE'))
+        actual = self.get('rows', record)[:2]
+        self.assertEqual([self.get('ground-source', r) for r in actual], [Symbol('MANUAL')] * 2)
+        self.assertEqual([self.get('block-handle', r) for r in actual], ['b0', 'b1'])
 
     def test_whole_rotation_scale_is_adopted_but_panel_only_move_is_rejected(self):
         self.h.builtins['TBLSEARCH']=lambda *args:[Pair(70,0)]

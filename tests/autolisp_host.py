@@ -60,7 +60,7 @@ def parse(text):
         if t == "'":
             return [Symbol('QUOTE'), one()]
         if t.startswith('"'):
-            return re.sub(r'\\(.)', lambda m: {'n': '\n', 't': '\t'}.get(m[1], m[1]), t[1:-1])
+            return re.sub(r'\\(.)', lambda m: {'n': '\n', 'r': '\r', 't': '\t'}.get(m[1], m[1]), t[1:-1])
         try:
             return float(t) if any(x in t.lower() for x in ['.', 'e']) else int(t)
         except ValueError:

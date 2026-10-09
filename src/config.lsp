@@ -17,7 +17,7 @@
         (if (not (vl-file-directory-p (strcat root folder))) (setq ok nil)))
       (and ok (EL:BoxUIValid root)))))
 (defun EL:BoxUIValid (root)
-  (and (findfile (strcat root "ui/box-ui-011.marker")) (findfile (strcat root "ui/diagram-ui-025.marker"))))
+  (and (findfile (strcat root "ui/box-ui-011.marker")) (findfile (strcat root "ui/diagram-ui-028.marker"))))
 (defun EL:RootFromLoad (path / name extension directory root)
   (if (and (equal (type path) 'STR) (/= path "")
            (setq name (vl-filename-base path)) (equal (type name) 'STR)

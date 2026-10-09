@@ -45,7 +45,7 @@ class PanelTests(unittest.TestCase):
         self.assertTrue(truth(self.h.run('(EL:Get \'can-generate (EL:PanelCompute result \'(("LAMP" . 0)) cfg))')))
 
     def test_default_entry_keeps_two_picks_and_opens_real_circuit_panel(self):
-        for name in ('fixed','diagram-update','diagram-commands'):
+        for name in ('generation','fixed','diagram-update','diagram-commands'):
             self.h.load_definitions(simple.adapter.ROOT/'src'/f'{name}.lsp')
         self.plan(); picks=iter([['panel',[0.,0.,0.]],['w1',[1.,0.,0.]]]); prompts=[]; panels=[]
         def pick(kind,prompt): prompts.append(prompt); return next(picks)

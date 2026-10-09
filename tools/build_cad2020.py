@@ -4,7 +4,7 @@ import shutil
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGE_NO = 45
+PACKAGE_NO = 46
 NAME = f'应急照明-{PACKAGE_NO:03d}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 DEST = ROOT / 'output' / NAME
@@ -77,7 +77,8 @@ def build():
                      '2026-10-09-circuit-preview.md', '2026-10-09-circuit-preview.json',
                      '2026-10-09-inline-power.md', '2026-10-09-device-thumbnails.md', '2026-10-09-panel-repairs.md', '2026-10-09-save-insert-037.md', '2026-10-09-save-insert-037.json',
                      '2026-10-09-store-parser-043.md', '2026-10-09-store-parser-043.json',
-                     '2026-10-09-native-store-045.md', '2026-10-09-native-store-045.json'):
+                     '2026-10-09-native-store-045.md', '2026-10-09-native-store-045.json',
+                     '2026-10-09-store-readback-046.md', '2026-10-09-store-readback-046.json'):
         shutil.copy2(ROOT / 'tests/evidence' / filename, DEST / 'tests/evidence' / filename)
     readme = guide
     (DEST / '使用说明.md').write_text(readme, encoding='utf-8')

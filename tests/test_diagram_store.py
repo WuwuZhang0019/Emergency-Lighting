@@ -56,6 +56,55 @@ class StoreTests(unittest.TestCase):
         self.assertTrue(truth(self.h.run("(EL:StoreWrite (EL:Put 'notes \"changed\" (EL:StoreRead)))")))
         self.assertEqual(len(self.entities),1)
 
+    def test_native_field_mutation_is_logged_before_decoder_exit(self):
+        events=[]
+        self.h.builtins['EL:LOGEVENT']=lambda stage,context:events.append((stage,context))
+        create=self.h.builtins['ENTMAKEX']
+        self.h.builtins['ENTMAKEX']=lambda data:create([
+            Pair(2,'BROKEN') if p==Pair(2,'L') else p for p in data])
+        with self.assertRaises(RuntimeError):
+            self.h.run('(EL:StoreWrite (EL:StoreInitial))')
+        get=lambda key,row:self.h.call(Symbol('EL:GET'),[Symbol(key.upper()),row])
+        diffs=[row for stage,row in events if stage=='STORE_DXF_MISMATCH']
+        self.assertEqual([get('source',row) for row in diffs],[Symbol('DICTSEARCH'),Symbol('ENTGET')])
+        self.assertEqual(get('index',diffs[0]),2)
+        self.assertEqual(get('value',get('expected',diffs[0])),'L')
+        self.assertEqual(get('value',get('actual',diffs[0])),'BROKEN')
+        error=next(row for stage,row in events if stage=='STORE_PARSE_ERROR')
+        self.assertEqual(get('token-index',error),2)
+        self.assertEqual(get('phase',error),Symbol('DWG-READ'))
+        self.assertIn('STORE_DECODE_ERROR',[stage for stage,_ in events])
+
+    def test_dictionary_only_extra_field_is_distinguished_from_entity_data(self):
+        events=[]
+        self.h.builtins['EL:LOGEVENT']=lambda stage,context:events.append((stage,context))
+        search=self.h.builtins['DICTSEARCH']
+        def decorated(nod,key):
+            entry=search(nod,key)
+            return [Pair(3,'dictionary-envelope')]+entry if entry else None
+        self.h.builtins['DICTSEARCH']=decorated
+        with self.assertRaises(RuntimeError):
+            self.h.run('(EL:StoreWrite (EL:StoreInitial))')
+        get=lambda key,row:self.h.call(Symbol('EL:GET'),[Symbol(key.upper()),row])
+        diffs=[row for stage,row in events if stage=='STORE_DXF_MISMATCH']
+        self.assertEqual(len(diffs),1)
+        self.assertEqual(get('source',diffs[0]),Symbol('DICTSEARCH'))
+        self.assertEqual(get('index',diffs[0]),1)
+        reads=[row for stage,row in events if stage=='STORE_DXF_READBACK']
+        self.assertTrue(truth(get('equal',reads[-1])))
+
+    def test_schema_and_parse_errors_are_separate_and_diagnostics_are_bounded(self):
+        events=[]
+        self.h.builtins['EL:LOGEVENT']=lambda stage,context:events.append((stage,context))
+        with self.assertRaises(RuntimeError):
+            self.h.run('(EL:StoreWrite \'((schema-version . 9)))')
+        self.assertIn('STORE_SCHEMA_ERROR',[stage for stage,_ in events])
+        self.assertNotIn('STORE_DECODE_ERROR',[stage for stage,_ in events])
+        summary=self.h.call(Symbol('EL:STORETOKENSUMMARY'),[Pair(1,'x'*10000)])
+        get=lambda key:self.h.call(Symbol('EL:GET'),[Symbol(key),summary])
+        self.assertEqual(get('LENGTH'),10000)
+        self.assertEqual(len(get('VALUE')),96)
+
     def test_large_signature_save_reopen_and_rewrite_with_bounded_read(self):
         sizes=install_bounded_read(self.h)
         signature=('中文图层 C:\\项目\\图纸 "2223"\n'*4000)

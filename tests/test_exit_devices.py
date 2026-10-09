@@ -49,7 +49,7 @@ class ExitDeviceTests(unittest.TestCase):
         self.selected += ['c', 'out2']
         result = self.call('EL:RecognizeFixed', self.cfg, 'panel')
         calls = []
-        self.h.builtins.update({'EL:EXITHIGHLIGHT': lambda selection: calls.append(selection),
+        self.h.builtins.update({'EL:FIXEDEXITHIGHLIGHT': lambda result, selection: calls.append(selection),
                                'GETSTRING': lambda *args: ''})
 
         def start():

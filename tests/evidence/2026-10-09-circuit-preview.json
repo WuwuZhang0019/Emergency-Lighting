@@ -1,0 +1,313 @@
+{
+  "date": "2026-10-09",
+  "scope": "whole-circuit preview, cleanup and related command/geometry/package regressions",
+  "passed": true,
+  "test_count": 76,
+  "tests": [
+    {
+      "test": "test_fixed_exit_preview.FixedExitPreviewTests.test_dialog_closes_before_drawing_and_reopens_with_same_selection",
+      "status": "passed"
+    },
+    {
+      "test": "test_fixed_exit_preview.FixedExitPreviewTests.test_escape_clears_paths_and_devices_before_error_propagates",
+      "status": "passed"
+    },
+    {
+      "test": "test_fixed_exit_preview.FixedExitPreviewTests.test_full_branch_and_devices_drawn_without_other_system",
+      "status": "passed"
+    },
+    {
+      "test": "test_fixed_exit_preview.FixedExitPreviewTests.test_gap_downstream_path_is_shown_without_drawing_fake_connection",
+      "status": "passed"
+    },
+    {
+      "test": "test_fixed_exit_preview.FixedExitPreviewTests.test_multiselect_deduplicates_and_empty_selection_clears_previous_preview",
+      "status": "passed"
+    },
+    {
+      "test": "test_fixed_exit_preview.FixedExitPreviewTests.test_switching_candidates_previews_only_the_chosen_circuit",
+      "status": "passed"
+    },
+    {
+      "test": "test_exit_devices.ExitDeviceTests.test_actual_command_shows_devices_before_and_after_exit_confirmation",
+      "status": "passed"
+    },
+    {
+      "test": "test_exit_devices.ExitDeviceTests.test_empty_and_shared_devices_are_reported_without_invented_counts",
+      "status": "passed"
+    },
+    {
+      "test": "test_exit_devices.ExitDeviceTests.test_fixed_entry_keeps_free_end_gap_device_recognition",
+      "status": "passed"
+    },
+    {
+      "test": "test_exit_devices.ExitDeviceTests.test_selection_refresh_and_preview_preserve_selected_devices",
+      "status": "passed"
+    },
+    {
+      "test": "test_exit_preview.ExitPreviewTests.test_bulk_selection_does_not_draw_inside_modal_dialog",
+      "status": "passed"
+    },
+    {
+      "test": "test_exit_preview.ExitPreviewTests.test_cancel_and_add_layer_after_preview_clear_feedback",
+      "status": "passed"
+    },
+    {
+      "test": "test_exit_preview.ExitPreviewTests.test_each_row_has_its_own_visible_wire_and_state_survives_reopening",
+      "status": "passed"
+    },
+    {
+      "test": "test_pick_feedback.PickFeedbackTests.test_deleted_entity_does_not_prevent_remaining_cleanup",
+      "status": "passed"
+    },
+    {
+      "test": "test_pick_feedback.PickFeedbackTests.test_escape_after_first_sample_clears_it_without_saving",
+      "status": "passed"
+    },
+    {
+      "test": "test_pick_feedback.PickFeedbackTests.test_escape_during_parameter_confirmation_clears_samples_without_saving",
+      "status": "passed"
+    },
+    {
+      "test": "test_pick_feedback.PickFeedbackTests.test_invalid_sample_is_not_saved_and_its_highlight_is_cleared",
+      "status": "passed"
+    },
+    {
+      "test": "test_pick_feedback.PickFeedbackTests.test_repeated_pick_keeps_single_highlight_owner_and_returns_original_point",
+      "status": "passed"
+    },
+    {
+      "test": "test_pick_feedback.PickFeedbackTests.test_setup_samples_stay_highlighted_through_next_pick_and_clear_on_completion",
+      "status": "passed"
+    },
+    {
+      "test": "test_pick_feedback.PickFeedbackTests.test_template_cancellation_cleans_picked_block",
+      "status": "passed"
+    },
+    {
+      "test": "test_pick_feedback.PickFeedbackTests.test_trace_retains_confirmed_wire_and_clears_rejected_wire_before_analysis",
+      "status": "passed"
+    },
+    {
+      "test": "test_panel.PanelTests.test_default_entry_keeps_two_picks_and_opens_real_circuit_panel",
+      "status": "passed"
+    },
+    {
+      "test": "test_panel.PanelTests.test_invalid_power_blocks_ground_toggle_and_preserves_input",
+      "status": "passed"
+    },
+    {
+      "test": "test_panel.PanelTests.test_missing_power_overlimit_and_zero",
+      "status": "passed"
+    },
+    {
+      "test": "test_panel.PanelTests.test_saved_incoming_exclusion_and_candidate_change_are_explicit",
+      "status": "passed"
+    },
+    {
+      "test": "test_panel.PanelTests.test_two_pick_network_is_split_without_sharing_panel",
+      "status": "passed"
+    },
+    {
+      "test": "test_panel.PanelTests.test_uid_order_and_manual_no_survive_renumbering",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_bent_polylines_continue_along_the_actual_broken_end_direction",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_block_inside_gap_is_not_skipped_by_wire_bounds_filter",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_collection_does_not_parse_outside_wire_layers",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_connected_system_joins_t_branches_and_groups_without_roles",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_dialog_preview_restores_current_row_and_unsaved_values",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_endpoint_on_device_does_not_continue_to_remote_wire",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_free_gap_ends_reconnect_when_opposite_ends_touch_panel_and_device",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_gap_does_not_jump_to_parallel_other_elevation_or_out_of_range_wire",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_gap_log_records_endpoint_coordinates_candidates_and_pair_count",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_legacy_summary_two_picks_and_one_table_then_remembers_powers",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_multiple_breaks_continue_past_middle_device_and_t_branch",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_noncollinear_crossing_in_gap_is_not_a_connection_or_blocker",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_other_wire_layer_and_bare_crossing_do_not_merge_systems",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_power_edit_requires_valid_values_and_keeps_zero",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_whole_block_middle_crossing_connects_and_never_reads_contents",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimplePersistenceTests.test_corrupt_power_file_is_not_overwritten",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimplePersistenceTests.test_file_reload_and_merge_preserve_unrelated_block_types",
+      "status": "passed"
+    },
+    {
+      "test": "test_fixed_diagnostics.FixedDiagnosticTests.test_first_use_unknown_handseed_reaches_real_panel_without_writes",
+      "status": "passed"
+    },
+    {
+      "test": "test_fixed_diagnostics.FixedDiagnosticTests.test_missing_drawing_identity_stops_with_specific_message_and_log",
+      "status": "passed"
+    },
+    {
+      "test": "test_fixed_diagnostics.FixedDiagnosticTests.test_new_record_avoids_existing_ids_and_retains_existing_record",
+      "status": "passed"
+    },
+    {
+      "test": "test_fixed_diagnostics.FixedDiagnosticTests.test_panel_fill_failure_reports_stage_and_original_error",
+      "status": "passed"
+    },
+    {
+      "test": "test_fixed_diagnostics.FixedDiagnosticTests.test_power_reopen_preserves_legacy_record_identity_and_appends_session",
+      "status": "passed"
+    },
+    {
+      "test": "test_fixed_diagnostics.FixedDiagnosticTests.test_recognition_failure_uses_outer_error_handler",
+      "status": "passed"
+    },
+    {
+      "test": "test_fixed_diagnostics.FixedDiagnosticTests.test_unwritable_log_still_reports_panel_failure_on_command_line",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_old_ui_directory_requires_complete_new_package",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_package_encoding_layout_and_update_forms",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_packaged_setup_uses_fixed_mm_and_numeric_choices_with_real_data_io",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_standalone_update_initializes_root_then_setup_reaches_actual_pick",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_update_cancel_reports_not_ready_and_command_can_retry_once",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_update_preserves_old_root_and_config_then_stat_reaches_panel_pick",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootFixture.test_old_ui_directory_requires_complete_new_package",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_cancelled_save_does_not_write_config_or_report_success",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_cancelled_setup_config_does_not_build_invalid_backup_path",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_cancelled_setup_does_not_reprompt_backup_or_create_config",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_config_path_rejects_nil_or_non_string_root_and_drawing_id",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_empty_wrong_type_and_deleted_roots_request_relocation",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_invalid_config_backup_still_preserves_previous_data",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_missing_post_stat_ui_marker_rejects_old_dialog",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_missing_root_is_initialized_before_config_path_is_used",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_old_ui_directory_requires_complete_new_package",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_save_initializes_missing_root_and_can_read_back_the_config",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_unsaved_drawing_stops_before_directory_selection",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_valid_root_with_or_without_trailing_separator_keeps_saved_config",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_wrong_file_and_incomplete_package_are_not_accepted",
+      "status": "passed"
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_atomic_config_write_restores_previous_file_on_failure",
+      "status": "passed"
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_dcl_keys_and_callback_syntax",
+      "status": "passed"
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_forms_arities_and_local_assignments",
+      "status": "passed"
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_geometry_and_topology_do_not_mutate_drawing",
+      "status": "passed"
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_rollback_only_deletes_created_objects_even_if_one_delete_fails",
+      "status": "passed"
+    }
+  ],
+  "cad_status": "pending native AutoCAD 2020 visual verification"
+}

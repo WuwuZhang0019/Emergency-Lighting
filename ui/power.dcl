@@ -75,7 +75,7 @@ el_fixed_exits : dialog {
   : list_box { key = "f_exits"; label = "实际出线候选 / 已识别设备数量"; width = 88; height = 6; multiple_select = true; }
   : list_box { key = "f_devices"; label = "所选出线连接的设备：图块 / 数量"; width = 88; height = 8; tabs = "65"; fixed_width_font = true; }
   : text { key = "f_status"; width = 88; }
-  : button { key = "f_preview"; label = "在图面查看选中候选"; }
+  : button { key = "f_preview"; label = "在图面查看所选回路导线和设备"; }
   : row {
     : button { key = "accept"; label = "确认出线，进入功率表"; is_default = true; }
     : button { key = "cancel"; label = "取消"; is_cancel = true; }

@@ -1,4 +1,4 @@
-"""Pick feedback lifecycle regressions. Date: 2026-10-08.
+"""Pick feedback lifecycle regressions. Date: 2026-10-09.
 
 Runs actual command flow with input/display adapters; no CAD visual acceptance.
 """
@@ -17,7 +17,7 @@ class Cancelled(Exception):
 class PickFeedbackTests(unittest.TestCase):
     def setUp(self):
         self.h = Host()
-        for filename in ('common', 'config', 'geometry', 'main', 'generation'):
+        for filename in ('common', 'config', 'geometry', 'main', 'generation', 'fixed'):
             self.h.load_definitions(ROOT / 'src' / f'{filename}.lsp')
         self.entities = {
             name: [Pair(0, typ), Pair(5, name), Pair(8, layer), Pair(2, block), Pair(410, 'Model')]
@@ -168,6 +168,7 @@ class PickFeedbackTests(unittest.TestCase):
             'EL:SAVECONFIG': lambda cfg: cfg,
             'EL:ANALYZESNAPSHOT': analyze,
             'EL:COLLECTENDPOINTSNAPSHOT': lambda cfg: snapshot,
+            'EL:PUBLISHDIAGRAM': lambda result, cfg: result,
         })
         self.h.run('(c:ELTRACE)')
         self.assertEqual(self.visible, set())
@@ -184,7 +185,7 @@ class PickFeedbackTests(unittest.TestCase):
             self.h.call(Symbol('*ERROR*'), ['Function cancelled'])
             raise Cancelled()
 
-        self.h.builtins['EL:CAPTURETEMPLATE'] = capture
+        self.h.builtins['EL:CAPTUREFIXEDTEMPLATE'] = capture
         with self.assertRaises(Cancelled):
             self.h.run('(c:ELTEMPLATE)')
         self.assertEqual(self.visible, set())

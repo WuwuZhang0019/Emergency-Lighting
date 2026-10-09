@@ -70,7 +70,7 @@ class FixedDiagnosticTests(unittest.TestCase):
         self.assertEqual(self.writes, [])
         self.assertNotIn('HANDSEED', self.variables)
         log = self.log.read_text(encoding='utf-8')
-        for value in ('029', 'PICKS', 'panel', 'w1', 'PREPARE_PANEL', 'PANEL_FILL', 'END'):
+        for value in ('030', 'PICKS', 'panel', 'w1', 'PREPARE_PANEL', 'PANEL_FILL', 'END'):
             self.assertIn(value, log)
         self.assertFalse(truth(self.h.lookup('*EL:LOGACTIVE*')))
 

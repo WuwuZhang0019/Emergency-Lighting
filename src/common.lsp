@@ -43,10 +43,16 @@
   (setq h 5381)
   (foreach n (vl-string->list s) (setq h (rem (+ (* h 33.0) n) 2147483629.0)))
   (rtos h 2 0))
-(defun EL:StableData (data)
-  ;; TYPE returns nil at every list tail; compare types with EQUAL, not =.
+(defun EL:StableData (data / tail items result item)
+  ;; Date: 2026-10-09. Iterate list tails: stack depth follows nesting, not entity count.
   (cond ((equal (type data) 'ENAME) (list 'handle (cdr (assoc 5 (entget data)))))
-        ((listp data) (if data (cons (EL:StableData (car data)) (EL:StableData (cdr data))))) (T data)))
+        ((listp data)
+          (setq tail data)
+          (while (and tail (listp tail))
+            (setq items (cons (EL:StableData (car tail)) items) tail (cdr tail)))
+          (setq result (if tail (EL:StableData tail)))
+          (foreach item items (setq result (cons item result))) result)
+        (T data)))
 (defun EL:Signature (data) (vl-prin1-to-string (EL:StableData data)))
 (defun EL:RecognitionRules (cfg / rows key)
   (foreach key '(wire-layers panel-layers device-layers leader-layers panel-names device-names leader-names

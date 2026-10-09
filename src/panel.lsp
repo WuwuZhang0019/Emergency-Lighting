@@ -78,7 +78,7 @@
   (foreach b (EL:Get 'blocks snapshot)
     (setq blocks (cons (EL:Put 'identity (list (EL:Get 'name b) nil "block-name-v1")
       (EL:Put 'role (if (equal (EL:Get 'id b) panel) 'panel 'device) b)) blocks)))
-  (EL:Put 'signature (EL:Signature snapshot) (EL:Put 'blocks (reverse blocks) snapshot)))
+  (EL:Put 'signature (EL:LogCall "SNAPSHOT_SIGNATURE" nil 'EL:Signature (list snapshot)) (EL:Put 'blocks (reverse blocks) snapshot)))
 (defun EL:SplitNetwork (network cfg / snapshot panel edges seeds wire block i circuits result)
   (setq snapshot (EL:CircuitSnapshot (EL:Get 'snapshot network) (EL:Get 'panel network))
         panel (EL:Get 'panel network) block (EL:By 'id panel (EL:Get 'blocks snapshot)) i 0)

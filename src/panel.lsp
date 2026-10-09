@@ -43,9 +43,9 @@
   (foreach row rows (add_list (strcat (EL:Get 'name row) "\t" (itoa (EL:Get 'count row)))))
   (end_list)
   (set_tile "f_status" (cond
-    ((not indices) "尚未选择出线，请选中实际回路后进入功率表。")
-    ((not ids) "所选出线未识别到设备：请核对导线图层、箱口和断口连接。")
-    (T (strcat "所选出线已识别 " (itoa (length ids)) " 个设备（按实例去重），确认后填写功率。")))))
+    ((not indices) "尚未选择出线，请选择实际回路。")
+    ((not ids) "所选出线未识别到设备，请核对连接。")
+    (T (strcat "所选出线已识别 " (itoa (length ids)) " 个设备，右侧填写功率。")))))
 (defun EL:FixedExitHighlight (result value / snapshot indices index circuit wires devices id wire block bounds lo hi seg pad)
   ;; Date: 2026-10-09. Preview the traced circuit, not only its outlet seed.
   (EL:ClearGapPreview) (EL:ClearPickHighlights)
@@ -181,6 +181,7 @@
 (defun EL:PanelGenerate ()
   (if (EL:PanelStore)
     (cond
+      ((not (EL:Get 'circuits *EL:PanelDraft*)) (set_tile "p_error" "请至少保留一条实际出线。"))
       ((not (EL:Get 'can-generate *EL:PanelDraft*)) (set_tile "p_error" "识别或功率未通过，不能生成；可保存草稿。"))
       ((not (EL:SelectionsReady *EL:PanelDraft* *EL:PanelCapacity*))
         (set_tile "p_error" "请先选择箱体容量，并核对各回路地面勾选后点击“确认全部页回路类型”。"))
@@ -243,10 +244,48 @@
       (EL:PanelFill))
     (set_tile "p_capacity" (cond ((equal *EL:PanelCapacity* 'cap600) "p_600")
       ((equal *EL:PanelCapacity* 'cap1000) "p_1000") ((equal *EL:PanelCapacity* 'cap300) "p_300") (T "p_pending")))))
+(defun EL:PanelExitFill (/ c)
+  (start_list "f_exits")
+  (foreach c (EL:Get 'circuits *EL:FixedExitResult*)
+    (add_list (strcat (EL:Get 'id c) " / 导线 " (EL:Get 'wire (EL:Get 'seed c))
+      " / 设备 " (itoa (length (EL:Get 'devices c)))
+      (if (EL:Get 'complete c) "" " / 待核对"))))
+  (end_list)
+  (set_tile "f_exits" *EL:FixedExitSelection*)
+  (EL:FixedExitDevices))
+(defun EL:PanelExitApply (value / selected excluded cs c old)
+  (if (EL:PanelStore)
+    (progn
+      ;; Preserve manual circuit choices while a candidate is temporarily excluded.
+      (foreach c (EL:Get 'circuits *EL:FixedExitResult*)
+        (setq old (EL:By 'seed-key (EL:Get 'seed-key c) (EL:Get 'circuits *EL:PanelDraft*)))
+        (setq cs (cons (cond (old) (T c)) cs)))
+      (setq *EL:FixedExitResult* (EL:Put 'circuits (reverse cs) *EL:FixedExitResult*)
+        *EL:FixedExitSelection* value
+        selected (mapcar '(lambda (i) (EL:Get 'key (EL:Get 'seed
+          (nth i (EL:Get 'circuits *EL:FixedExitResult*))))) (read (strcat "(" value ")")))
+        excluded (vl-remove-if '(lambda (k) (member k selected)) (EL:Get 'candidate-keys *EL:FixedExitResult*))
+        *EL:PanelDraft* (EL:PanelCompute
+          (EL:Put 'capacity-source (EL:Get 'capacity-source *EL:PanelDraft*)
+            (EL:SelectFixedExits *EL:FixedExitResult* excluded)) *EL:PanelPowers* *EL:PanelConfig*)
+        *EL:PanelIndex* 0 *EL:PanelPage* 0 *EL:PanelDevice* 0)
+      (EL:FixedExitDevices) (EL:PanelFill))
+    (set_tile "f_exits" *EL:FixedExitSelection*)))
+(defun EL:PanelAccept ()
+  (if (EL:PanelStore)
+    (if (EL:Get 'circuits *EL:PanelDraft*) (done_dialog 1)
+      (set_tile "p_error" "请至少保留一条实际出线。"))))
 (defun EL:PanelDialog (result cfg powers capacity / dialog status i key row captured
     *EL:PanelDraft* *EL:PanelPowers* *EL:PanelCapacity* *EL:PanelConfig*
-    *EL:PanelIndex* *EL:PanelPage* *EL:PanelDevice* *EL:PanelTemplateReady*)
-  (setq *EL:PanelDraft* (EL:PanelCompute result powers cfg) *EL:PanelPowers* powers
+    *EL:PanelIndex* *EL:PanelPage* *EL:PanelDevice* *EL:PanelTemplateReady*
+    *EL:FixedExitResult* *EL:FixedExitSelection* *EL:ExitSnapshot*)
+  (setq *EL:FixedExitResult* result *EL:ExitSnapshot* (EL:Get 'snapshot result)
+    *EL:FixedExitSelection* "" i 0)
+  (foreach row (EL:Get 'circuits result)
+    (if (not (member (EL:Get 'key (EL:Get 'seed row)) (EL:Get 'excluded-seeds result)))
+      (setq *EL:FixedExitSelection* (strcat *EL:FixedExitSelection* (itoa i) " ")))
+    (setq i (1+ i)))
+  (setq *EL:PanelDraft* (EL:PanelCompute (EL:SelectFixedExits result (EL:Get 'excluded-seeds result)) powers cfg) *EL:PanelPowers* powers
     *EL:PanelCapacity* capacity *EL:PanelConfig* cfg *EL:PanelIndex* 0 *EL:PanelPage* 0 *EL:PanelDevice* 0
     *EL:PanelTemplateReady* (EL:TemplateReady (EL:Get 'template cfg) cfg)
     dialog (load_dialog (strcat *EL:Root* "ui/power.dcl")) *EL:DialogID* dialog status 3)
@@ -255,6 +294,10 @@
       (progn
         (EL:LogCall "PANEL_FILL" (list (cons 'panel (EL:Get 'panel result))
           (cons 'circuits (length (EL:Get 'circuits *EL:PanelDraft*)))) 'EL:PanelFill nil) (setq i 0)
+        (EL:PanelExitFill)
+        (action_tile "f_exits" "(EL:PanelExitApply $value)")
+        (action_tile "f_apply" "(EL:PanelExitApply *EL:FixedExitSelection*)")
+        (action_tile "f_preview" "(if (EL:PanelStore) (done_dialog 5))")
         (repeat 8
           (setq key (itoa i))
           (action_tile (strcat "p_row" key) (strcat "(EL:PanelSelect (+ *EL:PanelPage* " key "))"))
@@ -265,7 +308,7 @@
         (action_tile "p_capacity" "(EL:PanelCapacity $value)")
         (action_tile "p_confirm_types" "(EL:PanelConfirmTypes)")
         (action_tile "p_locate" "(if (EL:PanelStore) (done_dialog 3))")
-        (action_tile "accept" "(if (EL:PanelStore) (done_dialog 1))")
+        (action_tile "accept" "(EL:PanelAccept)")
         (action_tile "p_generate" "(EL:PanelGenerate)")
         (action_tile "cancel" "(done_dialog 0)")
         (setq status (start_dialog))
@@ -283,6 +326,8 @@
             (setq row (nth *EL:PanelDevice* (EL:PanelDevices)))
             (if row (EL:SimpleLocate (list (cons 'devices (EL:Get 'blocks (EL:Get 'snapshot result)))) row))
             (getstring "\n按 Enter 返回主面板：") (EL:ClearGapPreview)))
+        (if (= status 5)
+          (progn (EL:FixedExitPreview *EL:FixedExitResult* *EL:FixedExitSelection*) (setq status 3)))
         (if (= status 4) (setq status 3)))
       (setq status 0)))
   (if (> dialog 0) (unload_dialog dialog)) (setq *EL:DialogID* nil)

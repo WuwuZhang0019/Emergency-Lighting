@@ -70,7 +70,7 @@ class FixedDiagnosticTests(unittest.TestCase):
         self.assertEqual(self.writes, [])
         self.assertNotIn('HANDSEED', self.variables)
         log = self.log.read_text(encoding='utf-8')
-        for value in ('030', 'PICKS', 'panel', 'w1', 'PREPARE_PANEL', 'PANEL_FILL', 'END'):
+        for value in ('031', 'PICKS', 'panel', 'w1', 'PREPARE_PANEL', 'PANEL_FILL', 'END'):
             self.assertIn(value, log)
         self.assertFalse(truth(self.h.lookup('*EL:LOGACTIVE*')))
 
@@ -112,15 +112,15 @@ class FixedDiagnosticTests(unittest.TestCase):
             self.assertIn(value, text)
         self.assertEqual(self.writes, [])
 
-    def test_missing_drawing_identity_stops_with_specific_message_and_log(self):
+    def test_missing_drawing_identity_opens_panel_with_stable_fallback(self):
         getvar = self.h.builtins['GETVAR']
-        self.h.builtins['GETVAR'] = lambda key: None if key == 'FINGERPRINTGUID' else getvar(key)
-        with self.assertRaisesRegex(RuntimeError, 'quit / exit abort') as caught:
-            self.h.run('(c:ELSTAT)')
-        self.call('*ERROR*', str(caught.exception))
-        self.assertIn('图纸标识或来源箱体句柄为空', ''.join(self.messages))
-        self.assertIn('NEW_RECORD', self.log.read_text(encoding='utf-8'))
-        self.assertEqual(self.dialogs, [])
+        for missing in (None, ''):
+            self.h.builtins['GETVAR'] = lambda key: missing if key == 'FINGERPRINTGUID' else getvar(key)
+            first = self.get('drawing-uuid', self.call('EL:StoreInitial'))
+            self.assertTrue(first.startswith('EL-'))
+            self.assertEqual(first, self.get('drawing-uuid', self.call('EL:StoreInitial')))
+        self.h.run('(c:ELSTAT)')
+        self.assertEqual(self.dialogs, ['el_panel'])
         self.assertEqual(self.writes, [])
 
     def test_power_reopen_preserves_legacy_record_identity_and_appends_session(self):

@@ -41,6 +41,15 @@ class StoreTests(unittest.TestCase):
         self.assertTrue(truth(self.h.run("(EL:StoreWrite (EL:Put 'notes \"changed\" (EL:StoreRead)))")))
         self.assertEqual(len(self.entities),1)
 
+    def test_fallback_identity_persists_across_store_reload(self):
+        self.h.builtins.update({'GETVAR': lambda key: {'CDATE': 20261009.12,
+            'MILLISECS': 100}.get(key), 'EL:DRAWINGID': lambda: 'drawing.dwg'})
+        identity = self.h.run("(EL:Get 'drawing-uuid (EL:StoreInitial))")
+        self.assertTrue(identity.startswith('EL-'))
+        self.h.run('(EL:StoreWrite (EL:StoreInitial))')
+        self.h.run('(setq *EL:FallbackDrawingUUID* nil)')
+        self.assertEqual(self.h.run("(EL:Get 'drawing-uuid (EL:StoreRead))"), identity)
+
     def test_foreign_or_copied_handle_is_not_owned(self):
         self.h.run("(setq store (EL:StoreInitial) record '((diagram-id . \"diagram1\")))")
         tag=[Pair(1000,x) for x in ('drawing-guid','diagram1','text','uid1','A')]

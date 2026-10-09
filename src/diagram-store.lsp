@@ -10,8 +10,18 @@
           (not (listp (EL:Get 'diagrams value))))
         (progn (princ "\nDWG 系统图主记录损坏或版本不兼容，已停止写入。") (exit)))
       value)))
-(defun EL:StoreInitial ()
-  (list '(schema-version . 1) (cons 'drawing-uuid (getvar "FINGERPRINTGUID")) '(diagrams)))
+(defun EL:StoreInitial (/ uuid)
+  ;; Date: 2026-10-09. Document-local fallback survives draft reopen and is
+  ;; persisted with the first saved store; cancel never writes to the DWG.
+  (setq uuid (vl-catch-all-apply 'getvar (list "FINGERPRINTGUID")))
+  (if (or (not (equal (type uuid) 'STR)) (equal uuid ""))
+    (progn
+      (if (not *EL:FallbackDrawingUUID*)
+        (setq *EL:FallbackDrawingUUID* (strcat "EL-"
+          (rtos (getvar "CDATE") 2 8) "-" (itoa (getvar "MILLISECS"))
+          "-" (substr (EL:Signature (EL:DrawingID)) 1 64))))
+      (setq uuid *EL:FallbackDrawingUUID*)))
+  (list '(schema-version . 1) (cons 'drawing-uuid uuid) '(diagrams)))
 (defun EL:StoreText (value / textdata tail)
   (cond
     ((equal (type value) 'REAL) (rtos value 2 16))

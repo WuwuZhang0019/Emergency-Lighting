@@ -82,14 +82,24 @@ el_fixed_exits : dialog {
   }
 }
 el_panel : dialog {
-  label = "配电箱回路与设备功率";
+  label = "核对出线与设备功率";
+  : row {
+    : boxed_column { label = "出线核对";
+      : text { label = "默认全选，仅取消明确的进线或非本箱出线。"; }
+      : list_box { key = "f_exits"; width = 52; height = 9; multiple_select = true; }
+      : list_box { key = "f_devices"; label = "所选出线设备 / 数量"; width = 52; height = 12; tabs = "42"; fixed_width_font = true; }
+      : text { key = "f_status"; width = 52; }
+      : button { key = "f_preview"; label = "在图面查看所选回路导线和设备"; }
+      : button { key = "f_apply"; label = "确认出线，刷新右侧功率表"; }
+    }
+    : column {
   : radio_row { key = "p_capacity"; label = "当前配电箱容量档位";
     : radio_button { key = "p_pending"; label = "待核对"; }
     : radio_button { key = "p_300"; label = "0.3kW"; }
     : radio_button { key = "p_600"; label = "0.6kW"; }
     : radio_button { key = "p_1000"; label = "1kW"; }
   }
-  : text { key = "p_capacity_status"; width = 110; }
+  : text { key = "p_capacity_status"; width = 100; }
   : row {
     : boxed_column { label = "回路 / 类型 / 功率 / 状态                  是否为地面";
       : row { : button { key = "p_row0"; width = 43; fixed_width = true; } : toggle { key = "p_ground0"; label = "是"; } }
@@ -109,8 +119,10 @@ el_panel : dialog {
       : button { key = "p_locate"; label = "在图上查看该设备"; }
     }
   }
+    }
+  }
   : text { key = "p_total"; width = 100; }
-  : text { key = "p_template_status"; width = 110; }
+  : text { key = "p_template_status"; width = 100; }
   : text { key = "p_error"; width = 100; }
   : row {
     : button { key = "accept"; label = "保存"; is_default = true; }

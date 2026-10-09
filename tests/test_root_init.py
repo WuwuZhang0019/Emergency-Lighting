@@ -1,4 +1,4 @@
-"""Root/config and packaged-update regressions. Date: 2026-10-08.
+"""Root/config and packaged-update regressions. Date: 2026-10-09.
 
 Executes actual LISP with file/input adapters; does not start AutoCAD.
 """
@@ -131,7 +131,7 @@ class RootFixture(unittest.TestCase):
 
 class RootInitTests(RootFixture):
     def test_missing_post_stat_ui_marker_rejects_old_dialog(self):
-        (self.package / 'ui/diagram-ui-029.marker').unlink()
+        (self.package / 'ui/diagram-ui-031.marker').unlink()
         self.assertFalse(truth(self.h.call(Symbol('EL:ROOTVALID'), [self.root])))
 
     def test_missing_root_is_initialized_before_config_path_is_used(self):

@@ -29,18 +29,53 @@ class ExitDeviceTests(unittest.TestCase):
             'ACTION_TILE': lambda key, value: self.actions.__setitem__(key, value),
         })
 
-    def test_actual_command_shows_devices_before_and_after_exit_confirmation(self):
+    def test_actual_command_shows_exit_and_power_in_one_dialog(self):
         def start():
-            if self.dialogs[-1] == 'el_fixed_exits':
-                self.assertIn('已识别设备 2 个', self.lists['f_exits'][0])
-                self.assertEqual(self.lists['f_devices'], ['LAMP\t2'])
-                self.assertIn('已识别 2 个设备', self.tiles['f_status'])
-                return 1
+            self.assertEqual(self.dialogs, ['el_panel'])
+            self.assertIn('设备 2', self.lists['f_exits'][0])
+            self.assertEqual(self.lists['f_devices'], ['LAMP\t2'])
             self.assertEqual(self.lists['p_devices'], ['LAMP\t2\t待填写'])
             return 0
         self.h.builtins['START_DIALOG'] = start
         self.h.run('(c:ELSTAT)')
-        self.assertEqual(self.dialogs, ['el_fixed_exits', 'el_panel'])
+        self.assertEqual(self.dialogs, ['el_panel'])
+        self.assertEqual(self.writes, [])
+
+    def test_inline_selection_preserves_power_and_blocks_empty_save(self):
+        self.h.builtins.update({'GET_TILE': lambda key: self.tiles.get(key, ''),
+            'DONE_DIALOG': lambda status: self.fail('inline changes must not close dialog')})
+        def start():
+            self.tiles['p_watts'] = '7'
+            self.h.run(self.actions['f_apply'])
+            self.assertEqual(self.lists['p_devices'], ['LAMP\t2\t7'])
+            self.call('EL:PanelExitApply', '')
+            self.assertEqual(self.lists['p_devices'], [])
+            self.call('EL:PanelAccept')
+            self.assertIn('至少保留', self.tiles['p_error'])
+            self.call('EL:PanelExitApply', '0')
+            self.assertEqual(self.lists['p_devices'], ['LAMP\t2\t7'])
+            self.assertEqual(self.dialogs, ['el_panel'])
+            return 0
+        self.h.builtins['START_DIALOG'] = start
+        self.h.run('(c:ELSTAT)')
+        self.assertEqual(self.writes, [])
+
+    def test_integrated_preview_returns_to_same_layout_with_draft(self):
+        previews = []
+        self.h.builtins.update({'GET_TILE': lambda key: self.tiles.get(key, ''),
+            'DONE_DIALOG': lambda status: status,
+            'EL:FIXEDEXITPREVIEW': lambda result, selection: previews.append(selection)})
+        def start():
+            if not previews:
+                self.tiles['p_watts'] = '9'
+                return self.h.run(self.actions['f_preview'])
+            self.assertEqual(self.tiles['f_exits'], '0 ')
+            self.assertEqual(self.lists['p_devices'], ['LAMP\t2\t9'])
+            return 0
+        self.h.builtins['START_DIALOG'] = start
+        self.h.run('(c:ELSTAT)')
+        self.assertEqual(self.dialogs, ['el_panel', 'el_panel'])
+        self.assertEqual(previews, ['0 '])
         self.assertEqual(self.writes, [])
 
     def test_selection_refresh_and_preview_preserve_selected_devices(self):

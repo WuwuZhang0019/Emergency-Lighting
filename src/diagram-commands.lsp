@@ -113,8 +113,8 @@
             result (EL:LogCall "RECOGNIZE_FIXED" (list (cons 'panel (cdr (assoc 5 pd)))
               (cons 'wire (cdr (assoc 5 wd)))) 'EL:RecognizeFixed (list cfg (cdr (assoc 5 pd))))
             record (EL:DiagramForPanel (cdr (assoc 5 pd)) (EL:StoreRead)))
-          (setq result (EL:LogCall "REVIEW_FIXED_EXITS" nil 'EL:ReviewFixedExits (list result record)))
-          (EL:Require result "出线核对已取消。")
+          ;; Review and powers now share one modal dialog.
+          (setq result (EL:Put 'excluded-seeds (EL:Get 'excluded-seeds record) result))
           (setq powers (EL:FixedPowers record) result (EL:PanelCompute result powers cfg)
             *EL:Result* result *EL:FixedConfig* cfg)
           (if (EL:Get 'circuits result) (EL:EditPanel result cfg)

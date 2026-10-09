@@ -13,3 +13,5 @@ config/*.invalid-*
 /output/Emergency-Lighting-CAD*/
 /output/应急照明-*/
 /output/cad2020*-check/
+
+config/power-input-*.eld

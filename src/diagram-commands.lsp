@@ -1,10 +1,21 @@
 ;; Date: 2026-10-09. Common publication/synchronization entry points.
-(defun EL:FixedPowers (record / data powers row)
+(defun EL:PowerInputPath (panel / drawing)
+  (if (and panel *EL:Root* (setq drawing (EL:DrawingID)))
+    (strcat *EL:Root* "config/power-input-" (EL:Hash (strcat drawing "/" panel)) ".eld")))
+(defun EL:RememberPanelPowers (result powers / path)
+  (if (setq path (EL:PowerInputPath (EL:Get 'panel result)))
+    (EL:WriteData path (list '(version . 1) (cons 'powers
+      (vl-remove-if-not '(lambda (row) (numberp (cdr row))) powers))))))
+(defun EL:FixedPowers (record / data powers row path remembered)
   (setq data (EL:SimpleLoadPowers) powers (EL:Get 'powers record))
   (EL:Require data "图块功率库无效，原文件保留。")
   (foreach row (EL:Get 'powers data) (setq powers (EL:Put (car row) (cdr row) powers)))
   (if (EL:Get 'draft-circuits record)
-    (foreach row (EL:Get 'powers record) (setq powers (EL:Put (car row) (cdr row) powers)))) powers)
+    (foreach row (EL:Get 'powers record) (setq powers (EL:Put (car row) (cdr row) powers))))
+  (if (and (setq path (EL:PowerInputPath (EL:Get 'source-panel-handle record)))
+      (setq remembered (EL:ReadData path)) (EL:SimplePowersValid remembered))
+    (foreach row (EL:Get 'powers remembered) (setq powers (EL:Put (car row) (cdr row) powers))))
+  powers)
 (defun EL:SaveNamePowers (powers / data row merged)
   (if (setq data (EL:SimpleLoadPowers))
     (progn
@@ -60,6 +71,9 @@
         cfg (cond ((EL:Get 'config edited)) (T cfg))
         syncable (and (EL:Get 'can-generate result) (EL:SelectionsReady result capacity)
           (EL:TemplateReady (EL:Get 'template cfg) cfg)))
+      (EL:RememberPanelPowers result powers)
+      (if (not (EL:SaveNamePowers powers))
+        (princ "\n功率库写入失败，请保留当前窗口数值并检查插件目录写入权限。"))
       (if (EL:FreshResult result cfg)
         (progn
           (setq saved (if syncable
@@ -76,7 +90,8 @@
                   (setq *EL:Result* result *EL:FixedConfig* cfg)
                   (if (not (EL:SaveNamePowers powers)) (princ "\nDWG 已保存；共享图块功率库写入失败，其他图纸暂不复用本次值。"))
                   (princ "\n主面板已保存。"))))))
-        (EL:MarkStale (EL:Get 'panel result) 'source-changed))))
+        (progn (EL:MarkStale (EL:Get 'panel result) 'source-changed)
+          (alert "源图状态已变化，回路草稿未保存，请重新统计。已填写功率已尝试单独记住。")))))
   (if (and (not edited) (EL:Get 'panel-output-handle record))
     (EL:MarkStale (EL:Get 'panel result) 'review-cancelled))
   (EL:ClearPickHighlights)

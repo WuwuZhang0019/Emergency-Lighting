@@ -1,0 +1,86 @@
+"""Reported native panel failures. Date: 2026-10-09."""
+import unittest
+from pathlib import Path
+from autolisp_host import Symbol
+import test_exit_devices as exits
+
+
+class PanelRepairTests(unittest.TestCase):
+    def setUp(self):
+        fixture = exits.ExitDeviceTests()
+        fixture.setUp()
+        self.h, self.tiles = fixture.h, fixture.tiles
+        self.call, self.get = fixture.call, fixture.get
+        self.actions = fixture.actions
+        self.result = self.call('EL:RecognizeFixed', fixture.cfg, 'panel')
+        self.cfg = fixture.cfg
+
+    def test_circuit_text_is_not_a_button_value_and_reserve_stays_open(self):
+        ui = (Path(__file__).resolve().parents[1] / 'ui/power.dcl').read_text(encoding='utf-8')
+        self.assertIn(': text { key = "p_row0"', ui)
+        self.assertIn(': button { key = "p_select1"; label = "查看"', ui)
+        self.h.builtins['GET_TILE'] = lambda key: self.tiles.get(key, '')
+        self.h.builtins['DONE_DIALOG'] = lambda status: self.fail('reserve must not close panel')
+        def start():
+            self.h.run(self.actions['p_select1'])
+            self.assertIn('预留回路', self.tiles['p_error'])
+            self.assertEqual(self.tiles['p_watts'], '')
+            self.h.run(self.actions['p_select0'])
+            self.assertEqual(self.tiles['p_watts'], '5')
+            return 0
+        self.h.builtins['START_DIALOG'] = start
+        self.call('EL:PanelDialog', self.result, self.cfg, self.h.run("'((\"LAMP\" . 5))"), None)
+
+    def test_screenshot_counts_total_85_even_when_connection_is_pending(self):
+        self.h.run('''(setq *EL:PanelPowers* '(("A" . 5) ("B" . 1) ("C" . 1) ("D" . 1)))''')
+        blocks, ids = [], []
+        for name, count in [('A', 14), ('B', 7), ('C', 5), ('D', 3)]:
+            for i in range(count):
+                ident = f'{name}{i}'
+                ids.append(ident)
+                blocks.append(self.h.run(f'\'((id . "{ident}") (name . "{name}"))'))
+        circuit = self.call('EL:Put', Symbol('DEVICES'), ids, None)
+        result = self.call('EL:Put', Symbol('CIRCUITS'), [circuit, circuit], None)
+        snapshot = self.call('EL:Put', Symbol('BLOCKS'), blocks, None)
+        self.h.frames[0]['*EL:PANELDRAFT*'] = self.call('EL:Put', Symbol('SNAPSHOT'), snapshot, result)
+        text = self.call('EL:PanelKnownTotal')
+        self.assertIn('85 W', text)
+        self.assertIn('连接仍待核对', text)
+        self.assertNotIn('170', text)
+
+    def test_edit_event_remembers_last_value_reloads_over_old_dwg_draft(self):
+        files = {}
+        self.h.builtins.update({
+            'GET_TILE': lambda key: self.tiles.get(key, ''),
+            'EL:WRITEDATA': lambda path, data: files.__setitem__(path, data) or True,
+            'EL:READDATA': lambda path: files.get(path),
+        })
+        def start():
+            self.tiles['p_watts'] = '7'
+            self.h.run(self.actions['p_watts'])
+            self.assertIn('已记住', self.tiles['p_error'])
+            self.assertIn('14 W', self.tiles['p_total'])
+            return 0
+        self.h.builtins['START_DIALOG'] = start
+        self.call('EL:PanelDialog', self.result, self.cfg, None, None)
+        self.assertEqual(len(files), 1)
+        self.h.builtins['EL:SIMPLELOADPOWERS'] = lambda: self.h.run("'((version . 1) (powers (\"LAMP\" . 5)))")
+        record = self.h.run("'((source-panel-handle . \"panel\") (draft-circuits (old)) (powers (\"LAMP\" . 1)))")
+        loaded = self.call('EL:FixedPowers', record)
+        self.assertEqual(self.call('EL:Get', 'LAMP', loaded), 7)
+
+    def test_failed_power_write_is_visible_and_draft_remains(self):
+        self.h.builtins['GET_TILE'] = lambda key: self.tiles.get(key, '')
+        self.h.builtins['EL:WRITEDATA'] = lambda *args: None
+        def start():
+            self.tiles['p_watts'] = '8'
+            self.h.run(self.actions['p_watts'])
+            self.assertIn('未写入文件', self.tiles['p_error'])
+            self.assertEqual(self.tiles['p_watts'], '8')
+            return 0
+        self.h.builtins['START_DIALOG'] = start
+        self.call('EL:PanelDialog', self.result, self.cfg, None, None)
+
+
+if __name__ == '__main__':
+    unittest.main()

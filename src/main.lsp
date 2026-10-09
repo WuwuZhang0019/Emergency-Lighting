@@ -403,6 +403,7 @@
       (set_tile "error" "本行已保存到本次编辑；点击应用后持久化。") T)
     (progn (set_tile "error" "请选择类别、填写名称和非负整数功率；0W 必须勾选用途确认。") nil)))
 (defun EL:ReleasePowerUI ()
+  (EL:ThumbCleanup)
   (if (and *EL:DialogID* (> *EL:DialogID* 0)) (unload_dialog *EL:DialogID*))
   (setq *EL:DialogID* nil *EL:PowerRows* nil *EL:PowerEdits* nil *EL:PowerIndex* nil
         *EL:PowerCfg* nil *EL:PowerLibrary* nil *EL:PowerResult* nil *EL:CircuitIndex* nil))

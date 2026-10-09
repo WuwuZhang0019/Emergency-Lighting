@@ -73,11 +73,11 @@ el_fixed_exits : dialog {
   label = "已完成识别：核对出线与连接设备";
   : text { label = "默认全选。仅取消明确的进线或非本箱出线；有问题的实际回路仍须保留。"; }
   : list_box { key = "f_exits"; label = "实际出线候选 / 已识别设备数量"; width = 88; height = 6; multiple_select = true; }
-  : boxed_column { label = "所选出线设备：图形 / 数量";
-    : row { : image { key = "f_image0"; width = 16; height = 3; fixed_width = true; fixed_height = true; color = 0; } : column { : text { key = "f_count0"; width = 26; } : text { key = "f_hint0"; width = 26; } } }
-    : row { : image { key = "f_image1"; width = 16; height = 3; fixed_width = true; fixed_height = true; color = 0; } : column { : text { key = "f_count1"; width = 26; } : text { key = "f_hint1"; width = 26; } } }
-    : row { : image { key = "f_image2"; width = 16; height = 3; fixed_width = true; fixed_height = true; color = 0; } : column { : text { key = "f_count2"; width = 26; } : text { key = "f_hint2"; width = 26; } } }
-    : row { : image { key = "f_image3"; width = 16; height = 3; fixed_width = true; fixed_height = true; color = 0; } : column { : text { key = "f_count3"; width = 26; } : text { key = "f_hint3"; width = 26; } } }
+  : boxed_column { label = "所选出线设备：图面实景 / 数量";
+    : row { : image_button { key = "f_image0"; width = 22; height = 4; fixed_width = true; fixed_height = true; color = 0; } : column { : text { key = "f_count0"; width = 26; } : text { key = "f_hint0"; width = 26; } } }
+    : row { : image_button { key = "f_image1"; width = 22; height = 4; fixed_width = true; fixed_height = true; color = 0; } : column { : text { key = "f_count1"; width = 26; } : text { key = "f_hint1"; width = 26; } } }
+    : row { : image_button { key = "f_image2"; width = 22; height = 4; fixed_width = true; fixed_height = true; color = 0; } : column { : text { key = "f_count2"; width = 26; } : text { key = "f_hint2"; width = 26; } } }
+    : row { : image_button { key = "f_image3"; width = 22; height = 4; fixed_width = true; fixed_height = true; color = 0; } : column { : text { key = "f_count3"; width = 26; } : text { key = "f_hint3"; width = 26; } } }
     : row { : button { key = "f_prev"; label = "上一页"; } : text { key = "f_page"; width = 10; } : button { key = "f_next"; label = "下一页"; } }
   }
   : text { key = "f_status"; width = 88; }
@@ -93,11 +93,11 @@ el_panel : dialog {
     : boxed_column { label = "出线核对";
       : text { label = "默认全选，仅取消明确的进线或非本箱出线。"; }
       : list_box { key = "f_exits"; width = 52; height = 9; multiple_select = true; }
-  : boxed_column { label = "所选出线设备：图形 / 数量";
-    : row { : image { key = "f_image0"; width = 16; height = 3; fixed_width = true; fixed_height = true; color = 0; } : column { : text { key = "f_count0"; width = 26; } : text { key = "f_hint0"; width = 26; } } }
-    : row { : image { key = "f_image1"; width = 16; height = 3; fixed_width = true; fixed_height = true; color = 0; } : column { : text { key = "f_count1"; width = 26; } : text { key = "f_hint1"; width = 26; } } }
-    : row { : image { key = "f_image2"; width = 16; height = 3; fixed_width = true; fixed_height = true; color = 0; } : column { : text { key = "f_count2"; width = 26; } : text { key = "f_hint2"; width = 26; } } }
-    : row { : image { key = "f_image3"; width = 16; height = 3; fixed_width = true; fixed_height = true; color = 0; } : column { : text { key = "f_count3"; width = 26; } : text { key = "f_hint3"; width = 26; } } }
+  : boxed_column { label = "所选出线设备：图面实景 / 数量";
+    : row { : image_button { key = "f_image0"; width = 22; height = 4; fixed_width = true; fixed_height = true; color = 0; } : column { : text { key = "f_count0"; width = 26; } : text { key = "f_hint0"; width = 26; } } }
+    : row { : image_button { key = "f_image1"; width = 22; height = 4; fixed_width = true; fixed_height = true; color = 0; } : column { : text { key = "f_count1"; width = 26; } : text { key = "f_hint1"; width = 26; } } }
+    : row { : image_button { key = "f_image2"; width = 22; height = 4; fixed_width = true; fixed_height = true; color = 0; } : column { : text { key = "f_count2"; width = 26; } : text { key = "f_hint2"; width = 26; } } }
+    : row { : image_button { key = "f_image3"; width = 22; height = 4; fixed_width = true; fixed_height = true; color = 0; } : column { : text { key = "f_count3"; width = 26; } : text { key = "f_hint3"; width = 26; } } }
     : row { : button { key = "f_prev"; label = "上一页"; } : text { key = "f_page"; width = 10; } : button { key = "f_next"; label = "下一页"; } }
   }
       : text { key = "f_status"; width = 52; }
@@ -114,20 +114,22 @@ el_panel : dialog {
   : text { key = "p_capacity_status"; width = 100; }
   : row {
     : boxed_column { label = "回路 / 类型 / 功率 / 状态                  是否为地面";
-      : row { : button { key = "p_row0"; width = 43; fixed_width = true; } : toggle { key = "p_ground0"; label = "是"; } }
-      : row { : button { key = "p_row1"; width = 43; fixed_width = true; } : toggle { key = "p_ground1"; label = "是"; } }
-      : row { : button { key = "p_row2"; width = 43; fixed_width = true; } : toggle { key = "p_ground2"; label = "是"; } }
-      : row { : button { key = "p_row3"; width = 43; fixed_width = true; } : toggle { key = "p_ground3"; label = "是"; } }
-      : row { : button { key = "p_row4"; width = 43; fixed_width = true; } : toggle { key = "p_ground4"; label = "是"; } }
-      : row { : button { key = "p_row5"; width = 43; fixed_width = true; } : toggle { key = "p_ground5"; label = "是"; } }
-      : row { : button { key = "p_row6"; width = 43; fixed_width = true; } : toggle { key = "p_ground6"; label = "是"; } }
-      : row { : button { key = "p_row7"; width = 43; fixed_width = true; } : toggle { key = "p_ground7"; label = "是"; } }
+      : row { : text { key = "p_row0"; width = 43; fixed_width = true; } : button { key = "p_select0"; label = "查看"; width = 5; fixed_width = true; } : toggle { key = "p_ground0"; label = "是"; } }
+      : row { : text { key = "p_row1"; width = 43; fixed_width = true; } : button { key = "p_select1"; label = "查看"; width = 5; fixed_width = true; } : toggle { key = "p_ground1"; label = "是"; } }
+      : row { : text { key = "p_row2"; width = 43; fixed_width = true; } : button { key = "p_select2"; label = "查看"; width = 5; fixed_width = true; } : toggle { key = "p_ground2"; label = "是"; } }
+      : row { : text { key = "p_row3"; width = 43; fixed_width = true; } : button { key = "p_select3"; label = "查看"; width = 5; fixed_width = true; } : toggle { key = "p_ground3"; label = "是"; } }
+      : row { : text { key = "p_row4"; width = 43; fixed_width = true; } : button { key = "p_select4"; label = "查看"; width = 5; fixed_width = true; } : toggle { key = "p_ground4"; label = "是"; } }
+      : row { : text { key = "p_row5"; width = 43; fixed_width = true; } : button { key = "p_select5"; label = "查看"; width = 5; fixed_width = true; } : toggle { key = "p_ground5"; label = "是"; } }
+      : row { : text { key = "p_row6"; width = 43; fixed_width = true; } : button { key = "p_select6"; label = "查看"; width = 5; fixed_width = true; } : toggle { key = "p_ground6"; label = "是"; } }
+      : row { : text { key = "p_row7"; width = 43; fixed_width = true; } : button { key = "p_select7"; label = "查看"; width = 5; fixed_width = true; } : toggle { key = "p_ground7"; label = "是"; } }
       : row { : button { key = "p_prev"; label = "上一页"; } : button { key = "p_next"; label = "下一页"; } }
       : button { key = "p_confirm_types"; label = "确认全部页回路类型（未勾选为普通）"; }
     }
     : boxed_column { label = "当前回路设备：图块 / 数量 / 单个功率(W)";
       : list_box { key = "p_devices"; width = 48; height = 16; tabs = "30 36"; fixed_width_font = true; }
-      : edit_box { key = "p_watts"; label = "单个功率(W)"; edit_width = 12; }
+      : edit_box { key = "p_watts"; label = "单个功率(W)"; edit_width = 12; allow_accept = false; }
+      : button { key = "p_remember"; label = "记住功率并重算"; }
+      : text { label = "填完按 Tab 记住功率；取消不撤销已记住的功率。"; }
       : button { key = "p_locate"; label = "在图上查看该设备"; }
     }
   }

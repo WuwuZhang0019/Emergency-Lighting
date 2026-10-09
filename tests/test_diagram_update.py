@@ -138,3 +138,48 @@ class UpdateTests(unittest.TestCase):
         self.assertEqual(len(rows),5); self.assertEqual(self.counter,2)
         self.assertEqual([self.get('block-handle',r) for r in rows[-2:]],['b2','b3'])
         self.assertTrue(all(self.get('text-handle',r) is None for r in rows[-2:]))
+
+    def test_common_sync_noop_and_invalid_result_never_reports_saved(self):
+        self.install_transaction()
+        self.h.frames[0][':VLAX-FALSE']=0
+        self.h.builtins.update({'TBLSEARCH':lambda *args:[Pair(70,0)],
+          'EL:EFFECTIVENAME':lambda e:'dfgjhdrtyjtfgj4SADFG3' if e=='panel' else 'fghjftyuk',
+          'VLA-GET-READONLY':lambda e:0,
+          'EL:ALLOWEDVALUES':lambda e:['CAP300','CAP600','CAP1000'] if e=='panel' else ['NORMAL','GROUND','RESERVE'],
+          'EL:TEMPLATERUNTIMEVALID':lambda *args:True,'EL:FRESHRESULT':lambda *args:True,
+          'EL:UNIQUEDIAGRAM':lambda *args:True,'EL:WRITEDATA':lambda *args:True})
+        self.h.run('''(setq cs (mapcar '(lambda (c) (EL:Put 'seed (list (cons 'key (EL:Get 'seed-key c))) c)) cs))
+          (setq result (EL:Put 'circuits cs result) *EL:Root* "root/")
+          (setq record (EL:Put 'template template (EL:Put 'status 'current (EL:Put 'capacity-option 'cap300
+            (EL:Put 'power-signature (EL:Signature (EL:Get 'power-config result)) record)))))
+          (EL:StoreWrite (EL:StorePutDiagram record store))''')
+        before=copy.deepcopy(self.entities)
+        self.assertTrue(truth(self.h.run("(EL:SyncDiagram result nil nil 'cap300 T nil)")))
+        self.assertEqual(self.entities,before);self.assertEqual(self.undo,[])
+        self.h.builtins['EL:PRINTSTATISTICS']=lambda *args:None
+        self.assertFalse(truth(self.h.run("(EL:SyncDiagram (EL:Put 'can-generate nil result) nil nil 'cap300 T nil)")))
+        self.assertEqual(self.h.run("(EL:Get 'status (EL:DiagramForPanel \"source\" (EL:StoreRead)))"),Symbol('STALE'))
+        self.assertEqual(self.writes,[])
+
+    def test_whole_rotation_scale_is_adopted_but_panel_only_move_is_rejected(self):
+        self.h.builtins['TBLSEARCH']=lambda *args:[Pair(70,0)]
+        import math
+        for e,data in list(self.entities.items()):
+            pos=next(p.cdr for p in data if isinstance(p,Pair) and p.car==10)
+            transformed=[100.-2.*pos[1],200.+2.*pos[0],2.*pos[2]]
+            self.entities[e]=[Pair(10,transformed) if isinstance(p,Pair) and p.car==10 else
+              Pair(p.car,2.) if isinstance(p,Pair) and p.car in (41,42,43) else
+              Pair(50,math.pi/2) if isinstance(p,Pair) and p.car==50 else p for p in data]
+        transform=self.h.run('(EL:CheckLayout record store)')
+        self.assertFalse(truth(self.get('layout-conflict',transform)))
+        self.assertEqual(self.get('scale',transform),2.)
+        self.entities['panel']=[Pair(10,[500.,600.,0.]) if isinstance(p,Pair) and p.car==10 else p for p in self.entities['panel']]
+        with self.assertRaises(RuntimeError):self.h.run('(EL:CheckLayout record store)')
+
+    def test_dynamic_failure_rolls_back_prior_capacity_change(self):
+        self.install_transaction();before=copy.deepcopy((self.entities,self.dictionary,self.dynamic))
+        original=self.h.builtins['EL:SETDYNAMICVALUE']
+        self.h.builtins['EL:SETDYNAMICVALUE']=lambda e,prop,value:False if e=='b0' else original(e,prop,value)
+        self.h.run("(setq result (EL:Put 'circuits (cons (EL:Put 'is-ground T (car cs)) (cdr cs)) result)) (setq plan (EL:FixedPlan result template 'cap600 '(0.0 0.0 0.0) 0.0 1.0))")
+        self.assertFalse(truth(self.h.run("(EL:Transaction 'EL:ApplyUpdate (list result template plan record store nil))")))
+        self.assertEqual((self.entities,self.dictionary,self.dynamic),before)

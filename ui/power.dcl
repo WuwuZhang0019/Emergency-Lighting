@@ -69,6 +69,13 @@ el_devices : dialog {
 }
 
 // Date: 2026-10-09. Eight synchronized rows; real last-column toggles.
+el_fixed_exits : dialog {
+  label = "首次或出线候选变化：集中确认实际出线";
+  : text { label = "默认全选。仅取消明确的进线或非本箱出线；有问题的实际回路仍须保留。"; }
+  : list_box { key = "f_exits"; width = 88; height = 14; multiple_select = true; }
+  : button { key = "f_preview"; label = "在图面查看选中候选"; }
+  ok_cancel;
+}
 el_panel : dialog {
   label = "配电箱回路与设备功率";
   : radio_row { key = "p_capacity"; label = "当前配电箱容量档位";

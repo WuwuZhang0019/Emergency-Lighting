@@ -14,7 +14,7 @@
         (progn
           (foreach el-file '("common" "config" "geometry" "topology" "statistics" "generation" "main" "simple" "fixed" "panel" "diagram-store" "diagram-update" "diagram-commands")
             (load (strcat *EL:Root* "src/" el-file ".lsp")))
-          (princ "\n已加载：ELSETUP / ELGAPTEST / ELSTAT / ELTEMPLATE / ELGEN。"))))
+          (princ "\n已加载：ELSETUP / ELGAPTEST / ELSTAT / ELPOWER / ELTEMPLATE / ELGEN / ELUPDATE。"))))
     (princ "\n需要 AutoCAD 2021+ Windows、LISPSYS=1/2（更改后重启）及完整插件目录。")))
 (EL:LoadModules)
 (princ)

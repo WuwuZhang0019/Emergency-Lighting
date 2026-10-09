@@ -43,3 +43,39 @@ class PanelTests(unittest.TestCase):
         for power in ('nil', '\'(("LAMP" . 100))'):
             self.assertFalse(truth(self.h.run(f"(EL:Get 'can-generate (EL:PanelCompute result {power} cfg))")))
         self.assertTrue(truth(self.h.run('(EL:Get \'can-generate (EL:PanelCompute result \'(("LAMP" . 0)) cfg))')))
+
+    def test_default_entry_keeps_two_picks_and_opens_real_circuit_panel(self):
+        for name in ('fixed','diagram-update','diagram-commands'):
+            self.h.load_definitions(simple.adapter.ROOT/'src'/f'{name}.lsp')
+        self.plan(); picks=iter([['panel',[0.,0.,0.]],['w1',[1.,0.,0.]]]); prompts=[]; panels=[]
+        def pick(kind,prompt): prompts.append(prompt); return next(picks)
+        self.h.builtins.update({'EL:ENSUREROOT':lambda:True,'EL:PICKMODEL':pick,
+          'EL:LOADCONFIG':lambda:self.cfg,'HANDENT':lambda e:e if e in self.entities else None,
+          'EL:SIMPLELOADPOWERS':lambda:self.call('EL:Put',Symbol('VERSION'),1,self.call('EL:Put',Symbol('POWERS'),self.call('EL:Put','LAMP',5,None),None)),
+          'GETVAR':lambda key:'guid' if key=='FINGERPRINTGUID' else 'A0',
+          'EL:REVIEWFIXEDEXITS':lambda result,record:result,
+          'EL:PANELDIALOG':lambda result,cfg,powers,cap:panels.append(result) and None,
+          'EL:CLEARPICKHIGHLIGHTS':lambda:None})
+        self.h.run('(c:ELSTAT)')
+        self.assertEqual(len(prompts),2);self.assertEqual(len(panels),1)
+        self.assertEqual(len(self.get('circuits',panels[0])),1)
+        self.assertEqual(self.get('box-watts',panels[0]),10)
+
+    def test_saved_incoming_exclusion_and_candidate_change_are_explicit(self):
+        self.h.run('''(setq result '((snapshot) (circuits ((id . "R1") (seed (key "W1" outlet)) (complete . T))
+          ((id . "R2") (seed (key "IN" outlet)) (complete . T)))))
+          (setq selected (EL:SelectFixedExits result '(("IN" outlet))))''')
+        self.assertEqual(self.h.run("(length (EL:Get 'circuits selected))"),1)
+        self.assertEqual(self.h.run("(length (EL:Get 'candidate-keys selected))"),2)
+        self.h.run("(setq record (list (cons 'candidate-keys (EL:Get 'candidate-keys selected)) (cons 'excluded-seeds (EL:Get 'excluded-seeds selected))))")
+        self.assertEqual(self.h.run("(length (EL:Get 'circuits (EL:ReviewFixedExits (EL:SelectFixedExits result nil) record)))"),1)
+
+    def test_invalid_power_blocks_ground_toggle_and_preserves_input(self):
+        self.plan(); result=self.call('EL:SplitNetwork',simple.SimpleFlowTests.network(self),self.cfg)
+        self.h.frames[0]['RESULT']=result
+        self.h.run("(setq *EL:PanelDraft* result *EL:PanelPowers* nil *EL:PanelIndex* 0 *EL:PanelDevice* 0 *EL:PanelPage* 0)")
+        tiles={'p_watts':'12x'}
+        self.h.builtins.update({'GET_TILE':lambda key:tiles.get(key,''),'SET_TILE':lambda k,v:tiles.__setitem__(k,v), 'MODE_TILE':lambda *args:None})
+        self.h.run('(EL:PanelGround 0 "1")')
+        self.assertEqual(tiles['p_watts'],'12x');self.assertEqual(tiles['p_ground0'],'0')
+        self.assertFalse(truth(self.h.run("(EL:Get 'is-ground (car (EL:Get 'circuits *EL:PanelDraft*)))")))

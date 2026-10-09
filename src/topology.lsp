@@ -173,7 +173,7 @@
   (if *EL:LogActive*
     (vl-catch-all-apply 'grtext (list -1 (strcat "接线检查 " phase " " (itoa completed) "/" (itoa total)))))
   nil)
-(defun EL:BuildPhysical (snapshot cfg panel / ends out a b block contacts direct edges issues p tol ztol row other hit status ports attached id wire pathcontacts bid portcount blockedwires blocks wirebounds started itemstarted completed total)
+(defun EL:BuildPhysical (snapshot cfg panel / ends out a b block contacts direct edges issues p tol ztol row other hit status ports attached id wire pathcontacts bid blockedwires blocks wirebounds started itemstarted completed total)
   (setq ends (EL:Get 'ends snapshot) tol (EL:Get 'eps_touch (EL:Get 'params cfg)) ztol (EL:Get 'eps_z (EL:Get 'params cfg)))
   (setq started (EL:Tick) completed 0 total (length (EL:Get 'blocks snapshot)))
   (EL:PhysicalProgress "index" 0 total started nil)
@@ -267,19 +267,7 @@
         (setq attached (EL:Put (EL:Get 'wire a) T attached)))))
   (setq ends (mapcar '(lambda (e)
     (EL:Put 'wire-attached (EL:Get (EL:Get 'wire e) attached) e)) ends))
-  (foreach block blocks
-    (if (equal (EL:Get 'role block) 'device)
-      (progn
-        (setq ports nil portcount 0)
-        (foreach wire (EL:Get 'wires snapshot)
-          (if (member (list (EL:Get 'id wire) (EL:Get 'id block)) pathcontacts)
-            (progn
-              (setq ports (cons (EL:Get 'id wire) ports))
-              (setq portcount (+ portcount
-                (if (vl-some '(lambda (ep) (member (EL:Get 'id block) (EL:Get 'contacts ep)))
-                      (vl-remove-if-not '(lambda (ep) (equal (EL:Get 'wire ep) (EL:Get 'id wire))) ends)) 1 2))))))
-        (if (> portcount 2)
-          (setq issues (cons (EL:Issue 'ABNORMAL_BRANCH (EL:Get 'id block) ports) issues))))))
+  ;; Date: 2026-10-09. Verified device contacts may form normal multi-wire branches.
   (foreach a ends
     (setq b (EL:By 'key (list (EL:Get 'wire a) (if (equal (EL:Get 'side a) 'start) 'end 'start)) ends))
     (if (and b (= (length (EL:Get 'contacts a)) 1) (equal (EL:Get 'contacts a) (EL:Get 'contacts b)))
@@ -330,7 +318,7 @@
         (setq neighbours (if (and (or (not block) (member (EL:Get 'role block) '(device leader)))
           (not (and block (vl-some '(lambda (i) (and (equal (EL:Get 'object i) id) (equal (EL:Get 'code i) 'ABNORMAL_BRANCH))) issues))))
           (EL:Neighbours id edges)))
-        (if (and block (> (length neighbours) 2)) (setq problems (cons (EL:Issue 'ABNORMAL_BRANCH id neighbours) problems)))
+        (if (and block (not (equal (EL:Get 'role block) 'device)) (> (length neighbours) 2)) (setq problems (cons (EL:Issue 'ABNORMAL_BRANCH id neighbours) problems)))
         (foreach next neighbours
           (if (not (equal next parent))
             (if (member next visited) (setq problems (cons (EL:Issue 'CLOSED_CIRCUIT id next) problems))

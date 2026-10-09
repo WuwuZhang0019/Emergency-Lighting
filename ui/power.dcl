@@ -123,7 +123,7 @@ el_panel : dialog {
       : row { : text { key = "p_row6"; width = 43; fixed_width = true; } : button { key = "p_select6"; label = "查看"; width = 5; fixed_width = true; } : toggle { key = "p_ground6"; label = "是"; } }
       : row { : text { key = "p_row7"; width = 43; fixed_width = true; } : button { key = "p_select7"; label = "查看"; width = 5; fixed_width = true; } : toggle { key = "p_ground7"; label = "是"; } }
       : row { : button { key = "p_prev"; label = "上一页"; } : button { key = "p_next"; label = "下一页"; } }
-      : button { key = "p_confirm_types"; label = "确认全部页回路类型（未勾选为普通）"; }
+      : text { label = "勾选为地面，未勾选为普通；预留无需设置。"; }
     }
     : boxed_column { label = "当前回路设备：图块 / 数量 / 单个功率(W)";
       : list_box { key = "p_devices"; width = 48; height = 16; tabs = "30 36"; fixed_width_font = true; }

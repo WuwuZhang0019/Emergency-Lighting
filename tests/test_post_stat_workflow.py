@@ -39,7 +39,6 @@ class PostStatWorkflowTests(unittest.TestCase):
 
     def confirm(self):
         self.call('EL:PanelCapacity', 'p_600')
-        self.call('EL:PanelConfirmTypes')
 
     def dialog(self):
         return self.call('EL:PanelDialog', self.result, self.cfg, self.powers, None)
@@ -50,16 +49,17 @@ class PostStatWorkflowTests(unittest.TestCase):
         self.actions = [lambda: self.done(0)]
         self.h.run('(c:ELSTAT)')
         self.assertEqual(self.tiles['p_capacity'], 'p_pending')
-        self.assertIn('类型待核对', self.tiles['p_row0'])
+        self.assertIn('/普通', self.tiles['p_row0'])
         self.assertIn('点击生成时设置', self.tiles['p_template_status'])
         self.assertEqual(self.writes, [])
 
-    def test_pending_choices_block_generate_until_concentrated_confirmation(self):
+    def test_capacity_blocks_generate_but_types_need_no_extra_confirmation(self):
         def action():
             self.call('EL:PanelGenerate')
             self.assertIsNone(self.closed)
             self.assertIn('请先选择箱体容量', self.tiles['p_error'])
             self.confirm()
+            self.call('EL:PanelAccept')
             self.assertTrue(truth(self.call('EL:SelectionsReady', self.h.lookup('*EL:PANELDRAFT*'), Symbol('CAP600'))))
             self.done(1)
         self.actions = [action]
@@ -67,6 +67,22 @@ class PostStatWorkflowTests(unittest.TestCase):
         self.assertEqual(self.get('capacity', edited), Symbol('CAP600'))
         self.assertEqual(self.get('capacity-source', self.get('result', edited)), Symbol('MANUAL'))
         self.assertEqual(self.writes, [])
+
+    def test_save_records_all_pages_without_changing_checkbox_values(self):
+        def action():
+            self.h.run("(setq cs (EL:Get 'circuits *EL:PanelDraft*) c (car cs) n 2) (repeat 9 (setq cs (append cs (list (EL:Put 'id (strcat \"R\" (itoa n)) c))) n (1+ n))) (setq *EL:PanelDraft* (EL:Put 'circuits cs *EL:PanelDraft*))")
+            self.call('EL:PanelGround', 0, '1')
+            self.call('EL:PanelPage', 8)
+            self.call('EL:PanelGround', 8, '1')
+            self.call('EL:PanelAccept')
+        self.actions = [action]
+        edited = self.dialog()
+        circuits = self.get('circuits', self.get('result', edited))
+        self.assertGreater(len(circuits), 8)
+        self.assertTrue(all(self.get('ground-source', c) == Symbol('MANUAL') for c in circuits))
+        self.assertTrue(truth(self.get('is-ground', circuits[0])))
+        self.assertTrue(truth(self.get('is-ground', circuits[8])))
+        self.assertFalse(truth(self.get('is-ground', circuits[1])))
 
     def test_cancelled_setup_returns_to_same_draft_without_saving(self):
         def capture(cfg):
@@ -80,7 +96,7 @@ class PostStatWorkflowTests(unittest.TestCase):
         def second():
             self.assertEqual(self.tiles['p_watts'], '7')
             self.assertEqual(self.tiles['p_capacity'], 'p_600')
-            self.assertIn('类型已确认', self.tiles['p_row0'])
+            self.assertIn('/普通', self.tiles['p_row0'])
             self.done(1)
         self.actions = [first, second]
         edited = self.dialog()

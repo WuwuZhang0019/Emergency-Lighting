@@ -4,7 +4,7 @@ import shutil
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGE_NO = 24
+PACKAGE_NO = 25
 NAME = f'应急照明-{PACKAGE_NO:03d}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 DEST = ROOT / 'output' / NAME
@@ -51,7 +51,7 @@ def build():
     (DEST / 'START-CAD2020.lsp').write_bytes(launcher.encode('gb2312'))
     # Keep an existing valid data root; initialize it for a standalone update.
     # All modules are included; readiness requires a complete package directory.
-    modules = ('common', 'config', 'geometry', 'topology', 'statistics', 'generation', 'main', 'simple')
+    modules = ('common', 'config', 'geometry', 'topology', 'statistics', 'generation', 'main', 'simple', 'fixed')
     update = (';; Date: 2026-10-08. Validate or initialize the plugin data root.\n'
               '(vl-load-com)\n' + '\n'.join(
                   (DEST / 'src' / f'{module}.lsp').read_bytes().decode('gb2312') for module in modules) +

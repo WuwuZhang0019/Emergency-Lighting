@@ -193,7 +193,7 @@
     (if (not (tblsearch "STYLE" (EL:Get 'style (EL:Get 'text state)))) (setq good nil)))
   (if (and (tblsearch "LAYER" layer) (or (/= 0 (logand 5 (cdr (assoc 70 (tblsearch "LAYER" layer)))))
          (< (cdr (assoc 62 (tblsearch "LAYER" layer))) 0))) (setq good nil)) good)))
-(defun c:ELTEMPLATE (/ *error* cfg panel circuit anchor next step formattext reserve layer template)
+(defun EL:LegacyTemplate (/ *error* cfg panel circuit anchor next step formattext reserve layer template)
   (defun *error* (msg)
     (EL:ClearPickHighlights)
     (if msg (princ (strcat "\n模板采集取消，拾取亮显已清理：" msg))) (princ))

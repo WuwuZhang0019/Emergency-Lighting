@@ -260,6 +260,7 @@
   (if (EL:PanelStoreSelections)
     (cond
       ((not (EL:Get 'circuits *EL:PanelDraft*)) (set_tile "p_error" "请至少保留一条实际出线。"))
+      ((> (length (EL:Get 'circuits *EL:PanelDraft*)) 8) (set_tile "p_error" "本图块最多容纳8条实际回路，请拆箱后统计；不会截断回路。"))
       ((not (EL:Get 'can-generate *EL:PanelDraft*)) (set_tile "p_error" "识别或功率未通过，不能生成；可保存草稿。"))
       ((not (EL:SelectionsReady *EL:PanelDraft* *EL:PanelCapacity*))
         (set_tile "p_error" "请先选择箱体容量。"))
@@ -274,9 +275,9 @@
         (EL:Get 'id c) " 实际 " (itoa (EL:Get 'watts c)) "W "
         (if (equal (EL:Get 'power-status c) 'pass) "完整" "待核对/超限")
         (if (EL:Get 'is-ground c) " /地面" " /普通"))
-        (if (< (+ *EL:PanelPage* i) (+ 2 (length cs)))
+        (if (< (+ *EL:PanelPage* i) (EL:FixedOutputCount (length cs)))
           (strcat "预留" (itoa (1+ (- (+ *EL:PanelPage* i) (length cs)))) "    预留    --") "")))
-    (mode_tile (strcat "p_select" key) (if (< (+ *EL:PanelPage* i) (+ 2 (length cs))) 0 1))
+    (mode_tile (strcat "p_select" key) (if (< (+ *EL:PanelPage* i) (EL:FixedOutputCount (length cs))) 0 1))
     (set_tile (strcat "p_ground" key) (if (EL:Get 'is-ground c) "1" "0"))
     (mode_tile (strcat "p_ground" key) (if c 0 1))
     (setq i (1+ i)))
@@ -290,7 +291,7 @@
   (set_tile "p_watts" (if (numberp (EL:Get 'watts row)) (itoa (EL:Get 'watts row)) ""))
   (mode_tile "p_watts" (if row 0 1)) (mode_tile "p_locate" (if row 0 1))
   (set_tile "p_error" (if (>= *EL:PanelIndex* (length cs)) "预留回路，无设备统计，无需填写功率" "功率按图块名统一；数量只读。"))
-  (set_tile "p_total" (strcat (EL:PanelKnownTotal) "；实际回路 " (itoa (length cs)) "；输出 " (itoa (+ 2 (length cs)))
+  (set_tile "p_total" (strcat (EL:PanelKnownTotal) "；实际回路 " (itoa (length cs)) "；输出 " (itoa (EL:FixedOutputCount (length cs)))
     "；已完整核对回路 " (itoa (EL:Get 'box-watts *EL:PanelDraft*)) " W"))
   (set_tile "p_capacity" (cond ((equal *EL:PanelCapacity* 'cap600) "p_600")
     ((equal *EL:PanelCapacity* 'cap1000) "p_1000") (T "p_300")))
@@ -337,7 +338,7 @@
 (defun EL:PanelPage (delta)
   (if (EL:PanelStore)
     (progn (setq *EL:PanelPage* (max 0 (min (+ *EL:PanelPage* delta)
-      (* 8 (fix (/ (1+ (length (EL:Get 'circuits *EL:PanelDraft*))) 8)))))) (EL:PanelFill))))
+      (* 8 (fix (/ (1- (EL:FixedOutputCount (length (EL:Get 'circuits *EL:PanelDraft*)))) 8)))))) (EL:PanelFill))))
 (defun EL:PanelCapacity (value)
   (if (EL:PanelStore)
     (progn

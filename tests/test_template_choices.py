@@ -207,7 +207,7 @@ class TemplateChoiceTests(unittest.TestCase):
         self.h.builtins['GETVAR'] = lambda key: self.fail('text appearance must be fixed')
         self.h.run('(setq spec (EL:FixedText))')
         for key, value in [('style', '_TEL_DIM'), ('height', 350.), ('factor', .7),
-                           ('align', 0), ('rotation', 0.), ('layer', 'TEL_TEXT')]:
+                           ('align', 1), ('rotation', 0.), ('layer', 'TEL_TEXT')]:
             self.assertEqual(self.h.run(f"(EL:Get '{key} spec)"), value)
 
     def test_missing_block_prompts_copy_instead_of_picking(self):
@@ -264,12 +264,12 @@ class TemplateChoiceTests(unittest.TestCase):
             'VLA-ADDTEXT': lambda space, text, pos, height: assigned.update(text=text, pos=pos, initial_height=height) or 'text',
         })
         for key in ['Layer', 'StyleName', 'Color', 'Linetype', 'LinetypeScale', 'Lineweight',
-                    'Height', 'Rotation', 'Alignment', 'ScaleFactor', 'ObliqueAngle', 'Thickness', 'TextGenerationFlag']:
+                    'Height', 'Rotation', 'TextAlignmentPoint', 'Alignment', 'ScaleFactor', 'ObliqueAngle', 'Thickness', 'TextGenerationFlag']:
             self.h.builtins['VLA-PUT-' + key.upper()] = lambda obj, value, key=key: assigned.update({key: value})
         self.h.run("(setq row (list (cons 'annotation (EL:FixedText)) '(text . \"85W\") '(text-position 17063.0 -5938.0 0.0)))")
         self.h.run("(EL:CreateAnnotation nil row '((scale . 1.0) (rotation . 0.0)) \"EL-SYSTEM\")")
         for key, value in {'Layer': 'TEL_TEXT', 'StyleName': '_TEL_DIM', 'Height': 350.,
-                           'ScaleFactor': .7, 'Alignment': 0, 'Rotation': 0., 'Color': 256,
+                           'ScaleFactor': .7, 'Alignment': 1, 'Rotation': 0., 'Color': 256,
                            'Linetype': 'ByLayer', 'Lineweight': -1, 'text': '85W'}.items():
             self.assertEqual(assigned[key], value)
 

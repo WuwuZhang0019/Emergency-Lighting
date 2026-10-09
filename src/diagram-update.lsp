@@ -39,6 +39,7 @@
             (if (and (EL:Get 'text-position row)
                 (not (equal (EL:TextPoint e) (EL:RebasePoint (EL:Get 'text-position row) oldplan transform) 1.0e-5)))
               (setq conflict T)))))))
+  (if (EL:CCKKLabelsConflict record store transform) (setq conflict T))
   (EL:Require (not (and changed conflict)) "箱体与成员未保持整体变换；请恢复整体关系后更新。")
   (EL:Put 'layout-conflict conflict transform))
 (defun EL:DynamicUpdate (e property value / obj before prop)
@@ -51,15 +52,19 @@
   (setq obj (vlax-ename->vla-object e) current (if (equal (cdr (assoc 0 (entget e))) "TEXT") (EL:TextPoint e)
     (cdr (assoc 10 (entget e)))))
   (if (not (equal current point 1.0e-6)) (vla-Move obj (vlax-3d-point current) (vlax-3d-point point))))
-(defun EL:ApplyUpdate (result template plan record store structural / space panel row old e textentity handles h newrows removed key)
-  (setq space (vla-get-ModelSpace (vla-get-ActiveDocument (vlax-get-acad-object)))
+(defun EL:ApplyUpdate (result template plan record store structural / doc space panel row old e textentity handles h newrows removed key)
+  (setq doc (vla-get-ActiveDocument (vlax-get-acad-object)) space (vla-get-ModelSpace doc)
     panel (EL:OwnedEntity (EL:Get 'panel-output-handle record) store record "panel" "panel"))
+  (if (not (tblsearch "LAYER" (EL:Get 'layer template)))
+    (vla-Add (vla-get-Layers doc) (EL:Get 'layer template)))
+  (vla-put-Layer (vlax-ename->vla-object panel) (EL:Get 'layer template))
   (EL:DynamicUpdate panel (EL:Get 'property (EL:Get 'panel template)) (EL:Get 'panel-value plan))
   (foreach row (EL:Get 'rows plan)
     (setq key (EL:Get 'circuit-uid row) old (EL:By 'circuit-uid key (EL:Get 'rows record)))
     (if old
       (progn
         (setq e (EL:OwnedEntity (EL:Get 'block-handle old) store record "circuit" key))
+        (vla-put-Layer (vlax-ename->vla-object e) (EL:Get 'layer template))
         (EL:DynamicUpdate e (EL:Get 'property (EL:Get 'circuit template)) (EL:Get 'value row))
         (if structural (EL:MoveManaged e (EL:Get 'position row)))
         (setq h (list (cons 'circuit-uid key) (cons 'block-handle (EL:Get 'block-handle old)))))
@@ -69,6 +74,8 @@
           (EL:Get 'value row) (EL:Get 'layer template)))
         (setq h (list (cons 'circuit-uid key) (cons 'block-handle (EL:TagEntity e store record "circuit" key))))))
     (setq textentity (if old (EL:OwnedEntity (EL:Get 'text-handle old) store record "text" key)))
+    (if (and textentity (EL:Get 'cckk-layout plan) (not (EL:Get 'cckk-layout (EL:Get 'plan record))))
+      (progn (EL:Require (entdel textentity) "旧版功率文字替换失败。") (setq textentity nil)))
     (if (EL:Get 'text row)
       (progn
         (if textentity
@@ -98,6 +105,7 @@
       (if old (EL:Put 'position (EL:RebasePoint (EL:Get 'position old) (EL:Get 'plan record) plan)
         (EL:Put 'text-position (if (EL:Get 'text-position old)
           (EL:RebasePoint (EL:Get 'text-position old) (EL:Get 'plan record) plan)) r)) r)) newrows)))
+  (setq record (EL:SyncCCKKLabels plan record store structural))
   (setq record (EL:Put 'rows newrows (EL:Put 'plan plan record)))
   (EL:StoreWrite (EL:StorePutDiagram record store)) record)
 (defun EL:MarkStale (panel reason / store record)
@@ -160,7 +168,7 @@
       row (EL:By 'circuit-uid (EL:Get 'circuit-uid old) (EL:Get 'rows plan)))
     (EL:CheckDynamicTarget e (EL:Get 'circuit template) (if row (EL:Get 'value row) (EL:Get 'value old)))) T)
 (defun EL:DiagramUnchanged (record result plan store / good row old e prop c)
-  (setq good (and (not (EL:Get 'draft-circuits record)) (equal (EL:Get 'status record) 'current) (EL:SameStructure record plan)
+  (setq good (and (EL:CCKKLabelsCurrent plan record store) (not (EL:Get 'draft-circuits record)) (equal (EL:Get 'status record) 'current) (EL:SameStructure record plan)
     (equal (cond ((EL:Get 'capacity-source record)) (T 'default))
       (cond ((EL:Get 'capacity-source result)) (T 'default)))
     (equal (EL:Get 'capacity-option record) (EL:Get 'capacity plan))
@@ -206,6 +214,9 @@
       (EL:MarkStale (EL:Get 'panel result) 'identity-conflict))
     ((not (or generate (EL:Get 'panel-output-handle record))) T)
     (T
+      (EL:Require (and (<= 1 (length (EL:Get 'circuits result))) (<= (length (EL:Get 'circuits result)) 8)) "本图块最多容纳8条实际回路，请拆箱后统计。")
+      (EL:Require (and (tblsearch "STYLE" "ICDA-STYLE1") (EL:OutputLayerReady "SYS_系统标注_E")
+        (EL:OutputLayerReady "TEL_TEXT")) "请补齐 ICDA-STYLE1 样式，并打开、解冻和解锁输出图层。")
       (EL:Require (and (EL:FixedTemplate template) (EL:TemplateRuntimeValid template cfg)) "模板未适配或已变化，请运行 ELTEMPLATE。")
       (EL:Require (EL:UniqueDiagram store record) "发现复制系统图或外来标识，需显式修复关联，未更新。")
       (if (EL:Get 'panel-output-handle record)
@@ -219,7 +230,8 @@
             '(rotation . 0.0) '(scale . 1.0))
             *EL:NativePreview* interactive)))
       (setq plan (EL:FixedPlan result template capacity (EL:Get 'position transform) (EL:Get 'rotation transform) (EL:Get 'scale transform))
-        structural (not (EL:SameStructure record plan)))
+        structural (or (not (EL:SameStructure record plan))
+          (not (EL:Get 'cckk-layout (EL:Get 'plan record)))))
       (EL:Require plan "回路计划无效。")
       (if (and structural (EL:Get 'layout-conflict transform))
         (progn
@@ -253,5 +265,6 @@
         (progn
           (if (not (EL:WriteData (strcat *EL:Root* "output/diagram-" (EL:Hash (EL:Get 'diagram-id record)) ".eld") outcome))
             (princ "\nDWG 主记录已保存；外部诊断副本导出失败。"))
-          (princ (strcat "\n系统图已同步：" (itoa (length (EL:Get 'circuits result))) " 条实际回路，两条预留，无预留功率文字。")) T)
+          (princ (strcat "\n系统图已同步：" (itoa (length (EL:Get 'circuits result))) " 条实际回路，"
+            (itoa (- (length (EL:Get 'rows plan)) (length (EL:Get 'circuits result)))) " 条预留，无预留功率文字。")) T)
         (progn (EL:MarkStale (EL:Get 'panel result) 'transaction-failed) nil)))))

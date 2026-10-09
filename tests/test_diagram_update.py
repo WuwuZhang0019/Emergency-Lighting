@@ -10,7 +10,7 @@ class UpdateTests(unittest.TestCase):
     generation_fixture=kernel.KernelTests.generation_fixture
     def setUp(self):
         db.StoreTests.setUp(self)
-        for name in ('geometry','statistics','generation','fixed','panel','diagram-update','diagram-commands'):
+        for name in ('geometry','statistics','generation','fixed','panel','diagram-update','diagram-commands','insert-circuit'):
             self.h.load_definitions(db.ROOT/'src'/f'{name}.lsp')
         self.generation_fixture()
         self.h.run('''(setq template (EL:Put 'panel (EL:Put 'name "dfgjhdrtyjtfgj4SADFG3" (EL:Get 'panel template))
@@ -34,13 +34,13 @@ class UpdateTests(unittest.TestCase):
         def create_block(space,name,pos,scale,rotation,prop,value,layer):
             self.counter+=1; e='new-block-'+str(self.counter); self.entity(e,'INSERT',pos)
             self.dynamic[e]=value; return e
-        self.h.builtins.update({'VLAX-GET-ACAD-OBJECT':lambda:'app','VLA-GET-ACTIVEDOCUMENT':lambda _:'doc',
+        self.h.builtins.update({'TBLSEARCH':lambda *args:[Pair(70,0),Pair(62,7)],'VLAX-GET-ACAD-OBJECT':lambda:'app','VLA-GET-ACTIVEDOCUMENT':lambda _:'doc',
           'VLA-GET-MODELSPACE':lambda _:'space','VLAX-ENAME->VLA-OBJECT':lambda e:e,
           'VLAX-VLA-OBJECT->ENAME':lambda e:e,'VLAX-3D-POINT':lambda p:p,
           'EL:DYNAMICPROPERTY':lambda e,name:e,'VLA-GET-VALUE':lambda e:self.dynamic.get(e),
           'VLAX-VARIANT-VALUE':lambda v:v,'EL:SETDYNAMICVALUE':lambda e,name,value:self.dynamic.__setitem__(e,value) or True,
           'VLA-PUT-TEXTSTRING':text_write,'VLA-MOVE':move,'EL:CREATEANNOTATION':create_text,'EL:CREATEBLOCK':create_block,
-          'REGAPP':lambda _:True,'ENTDEL':lambda e:self.entities.pop(e,None) and self.deleted.append(e) or e})
+          'VLA-PUT-LAYER':lambda *args:None,'VLA-PUT-COLOR':lambda *args:None,'REGAPP':lambda _:True,'ENTDEL':lambda e:self.entities.pop(e,None) and self.deleted.append(e) or e})
         self.entity('panel','INSERT',[0.,0.,0.]); self.dynamic['panel']='CAP300'
         handles=[]
         for i,row in enumerate(self.get('rows',self.h.lookup('PLAN'))):
@@ -56,6 +56,14 @@ class UpdateTests(unittest.TestCase):
         self.h.frames[0]['HANDLES']=handles
         self.h.run("(setq record (EL:Put 'rows (EL:RecordRows result plan handles) (EL:Put 'plan plan record)))")
         self.call('EL:TagEntity','panel',self.h.lookup('STORE'),self.h.lookup('RECORD'),'panel','panel')
+        labels=[]
+        for label in self.call('EL:CCKKLabels',self.h.lookup('PLAN')):
+            uid=self.get('uid',label); entity='caption-'+uid
+            self.entity(entity,'TEXT',self.get('text-position',label),self.get('text',label))
+            self.call('EL:TagEntity',entity,self.h.lookup('STORE'),self.h.lookup('RECORD'),'text',uid)
+            labels.append(self.call('EL:Put',Symbol('HANDLE'),entity,label))
+        self.h.frames[0]['LABELS']=labels
+        self.h.run("(setq record (EL:Put 'cckk-labels labels record))")
 
     def call(self,fn,*args): return self.h.call(Symbol(fn.upper()),list(args))
     def get(self,key,row): return self.call('EL:Get',Symbol(key.upper()),row)
@@ -64,6 +72,45 @@ class UpdateTests(unittest.TestCase):
           Pair(410,'Model'),Pair(41,1.),Pair(42,1.),Pair(43,1.),Pair(50,0.)]
     def update(self,structural=False):
         return self.h.run("(EL:ApplyUpdate result template plan record store "+('T' if structural else 'nil')+")")
+
+    def test_cckk_create_uses_actual_85w_and_tracks_all_captions(self):
+        self.h.run("""(setq result (EL:Put 'circuits (list (EL:Put 'watts 85 (car cs))) result))
+          (setq plan (EL:FixedPlan result template 'cap300 '(0.0 0.0 0.0) 0.0 1.0))
+          (setq record (EL:Put 'cckk-labels nil (EL:Put 'panel-output-handle nil record)))
+          (setq record (EL:CreateDiagram result template 'cap300 plan record store))""")
+        record=self.h.lookup('RECORD')
+        self.assertEqual(len(self.get('rows',record)),3)
+        self.assertEqual(len(self.get('cckk-labels',record)),2)
+        self.assertEqual(self.counter,7)  # panel, 3 circuits, power, purpose, panel number
+        actual=self.get('rows',record)[0]
+        text=self.entities[self.get('text-handle',actual)]
+        self.assertIn(Pair(1,'85W'),text)
+        self.assertTrue(all(self.get('text-handle',row) is None for row in self.get('rows',record)[1:]))
+        self.h.frames[0]['STORE']=self.h.run('(EL:StoreRead)')
+        self.counter=0
+        self.update()
+        self.assertEqual(self.counter,0)
+
+    def test_cckk_missing_caption_repaired_and_foreign_caption_rejected(self):
+        del self.entities['caption-label/u1']
+        updated=self.update()
+        self.assertEqual(self.counter,1)
+        self.assertEqual(len(self.get('cckk-labels',updated)),3)
+        self.entities['caption-panel-label']=[p for p in self.entities['caption-panel-label']
+                                             if not (isinstance(p,list) and p[0]==-3)]
+        with self.assertRaises(RuntimeError):
+            self.update()
+
+    def test_cckk_old_plan_migrates_power_alignment_and_adds_captions(self):
+        self.h.run("""(setq record (EL:Put 'cckk-labels nil
+          (EL:Put 'plan (EL:Put 'cckk-layout nil (EL:Get 'plan record)) record)))""")
+        for key in list(self.entities):
+            if key.startswith('caption-'): del self.entities[key]
+        updated=self.update(True)
+        self.assertIn('t0',self.deleted)
+        self.assertIn('t1',self.deleted)
+        self.assertEqual(self.counter,5)
+        self.assertEqual([self.get('block-handle',r) for r in self.get('rows',updated)],['b0','b1','b2','b3'])
 
     def test_power_update_keeps_handles_manual_position_and_no_reserve_text(self):
         self.entities['t0']=[Pair(10,[99.,88.,0.]) if isinstance(p,Pair) and p.car==10 else p for p in self.entities['t0']]
@@ -81,7 +128,7 @@ class UpdateTests(unittest.TestCase):
     def test_remove_retains_reserve_identity_and_cleans_owned_row(self):
         self.h.run("(setq result (EL:Put 'circuits (cdr cs) result)) (setq plan (EL:FixedPlan result template 'cap600 '(0.0 0.0 0.0) 0.0 1.0))")
         updated=self.update(True)
-        self.assertEqual(self.deleted,['b0','t0']);self.assertEqual(self.counter,0)
+        self.assertEqual(self.deleted,['b0','t0','caption-label/u1']);self.assertEqual(self.counter,0)
         self.assertEqual([self.get('block-handle',r) for r in self.get('rows',updated)],['b1','b2','b3'])
         self.assertEqual(self.dynamic['panel'],'CAP600')
 
@@ -136,14 +183,14 @@ class UpdateTests(unittest.TestCase):
         self.h.run("(setq result (EL:Put 'circuits (append cs '(((id . \"R3\") (circuit-uid . \"u3\") (watts . 12) (output-order . 3)))) result)) (setq plan (EL:FixedPlan result template 'cap300 '(0.0 0.0 0.0) 0.0 1.0))")
         updated=self.update(True)
         rows=self.get('rows',updated)
-        self.assertEqual(len(rows),5); self.assertEqual(self.counter,2)
+        self.assertEqual(len(rows),5); self.assertEqual(self.counter,3)
         self.assertEqual([self.get('block-handle',r) for r in rows[-2:]],['b2','b3'])
         self.assertTrue(all(self.get('text-handle',r) is None for r in rows[-2:]))
 
     def install_sync(self):
         self.install_transaction()
         self.h.frames[0][':VLAX-FALSE']=0
-        self.h.builtins.update({'TBLSEARCH':lambda *args:[Pair(70,0)],
+        self.h.builtins.update({'TBLSEARCH':lambda *args:[Pair(70,0),Pair(62,7)],
           'EL:EFFECTIVENAME':lambda e:'dfgjhdrtyjtfgj4SADFG3' if e=='panel' else 'fghjftyuk',
           'VLA-GET-READONLY':lambda e:0,
           'EL:ALLOWEDVALUES':lambda e:['CAP300','CAP600','CAP1000'] if e=='panel' else ['NORMAL','GROUND','RESERVE'],

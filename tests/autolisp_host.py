@@ -152,6 +152,8 @@ class Host:
             'STRCAT': lambda *xs: ''.join(xs), 'STRCASE': lambda x,lower=None:x.lower() if lower else x.upper(),
             'ITOA': str, 'ATOI': int, 'STRLEN': len, 'RTOS': lambda x,*opts: f'{x:.{opts[1] if len(opts)>1 else 4}f}',
             'VL-SYMBOL-NAME': str, 'VL-STRING->LIST': lambda x:list(map(ord,x)),
+            'VL-LIST->STRING': lambda xs: ''.join(map(chr,seq(xs))),
+            'VL-STRING-MISMATCH': lambda a,b: next((i for i,(x,y) in enumerate(zip(a,b)) if x!=y), min(len(a),len(b))),
             'VL-STRING-SEARCH': lambda token,textdata,offset=0: (i if (i:=textdata.find(token,offset))>=0 else None),
             'SUBSTR': lambda s,start,n=None:s[start-1:] if n is None else s[start-1:start-1+n],
             'VL-PRIN1-TO-STRING': repr, 'VL-REMOVE': lambda x,xs:[y for y in seq(xs) if not equal(x,y)] or None,

@@ -1,5 +1,6 @@
 """Actual update functions against a finite DWG adapter. Date: 2026-10-09."""
 import copy
+import math
 import unittest
 import test_diagram_store as db
 import test_kernel as kernel
@@ -355,6 +356,43 @@ class UpdateTests(unittest.TestCase):
         self.assertIsNone(self.h.run("(EL:Transaction 'EL:StoreWrite (list (EL:Put 'notes \"new\" store)))"))
         self.assertEqual((self.entities,self.dictionary,self.dynamic),before)
         self.assertFalse(truth(self.h.lookup('*EL:TRANSACTIONOPEN*')))
+
+    def test_draft_then_sync_keep_low_real_digits_and_default_capacity(self):
+        self.install_sync()
+        params=[Pair(Symbol('THETA_MAX'),math.pi/36), Pair(Symbol('EPS_Z'),1e-20)]
+        self.h.frames[0]['PARAMS']=params
+        self.h.run("(setq cfg (list (cons 'template template) (cons 'params params)) result (EL:Put 'capacity-source 'default result))")
+        self.h.builtins['EL:TEMPLATEREADY']=lambda *args:True
+        self.assertTrue(truth(self.h.run("(EL:SaveDraft result cfg nil nil)")))
+        self.h.run('(setq saved (EL:DiagramForPanel "source" (EL:StoreRead)))')
+        self.assertEqual(self.h.run("(EL:Get 'params (EL:Get 'config saved))"),params)
+        self.assertEqual(self.h.run("(EL:Get 'draft-capacity saved)"),Symbol('CAP300'))
+        self.assertTrue(truth(self.h.run("(EL:SyncDiagram result cfg nil 'cap300 T nil)")))
+        self.h.run('(setq synced (EL:DiagramForPanel "source" (EL:StoreRead)))')
+        self.assertEqual(self.h.run("(EL:Get 'params (EL:Get 'config synced))"),params)
+        self.assertEqual(self.h.run("(EL:Get 'capacity-option synced)"),Symbol('CAP300'))
+        self.assertEqual(self.h.run("(EL:Get 'panel-output-handle synced)"),'panel')
+        self.assertNotIn('EL_FIXED_TX',self.dictionary)
+
+    def test_native_readback_value_mismatch_reports_field_and_rolls_back(self):
+        self.h.run('(EL:StoreWrite store)')
+        self.install_transaction()
+        before=copy.deepcopy((self.entities,self.dictionary,self.dynamic))
+        original=self.h.builtins['ENTMOD']; entity=self.dictionary['EL_FIXED_V1']; events=[]
+        self.h.builtins['EL:LOGEVENT']=lambda stage,context:events.append((stage,context))
+        def corrupt(data):
+            if any(p.car==-1 and p.cdr==entity for p in data):
+                data=[Pair(40,0.0) if p.car==40 else p for p in data]
+            return original(data)
+        self.h.builtins['ENTMOD']=corrupt
+        next_store=self.call('EL:Put',Symbol('TEST-REAL'),1e-20,self.h.lookup('STORE'))
+        self.assertIsNone(self.call('EL:Transaction',Symbol('EL:STOREWRITE'),[next_store]))
+        self.assertEqual((self.entities,self.dictionary,self.dynamic),before)
+        mismatch=[context for stage,context in events if stage=='STORE_MISMATCH']
+        self.assertEqual(len(mismatch),1)
+        self.assertEqual(self.get('stage',mismatch[0]),Symbol('READBACK'))
+        self.assertIn(Symbol('TEST-REAL'),self.get('path',mismatch[0]))
+        self.assertEqual(self.get('number-difference',mismatch[0]),1e-20)
 
     def test_inline_recovery_cancel_does_not_start_transaction(self):
         self.install_interrupted_marker()

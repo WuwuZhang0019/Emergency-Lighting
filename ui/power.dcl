@@ -106,8 +106,7 @@ el_panel : dialog {
     }
     : column {
   : radio_row { key = "p_capacity"; label = "当前配电箱容量档位";
-    : radio_button { key = "p_pending"; label = "待核对"; }
-    : radio_button { key = "p_300"; label = "0.3kW"; }
+    : radio_button { key = "p_300"; label = "0.3kW"; value = "1"; }
     : radio_button { key = "p_600"; label = "0.6kW"; }
     : radio_button { key = "p_1000"; label = "1kW"; }
   }

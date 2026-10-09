@@ -244,9 +244,11 @@
           (setq *EL:PanelPowers* (EL:Put (EL:Get 'key row) watts *EL:PanelPowers*)
                 *EL:PanelDraft* (EL:PanelCompute *EL:PanelDraft* *EL:PanelPowers* *EL:PanelConfig*)) T)
         (progn (set_tile "p_error" "单个功率请输入非负整数 W；请修正后再切换。") (mode_tile "p_watts" 2) nil)))))
+(defun EL:CapacityDefault (capacity)
+  ;; Date: 2026-10-09. Use 0.3kW immediately; retain a valid saved choice.
+  (if (member capacity '(cap300 cap600 cap1000)) capacity 'cap300))
 (defun EL:SelectionsReady (result capacity)
   (and (member capacity '(cap300 cap600 cap1000))
-    (equal (EL:Get 'capacity-source result) 'manual)
     (vl-every '(lambda (c) (equal (EL:Get 'ground-source c) 'manual)) (EL:Get 'circuits result))))
 (defun EL:PanelStoreSelections ()
   (if (EL:PanelStore)
@@ -291,9 +293,8 @@
   (set_tile "p_total" (strcat (EL:PanelKnownTotal) "；实际回路 " (itoa (length cs)) "；输出 " (itoa (+ 2 (length cs)))
     "；已完整核对回路 " (itoa (EL:Get 'box-watts *EL:PanelDraft*)) " W"))
   (set_tile "p_capacity" (cond ((equal *EL:PanelCapacity* 'cap600) "p_600")
-    ((equal *EL:PanelCapacity* 'cap1000) "p_1000") ((equal *EL:PanelCapacity* 'cap300) "p_300") (T "p_pending")))
-  (set_tile "p_capacity_status" (if (equal (EL:Get 'capacity-source *EL:PanelDraft*) 'manual)
-    "容量：人工确认。自动选档规则尚未配置。" "容量待核对：请根据统计结果选择；程序未自动选型。"))
+    ((equal *EL:PanelCapacity* 'cap1000) "p_1000") (T "p_300")))
+  (set_tile "p_capacity_status" "默认 0.3kW；可按需要调整为 0.6kW 或 1kW。")
   (set_tile "p_template_status" (if *EL:PanelTemplateReady* "模板已验证，生成时自动切换状态。"
     "模板未设置或已变化：点击生成时设置；不影响统计和保存草稿。")))
 (defun EL:PanelSelect (index)
@@ -340,12 +341,11 @@
 (defun EL:PanelCapacity (value)
   (if (EL:PanelStore)
     (progn
-      (setq *EL:PanelCapacity* (cond ((equal value "p_600") 'cap600) ((equal value "p_1000") 'cap1000)
-        ((equal value "p_300") 'cap300))
-        *EL:PanelDraft* (EL:Put 'capacity-source (if *EL:PanelCapacity* 'manual) *EL:PanelDraft*))
+      (setq *EL:PanelCapacity* (cond ((equal value "p_600") 'cap600) ((equal value "p_1000") 'cap1000) (T 'cap300))
+        *EL:PanelDraft* (EL:Put 'capacity-source 'manual *EL:PanelDraft*))
       (EL:PanelFill))
     (set_tile "p_capacity" (cond ((equal *EL:PanelCapacity* 'cap600) "p_600")
-      ((equal *EL:PanelCapacity* 'cap1000) "p_1000") ((equal *EL:PanelCapacity* 'cap300) "p_300") (T "p_pending")))))
+      ((equal *EL:PanelCapacity* 'cap1000) "p_1000") (T "p_300")))))
 (defun EL:PanelExitFill (/ c)
   (start_list "f_exits")
   (foreach c (EL:Get 'circuits *EL:FixedExitResult*)
@@ -388,9 +388,11 @@
       (setq *EL:FixedExitSelection* (strcat *EL:FixedExitSelection* (itoa i) " ")))
     (setq i (1+ i)))
   (setq *EL:PanelDraft* (EL:PanelCompute (EL:SelectFixedExits result (EL:Get 'excluded-seeds result)) powers cfg) *EL:PanelPowers* powers
-    *EL:PanelCapacity* capacity *EL:PanelConfig* cfg *EL:PanelIndex* 0 *EL:PanelPage* 0 *EL:PanelDevice* 0
+    *EL:PanelCapacity* (EL:CapacityDefault capacity) *EL:PanelConfig* cfg *EL:PanelIndex* 0 *EL:PanelPage* 0 *EL:PanelDevice* 0
     *EL:PanelTemplateReady* (EL:TemplateReady (EL:Get 'template cfg) cfg)
     dialog (load_dialog (strcat *EL:Root* "ui/power.dcl")) *EL:DialogID* dialog status 3)
+  (if (not (EL:Get 'capacity-source *EL:PanelDraft*))
+    (setq *EL:PanelDraft* (EL:Put 'capacity-source 'default *EL:PanelDraft*)))
   (EL:ThumbPrepare result)
   (while (and (> dialog 0) (= status 3))
     (if (new_dialog "el_panel" dialog)

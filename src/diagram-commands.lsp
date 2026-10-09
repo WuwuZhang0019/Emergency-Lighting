@@ -24,6 +24,8 @@
         (if (numberp (cdr row)) (setq merged (EL:Put (car row) (cdr row) merged))))
       (EL:WriteData (strcat *EL:Root* "config/block-powers.eld") (list '(version . 1) (cons 'powers merged))))))
 (defun EL:SaveDraft (result cfg powers capacity / store record)
+  (setq capacity (EL:CapacityDefault capacity))
+  (if (not (EL:Get 'capacity-source result)) (setq result (EL:Put 'capacity-source 'default result)))
   (setq store (cond ((EL:StoreRead)) (T (EL:StoreInitial)))
     record (cond ((EL:DiagramForPanel (EL:Get 'panel result) store)) (T (EL:NewRecord (EL:Get 'panel result) store)))
     record (EL:Put 'draft-circuits (EL:Get 'circuits result) (EL:Put 'draft-capacity capacity
@@ -57,7 +59,7 @@
     powers (EL:FixedPowers record)
     prepared (EL:LogCall "PREPARE_PANEL" (list (cons 'diagram-id (EL:Get 'diagram-id record))) 'EL:PreparedResult (list result
       (if (EL:Get 'draft-circuits record) (EL:Put 'rows (EL:Get 'draft-circuits record) record) record))))
-  (setq capacity (if (equal (EL:Get 'capacity-source prepared) 'manual)
+  (setq capacity (EL:CapacityDefault
     (if (EL:Get 'draft-circuits record) (EL:Get 'draft-capacity record) (EL:Get 'capacity-option record)))
     template (EL:Get 'template cfg))
   (if (not (EL:TemplateReady template cfg))

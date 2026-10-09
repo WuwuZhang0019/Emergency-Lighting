@@ -48,24 +48,23 @@ class PostStatWorkflowTests(unittest.TestCase):
         self.h.builtins['EL:PUBLISHDIAGRAM'] = lambda *args: self.fail('must not publish before review')
         self.actions = [lambda: self.done(0)]
         self.h.run('(c:ELSTAT)')
-        self.assertEqual(self.tiles['p_capacity'], 'p_pending')
+        self.assertEqual(self.tiles['p_capacity'], 'p_300')
+        self.assertNotIn('待核对',self.tiles['p_capacity_status'])
         self.assertIn('/普通', self.tiles['p_row0'])
         self.assertIn('点击生成时设置', self.tiles['p_template_status'])
         self.assertEqual(self.writes, [])
 
-    def test_capacity_blocks_generate_but_types_need_no_extra_confirmation(self):
+    def test_default_capacity_generates_without_extra_confirmation(self):
+        self.h.builtins['EL:TEMPLATEREADY']=lambda *args:True
         def action():
             self.call('EL:PanelGenerate')
-            self.assertIsNone(self.closed)
-            self.assertIn('请先选择箱体容量', self.tiles['p_error'])
-            self.confirm()
-            self.call('EL:PanelAccept')
-            self.assertTrue(truth(self.call('EL:SelectionsReady', self.h.lookup('*EL:PANELDRAFT*'), Symbol('CAP600'))))
-            self.done(1)
+            self.assertEqual(self.closed,2)
+            self.assertTrue(truth(self.call('EL:SelectionsReady',self.h.lookup('*EL:PANELDRAFT*'),Symbol('CAP300'))))
         self.actions = [action]
         edited = self.dialog()
-        self.assertEqual(self.get('capacity', edited), Symbol('CAP600'))
-        self.assertEqual(self.get('capacity-source', self.get('result', edited)), Symbol('MANUAL'))
+        self.assertEqual(self.get('capacity',edited),Symbol('CAP300'))
+        self.assertEqual(self.get('capacity-source',self.get('result',edited)),Symbol('DEFAULT'))
+        self.assertTrue(truth(self.get('generate',edited)))
         self.assertEqual(self.writes, [])
 
     def test_save_records_all_pages_without_changing_checkbox_values(self):
@@ -175,14 +174,20 @@ class PostStatWorkflowTests(unittest.TestCase):
             'EL:TRANSACTION': lambda fn, args: self.h.call(fn, args),
             'EL:SAVENAMEPOWERS': lambda *args: True,
         })
-        self.actions = [lambda: (self.confirm(), self.call('EL:PanelAccept'))]
-        self.call('EL:EditPanel', self.result, self.cfg)
-        record = self.call('EL:DiagramForPanel', 'panel', persisted[0])
-        self.assertEqual(self.get('draft-capacity', record), Symbol('CAP600'))
-        fresh = self.call('EL:RecognizeFixed', self.cfg, 'panel')
-        self.actions = [lambda: self.done(0)]
-        self.call('EL:EditPanel', fresh, self.cfg)
-        self.assertEqual(self.tiles['p_capacity'], 'p_600')
+        for tile,capacity,source in ((None,'CAP300','DEFAULT'),('p_600','CAP600','MANUAL'),('p_1000','CAP1000','MANUAL')):
+            with self.subTest(capacity=capacity):
+                def accept():
+                    if tile:self.call('EL:PanelCapacity',tile)
+                    self.call('EL:PanelAccept')
+                self.actions=[accept]
+                self.call('EL:EditPanel',self.result,self.cfg)
+                record=self.call('EL:DiagramForPanel','panel',persisted[0])
+                self.assertEqual(self.get('draft-capacity',record),Symbol(capacity))
+                self.assertEqual(self.get('draft-capacity-source',record),Symbol(source))
+                fresh=self.call('EL:RecognizeFixed',self.cfg,'panel')
+                self.actions=[lambda:self.done(0)]
+                self.call('EL:EditPanel',fresh,self.cfg)
+                self.assertEqual(self.tiles['p_capacity'],tile or 'p_300')
 
     def test_save_complete_statistics_without_template_still_saves_draft(self):
         self.h.builtins['EL:SIMPLELOADPOWERS'] = lambda: self.h.run("'((version . 1) (powers (\"LAMP\" . 5)))")
@@ -194,7 +199,7 @@ class PostStatWorkflowTests(unittest.TestCase):
         self.actions = [lambda: self.done(1)]
         self.call('EL:EditPanel', self.result, self.cfg)
         self.assertEqual(len(stored), 1)
-        self.assertIsNone(stored[0][3])
+        self.assertEqual(stored[0][3],Symbol('CAP300'))
 
     def test_shared_sync_rejects_unconfirmed_fixed_result(self):
         self.h.builtins['EL:STOREREAD'] = lambda: None
@@ -275,12 +280,12 @@ class SelectionStoreTests(unittest.TestCase):
         self.assertIsNone(self.h.run("(EL:Get 'is-ground (car (EL:Get 'draft-circuits reopened)))"))
         self.assertEqual(self.h.run("(EL:Get 'name (EL:Get 'fixed-template (EL:StoreRead)))"), 'captured')
 
-    def test_unconfirmed_draft_stays_pending_after_reload(self):
+    def test_missing_capacity_defaults_but_unconfirmed_types_remain_stale(self):
         self.h.run('''(EL:SaveDraft '((panel . "source") (engine . fixed) (can-generate . T)
           (circuits ((id . "R1") (seed-key "wire" outlet) (ground-source . default)))) nil nil nil)
           (setq reopened (EL:DiagramForPanel "source" (EL:StoreRead)))''')
-        self.assertIsNone(self.h.run("(EL:Get 'draft-capacity reopened)"))
-        self.assertIsNone(self.h.run("(EL:Get 'draft-capacity-source reopened)"))
+        self.assertEqual(self.h.run("(EL:Get 'draft-capacity reopened)"),Symbol('CAP300'))
+        self.assertEqual(self.h.run("(EL:Get 'draft-capacity-source reopened)"),Symbol('DEFAULT'))
         self.assertEqual(self.h.run("(EL:Get 'status reopened)"), Symbol('STALE'))
 
 

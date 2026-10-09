@@ -131,7 +131,7 @@ class RootFixture(unittest.TestCase):
 
 class RootInitTests(RootFixture):
     def test_missing_post_stat_ui_marker_rejects_old_dialog(self):
-        (self.package / 'ui/diagram-ui-033.marker').unlink()
+        (self.package / 'ui/diagram-ui-044.marker').unlink()
         self.assertFalse(truth(self.h.call(Symbol('EL:ROOTVALID'), [self.root])))
 
     def test_missing_root_is_initialized_before_config_path_is_used(self):

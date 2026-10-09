@@ -148,6 +148,26 @@ class PostStatWorkflowTests(unittest.TestCase):
         self.assertEqual(self.get('ground-source', self.get('circuits', prepared)[0]), Symbol('MANUAL'))
         self.assertFalse(truth(self.get('is-ground', self.get('circuits', prepared)[0])))
 
+    def test_save_capacity_then_recognize_same_panel(self):
+        persisted = [None]
+        def write(value):
+            persisted[0] = value
+            return True
+        self.h.builtins.update({
+            'EL:STOREREAD': lambda: persisted[0],
+            'EL:STOREWRITE': write,
+            'EL:TRANSACTION': lambda fn, args: self.h.call(fn, args),
+            'EL:SAVENAMEPOWERS': lambda *args: True,
+        })
+        self.actions = [lambda: (self.confirm(), self.call('EL:PanelAccept'))]
+        self.call('EL:EditPanel', self.result, self.cfg)
+        record = self.call('EL:DiagramForPanel', 'panel', persisted[0])
+        self.assertEqual(self.get('draft-capacity', record), Symbol('CAP600'))
+        fresh = self.call('EL:RecognizeFixed', self.cfg, 'panel')
+        self.actions = [lambda: self.done(0)]
+        self.call('EL:EditPanel', fresh, self.cfg)
+        self.assertEqual(self.tiles['p_capacity'], 'p_600')
+
     def test_save_complete_statistics_without_template_still_saves_draft(self):
         self.h.builtins['EL:SIMPLELOADPOWERS'] = lambda: self.h.run("'((version . 1) (powers (\"LAMP\" . 5)))")
         self.h.builtins['EL:FRESHRESULT'] = lambda *args: True

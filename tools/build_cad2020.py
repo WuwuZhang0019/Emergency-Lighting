@@ -4,7 +4,7 @@ import shutil
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGE_NO = 46
+PACKAGE_NO = 47
 NAME = f'应急照明-{PACKAGE_NO:03d}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 DEST = ROOT / 'output' / NAME
@@ -35,17 +35,19 @@ def build():
             data = text.encode('gb2312', errors='strict')
             assert data.decode('gb2312') == text
             (DEST / folder / source.name).write_bytes(data)
+    standalone = (DEST / 'src/insert-circuit.lsp').read_bytes() + '\n(princ "\\nCCKK 已加载：输入 CCKK，移动鼠标并点击插入配电回路图块。")\n(princ)\n'.encode('gb2312', errors='strict')
+    (DEST / 'CCKK.lsp').write_bytes(standalone)
     shutil.copy2(ROOT / 'ui/box-ui-011.marker', DEST / 'ui/box-ui-011.marker')
     shutil.copy2(ROOT / 'ui/diagram-ui-044.marker', DEST / 'ui/diagram-ui-044.marker')
     # Keep an existing valid data root; initialize it for a standalone update.
     # All modules are included; readiness requires a complete package directory.
-    modules = ('common', 'config', 'geometry', 'topology', 'statistics', 'generation', 'main', 'simple', 'fixed', 'panel', 'diagram-store', 'diagram-update', 'diagram-commands')
+    modules = ('common', 'config', 'geometry', 'topology', 'statistics', 'generation', 'main', 'simple', 'fixed', 'panel', 'diagram-store', 'diagram-update', 'diagram-commands', 'insert-circuit')
     update = (';; Date: 2026-10-09. Validate or initialize the plugin data root.\n'
               '(vl-load-com)\n' + '\n'.join(
                   (DEST / 'src' / f'{module}.lsp').read_bytes().decode('gb2312') for module in modules) +
               '\n(EL:ClearPickHighlights)\n(setq *EL:Result* nil *EL:DeviceResult* nil)\n'
               '(if (EL:EnsureRoot)\n'
-              f'  (princ "\\n已加载（CAD2020 v{PACKAGE_NO}）：目录已确认。输入 ELSTAT，拾取配电箱和导线后填写设备功率。")\n'
+              f'  (princ "\\n已加载（CAD2020 v{PACKAGE_NO}）：目录已确认。输入 CCKK 插入配电回路图块；ELSTAT 进入统计。")\n'
               f'  (princ "\\nCAD2020 v{PACKAGE_NO} 模块已载入，但未确认插件目录。运行 ELSETUP 或 ELSTAT 后选择完整包内的 src/load.lsp。"))\n'
               '(princ)\n')
     (DEST / UPDATE_NAME).write_bytes(update.encode('gb2312'))

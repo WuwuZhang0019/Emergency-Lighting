@@ -4,7 +4,7 @@ import shutil
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGE_NO = 37
+PACKAGE_NO = 38
 NAME = f'应急照明-{PACKAGE_NO:03d}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 DEST = ROOT / 'output' / NAME
@@ -37,19 +37,6 @@ def build():
             (DEST / folder / source.name).write_bytes(data)
     shutil.copy2(ROOT / 'ui/box-ui-011.marker', DEST / 'ui/box-ui-011.marker')
     shutil.copy2(ROOT / 'ui/diagram-ui-033.marker', DEST / 'ui/diagram-ui-033.marker')
-    launcher = ''';; Date: 2026-10-09. Select this package's src/load.lsp explicitly.
-(vl-load-com)
-(defun EL2020:Start (/ selected)
-  (setq selected (getfiled "请选择新包内的 src/load.lsp" "" "lsp" 0))
-  (if selected
-    (progn
-      (setq *EL:Root* (strcat (vl-filename-directory selected) "/../"))
-      (load selected)))
-  (princ))
-(EL2020:Start)
-(princ)
-'''
-    (DEST / 'START-CAD2020.lsp').write_bytes(launcher.encode('gb2312'))
     # Keep an existing valid data root; initialize it for a standalone update.
     # All modules are included; readiness requires a complete package directory.
     modules = ('common', 'config', 'geometry', 'topology', 'statistics', 'generation', 'main', 'simple', 'fixed', 'panel', 'diagram-store', 'diagram-update', 'diagram-commands')
@@ -62,6 +49,12 @@ def build():
               f'  (princ "\\nCAD2020 v{PACKAGE_NO} 模块已载入，但未确认插件目录。运行 ELSETUP 或 ELSTAT 后选择完整包内的 src/load.lsp。"))\n'
               '(princ)\n')
     (DEST / UPDATE_NAME).write_bytes(update.encode('gb2312'))
+    # Date: 2026-10-09. One APPLOAD file, no recursive module LOAD calls.
+    # Selecting src/load.lsp only locates package data; it is not executed again.
+    startup = update.replace('(if (EL:EnsureRoot)',
+                             '(setq *EL:Root* nil)\n(if (EL:EnsureRoot)', 1)
+    (DEST / 'START-CAD2020.lsp').write_bytes(startup.encode('gb2312', errors='strict'))
+    (DEST / 'src/load.lsp').write_bytes(startup.encode('gb2312', errors='strict'))
     guide = (ROOT / 'docs/03_加载使用与验收说明.md').read_text(encoding='utf-8')
     guide = guide.replace('状态：源码及自动检查已交付，CAD 实测待执行。', f'状态：AutoCAD 2020 兼容试用包 v{PACKAGE_NO}，真实 CAD 验收待完成。')
     guide = guide.replace('目标为 Windows AutoCAD 2021+，`LISPSYS=1` 或 `2`（修改后需重启）', '本包供简体中文 Windows AutoCAD 2020 试用，LISP/DCL 已转换为 GB2312，无需设置 LISPSYS')

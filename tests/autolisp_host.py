@@ -2,6 +2,7 @@
 
 Loads the actual .lsp sources. CAD APIs fail if called. NIL, dynamic scope,
 integer division and AutoLISP LAST (one-element list) are modelled explicitly.
+Date: 2026-10-09.
 """
 import math
 import re
@@ -60,7 +61,8 @@ def parse(text):
         if t == "'":
             return [Symbol('QUOTE'), one()]
         if t.startswith('"'):
-            return re.sub(r'\\(.)', lambda m: {'n': '\n', 'r': '\r', 't': '\t'}.get(m[1], m[1]), t[1:-1])
+            return re.sub(r'\\([0-7]{3}|.)', lambda m: chr(int(m[1], 8)) if len(m[1]) == 3
+                          else {'e': '\x1b', 'n': '\n', 'r': '\r', 't': '\t'}.get(m[1], m[1]), t[1:-1])
         try:
             return float(t) if any(x in t.lower() for x in ['.', 'e']) else int(t)
         except ValueError:

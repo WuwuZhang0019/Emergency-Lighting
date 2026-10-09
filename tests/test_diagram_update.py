@@ -317,6 +317,45 @@ class UpdateTests(unittest.TestCase):
         for entity, data in before.items():
             self.assertEqual(self.entities[entity], data)
 
+    def test_large_template_draft_recovers_saves_and_reopens_with_bounded_read(self):
+        self.install_interrupted_marker()
+        sizes=db.install_bounded_read(self.h)
+        before=copy.deepcopy(self.entities)
+        definition='图块定义 "0001" C:\\项目\\应急\n'*2400
+        self.h.frames[0]['DEFINITION']=definition
+        self.h.builtins.update({'INITGET':lambda *args:None, 'GETKWORD':lambda *args:'Yes',
+                               'EL:TEMPLATEREADY':lambda *args:True})
+        self.h.run("(setq template (EL:Put 'panel (EL:Put 'definition definition (EL:Get 'panel template)) template) cfg (list (cons 'template template)) result (EL:Put 'capacity-source 'manual result))")
+        self.assertTrue(truth(self.h.run("(EL:SaveDraft result cfg '((\"LAMP\" . 7)) 'cap600)")))
+        self.assertNotIn('EL_FIXED_TX',self.dictionary)
+        self.assertIn('EL_FIXED_TX_INTERRUPTED_1',self.dictionary)
+        self.h.run('(setq reopened (EL:DiagramForPanel "source" (EL:StoreRead)))')
+        self.assertEqual(self.h.run("(EL:Get 'draft-capacity reopened)"),Symbol('CAP600'))
+        self.assertEqual(self.h.run("(EL:Get 'powers reopened)"),self.h.run("'((\"LAMP\" . 7))"))
+        self.assertEqual(self.h.run("(EL:Get 'draft-capacity-source reopened)"),Symbol('MANUAL'))
+        self.assertEqual(self.h.run("(EL:Get 'definition (EL:Get 'panel (EL:Get 'template (EL:Get 'config reopened))))"),definition)
+        self.assertEqual(self.h.run("(EL:Get 'definition (EL:Get 'panel (EL:Get 'fixed-template (EL:StoreRead))))"),definition)
+        for entity,data in before.items():
+            self.assertEqual(self.entities[entity],data)
+        self.assertLessEqual(max(sizes),256)
+        self.assertGreater(len(self.h.run('(EL:StoreText (EL:StoreRead))')),87345)
+
+    def test_corrupt_xrecord_readback_rolls_back_existing_store_and_graphics(self):
+        self.h.run('(EL:StoreWrite store)')
+        self.install_transaction()
+        before=copy.deepcopy((self.entities,self.dictionary,self.dynamic))
+        original=self.h.builtins['ENTMOD']
+        entity=self.dictionary['EL_FIXED_V1']
+        def corrupt(data):
+            if any(p.car==-1 and p.cdr==entity for p in data):
+                data=list(data)
+                data[-1]=Pair(1,data[-1].cdr[:-1])
+            return original(data)
+        self.h.builtins['ENTMOD']=corrupt
+        self.assertIsNone(self.h.run("(EL:Transaction 'EL:StoreWrite (list (EL:Put 'notes \"new\" store)))"))
+        self.assertEqual((self.entities,self.dictionary,self.dynamic),before)
+        self.assertFalse(truth(self.h.lookup('*EL:TRANSACTIONOPEN*')))
+
     def test_inline_recovery_cancel_does_not_start_transaction(self):
         self.install_interrupted_marker()
         before = copy.deepcopy((self.entities, self.dictionary))

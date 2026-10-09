@@ -9,47 +9,78 @@
   (if (and data (> height 0.0))
     (list '(offset 10636.0 -438.0 0.0) '(type . "TEXT") (cons 'style style)
       (cons 'height height) '(width . 0.0) '(align . 0) '(rotation . 0.0) '(factor . 1.0) '(oblique . 0.0))))
-(defun EL:FixedCapture (name options annotation / pick e obj props candidates prop values matched option index states contour)
-  (setq pick (EL:PickEntity (strcat "\n拾取动态块样本 " name "：")))
-  (if (and pick (equal (cdr (assoc 0 (entget (car pick)))) "INSERT")
-      (equal (EL:EffectiveName (car pick)) name))
-    (progn
+(defun EL:TemplateValueText (value)
+  (if (equal (type value) 'STR) value (rtos value 2 6)))
+(defun EL:TemplateValuesValid (values)
+  (and (listp values) (>= (length (EL:Unique values)) 3)
+    (vl-every '(lambda (value) (or (and (equal (type value) 'STR) (/= value "")) (EL:Number value))) values)))
+(defun EL:TemplateChoose (title labels / i label index done)
+  (princ (strcat "\n" title)) (setq i 0)
+  (foreach label labels (setq i (1+ i)) (princ (strcat "\n  " (itoa i) ". " label)))
+  (while (not done)
+    (setq index (getint (strcat "\n请输入选项前的数字 1-" (itoa (length labels)) "（回车取消本次模板设置）：")))
+    (cond
+      ((not index) (princ "\n已取消本次模板设置，原模板保持不变。") (setq done T))
+      ((and (> index 0) (<= index (length labels))) (setq done T))
+      (T (princ "\n数字超出范围，请按上面的编号重新选择。")))) index)
+(defun EL:TemplatePropertyText (prop / textdata value)
+  (setq textdata (strcat (vla-get-PropertyName prop) "（可选状态："))
+  (foreach value (EL:AllowedValues prop) (setq textdata (strcat textdata (EL:TemplateValueText value) "；")))
+  (strcat textdata "）"))
+(defun EL:TemplateProperty (props options kind / eligible exact prop values choices index)
+  (foreach prop props
+    (if (and (= (vla-get-ReadOnly prop) :vlax-false)
+        (EL:TemplateValuesValid (setq values (EL:AllowedValues prop))))
+      (progn
+        (setq eligible (cons prop eligible))
+        (if (vl-every '(lambda (o) (member (EL:OptionLabel o) values)) options)
+          (setq exact (cons prop exact))))))
+  (setq choices (reverse (if exact exact eligible)))
+  (cond
+    ((not choices) (princ (strcat "\n这个图块没有找到可修改且至少有三种状态的选项，无法设置" kind "。")) nil)
+    ((= (length choices) 1) (car choices))
+    (T (setq index (EL:TemplateChoose (strcat "这个图块有多个选项。哪一项控制" kind "？")
+        (mapcar 'EL:TemplatePropertyText choices)))
+      (if index (nth (1- index) choices)))))
+(defun EL:TemplateStates (values options annotation kind / remaining reserved used option label available index value states contour cancelled)
+  ;; Reserve exact names before manual choices so they cannot be assigned twice.
+  (setq reserved (vl-remove-if-not '(lambda (v) (member v values)) (mapcar 'EL:OptionLabel options))
+    remaining options contour (EL:BoundsSegments '((-100.0 -100.0 0.0) (100.0 100.0 0.0))))
+  (while (and remaining (not cancelled))
+    (setq option (car remaining) remaining (cdr remaining) label (EL:OptionLabel option) value nil)
+    (if (member label values) (setq value label)
+      (progn
+        (setq available (EL:Unique (vl-remove-if '(lambda (v) (or (member v used) (member v reserved))) values)))
+        (setq index (EL:TemplateChoose (strcat kind "“" label "”对应下面哪种状态？已分配的状态不再列出。")
+          (mapcar 'EL:TemplateValueText available)))
+        (if index (setq value (nth (1- index) available)) (setq cancelled T))))
+    (if (not cancelled)
+      (progn
+        (setq used (cons value used))
+        (princ (strcat "\n已对应：" kind " " label " = 图块状态“" (EL:TemplateValueText value) "”"))
+        ;; Preview bounds only; the source block is never modified during capture.
+        (setq states (cons (list (cons 'option option) (cons 'value value)
+          (cons 'connection (if annotation '(0.0 0.0 0.0) '(6427.0 -5500.0 0.0)))
+          (cons 'contour contour) (cons 'text annotation)) states)))))
+  (if (not cancelled) (reverse states)))
+(defun EL:FixedCapture (name options annotation / pick e obj prop states kind)
+  (setq kind (if annotation "回路类型" "箱体容量")
+    pick (EL:PickEntity (strcat "\n拾取" (if annotation "回路" "箱体") "动态块样本（" name "）：")))
+  (cond
+    ((not pick) (princ "\n已取消样本拾取，原模板保持不变。") nil)
+    ((not (and (equal (cdr (assoc 0 (entget (car pick)))) "INSERT") (equal (EL:EffectiveName (car pick)) name)))
+      (princ (strcat "\n样本不匹配，请选择指定的" (if annotation "回路" "箱体") "图块：" name)) nil)
+    (T
       (setq e (car pick) obj (vlax-ename->vla-object e))
-      (if (= (vla-get-IsDynamicBlock obj) :vlax-true)
-        (progn
-          (setq props (vlax-invoke obj 'GetDynamicBlockProperties))
-          (foreach prop props
-            (if (and (= (vla-get-ReadOnly prop) :vlax-false)
-                (vl-every '(lambda (o) (member (EL:OptionLabel o) (EL:AllowedValues prop))) options))
-              (setq candidates (cons prop candidates))))
-          (if (= (length candidates) 1) (setq prop (car candidates))
-            (progn
-              (setq index 0)
-              (foreach prop props
-                (setq index (1+ index))
-                (princ (strcat "\n" (itoa index) " " (vla-get-PropertyName prop) " "
-                  (vl-prin1-to-string (EL:AllowedValues prop)))))
-              (setq index (getint "\n请选择可写档位属性序号：") prop nil)
-              (if (and index (> index 0) (<= index (length props))) (setq prop (nth (1- index) props)))))
-          (if (and prop (= (vla-get-ReadOnly prop) :vlax-false))
-            (progn
-              (setq values (EL:AllowedValues prop) matched T)
-              (foreach option options
-                (if (member (EL:OptionLabel option) values) (setq index (EL:OptionLabel option))
-                  (progn
-                    (princ (strcat "\n" (EL:OptionLabel option) " 候选值：" (vl-prin1-to-string values)))
-                    (setq index (getint "\n选择对应值序号（从1开始）："))
-                    (setq index (if (and index (> index 0) (<= index (length values))) (nth (1- index) values)))))
-                (if (not index) (setq matched nil))
-                ;; Preview bounds only; the template definitions are never edited.
-                (setq contour (EL:BoundsSegments '((-100.0 -100.0 0.0) (100.0 100.0 0.0))))
-                (setq states (cons (list (cons 'option option) (cons 'value index)
-                  (cons 'connection (if annotation '(0.0 0.0 0.0) '(6427.0 -5500.0 0.0)))
-                  (cons 'contour contour) (cons 'text annotation)) states)))
-              (if (and matched (= (length (EL:Unique (mapcar '(lambda (s) (EL:Get 'value s)) states))) 3))
-                (list (cons 'name name) (cons 'property (vla-get-PropertyName prop))
-                  (cons 'source-handle (cdr (assoc 5 (entget e))))
-                  (cons 'definition (EL:Signature (EL:DefinitionData name nil))) (cons 'states (reverse states)))))))))))
+      (if (/= (vla-get-IsDynamicBlock obj) :vlax-true)
+        (progn (princ "\n所选图块不是动态块，无法设置显示状态。") nil)
+        (if (setq prop (EL:TemplateProperty (vlax-invoke obj 'GetDynamicBlockProperties) options kind))
+          (progn
+            (princ (strcat "\n使用“" (vla-get-PropertyName prop) "”设置" kind "。名称一致的状态自动对应。"))
+            (if (setq states (EL:TemplateStates (EL:AllowedValues prop) options annotation kind))
+              (list (cons 'name name) (cons 'property (vla-get-PropertyName prop))
+                (cons 'source-handle (cdr (assoc 5 (entget e))))
+                (cons 'definition (EL:Signature (EL:DefinitionData name nil))) (cons 'states states)))))))))
 (defun EL:FixedOutputs (circuits / out c)
   (foreach c circuits
     (setq out (cons (list (cons 'circuit-id (EL:Get 'id c)) (cons 'label (EL:Get 'id c))
@@ -73,7 +104,7 @@
   (defun *error* (msg) (EL:ClearPickHighlights) (if msg (princ msg)) (princ))
   (if (and (setq cfg (EL:LoadConfig)) (setq annotation (EL:FixedText)))
     (progn
-      (princ "\n固定模板：mm；首行(6427,-5500)，间距1200；预留不创建功率文字。")
+      (princ "\n设置系统图模板：依次选择箱体和回路样本，名称一致的状态自动对应。单位固定 mm。")
       (setq pick (EL:PickEntity "\n可拾取 TEXT 外观样本，Enter 使用当前文字样式："))
       (if pick
         (progn
@@ -89,8 +120,11 @@
       (if panel (setq circuit (EL:FixedCapture "fghjftyuk" '(normal ground reserve) annotation)))
       (setq template (list (cons 'panel panel) (cons 'circuit circuit) '(step 0.0 -1200.0 0.0)
         '(actual-format . "{回路功率W}W") '(reserve-format . "预留") '(layer . "EL-SYSTEM")))
-      (if (and panel circuit (EL:TemplateRuntimeValid template cfg))
-        (progn (EL:SaveConfig (EL:Put 'template template cfg))
-          (princ "\n六档映射已保存；需在真实模板中核对母线覆盖和各档可见图形。"))
-        (princ "\n模板未保存：请核对指定动态块、六档允许值及文字样式。"))))
+      (cond
+        ((not (and panel circuit)) (princ "\n本次模板设置未完成，原模板保持不变。"))
+        ((not (EL:TemplateRuntimeValid template cfg))
+          (princ "\n模板校验未通过，未保存。请核对样本状态、文字样式及输出图层是否可用。"))
+        ((EL:SaveConfig (EL:Put 'template template cfg))
+          (princ "\n模板设置已保存：箱体容量和回路类型已对应。生成时请核对实际图形。"))
+        (T (princ "\n模板配置写入失败，未完成保存；请检查配置目录是否可写。")))))
   (EL:ClearPickHighlights) (princ))

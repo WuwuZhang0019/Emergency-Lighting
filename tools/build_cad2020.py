@@ -4,7 +4,7 @@ import shutil
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGE_NO = 26
+PACKAGE_NO = 27
 NAME = f'应急照明-{PACKAGE_NO:03d}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 DEST = ROOT / 'output' / NAME
@@ -77,7 +77,8 @@ def build():
         shutil.copy2(ROOT / 'tests/evidence' / filename, DEST / 'tests/evidence' / filename)
     for filename in ('05_常见错误原因与修复速查.md', '06_固定图块系统图与功率标注自动更新方案.md'):
         shutil.copy2(ROOT / 'docs' / filename, DEST / 'docs' / filename)
-    for filename in ('2026-10-09-fixed-diagram.md', '2026-10-09-fixed-diagram.json', '2026-10-09-panel-stringp-nil.md'):
+    for filename in ('2026-10-09-fixed-diagram.md', '2026-10-09-fixed-diagram.json',
+                     '2026-10-09-panel-stringp-nil.md', '2026-10-09-template-choices.md'):
         shutil.copy2(ROOT / 'tests/evidence' / filename, DEST / 'tests/evidence' / filename)
     readme = guide
     (DEST / '使用说明.md').write_text(readme, encoding='utf-8')

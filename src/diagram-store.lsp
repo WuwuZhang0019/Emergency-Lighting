@@ -142,11 +142,41 @@
       (EL:LogCall "UNDO_END" nil 'vla-EndUndoMark (list doc))
       (setq *EL:TransactionOpen* nil *EL:TransactionDirty* nil *EL:Created* nil)
       outcome)))
+(defun EL:ArchiveInterruptedTransaction (/ entry entity name index)
+  ;; Date: 2026-10-09. Preserve the record and every existing drawing object.
+  (if (setq entry (dictsearch (namedobjdict) "EL_FIXED_TX"))
+    (progn
+      (setq entity (cdr (assoc -1 entry)) index 1 name "EL_FIXED_TX_INTERRUPTED_1")
+      (EL:Require (and entity (equal (cdr (assoc 0 entry)) "XRECORD")
+        (equal (cdr (assoc 1 entry)) "transaction")) "事务标记格式不符，未改动，请保留图纸排查。")
+      (while (dictsearch (namedobjdict) name)
+        (setq index (1+ index) name (strcat "EL_FIXED_TX_INTERRUPTED_" (itoa index))))
+      (EL:Require (dictrename (namedobjdict) "EL_FIXED_TX" name) "无法归档事务标记，未解除拦截。")
+      (EL:Require (and (not (dictsearch (namedobjdict) "EL_FIXED_TX"))
+        (equal entity (cdr (assoc -1 (dictsearch (namedobjdict) name))))) "事务标记归档回读失败，请停止生成。")
+      (setq *EL:TransactionOpen* nil *EL:TransactionDirty* nil *EL:Created* nil)
+      (EL:LogEvent "TRANSACTION_RECOVERED" (list (cons 'archive name)))
+      T)))
+(defun c:ELRECOVER (/ outcome answer)
+  (if (not (dictsearch (namedobjdict) "EL_FIXED_TX"))
+    (princ "\n未发现遗留事务标记，无需恢复。")
+    (progn
+      (princ "\n恢复会保留当前图形和草稿，归档旧事务标记；不会撤销或修复上次的部分修改。")
+      (initget "Yes No")
+      (setq answer (getkword "\n确认保留当前图纸内容并解除拦截？[Yes/No] <No>："))
+      (if (and answer (member (strcase answer) '("YES" "Y")))
+        (progn
+          (setq outcome (vl-catch-all-apply 'EL:ArchiveInterruptedTransaction nil))
+          (if (vl-catch-all-error-p outcome)
+            (princ (strcat "\n恢复未完成：" (vl-catch-all-error-message outcome)))
+            (if outcome (princ "\n旧事务标记已归档。请运行 ELSTAT 重新核对并生成；已有输出需检查完整性。"))))
+        (princ "\n已取消恢复，图纸未改动。"))))
+  (princ))
 (defun EL:Transaction (function args / doc outcome rollback stack)
   ;; Date: 2026-10-09. Catch start, write and commit together. Never let an
   ;; error during rollback hide the original failure or report success.
   (setq doc (vla-get-ActiveDocument (vlax-get-acad-object)) stack *EL:LogStack*)
-  (EL:Require (not (dictsearch (namedobjdict) "EL_FIXED_TX")) "检测到未结束的系统图事务，请先 UNDO 或恢复图纸。")
+  (EL:Require (not (dictsearch (namedobjdict) "EL_FIXED_TX")) "上次中断留下事务标记。输入 ELRECOVER 可保留当前图纸并归档标记，再运行 ELSTAT。")
   (setq outcome (vl-catch-all-apply 'EL:TransactionRun (list doc function args)))
   (if (vl-catch-all-error-p outcome)
     (progn

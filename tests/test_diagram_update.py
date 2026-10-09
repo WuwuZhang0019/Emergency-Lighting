@@ -273,6 +273,61 @@ class UpdateTests(unittest.TestCase):
         self.assertIn('自动撤销未完成', ''.join(messages))
         self.assertTrue(truth(self.h.lookup('*EL:TRANSACTIONOPEN*')))
 
+    def install_interrupted_marker(self):
+        self.install_transaction()
+        self.h.run('(setq marker (entmakex \'((0 . "XRECORD") (100 . "AcDbXrecord") (1 . "transaction")))) (dictadd (namedobjdict) "EL_FIXED_TX" marker)')
+        def rename(_, old, new):
+            if new in self.dictionary or old not in self.dictionary:
+                return None
+            self.dictionary[new] = self.dictionary.pop(old)
+            return True
+        self.h.builtins['DICTRENAME'] = rename
+
+    def test_recovery_archives_marker_without_changing_graphics_or_store(self):
+        self.install_interrupted_marker()
+        self.dictionary['EL_FIXED_TX_INTERRUPTED_1'] = 'old-archive'
+        self.entities['old-archive'] = [Pair(0, 'XRECORD')]
+        before = copy.deepcopy(self.entities)
+        marker = self.dictionary['EL_FIXED_TX']
+        self.assertTrue(truth(self.h.run('(EL:ArchiveInterruptedTransaction)')))
+        self.assertEqual(self.entities, before)
+        self.assertEqual(self.dictionary['EL_FIXED_TX_INTERRUPTED_2'], marker)
+        self.assertNotIn('EL_FIXED_TX', self.dictionary)
+        self.assertEqual(self.undo, [])
+        self.assertTrue(truth(self.h.run("(EL:Transaction 'EL:StoreWrite (list store))")))
+        self.assertIn('EL_FIXED_V1', self.dictionary)
+        self.assertEqual(self.dictionary['EL_FIXED_TX_INTERRUPTED_2'], marker)
+
+    def test_recovery_cancel_keeps_marker_and_all_entities(self):
+        self.install_interrupted_marker()
+        before = copy.deepcopy((self.entities, self.dictionary))
+        self.h.builtins.update({'INITGET': lambda *args: None, 'GETKWORD': lambda *args: None})
+        self.h.run('(c:ELRECOVER)')
+        self.assertEqual((self.entities, self.dictionary), before)
+
+    def test_recovery_command_yes_archives_marker(self):
+        self.install_interrupted_marker()
+        self.h.builtins.update({'INITGET': lambda *args: None, 'GETKWORD': lambda *args: 'Yes'})
+        self.h.run('(c:ELRECOVER)')
+        self.assertNotIn('EL_FIXED_TX', self.dictionary)
+        self.assertIn('EL_FIXED_TX_INTERRUPTED_1', self.dictionary)
+
+    def test_recovery_rejects_unrecognized_marker(self):
+        self.install_interrupted_marker()
+        self.entities[self.dictionary['EL_FIXED_TX']] = [Pair(0, 'XRECORD'), Pair(1, 'foreign')]
+        before = copy.deepcopy((self.entities, self.dictionary))
+        with self.assertRaises(RuntimeError):
+            self.h.run('(EL:ArchiveInterruptedTransaction)')
+        self.assertEqual((self.entities, self.dictionary), before)
+
+    def test_recovery_failed_rename_keeps_blocker(self):
+        self.install_interrupted_marker()
+        before = copy.deepcopy((self.entities, self.dictionary))
+        self.h.builtins['DICTRENAME'] = lambda *args: None
+        with self.assertRaises(RuntimeError):
+            self.h.run('(EL:ArchiveInterruptedTransaction)')
+        self.assertEqual((self.entities, self.dictionary), before)
+
     def test_disabled_or_unclosed_undo_is_not_a_truthy_message(self):
         self.install_transaction()
         self.h.builtins['PRINC'] = lambda *args: args[0] if args else None

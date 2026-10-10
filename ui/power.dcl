@@ -90,6 +90,8 @@ el_fixed_exits : dialog {
 // Date: 2026-10-10. Status: implemented; unified block settings table.
 el_panel : dialog {
   label = "回路与图块设置";
+  : row {
+  : column {
   : radio_row { key = "p_capacity"; label = "当前配电箱容量档位";
     : radio_button { key = "p_300"; label = "0.3kW"; value = "1"; }
     : radio_button { key = "p_600"; label = "0.6kW"; }
@@ -146,5 +148,15 @@ el_panel : dialog {
     : button { key = "accept"; label = "保存"; is_default = true; }
     : button { key = "p_generate"; label = "生成或更新"; }
     : button { key = "cancel"; label = "取消"; is_cancel = true; }
+  }
+  }
+  : boxed_column { label = "保存记录（本图）";
+    : list_box { key = "h_records"; width = 40; fixed_width = true; height = 24; multiple_select = false; }
+    : text { key = "h_detail"; width = 40; fixed_width = true; }
+    : text { label = "单击记录查看；当前箱标有 [当前]。"; }
+    : text { label = "切换会保存当前草稿，不更新系统图。"; }
+    : text { label = "关闭图纸前请保存 DWG。"; }
+    : button { key = "h_open"; label = "保存当前并打开"; }
+  }
   }
 }

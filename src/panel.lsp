@@ -462,8 +462,49 @@
   (if (EL:PanelStoreSelections)
     (if (EL:Get 'circuits *EL:PanelDraft*) (done_dialog 1)
       (set_tile "p_error" "请至少保留一条实际出线。"))))
+;; Date: 2026-10-10. Saved records stay in this drawing; selection is read-only.
+(defun EL:HistoryState (record)
+  (cond ((equal (EL:Get 'status record) 'stale) "待更新")
+    ((EL:Get 'panel-output-handle record) "已生成") (T "草稿")))
+(defun EL:HistorySelect (value / record panel)
+  (setq *EL:HistoryIndex* (atoi value) record (nth *EL:HistoryIndex* *EL:HistoryRecords*)
+    panel (EL:Get 'source-panel-handle record))
+  (set_tile "h_detail" (if record (strcat "箱体标识：" panel " / " (EL:HistoryState record)) "本图暂无保存记录"))
+  (mode_tile "h_open" (if (and record (equal (EL:Get 'engine record) 'fixed)
+    (handent panel) (not (equal panel (EL:Get 'panel *EL:PanelDraft*)))) 0 1)))
+(defun EL:HistoryFill (/ record index selected panel)
+  (setq *EL:HistoryRecords* (EL:Get 'diagrams (EL:StoreRead)) index 0 selected 0)
+  (start_list "h_records")
+  (foreach record *EL:HistoryRecords*
+    (setq panel (EL:Get 'source-panel-handle record))
+    (if (equal panel (EL:Get 'panel *EL:PanelDraft*)) (setq selected index))
+    (add_list (strcat (if (equal panel (EL:Get 'panel *EL:PanelDraft*)) "[当前] " "")
+      "配电箱 " panel " | "
+      (itoa (length (cond ((EL:Get 'draft-circuits record)) (T (EL:ActualRows record)))))
+      " 回路 | " (EL:HistoryState record)))
+    (setq index (1+ index)))
+  (end_list)
+  (set_tile "h_records" (itoa selected))
+  (EL:HistorySelect (itoa selected)))
+(defun EL:HistoryOpen (/ record panel cfg result)
+  ;; Called only after done_dialog: recognition and DWG transactions need CAD context.
+  (setq record (nth *EL:HistoryIndex* *EL:HistoryRecords*) panel (EL:Get 'source-panel-handle record)
+    cfg (EL:Get 'config record))
+  (EL:Require (and record (equal (EL:Get 'engine record) 'fixed) (handent panel))
+    "来源配电箱不存在或记录类型不支持，未切换。")
+  (setq result (EL:RecognizeFixed cfg panel))
+  (EL:Require (EL:Get 'circuits result) "目标配电箱未识别到有效回路，未切换。")
+  (EL:Require (EL:FreshResult *EL:PanelDraft* *EL:PanelConfig*)
+    "当前平面已变化，请先重新统计；未切换。")
+  (EL:Require (EL:RememberPanelPowers *EL:PanelDraft* *EL:PanelPowers*)
+    "当前功率缓存写入失败，请检查目录权限；未切换。")
+  (EL:Require (EL:SaveDraft (EL:Put 'can-generate nil *EL:PanelDraft*)
+    *EL:PanelConfig* *EL:PanelPowers* *EL:PanelCapacity*) "当前草稿保存失败，未切换。")
+  (princ "\n当前草稿已保存到本图；系统图需生成或更新，关闭前请保存 DWG。")
+  (list (cons 'switch-result result) (cons 'switch-config cfg)))
 ;; Date: 2026-10-10. All picked circuits enter the panel without exit selection.
-(defun EL:PanelDialog (result cfg powers capacity / dialog status i key row captured
+(defun EL:PanelDialog (result cfg powers capacity / dialog status i key row captured switched
+    *EL:HistoryRecords* *EL:HistoryIndex*
     *EL:PanelDraft* *EL:PanelPowers* *EL:PanelCapacity* *EL:PanelConfig*
     *EL:PanelIndex* *EL:PanelPage* *EL:PanelDevice* *EL:PanelTemplateReady*
     *EL:FixedExitResult* *EL:FixedExitSelection* *EL:ExitSnapshot* *EL:ThumbRows* *EL:ThumbPage* *EL:ThumbCache* *EL:ThumbLocate*)
@@ -485,6 +526,9 @@
       (progn
         (EL:LogCall "PANEL_FILL" (list (cons 'panel (EL:Get 'panel result))
           (cons 'circuits (length (EL:Get 'circuits *EL:PanelDraft*)))) 'EL:PanelFill nil) (setq i 0)
+        (EL:HistoryFill)
+        (action_tile "h_records" "(EL:HistorySelect $value)")
+        (action_tile "h_open" "(if (EL:PanelStore) (done_dialog 8))")
         (EL:ThumbActions)
         (action_tile "f_prev" "(EL:PanelBlockPage -4)")
         (action_tile "f_next" "(EL:PanelBlockPage 4)")
@@ -500,6 +544,12 @@
         (action_tile "p_generate" "(EL:PanelGenerate)")
         (action_tile "cancel" "(done_dialog 0)")
         (setq status (start_dialog))
+        (if (= status 8)
+          (progn
+            (setq switched (vl-catch-all-apply 'EL:HistoryOpen nil))
+            (if (vl-catch-all-error-p switched)
+              (progn (alert (strcat "打开记录未完成：" (vl-catch-all-error-message switched)))
+                (setq switched nil status 7)))))
         (if (= status 6) (progn (EL:ThumbLocatePreview) (setq status 7)))
         (if (= status 4)
           (progn
@@ -521,5 +571,6 @@
       (setq status 0)))
   (EL:ThumbCleanup)
   (if (> dialog 0) (unload_dialog dialog)) (setq *EL:DialogID* nil)
-  (if (member status '(1 2)) (list (cons 'result *EL:PanelDraft*) (cons 'powers *EL:PanelPowers*)
-    (cons 'config *EL:PanelConfig*) (cons 'capacity *EL:PanelCapacity*) (cons 'generate (= status 2)))))
+  (if switched switched
+    (if (member status '(1 2)) (list (cons 'result *EL:PanelDraft*) (cons 'powers *EL:PanelPowers*)
+      (cons 'config *EL:PanelConfig*) (cons 'capacity *EL:PanelCapacity*) (cons 'generate (= status 2))))))

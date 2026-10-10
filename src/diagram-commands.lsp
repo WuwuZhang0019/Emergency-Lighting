@@ -55,7 +55,13 @@
   (EL:LogCall "CCKK2" (list (cons 'circuits (length (EL:Get 'circuits result)))
       (cons 'watts (mapcar '(lambda (row) (EL:Get 'watts row)) (EL:Get 'circuits result))))
     'EL:SyncDiagram (append request '(T T))))
-(defun EL:EditPanel (result cfg / *error* store record powers capacity edited prepared saved ownlog syncable template)
+(defun EL:EditPanel (result cfg / next)
+  ;; Date: 2026-10-10. Iterate saved-record navigation without nested dialogs.
+  (while result
+    (setq *EL:Result* result *EL:FixedConfig* cfg)
+    (setq next (EL:EditPanelOnce result cfg)
+      result (EL:Get 'switch-result next) cfg (EL:Get 'switch-config next))))
+(defun EL:EditPanelOnce (result cfg / *error* store record powers capacity edited prepared saved ownlog syncable template)
   (defun *error* (msg)
     (EL:LogFailure msg)
     (vl-catch-all-apply 'EL:ClearGapPreview nil)
@@ -82,7 +88,7 @@
   (setq cfg (EL:Put 'template template cfg))
   (if (setq edited (EL:LogCall "PANEL_DIALOG" (list (cons 'panel (EL:Get 'panel result)))
       'EL:PanelDialog (list prepared cfg powers capacity)))
-    (progn
+    (if (not (EL:Get 'switch-result edited)) (progn
       (setq result (EL:Get 'result edited) powers (EL:Get 'powers edited) capacity (EL:Get 'capacity edited)
         cfg (cond ((EL:Get 'config edited)) (T cfg))
         syncable (and (EL:Get 'can-generate result) (EL:SelectionsReady result capacity)
@@ -115,11 +121,12 @@
                   (princ "\n主面板已保存到本图；关闭图纸前请保存 DWG。")))))
           (if (not saved) (princ "\n本次保存或生成未完成，未报告成功；请查看上方原因后重试。")))
         (progn (EL:MarkStale (EL:Get 'panel result) 'source-changed)
-          (alert "源图状态已变化，回路草稿未保存，请重新统计。已填写功率已尝试单独记住。")))))
+          (alert "源图状态已变化，回路草稿未保存，请重新统计。已填写功率已尝试单独记住。"))))))
   (if (and (not edited) (EL:Get 'panel-output-handle record))
     (EL:MarkStale (EL:Get 'panel result) 'review-cancelled))
   (EL:ClearPickHighlights)
-  (if ownlog (EL:LogFinish (if edited 'panel-accepted 'panel-cancelled))) (princ))
+  (if ownlog (EL:LogFinish (if edited 'panel-accepted 'panel-cancelled)))
+  (if (EL:Get 'switch-result edited) edited))
 (defun EL:PublishDiagram (result cfg / store record powers capacity)
   (setq store (EL:StoreRead) record (EL:DiagramForPanel (EL:Get 'panel result) store))
   (if record

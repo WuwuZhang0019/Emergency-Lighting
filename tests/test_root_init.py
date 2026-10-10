@@ -256,6 +256,60 @@ class PackagedUpdateTests(RootFixture):
             cls.builder.build()
         cls.update = (cls.built / cls.builder.UPDATE_NAME).read_bytes().decode('gb2312')
 
+    def run_startup(self, directory=None, registry_error=False, search=False):
+        self.h.functions.clear()
+        def registry(key, value):
+            self.assertEqual(key, r'HKEY_CURRENT_USER\Software\Autodesk\AutoCAD\Test\Profiles\中文配置\Dialogs\Appload')
+            self.assertEqual(value, 'MainDialog')
+            if registry_error: raise RuntimeError('registry unavailable')
+            return directory
+        original=self.h.builtins['FINDFILE']
+        self.h.builtins.update({
+            'VLAX-PRODUCT-KEY':lambda:r'Software\Autodesk\AutoCAD\Test',
+            'VL-REGISTRY-READ':registry,
+            'FINDFILE':lambda path: (self.built/path).as_posix() if search and path==f'package-{self.builder.PACKAGE_NO:03d}.marker' else original(path),
+        })
+        self.drawing['CPROFILE']='中文配置'
+        self.h.run((self.built/'START-CAD2020.lsp').read_bytes().decode('gb2312'))
+
+    def test_startup_appload_folder_needs_no_file_selection_and_can_start(self):
+        self.run_startup(self.built.as_posix()+'/')
+        self.assertEqual(pathlib.Path(self.h.lookup('*EL:ROOT*')).resolve(),self.built.resolve())
+        self.assertEqual(self.dialogs,[])
+        self.assertNotIn('输入 CCKK',''.join(self.messages))
+        self.assertIn('输入 ELSTAT',''.join(self.messages))
+        self.h.run('(c:ELSTAT)')
+        self.assertEqual(self.dialogs,[])
+        self.assertEqual(len(self.picks),1)
+
+    def test_startup_from_src_folder_and_old_root_selects_new_package(self):
+        self.h.frames[0]['*EL:ROOT*']=self.root
+        self.run_startup((self.built/'src').as_posix())
+        self.assertEqual(pathlib.Path(self.h.lookup('*EL:ROOT*')).resolve(),self.built.resolve())
+        self.assertEqual(self.dialogs,[])
+
+    def test_startup_search_path_works_when_registry_unavailable(self):
+        self.run_startup(registry_error=True,search=True)
+        self.assertEqual(pathlib.Path(self.h.lookup('*EL:ROOT*')).resolve(),self.built.resolve())
+        self.assertEqual(self.dialogs,[])
+
+    def test_startup_wrong_version_does_not_silently_reuse_old_root(self):
+        self.h.frames[0]['*EL:ROOT*']=self.root
+        self.selections=iter([None])
+        self.run_startup(self.root)
+        self.assertIsNone(self.h.lookup('*EL:ROOT*'))
+        self.assertEqual(len(self.dialogs),1)
+        self.assertIn('未确认插件目录',''.join(self.messages))
+
+    def test_startup_incomplete_package_requires_repair(self):
+        marker=self.package/f'package-{self.builder.PACKAGE_NO:03d}.marker'
+        marker.write_text('test',encoding='ascii')
+        (self.package/'ui/power.dcl').unlink()
+        self.selections=iter([None])
+        self.run_startup(self.root)
+        self.assertIsNone(self.h.lookup('*EL:ROOT*'))
+        self.assertEqual(len(self.dialogs),1)
+
     def test_standalone_update_initializes_root_then_setup_reaches_actual_pick(self):
         # A fresh drawing/session has no definitions and no *EL:Root*.
         self.h.functions.clear()

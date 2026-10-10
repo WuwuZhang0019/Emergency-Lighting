@@ -4,7 +4,7 @@ import shutil
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGE_NO = 61
+PACKAGE_NO = 62
 NAME = f'应急照明-{PACKAGE_NO:03d}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 DEST = ROOT / 'output' / NAME
@@ -39,22 +39,23 @@ def build():
     (DEST / 'CCKK.lsp').write_bytes(standalone)
     shutil.copy2(ROOT / 'ui/box-ui-011.marker', DEST / 'ui/box-ui-011.marker')
     shutil.copy2(ROOT / 'ui/diagram-ui-044.marker', DEST / 'ui/diagram-ui-044.marker')
+    marker = f"package-{PACKAGE_NO:03d}.marker"
+    (DEST / marker).write_text(f"Emergency-Lighting {PACKAGE_NO}\n", encoding="ascii")
     # Keep an existing valid data root; initialize it for a standalone update.
     # All modules are included; readiness requires a complete package directory.
-    modules = ('common', 'config', 'geometry', 'topology', 'statistics', 'generation', 'main', 'simple', 'fixed', 'panel', 'diagram-store', 'diagram-update', 'diagram-commands', 'insert-circuit')
+    modules = ('common', 'config', 'geometry', 'topology', 'statistics', 'generation', 'main', 'simple', 'fixed', 'panel', 'diagram-store', 'diagram-update', 'diagram-commands', 'insert-circuit', 'startup')
     update = (';; Date: 2026-10-10. Validate or initialize the plugin data root.\n'
               '(vl-load-com)\n' + '\n'.join(
                   (DEST / 'src' / f'{module}.lsp').read_bytes().decode('gb2312') for module in modules) +
               '\n(EL:ClearPickHighlights)\n(setq *EL:Result* nil *EL:DeviceResult* nil)\n'
               '(if (EL:EnsureRoot)\n'
-              f'  (princ "\\n已加载（CAD2020 v{PACKAGE_NO}）：目录已确认。输入 CCKK 插入配电回路图块；ELSTAT 进入统计。")\n'
+              f'  (princ "\\n已加载（CAD2020 v{PACKAGE_NO}）：目录已确认。输入 ELSTAT 开始统计。")\n'
               f'  (princ "\\nCAD2020 v{PACKAGE_NO} 模块已载入，但未确认插件目录。运行 ELSETUP 或 ELSTAT 后选择完整包内的 src/load.lsp。"))\n'
               '(princ)\n')
     (DEST / UPDATE_NAME).write_bytes(update.encode('gb2312'))
-    # Date: 2026-10-09. One APPLOAD file, no recursive module LOAD calls.
-    # Selecting src/load.lsp only locates package data; it is not executed again.
+    # Date: 2026-10-10. Resolve APPLOAD folder, then validate version and assets.
     startup = update.replace('(if (EL:EnsureRoot)',
-                             '(setq *EL:Root* nil)\n(if (EL:EnsureRoot)', 1)
+                             f'(if (EL:StartupRoot "{marker}")', 1)
     (DEST / 'START-CAD2020.lsp').write_bytes(startup.encode('gb2312', errors='strict'))
     (DEST / 'src/load.lsp').write_bytes(startup.encode('gb2312', errors='strict'))
     guide = (ROOT / 'docs/03_加载使用与验收说明.md').read_text(encoding='utf-8')
@@ -83,7 +84,7 @@ def build():
                      '2026-10-09-store-readback-046.md', '2026-10-09-store-readback-046.json', '2026-10-09-cckk-generation-052.md', '2026-10-09-cckk-command-053.md', '2026-10-09-cckk-captions-054.md',
                      '2026-10-10-transaction-memory-055.md', '2026-10-10-direct-placement-056.md',
                      '2026-10-10-power-text-rollback-057.md', '2026-10-10-diagram-view-058.md',
-                     '2026-10-10-deleted-diagram-059.md', '2026-10-10-device-contact-060.md', '2026-10-10-circuit-numbers-061.md'):
+                     '2026-10-10-deleted-diagram-059.md', '2026-10-10-device-contact-060.md', '2026-10-10-circuit-numbers-061.md', '2026-10-10-startup-062.md'):
         shutil.copy2(ROOT / 'tests/evidence' / filename, DEST / 'tests/evidence' / filename)
     readme = guide
     (DEST / '使用说明.md').write_text(readme, encoding='utf-8')

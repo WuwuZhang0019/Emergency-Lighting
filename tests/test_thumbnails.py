@@ -1,4 +1,4 @@
-"""Native thumbnail capture and modal paging. Date: 2026-10-09."""
+"""Native thumbnail capture and modal paging. Date: 2026-10-10."""
 import unittest
 import test_fixed_diagnostics as diagnostics
 
@@ -29,7 +29,7 @@ class ThumbnailTests(unittest.TestCase):
           ((name . "C") (count . 3)) ((name . "D") (count . 4)) ((name . "E") (count . 5))))''')
         self.call('EL:ThumbFill')
         self.assertEqual(self.tiles['f_page'], '1 / 2')
-        self.assertEqual(self.tiles['f_hint0'], '图面实景，点击放大')
+        self.assertEqual(self.tiles['f_hint0'], '独立图例，点击定位')
         self.call('EL:ThumbPage', 4)
         self.assertEqual(self.tiles['f_count0'], '数量：5')
         self.assertEqual(self.tiles['f_count1'], '')
@@ -62,6 +62,9 @@ class ThumbnailTests(unittest.TestCase):
             'VLAX-GET-ACAD-OBJECT': lambda: 'acad',
             'VLA-ZOOMPREVIOUS': lambda app: self.events.append('restore'),
             'COMMAND-S': command,
+            'EL:THUMBISOLATE': lambda block: self.events.append('isolate'),
+            'VLA-GET-ACTIVEDOCUMENT': lambda app: 'doc',
+            'VLA-REGEN': lambda *args: None,
             'VL-FILE-DELETE': lambda path: self.events.append(('delete', path)),
         })
 
@@ -69,7 +72,7 @@ class ThumbnailTests(unittest.TestCase):
         self.capture_setup()
         result = self.call('EL:ThumbCapture', self.h.run("'((bounds (0 0 0) (2 2 0)))"))
         self.assertEqual(result, ['unique.sld', [1200, 600]])
-        self.assertEqual(self.events, ['zoom', ('_.MSLIDE', 'unique.sld'), 'restore'])
+        self.assertEqual(self.events, ['isolate', 'zoom', ('_.MSLIDE', 'unique.sld'), 'restore'])
         self.assertEqual(self.variables['FILEDIA'], 1)
         self.assertEqual(self.variables['CMDECHO'], 1)
         self.call('EL:ThumbCleanup')
@@ -81,6 +84,36 @@ class ThumbnailTests(unittest.TestCase):
         self.assertEqual(self.events[-1], 'restore')
         self.assertEqual(self.variables['FILEDIA'], 1)
         self.assertEqual(self.variables['CMDECHO'], 1)
+
+    def test_isolation_hides_only_visible_neighbors_and_restores_on_capture_error(self):
+        self.capture_setup(fail=True)
+        self.h.builtins.pop('EL:THUMBISOLATE')
+        visible = {'target': -1, 'wire': -1, 'hidden': 0}
+        self.h.builtins.update({
+            'HANDENT': lambda handle: handle,
+            'ENTGET': lambda entity: self.h.run("'((410 . \"Model\"))"),
+            'SSGET': lambda *args: ['target', 'wire', 'hidden'],
+            'SSLENGTH': len,
+            'SSNAME': lambda selection, index: selection[index],
+            'VLAX-ENAME->VLA-OBJECT': lambda entity: entity,
+            'VLA-GET-VISIBLE': lambda obj: visible[obj],
+            'VLA-PUT-VISIBLE': lambda obj, value: visible.__setitem__(obj, value),
+        })
+        def capture(*args):
+            self.assertEqual(visible, {'target': -1, 'wire': 0, 'hidden': 0})
+            raise RuntimeError('cancelled')
+        self.h.builtins['COMMAND-S'] = capture
+        self.assertIsNone(self.call('EL:ThumbCapture', self.h.run("'((id . \"target\") (bounds (0 0 0) (2 2 0)))")))
+        self.assertEqual(visible, {'target': -1, 'wire': -1, 'hidden': 0})
+
+    def test_failed_restore_retains_pending_objects_for_retry(self):
+        self.h.run("""(setq *EL:ThumbHidden* '(("wire" -1)))""")
+        self.h.builtins['VLA-PUT-VISIBLE'] = lambda *args: None
+        self.h.builtins['VLA-GET-VISIBLE'] = lambda obj: 0
+        self.assertIsNone(self.call('EL:ThumbRestore'))
+        self.assertTrue(self.h.frames[0]['*EL:THUMBHIDDEN*'])
+        self.h.builtins['VLA-GET-VISIBLE'] = lambda obj: -1
+        self.assertTrue(self.call('EL:ThumbRestore'))
 
 
 if __name__ == '__main__':

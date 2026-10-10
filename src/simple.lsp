@@ -9,7 +9,7 @@
         (EL:Get 'direction ep) (EL:Get 'Dmax (EL:Get 'params cfg)))))))
   candidates)
 
-(defun EL:SimpleCollect (cfg / ss i e d bounds items tree wires ends blocks candidates wire candidate id issues block)
+(defun EL:SimpleCollect (cfg / ss i e d bounds items tree wires ends blocks candidates wire candidate id issues block queue current)
   ;; Collect only the sampled wire layer and whole INSERT bounds. No role library,
   ;; outside-layer paths, dynamic-state signatures or block contents are needed.
   (setq ss (ssget "_X" '((410 . "Model") (0 . "INSERT,LINE,LWPOLYLINE"))) i 0)
@@ -37,6 +37,18 @@
                 block (list (cons 'id id) (cons 'name (EL:EffectiveName (EL:Get 'entity candidate)))
                   (cons 'layer (EL:Get 'layer candidate)) (cons 'bounds (EL:Get 'bounds candidate)) (cons 'whole-block T)))
           (setq blocks (cons block blocks))))))
+  ;; Date: 2026-10-10. Expand the candidate set along touching device chains.
+  (setq queue blocks)
+  (while queue
+    (setq current (car queue) queue (cdr queue))
+    (foreach candidate (EL:SpatialBoxQuery tree (EL:Get 'bounds current) (EL:GapEpsilon))
+      (setq id (EL:Get 'key candidate))
+      (if (not (member id candidates))
+        (progn
+          (setq candidates (cons id candidates) *EL:SimpleEntity* (list id 'block-name)
+                block (list (cons 'id id) (cons 'name (EL:EffectiveName (EL:Get 'entity candidate)))
+                  (cons 'layer (EL:Get 'layer candidate)) (cons 'bounds (EL:Get 'bounds candidate)) (cons 'whole-block T))
+                blocks (cons block blocks) queue (cons block queue))))))
   (EL:LogEvent "SIMPLE_COUNTS" (list (cons 'wires (length wires)) (cons 'blocks (length blocks)) (cons 'issues issues)))
   (list (cons 'drawing (EL:DrawingID)) (cons 'wires wires) (cons 'blocks blocks) (cons 'ends ends) (cons 'issues issues)))
 
@@ -91,6 +103,14 @@
       (setq items (cons (list (cons 'key (EL:Get 'id block)) (cons 'block block) (cons 'bounds bounds)
         (cons 'point (EL:V* 0.5 (EL:V+ (car bounds) (cadr bounds))))) items))))
   (setq tree (EL:SpatialTree items 0))
+  ;; Date: 2026-10-10. Touching whole devices conduct without an intervening wire.
+  ;; Use numerical epsilon only; never bridge a visible gap or join through the panel.
+  (foreach block blocks
+    (if (and (not (equal (EL:Get 'id block) panel)) (EL:Get 'bounds block))
+      (foreach other (EL:SpatialBoxQuery tree (EL:Get 'bounds block) (EL:GapEpsilon))
+        (if (and (not (equal (EL:Get 'key other) panel))
+                 (< (EL:Get 'id block) (EL:Get 'key other)))
+          (setq edges (cons (EL:Edge (EL:Get 'id block) (EL:Get 'key other)) edges))))))
   (foreach wire wires
     (foreach other (EL:SpatialBoxQuery tree (EL:SegmentBounds (EL:Get 'segments wire)) (max tol (EL:Get 'eps_boundary (EL:Get 'params cfg))))
       (setq block (EL:Get 'block other))

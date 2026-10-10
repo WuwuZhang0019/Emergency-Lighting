@@ -421,7 +421,6 @@
           (setq i (1+ i)))
         (setq i 0)
         (action_tile "f_preview" "(if (EL:PanelStore) (done_dialog 5))")
-        (action_tile "p_prev" "(EL:PanelPage -8)") (action_tile "p_next" "(EL:PanelPage 8)")
         (action_tile "p_capacity" "(EL:PanelCapacity $value)")
         (action_tile "accept" "(EL:PanelAccept)")
         (action_tile "p_generate" "(EL:PanelGenerate)")

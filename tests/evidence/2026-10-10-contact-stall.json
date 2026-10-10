@@ -1,0 +1,312 @@
+{
+  "date": "2026-10-10",
+  "status": "passed",
+  "scope": "v70 contact stall targeted CAD adapters",
+  "test_count": 74,
+  "tests": [
+    {
+      "test": "test_contact_reuse.ContactReuseTests.test_cancel_during_bounds_retains_device_and_segment_count",
+      "status": "passed"
+    },
+    {
+      "test": "test_contact_reuse.ContactReuseTests.test_device_contact_stops_after_first_exact_hit",
+      "status": "passed"
+    },
+    {
+      "test": "test_contact_reuse.ContactReuseTests.test_holes_and_elevation_translate_and_each_pass_reloads_geometry",
+      "status": "passed"
+    },
+    {
+      "test": "test_contact_reuse.ContactReuseTests.test_large_bounds_do_not_allocate_lists_per_endpoint_and_report_progress",
+      "status": "passed"
+    },
+    {
+      "test": "test_contact_reuse.ContactReuseTests.test_native_extents_skip_contact_bounds_scan_but_do_not_prove_contact",
+      "status": "passed"
+    },
+    {
+      "test": "test_contact_reuse.ContactReuseTests.test_occupied_endpoint_does_not_expand_more_device_geometry",
+      "status": "passed"
+    },
+    {
+      "test": "test_contact_reuse.ContactReuseTests.test_rotation_scale_and_anonymous_definitions_are_not_interchanged",
+      "status": "passed"
+    },
+    {
+      "test": "test_contact_reuse.ContactReuseTests.test_twelve_translated_instances_expand_and_find_rings_once",
+      "status": "passed"
+    },
+    {
+      "test": "test_device_contact.DeviceContactTests.test_changed_geometry_with_same_bounds_changes_signature",
+      "status": "passed"
+    },
+    {
+      "test": "test_device_contact.DeviceContactTests.test_circle_bounds_overlap_but_circles_do_not_touch",
+      "status": "passed"
+    },
+    {
+      "test": "test_device_contact.DeviceContactTests.test_corner_overlap_and_containment_connect",
+      "status": "passed"
+    },
+    {
+      "test": "test_device_contact.DeviceContactTests.test_disconnected_touching_pair_stays_outside_circuit",
+      "status": "passed"
+    },
+    {
+      "test": "test_device_contact.DeviceContactTests.test_gap_and_different_elevation_do_not_connect",
+      "status": "passed"
+    },
+    {
+      "test": "test_device_contact.DeviceContactTests.test_near_wire_outside_actual_device_is_not_counted",
+      "status": "passed"
+    },
+    {
+      "test": "test_device_contact.DeviceContactTests.test_overlapping_bounds_without_real_contact_are_not_connected",
+      "status": "passed"
+    },
+    {
+      "test": "test_device_contact.DeviceContactTests.test_touch_chain_reaches_device_and_onward_wire_once",
+      "status": "passed"
+    },
+    {
+      "test": "test_device_contact.DeviceContactTests.test_touching_panel_does_not_create_device_connection",
+      "status": "passed"
+    },
+    {
+      "test": "test_linear_contour.LinearContourTests.test_build_cost_scales_linearly_without_sorting",
+      "status": "passed"
+    },
+    {
+      "test": "test_linear_contour.LinearContourTests.test_queries_preserve_all_candidates_including_shuffled_duplicates",
+      "status": "passed"
+    },
+    {
+      "test": "test_linear_contour.LinearContourTests.test_stream_bounds_match_xyz_extrema_without_append",
+      "status": "passed"
+    },
+    {
+      "test": "test_contact_index.ContactIndexTests.test_44_wires_48_blocks_reuse_contact_indexes_and_finish",
+      "status": "passed"
+    },
+    {
+      "test": "test_contact_index.ContactIndexTests.test_contact_index_prunes_large_contour_and_returns_on_first_hit",
+      "status": "passed"
+    },
+    {
+      "test": "test_contact_index.ContactIndexTests.test_failed_path_keeps_wire_block_and_progress_context",
+      "status": "passed"
+    },
+    {
+      "test": "test_contact_index.ContactIndexTests.test_prepared_predicates_match_frozen_v16_for_holes_concavity_z_and_crossings",
+      "status": "passed"
+    },
+    {
+      "test": "test_contact_index.ContactIndexTests.test_whole_physical_result_matches_legacy_and_does_not_store_indexes",
+      "status": "passed"
+    },
+    {
+      "test": "test_auto_wire.AutoWireTests.test_actual_contour_rejects_bbox_corner_and_other_elevation",
+      "status": "passed"
+    },
+    {
+      "test": "test_auto_wire.AutoWireTests.test_cancel_ambiguous_selection_returns_no_config",
+      "status": "passed"
+    },
+    {
+      "test": "test_auto_wire.AutoWireTests.test_fixed_entry_uses_one_pick_and_source_change_invalidates_result",
+      "status": "passed"
+    },
+    {
+      "test": "test_auto_wire.AutoWireTests.test_hidden_wire_is_not_an_auto_candidate",
+      "status": "passed"
+    },
+    {
+      "test": "test_auto_wire.AutoWireTests.test_inside_endpoint_and_middle_crossing_count",
+      "status": "passed"
+    },
+    {
+      "test": "test_auto_wire.AutoWireTests.test_mixed_contacts_highlight_and_require_choice_reject_unrelated_style",
+      "status": "passed"
+    },
+    {
+      "test": "test_auto_wire.AutoWireTests.test_no_contact_never_chooses_nearest_wire",
+      "status": "passed"
+    },
+    {
+      "test": "test_auto_wire.AutoWireTests.test_resolves_bylayer_and_model_space_byblock",
+      "status": "passed"
+    },
+    {
+      "test": "test_auto_wire.AutoWireTests.test_single_style_auto_detects_arbitrary_layer_and_filters_other_linetype",
+      "status": "passed"
+    },
+    {
+      "test": "test_auto_wire.AutoWireTests.test_unsupported_contour_falls_back_to_manual_sample",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_bent_polylines_continue_along_the_actual_broken_end_direction",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_block_inside_gap_is_not_skipped_by_wire_bounds_filter",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_collection_does_not_parse_outside_wire_layers",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_connected_system_joins_t_branches_and_groups_without_roles",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_device_middle_crossing_connects_without_role_review",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_dialog_preview_restores_current_row_and_unsaved_values",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_endpoint_on_device_does_not_continue_to_remote_wire",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_free_gap_ends_reconnect_when_opposite_ends_touch_panel_and_device",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_gap_does_not_jump_to_parallel_other_elevation_or_out_of_range_wire",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_gap_log_records_endpoint_coordinates_candidates_and_pair_count",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_legacy_summary_one_pick_and_one_table_then_remembers_powers",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_multiple_breaks_continue_past_middle_device_and_t_branch",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_noncollinear_crossing_in_gap_is_not_a_connection_or_blocker",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_other_wire_layer_and_bare_crossing_do_not_merge_systems",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_power_edit_requires_valid_values_and_keeps_zero",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimplePersistenceTests.test_corrupt_power_file_is_not_overwritten",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimplePersistenceTests.test_file_reload_and_merge_preserve_unrelated_block_types",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_cancelled_review_preserves_old_choices_and_marks_output_unupdated",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_cancelled_setup_returns_to_same_draft_without_saving",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_capacity_and_manual_no_restore_from_saved_draft",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_captured_config_reaches_sync_with_confirmed_choices",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_default_capacity_generates_without_extra_confirmation",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_drawing_template_cache_is_reused_for_other_box",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_elstat_opens_panel_without_any_model_pick",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_elstat_pick_action_reaches_recognized_panel",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_escape_during_setup_returns_to_panel_and_preserves_draft",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_existing_panel_returns_repick_request_without_saving",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_legacy_generation_retains_capacity_fallback_without_fixed_review",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_pick_button_closes_initial_panel_before_model_pick",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_prepared_record_template_is_reused_for_same_box",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_save_capacity_then_recognize_same_panel",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_save_complete_statistics_without_template_still_saves_draft",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_save_records_all_pages_without_changing_checkbox_values",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_shared_sync_rejects_unconfirmed_fixed_result",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_statistics_without_template_open_panel_without_setup_or_publication",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_successful_setup_returns_new_config_for_generation_without_repick",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_valid_template_is_reused_without_setup",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.SelectionStoreTests.test_draft_confirmation_and_shared_template_roundtrip_through_xrecord",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.SelectionStoreTests.test_missing_capacity_defaults_but_unconfirmed_types_remain_stale",
+      "status": "passed"
+    }
+  ],
+  "cad_status": "Original user drawing and native AutoCAD 2020 timings remain pending",
+  "sha256": {
+    "src/geometry.lsp": "ae406e482b004e1db9aac3055fec8bf8048350b16d8ff662c1cfa89a068efeb4",
+    "src/simple.lsp": "0da2d8857b19de15782789a678830321956c0351004520e60d36aeed0f73bc8f",
+    "src/diagram-update.lsp": "40cf1ef935095b445551de7c4a496f6aad806da8786a1d15678b806b47401f2a",
+    "tests/test_contact_reuse.py": "0e37d9d3530d1d069582b9718d645c3d65fed4842df98bc34ad5278e6bb98521",
+    "tools/build_cad2020.py": "5a1bb3ea94221c7b2e1bc2041c771579b08f8c162c60b9ad074bdbe394a2fceb"
+  }
+}

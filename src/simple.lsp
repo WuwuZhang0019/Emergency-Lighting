@@ -13,7 +13,8 @@
   (setq shape (EL:BlockContour entity '(1.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0)
     (EL:Get 'eps_boundary (EL:Get 'params cfg)) nil))
   (if (and (not (EL:Get 'issues shape)) (EL:Get 'segments shape))
-    (EL:Put 'regions (EL:ClosedRings (EL:Get 'segments shape)) shape)))
+    (EL:Put 'id (cdr (assoc 5 (entget entity)))
+      (EL:Put 'regions (EL:ClosedRings (EL:Get 'segments shape)) shape))))
 (defun EL:PanelWireCandidates (panel cfg / shape ss i e d wire rows)
   (setq shape (vl-catch-all-apply 'EL:PanelContactShape (list panel cfg)))
   (if (vl-catch-all-error-p shape) (setq shape nil))
@@ -120,9 +121,12 @@
   (EL:LogEvent "SIMPLE_COUNTS" (list (cons 'wires (length wires)) (cons 'blocks (length blocks)) (cons 'issues issues)))
   (list (cons 'drawing (EL:DrawingID)) (cons 'wires wires) (cons 'blocks blocks) (cons 'ends ends) (cons 'issues issues)))
 
-(defun EL:SimpleEndState (ep tree cfg / point occupied candidate)
+(defun EL:SimpleEndState (ep tree cfg / point occupied candidate candidates)
   (setq point (EL:Get 'point ep) occupied (EL:Get 'occupied ep))
-  (foreach candidate (EL:SpatialBoxQuery tree (list point point) (EL:Get 'eps_boundary (EL:Get 'params cfg)))
+  (if (not occupied)
+    (setq candidates (EL:SpatialBoxQuery tree (list point point) (EL:Get 'eps_boundary (EL:Get 'params cfg)))))
+  (while (and candidates (not occupied))
+    (setq candidate (car candidates) candidates (cdr candidates))
     (if (EL:SimpleDevicePointHit point (EL:Get 'block candidate) cfg) (setq occupied T)))
   ;; Only this endpoint is occupied; a connection elsewhere on its wire does
   ;; not prevent a free broken end from continuing to its unique counterpart.
@@ -145,17 +149,48 @@
         (cons 'paired-gaps (length (EL:Get 'pairs pairs))))))))
 
 ;; Date: 2026-10-10. Bounds only select candidates; visible geometry proves contact.
-(defun EL:DeviceContactShape (block / id saved shape)
+(defun EL:TranslateDeviceShape (shape offset / matrix)
+  ;; Date: 2026-10-10. Translation preserves closed rings, holes and resolution.
+  (setq matrix (list 1.0 0.0 0.0 1.0 (car offset) (cadr offset) (caddr offset) 1.0))
+  (list (cons 'segments (EL:TransformSegments (EL:Get 'segments shape) matrix))
+    (cons 'regions (mapcar '(lambda (ring) (EL:TransformSegments ring matrix)) (EL:Get 'regions shape)))
+    (cons 'holes (mapcar '(lambda (ring) (EL:TransformSegments ring matrix)) (EL:Get 'holes shape)))
+    (cons 'segment-bounds (mapcar '(lambda (point) (EL:V+ point offset)) (EL:Get 'segment-bounds shape)))
+    (cons 'issues (EL:Get 'issues shape))))
+(defun EL:DeviceContactShape (block / id saved shape entity matrix key origin template context)
   (setq id (EL:Get 'id block) saved (assoc id *EL:DeviceContactCache*))
   (if saved (cdr saved)
     (progn
-      (setq shape (vl-catch-all-apply 'EL:BlockContour
-        (list (cond ((EL:Get 'entity block)) (T (handent id)))
-          '(1.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0) 0.001 nil)))
-      (if (vl-catch-all-error-p shape) (setq shape nil))
+      (setq entity (cond ((EL:Get 'entity block)) (T (handent id)))
+        context (list (cons 'id id) (cons 'name (EL:Get 'name block)) (cons 'layer (EL:Get 'layer block))))
+      (EL:ContactProgress "read" 0 context)
+      ;; Cache only within this network pass and only for identical definition,
+      ;; rotation, scale and extrusion. Anonymous dynamic definitions stay distinct.
+      (if *EL:DeviceTemplateEnabled*
+        (progn
+          (setq matrix (vl-catch-all-apply 'EL:InsertMatrix (list entity)))
+          (if (and matrix (not (vl-catch-all-error-p matrix)))
+            (setq key (list (cdr (assoc 2 (entget entity))) (nth 0 matrix) (nth 1 matrix)
+              (nth 2 matrix) (nth 3 matrix) (nth 7 matrix))
+              origin (list (nth 4 matrix) (nth 5 matrix) (nth 6 matrix))
+              template (assoc key *EL:DeviceTemplateCache*)))))
+      (if template
+        (progn
+          (setq shape (EL:TranslateDeviceShape (caddr template) (EL:V- origin (cadr template))))
+          (EL:LogEvent "DEVICE_TEMPLATE_REUSE" context))
+        (progn
+          (setq shape (vl-catch-all-apply 'EL:BlockContour
+            (list entity '(1.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0) 0.001 nil)))
+          (if (vl-catch-all-error-p shape) (setq shape nil))
+          (if (and (EL:Get 'segments shape) (not (EL:Get 'issues shape)))
+            (setq shape (EL:Put 'regions (EL:LogCall "DEVICE_REGIONS"
+              (append context (list (cons 'segments (length (EL:Get 'segments shape)))))
+              'EL:ClosedRings (list (EL:Get 'segments shape))) shape)))))
       (if (EL:Get 'segments shape)
-        (setq shape (EL:PrepareContactBlock
-          (EL:Put 'regions (if (not (EL:Get 'issues shape)) (EL:ClosedRings (EL:Get 'segments shape))) shape))))
+        (setq shape (EL:PrepareContactBlock (EL:Put 'contact-envelope (EL:Get 'bounds block)
+          (EL:Put 'id id (EL:Put 'name (EL:Get 'name block) shape))))))
+      (if (and key (not template) (EL:Get 'segments shape) (not (EL:Get 'issues shape)))
+        (setq *EL:DeviceTemplateCache* (cons (list key origin shape) *EL:DeviceTemplateCache*)))
       (if (or (not (EL:Get 'segments shape)) (EL:Get 'issues shape))
         (EL:LogEvent "DEVICE_CONTACT_GEOMETRY" (list id (EL:Get 'issues shape) 'no-bounds-fallback)))
       (setq *EL:DeviceContactCache* (cons (cons id shape) *EL:DeviceContactCache*))
@@ -170,11 +205,14 @@
   (if (equal (EL:Get 'role block) 'panel) (EL:BlockPointHit point block cfg)
     (and (EL:BlockPointHit point block cfg)
       (EL:ContourPointHit point (EL:DeviceContactShape block) (EL:StrictDeviceConfig cfg)))))
-(defun EL:DevicesTouch (a b / sa sb seg edge hit)
+(defun EL:DevicesTouch (a b / sa sb seg edge hit segments candidates)
   (setq sa (EL:DeviceContactShape a) sb (EL:DeviceContactShape b))
-  (foreach seg (EL:Get 'segments sa)
-    (if (not hit)
-      (foreach edge (EL:ContactSegments sb (EL:SegmentBounds (list seg)))
+  (setq segments (EL:Get 'segments sa))
+  (while (and segments (not hit))
+    (setq seg (car segments) segments (cdr segments)
+      candidates (EL:ContactSegments sb (EL:SegmentBounds (list seg))))
+    (while (and candidates (not hit))
+      (setq edge (car candidates) candidates (cdr candidates))
         (if (and (<= (abs (- (caddr (car seg)) (caddr (car edge)))) (EL:GapEpsilon))
                  (<= (abs (- (caddr (cadr seg)) (caddr (cadr edge)))) (EL:GapEpsilon))
                  (or (EL:Touches (car seg) (list edge) (EL:GapEpsilon) (EL:GapEpsilon))
@@ -182,10 +220,10 @@
                      (EL:Touches (car edge) (list seg) (EL:GapEpsilon) (EL:GapEpsilon))
                      (EL:Touches (cadr edge) (list seg) (EL:GapEpsilon) (EL:GapEpsilon))
                      (EL:GapHitsSegment (car seg) (cadr seg) (car edge) (cadr edge))))
-          (setq hit T)))))
+          (setq hit T))))
   hit)
-(defun EL:SimpleNetwork (snapshot cfg panel / wires blocks block wire bounds items tree edges ends ep other occupied tol ztol rows pairs component *EL:DeviceContactCache*)
-  (setq wires (EL:Get 'wires snapshot) tol (EL:Get 'eps_touch (EL:Get 'params cfg)) ztol (EL:GapEpsilon))
+(defun EL:SimpleNetwork (snapshot cfg panel / wires blocks block wire bounds items tree edges ends ep other occupied tol ztol rows pairs component *EL:DeviceContactCache* *EL:DeviceTemplateCache* *EL:DeviceTemplateEnabled*)
+  (setq *EL:DeviceTemplateEnabled* T wires (EL:Get 'wires snapshot) tol (EL:Get 'eps_touch (EL:Get 'params cfg)) ztol (EL:GapEpsilon))
   (foreach block (EL:Get 'blocks snapshot)
     (setq blocks (cons (EL:Put 'role (if (equal (EL:Get 'id block) panel) 'panel 'device) block) blocks)))
   (setq blocks (reverse blocks) snapshot (EL:Put 'blocks blocks snapshot))

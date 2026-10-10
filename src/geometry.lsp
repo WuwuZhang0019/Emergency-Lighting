@@ -247,13 +247,27 @@
     (progn (setq a (car bounds) b (cadr bounds) z (caddr a))
       (EL:Segments (list (list (car a) (cadr a) z) (list (car b) (cadr a) z)
         (list (car b) (cadr b) z) (list (car a) (cadr b) z) (list (car a) (cadr a) z))))))
-(defun EL:SegmentBounds (segments / lo hi seg point)
-  ;; Date: 2026-10-08. Stream endpoints; no large APPLY/APPEND argument list.
+(defun EL:SegmentBounds (segments / xmin ymin zmin xmax ymax zmax seg point x y z count)
+  ;; Date: 2026-10-10. Scalar extrema avoid two temporary lists per endpoint.
+  (setq count 0)
   (foreach seg segments
     (foreach point seg
-      (if lo (setq lo (mapcar 'min lo point) hi (mapcar 'max hi point))
-        (setq lo point hi point))))
-  (if lo (list lo hi)))
+      (setq x (car point) y (cadr point) z (caddr point))
+      (if xmin
+        (setq xmin (min xmin x) ymin (min ymin y) zmin (min zmin z)
+              xmax (max xmax x) ymax (max ymax y) zmax (max zmax z))
+        (setq xmin x ymin y zmin z xmax x ymax y zmax z)))
+    (setq count (1+ count))
+    (if (and *EL:ContactContext* (= (rem count 4096) 0))
+      (EL:ContactProgress "bounds" count *EL:ContactContext*)))
+  (if xmin (list (list xmin ymin zmin) (list xmax ymax zmax))))
+(defun EL:ContactProgress (phase completed context)
+  (if *EL:LogActive*
+    (progn
+      (EL:LogEvent "CONTACT_PROGRESS" (list (cons 'phase phase) (cons 'completed completed) (cons 'object context)))
+      (vl-catch-all-apply 'grtext (list -1 (strcat "设备轮廓 "
+        (cond ((EL:Get 'id context)) (T "未知")) " / " (cond ((equal phase "read") "读取图块") ((equal phase "bounds") "计算范围")
+          ((equal phase "prepare") "准备接触检查") ((equal phase "ready") "准备完成") (T phase)) " / " (itoa completed)))))))
 ;; Contour order retains local adjacency. Balanced construction consumes each
 ;; item once, without sorting or copying sublists at every recursive level.
 (defun EL:ContourTree (items / *EL:ContourCursor*)
@@ -373,12 +387,21 @@
 (defun EL:ContactRings (rings / rows ring)
   (foreach ring rings (setq rows (cons (list ring (EL:XYBounds (EL:SegmentBounds ring))) rows)))
   (reverse rows))
-(defun EL:PrepareContourContact (block / segments bounds tree)
-  ;; Date: 2026-10-08. Build once per physical pass, never persist in snapshots.
-  (setq segments (EL:Get 'segments block)
-        bounds (EL:LogCall "CONTACT_BOUNDS" (EL:Get 'id block) 'EL:SegmentBounds (list segments)))
-  (if (>= (length segments) 64) (setq tree (EL:LogCall "CONTACT_TREE" (EL:Get 'id block) 'EL:ContourTree (list (EL:RingItems segments)))))
-  (append block (list (cons 'contact-ready T) (cons 'contact-segment-bounds (EL:XYBounds bounds))
+(defun EL:PrepareContourContact (block / segments bounds tree count *EL:ContactContext*)
+  ;; Date: 2026-10-10. Keep object identity/count in every expensive stage.
+  (setq segments (EL:Get 'segments block) count (length segments)
+        *EL:ContactContext* (list (cons 'id (EL:Get 'id block)) (cons 'name (EL:Get 'name block)) (cons 'segments count)))
+  (EL:ContactProgress "prepare" 0 *EL:ContactContext*)
+  (if (and *EL:LogActive* (>= count 4096))
+    (princ (strcat "\n正在检查设备 " (cond ((EL:Get 'id block)) (T "未知"))
+      "，轮廓 " (itoa count) " 段；可按 Esc 取消。")))
+  ;; Native INSERT extents are conservative broad-phase bounds only.
+  ;; Exact contact still tests sampled segments, closed rings and holes.
+  (setq bounds (cond ((EL:Get 'contact-envelope block)) ((EL:Get 'segment-bounds block))
+    (T (EL:LogCall "CONTACT_BOUNDS" *EL:ContactContext* 'EL:SegmentBounds (list segments)))))
+  (if (>= count 64) (setq tree (EL:LogCall "CONTACT_TREE" *EL:ContactContext* 'EL:ContourTree (list (EL:RingItems segments)))))
+  (EL:ContactProgress "ready" count *EL:ContactContext*)
+  (append block (list (cons 'segment-bounds bounds) (cons 'contact-ready T) (cons 'contact-segment-bounds (EL:XYBounds bounds))
     (cons 'contact-path-bounds (cond ((EL:Get 'bounds block)) (T bounds)))
     (cons 'contact-tree tree) (cons 'contact-regions (EL:ContactRings (EL:Get 'regions block)))
     (cons 'contact-holes (EL:ContactRings (EL:Get 'holes block))))))

@@ -41,18 +41,58 @@ class ContactReuseTests(unittest.TestCase):
         handles = [self.block('LAMP', 'D', str(i), [i*20., i*3., 0.]) for i in range(12)]
         contours = self.count('EL:BlockContour')
         rings = self.count('EL:ClosedRings')
+        preparations = self.count('EL:PrepareContourContact')
         expected = self.batch(handles, None)
         self.assertEqual(len(contours), 12)
         self.assertEqual(len(rings), 12)
-        contours.clear(); rings.clear()
+        contours.clear(); rings.clear(); preparations.clear()
         actual = self.batch(handles, True)
         self.assertEqual(len(contours), 1)
         self.assertEqual(len(rings), 1)
+        self.assertEqual(len(preparations), 1)
         for old, new in zip(expected, actual):
             for field in ('segments', 'regions', 'holes', 'segment-bounds'):
                 self.assertEqual(self.get(field, old), self.get(field, new))
             self.assertEqual(self.get('id', old), self.get('id', new))
+            for point in ([0., 0., 0.], [20., 3., 0.], [21., 3., 0.], [25., 3., 0.]):
+                self.assertEqual(truth(self.call('EL:ContourPointHit', point, old, self.cfg)),
+                                 truth(self.call('EL:ContourPointHit', point, new, self.cfg)))
         self.assertIsNone(self.h.lookup('*EL:DEVICETEMPLATECACHE*'))
+
+    def test_dense_shared_index_matches_uncached_contacts(self):
+        import math
+        handles = [self.block('LAMP', 'D', str(i), [i*20., 0., 0.]) for i in range(3)]
+        def contour(entity, *args):
+            x = float(entity)*20.
+            points = [[x+math.cos(i*math.tau/128), math.sin(i*math.tau/128), 0.] for i in range(128)]
+            return [Pair(Symbol('SEGMENTS'), [[points[i], points[(i+1)%128]] for i in range(128)])]
+        self.h.builtins['EL:BLOCKCONTOUR'] = contour
+        expected = self.batch(handles, None)
+        prepared = self.count('EL:PrepareContourContact')
+        actual = self.batch(handles, True)
+        self.assertEqual(len(prepared), 1)
+        self.assertTrue(self.get('contact-tree', actual[0]))
+        for old, new in zip(expected, actual):
+            for x in (0., 1., 2., 20., 21., 22., 40., 41.):
+                point = [x, 0., 0.]
+                self.assertEqual(truth(self.call('EL:ContourPointHit', point, old, self.cfg)),
+                                 truth(self.call('EL:ContourPointHit', point, new, self.cfg)))
+                wire = [Pair(Symbol('SEGMENTS'), [[[x, -2., 0.], [x, 2., 0.]]])]
+                self.assertEqual(truth(self.call('EL:ContourPathHit', wire, old, self.cfg)),
+                                 truth(self.call('EL:ContourPathHit', wire, new, self.cfg)))
+
+    def test_empty_panel_network_skips_unrelated_device_contours(self):
+        self.block('BOX', 'P', 'panel', [0., 0., 0.])
+        self.line('empty', [1., 0., 0.], [10., 0., 0.], 'W')
+        self.block('LAMP', 'D', 'remote', [100., 50., 0.])
+        self.block('LAMP', 'D', 'remote2', [102., 50., 0.])
+        self.line('remote-wire', [90., 50., 0.], [99., 50., 0.], 'W')
+        self.selected = ['panel', 'empty', 'remote', 'remote2', 'remote-wire']
+        snapshot = self.call('EL:SimpleCollect', self.cfg)
+        contours = self.count('EL:DeviceContactShape')
+        result = self.call('EL:SimpleNetwork', snapshot, self.cfg, 'panel')
+        self.assertFalse(self.get('devices', result))
+        self.assertEqual(len(contours), 0)
 
     def test_rotation_scale_and_anonymous_definitions_are_not_interchanged(self):
         handles = [self.block('LAMP', 'D', h, [i*20., 0., 0.])

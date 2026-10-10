@@ -409,7 +409,16 @@
   (if (EL:Get 'whole-block block)
     (append block (list (cons 'contact-path-bounds (EL:Get 'bounds block))))
     (EL:PrepareContourContact block)))
-(defun EL:ContactSegments (block bounds / tree)
+(defun EL:ContactSegments (block bounds / template offset matrix)
+  ;; Date: 2026-10-10. Query the shared index before translating selected edges.
+  (if (setq template (EL:Get 'contact-template block))
+    (progn
+      (setq offset (EL:Get 'contact-offset block)
+        matrix (list 1.0 0.0 0.0 1.0 (car offset) (cadr offset) (caddr offset) 1.0))
+      (EL:TransformSegments (EL:ContactSegments template
+        (mapcar '(lambda (point) (EL:V- point offset)) bounds)) matrix))
+    (EL:ContactSegmentsDirect block bounds)))
+(defun EL:ContactSegmentsDirect (block bounds / tree)
   (if (EL:Get 'contact-ready block)
     (if (EL:BoundsOverlap (EL:XYBounds bounds) (EL:Get 'contact-segment-bounds block) (EL:GapEpsilon))
       (if (setq tree (EL:Get 'contact-tree block))
@@ -419,7 +428,12 @@
 (defun EL:PointContactBounds (point tol)
   (list (list (- (car point) tol) (- (cadr point) tol) 0.0)
         (list (+ (car point) tol) (+ (cadr point) tol) 0.0)))
-(defun EL:ContourContains (point block / hit loop holes rows row bounds)
+(defun EL:ContourContains (point block)
+  ;; Date: 2026-10-10. Reuse prepared regions and holes in template coordinates.
+  (if (EL:Get 'contact-template block)
+    (EL:ContourContainsDirect (EL:V- point (EL:Get 'contact-offset block)) (EL:Get 'contact-template block))
+    (EL:ContourContainsDirect point block)))
+(defun EL:ContourContainsDirect (point block / hit loop holes rows row bounds)
   (setq rows (if (EL:Get 'contact-ready block) (EL:Get 'contact-regions block)
     (mapcar '(lambda (ring) (list ring nil)) (EL:Get 'regions block))))
   (while (and rows (not hit))

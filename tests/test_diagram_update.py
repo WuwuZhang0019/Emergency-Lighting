@@ -385,17 +385,20 @@ class UpdateTests(unittest.TestCase):
         self.assertIn('EL_FIXED_V1', self.dictionary)
         self.assertEqual(self.dictionary['EL_FIXED_TX_INTERRUPTED_2'], marker)
 
-    def test_recovery_cancel_keeps_marker_and_all_entities(self):
+    def test_recovery_preserves_entities_without_asking_yes(self):
         self.install_interrupted_marker()
-        before = copy.deepcopy((self.entities, self.dictionary))
-        self.h.builtins.update({'INITGET': lambda *args: None, 'GETKWORD': lambda *args: None})
+        before = copy.deepcopy(self.entities)
+        self.h.builtins['GETKWORD'] = lambda *args: self.fail('recovery must not prompt')
         self.h.run('(c:ELRECOVER)')
-        self.assertEqual((self.entities, self.dictionary), before)
+        self.assertEqual(self.entities, before)
+        self.assertNotIn('EL_FIXED_TX', self.dictionary)
+        self.assertIn('EL_FIXED_TX_INTERRUPTED_1', self.dictionary)
+        self.assertEqual(self.undo, [])
 
     def test_save_recovers_inline_and_continues_without_separate_command(self):
         self.install_interrupted_marker()
         before = copy.deepcopy(self.entities)
-        self.h.builtins.update({'INITGET': lambda *args: None, 'GETKWORD': lambda *args: 'Yes',
+        self.h.builtins.update({'INITGET': lambda *args: None, 'GETKWORD': lambda *args: self.fail('must not prompt'),
                                'EL:TEMPLATEREADY': lambda *args: None})
         self.assertTrue(truth(self.h.run("(EL:SaveDraft result nil nil 'cap600)")))
         self.assertNotIn('EL_FIXED_TX', self.dictionary)
@@ -410,7 +413,7 @@ class UpdateTests(unittest.TestCase):
         before=copy.deepcopy(self.entities)
         definition='图块定义 "0001" C:\\项目\\应急\n'*2400
         self.h.frames[0]['DEFINITION']=definition
-        self.h.builtins.update({'INITGET':lambda *args:None, 'GETKWORD':lambda *args:'Yes',
+        self.h.builtins.update({'INITGET':lambda *args:None, 'GETKWORD':lambda *args:self.fail('must not prompt'),
                                'EL:TEMPLATEREADY':lambda *args:True})
         self.h.run("(setq template (EL:Put 'panel (EL:Put 'definition definition (EL:Get 'panel template)) template) cfg (list (cons 'template template)) result (EL:Put 'capacity-source 'manual result))")
         self.assertTrue(truth(self.h.run("(EL:SaveDraft result cfg '((\"LAMP\" . 7)) 'cap600)")))
@@ -478,10 +481,11 @@ class UpdateTests(unittest.TestCase):
         self.assertIn(Symbol('TEST-REAL'),self.get('path',mismatch[0]))
         self.assertEqual(self.get('number-difference',mismatch[0]),1e-20)
 
-    def test_inline_recovery_cancel_does_not_start_transaction(self):
+    def test_inline_recovery_bad_marker_does_not_start_transaction(self):
         self.install_interrupted_marker()
+        self.entities[self.dictionary['EL_FIXED_TX']] = [Pair(0, 'XRECORD'), Pair(1, 'foreign')]
         before = copy.deepcopy((self.entities, self.dictionary))
-        self.h.builtins.update({'INITGET': lambda *args: None, 'GETKWORD': lambda *args: None})
+        self.h.builtins['GETKWORD'] = lambda *args: self.fail('recovery must not prompt')
         self.assertIsNone(self.h.run("(EL:Transaction 'EL:StoreWrite (list store))"))
         self.assertEqual((self.entities, self.dictionary), before)
         self.assertEqual(self.undo, [])
@@ -503,26 +507,24 @@ class UpdateTests(unittest.TestCase):
         self.assertFalse(truth(self.h.lookup('*EL:TRANSACTIONRUNNING*')))
         self.assertEqual(len(self.undo), 1)  # no undo of preceding user work
 
-    def test_dirty_marker_free_residue_cancel_preserves_all_state(self):
-        for answer in (None, 'No'):
-            with self.subTest(answer=answer):
-                self.install_transaction()
-                self.h.run('(setq *EL:TransactionOpen* T *EL:TransactionDirty* T)')
-                before = copy.deepcopy((self.entities, self.dictionary))
-                self.h.builtins.update({'INITGET': lambda *args: None,
-                    'GETKWORD': lambda *args: answer,
-                    'VLA-ENDUNDOMARK': lambda *args: self.fail('cancel must not close group')})
-                self.assertIsNone(self.h.run("(EL:Transaction 'EL:StoreWrite (list store))"))
-                self.assertEqual((self.entities, self.dictionary), before)
-                self.assertTrue(truth(self.h.lookup('*EL:TRANSACTIONOPEN*')))
-                self.assertTrue(truth(self.h.lookup('*EL:TRANSACTIONDIRTY*')))
-                self.assertEqual(self.undo, [])
+    def test_dirty_marker_free_residue_recovers_without_prompt_or_undo(self):
+        self.install_transaction()
+        self.h.run('(setq *EL:TransactionOpen* T *EL:TransactionDirty* T)')
+        before = copy.deepcopy((self.entities, self.dictionary))
+        self.h.builtins.update({
+            'GETKWORD': lambda *args: self.fail('recovery must not prompt'),
+            'COMMAND-S': lambda *args: self.fail('recovery must not undo previous edits')})
+        self.assertTrue(truth(self.h.run('(EL:EnsureTransactionReady)')))
+        self.assertEqual((self.entities, self.dictionary), before)
+        self.assertFalse(truth(self.h.lookup('*EL:TRANSACTIONOPEN*')))
+        self.assertFalse(truth(self.h.lookup('*EL:TRANSACTIONDIRTY*')))
+        self.assertEqual(self.undo, [])
 
     def test_memory_recovery_cannot_clear_blocker_if_undo_group_stays_open(self):
         self.install_transaction()
         self.h.run('(setq *EL:TransactionOpen* T *EL:TransactionDirty* T)')
         before = copy.deepcopy((self.entities, self.dictionary))
-        self.h.builtins.update({'INITGET': lambda *args: None, 'GETKWORD': lambda *args: 'Yes',
+        self.h.builtins.update({'INITGET': lambda *args: None, 'GETKWORD': lambda *args: self.fail('must not prompt'),
             'GETVAR': lambda key: 61 if key == 'UNDOCTL' else 'drawing-guid'})
         self.assertIsNone(self.h.run("(EL:Transaction 'EL:StoreWrite (list store))"))
         self.assertEqual((self.entities, self.dictionary), before)
@@ -562,16 +564,16 @@ class UpdateTests(unittest.TestCase):
         self.assertFalse(truth(self.h.lookup('*EL:TRANSACTIONRUNNING*')))
         before = copy.deepcopy(self.entities)
         self.h.builtins.update({'VLA-ENDUNDOMARK': lambda _: None,
-            'INITGET': lambda *args: None, 'GETKWORD': lambda *args: 'Yes',
+            'INITGET': lambda *args: None, 'GETKWORD': lambda *args: self.fail('must not prompt'),
             'COMMAND-S': lambda *args: self.fail('recovery must not undo unrelated history')})
         self.assertTrue(truth(self.h.run("(EL:Transaction 'EL:StoreWrite (list store))")))
         self.assertEqual(self.entities, before)
         self.assertFalse(truth(self.h.lookup('*EL:TRANSACTIONOPEN*')))
         self.assertFalse(truth(self.h.lookup('*EL:TRANSACTIONDIRTY*')))
 
-    def test_recovery_command_yes_archives_marker(self):
+    def test_recovery_command_automatically_archives_marker(self):
         self.install_interrupted_marker()
-        self.h.builtins.update({'INITGET': lambda *args: None, 'GETKWORD': lambda *args: 'Yes'})
+        self.h.builtins.update({'INITGET': lambda *args: None, 'GETKWORD': lambda *args: self.fail('must not prompt')})
         self.h.run('(c:ELRECOVER)')
         self.assertNotIn('EL_FIXED_TX', self.dictionary)
         self.assertIn('EL_FIXED_TX_INTERRUPTED_1', self.dictionary)

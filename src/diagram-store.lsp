@@ -421,7 +421,7 @@
     (progn
       (setq *EL:TransactionOpen* nil *EL:TransactionDirty* nil *EL:Created* nil)
       (EL:LogEvent "TRANSACTION_MEMORY_RECOVERED" nil) T)))
-(defun EL:EnsureTransactionReady (/ outcome answer marker)
+(defun EL:EnsureTransactionReady (/ outcome marker)
   ;; Date: 2026-10-10. Live ownership is scoped to execution, not leftover flags.
   (setq marker (dictsearch (namedobjdict) "EL_FIXED_TX"))
   (EL:LogEvent "TRANSACTION_CHECK" (list (cons 'running *EL:TransactionRunning*)
@@ -437,20 +437,14 @@
       (EL:LogEvent "TRANSACTION_MEMORY_RECOVERED" (list (cons 'empty T))) T)
     (T
       (EL:LogEvent "TRANSACTION_RECOVERY_REQUIRED" nil)
-      (princ "\n检测到上次中断的事务状态。可保留当前图形和草稿、清理中断状态后继续。")
-      (princ "\n这不会撤销或修复上次的部分修改；已有系统图需核对完整性。")
-      (initget "Yes No")
-      (setq answer (getkword "\n保留当前内容并继续？[Yes/No] <No>："))
-      (if (and answer (member (strcase answer) '("YES" "Y")))
+      ;; Date: 2026-10-10. Generate is the user's intent to continue. Preserve
+      ;; old edits and archive our marker automatically; never ask Yes/No.
+      (setq outcome (vl-catch-all-apply 'EL:RecoverInterruptedTransaction nil))
+      (if (vl-catch-all-error-p outcome)
         (progn
-          (setq outcome (vl-catch-all-apply 'EL:RecoverInterruptedTransaction nil))
-          (if (vl-catch-all-error-p outcome)
-            (progn
-              (EL:LogEvent "TRANSACTION_RECOVERY_FAILED" (list (cons 'message (vl-catch-all-error-message outcome))))
-              (princ (strcat "\n恢复未完成：" (vl-catch-all-error-message outcome))) nil)
-            (if outcome (progn (princ "\n中断状态已清理，已有旧标记已归档，继续当前操作。") T))))
-        (progn (EL:LogEvent "TRANSACTION_RECOVERY_CANCELLED" nil)
-          (princ "\n已取消恢复，图纸未改动。") nil)))))
+          (EL:LogEvent "TRANSACTION_RECOVERY_FAILED" (list (cons 'message (vl-catch-all-error-message outcome))))
+          (princ (strcat "\n恢复未完成：" (vl-catch-all-error-message outcome))) nil)
+        (if outcome (progn (princ "\n已保留现有内容并自动清理中断状态。") T))))))
 (defun c:ELRECOVER ()
   (if (EL:EnsureTransactionReady)
     (princ "\n事务检查完成，可运行 ELSTAT。"))
@@ -476,11 +470,6 @@
 (defun EL:Transaction (function args)
   ;; Check the caller's guard before creating a new dynamically scoped guard.
   (if (EL:EnsureTransactionReady) (EL:TransactionGuarded function args)))
-(defun EL:ConfirmDiagram (/ answer)
-  ;; Date: 2026-10-09. Enter keeps the preview; only explicit No cancels it.
-  (initget "Yes No")
-  (setq answer (getkword "\n保留本次系统图？[Yes/No] <Yes>："))
-  (or (not answer) (member (strcase answer) '("YES" "Y"))))
 ;; Date: 2026-10-09. CCKK captions share the managed diagram transaction.
 (defun EL:CCKKLabelPlan (kind uid parent origin plan / spec)
   (setq spec (EL:CCKKCaptionDef kind))
@@ -574,7 +563,8 @@
   (setq record (EL:Put 'cckk-labels (reverse result) record))
   (EL:Require (EL:CCKKLabelsCurrent plan record store) "箱号或用途文字不完整，未保存系统图。") record)
 (defun EL:CCKK2ManagedBlock (name point definition value / entity object)
-  (setq entity (EL:CCKK2Insert name (if point (trans point 0 1)))
+  (setq entity (EL:LogCall "CCKK2_INSERT_BLOCK" (list (cons 'name name) (cons 'point point) (cons 'value value))
+      'EL:CCKK2Insert (list name (if point (trans point 0 1))))
     object (vlax-ename->vla-object entity)
     *EL:Created* (cons object *EL:Created*))
   (EL:DynamicUpdate entity (EL:Get 'property definition) value) object)
@@ -613,6 +603,8 @@
       (EL:Get 'scale plan) (EL:Get 'rotation plan) (EL:Get 'property (EL:Get 'panel template)) (EL:Get 'panel-value plan) layer)))
   (setq record (EL:Put 'panel-output-handle (EL:TagEntity object store record "panel" "panel") record))
   (foreach row (EL:Get 'rows plan)
+    (EL:LogEvent "CCKK_ROW_BEGIN" (list (cons 'uid (EL:Get 'circuit-uid row))
+      (cons 'mode (EL:Get 'mode row)) (cons 'watts (EL:Get 'watts row)) (cons 'position (EL:Get 'position row))))
     (setq object (if *EL:CCKK2Panel*
       (EL:CCKK2ManagedBlock (EL:Get 'name (EL:Get 'circuit template)) (EL:Get 'position row)
         (EL:Get 'circuit template) (EL:Get 'value row))
@@ -623,13 +615,13 @@
     (if (EL:Get 'text row)
       (setq h (EL:Put 'text-handle (EL:TagEntity (EL:CreateAnnotation space row plan layer)
         store record "text" (EL:Get 'circuit-uid row)) h)))
-    (setq handles (cons h handles)))
+    (setq handles (cons h handles))
+    (EL:LogEvent "CCKK_ROW_CREATED" h))
   (setq record (EL:Put 'rows (EL:RecordRows result plan handles) (EL:Put 'plan plan record)))
   (setq record (EL:SyncCCKKLabels plan record store T))
   (if *EL:NativePreview*
     (progn
       (vla-Regen doc 1)
-      (princ "\n请检查实际动态块预览：接线、母线覆盖、普通/地面/预留状态及文字。")
-      (EL:Require (EL:ConfirmDiagram) "预览取消。")
+      ;; Date: 2026-10-10. The placement click accepts the diagram.
       (EL:Require (EL:FreshResult result (EL:Get 'config record)) "SOURCE_CHANGED：预览后源图变化。")))
   (EL:StoreWrite (EL:StorePutDiagram record store)) record)

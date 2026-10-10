@@ -1,19 +1,7 @@
-"""Insertion confirmation and retry state. Date: 2026-10-09."""
+"""Insertion retry retains the accepted draft. Date: 2026-10-10."""
 import unittest
-from autolisp_host import Host, Symbol, truth
+from autolisp_host import Symbol
 import test_fixed_diagnostics as diag
-import test_diagram_store as db
-
-
-class ConfirmationTests(unittest.TestCase):
-    def test_yes_case_enter_and_explicit_no(self):
-        h = Host()
-        h.load_definitions(db.ROOT / 'src/diagram-store.lsp')
-        for answer, expected in [('Yes', True), ('YES', True), ('yes', True),
-                                 ('Y', True), (None, True), ('No', False), ('no', False)]:
-            h.builtins.update({'INITGET': lambda *args: None,
-                              'GETKWORD': lambda prompt, answer=answer: answer})
-            self.assertEqual(truth(h.run('(EL:ConfirmDiagram)')), expected)
 
 
 class RetryTests(unittest.TestCase):

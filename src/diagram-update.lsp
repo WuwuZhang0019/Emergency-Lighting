@@ -1,4 +1,4 @@
-;; Date: 2026-10-09. Differential updates. Never infer identity from row labels.
+;; Date: 2026-10-10. Differential updates. Never infer identity from row labels.
 (defun EL:Require (condition message)
   (if (not condition) (progn (princ (strcat "\n" message)) (exit))) T)
 (defun EL:ActualRows (record)
@@ -61,6 +61,8 @@
   (EL:DynamicUpdate panel (EL:Get 'property (EL:Get 'panel template)) (EL:Get 'panel-value plan))
   (foreach row (EL:Get 'rows plan)
     (setq key (EL:Get 'circuit-uid row) old (EL:By 'circuit-uid key (EL:Get 'rows record)))
+    (EL:LogEvent "CCKK_ROW_UPDATE_BEGIN" (list (cons 'uid key) (cons 'existing (if old T nil))
+      (cons 'watts (EL:Get 'watts row)) (cons 'position (EL:Get 'position row))))
     (if old
       (progn
         (setq e (EL:OwnedEntity (EL:Get 'block-handle old) store record "circuit" key))
@@ -88,7 +90,8 @@
             store record "text" key) h))))
       ;; Legacy reserve text is deleted only after ownership verification.
       (if textentity (EL:Require (entdel textentity) "无法删除旧预留文字。")))
-    (setq handles (cons h handles)))
+    (setq handles (cons h handles))
+    (EL:LogEvent "CCKK_ROW_UPDATED" h))
   (foreach old (EL:Get 'rows record)
     (if (not (EL:By 'circuit-uid (EL:Get 'circuit-uid old) (EL:Get 'rows plan)))
       (progn

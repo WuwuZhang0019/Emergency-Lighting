@@ -39,7 +39,7 @@ class PanelCommandTests(unittest.TestCase):
             'COMMAND':command,'ENTLAST':lambda:self.last,'TRANS':lambda p,*args:p,
             'GETINT':lambda *args:self.fail('panel invocation must not ask for circuit count'),
             'GETPOINT':lambda *args:self.fail('CCKK2 must use native drag placement'),
-            'VLA-REGEN':lambda *args:None,'EL:CONFIRMDIAGRAM':lambda:True,
+            'VLA-REGEN':lambda *args:None,'EL:CONFIRMDIAGRAM':lambda:self.fail('placement must not ask Yes/No'),
             'EL:EFFECTIVENAME':lambda e:next((p.cdr for p in self.entities[e] if isinstance(p,Pair) and p.car==2),
                                             'dfgjhdrtyjtfgj4SADFG3' if e=='panel' else 'fghjftyuk'),
             'EL:ALLOWEDVALUES':lambda e:['CAP300','CAP600','CAP1000'] if e in ('panel','native-1')
@@ -91,7 +91,7 @@ class PanelCommandTests(unittest.TestCase):
         self.h.builtins.update({
             'GETVAR':lambda key:state[0] if key=='UNDOCTL' else original_getvar(key),
             'VLA-ENDUNDOMARK':end,'VLA-STARTUNDOMARK':start,
-            'INITGET':lambda *args:None,'GETKWORD':lambda *args:prompts.append(args) or 'Yes',
+            'INITGET':lambda *args:None,'GETKWORD':lambda *args:self.fail('generate must not ask Yes/No'),
             'COMMAND-S':lambda *args:self.fail('recovery must preserve user edits'),
             'EL:PANELDIALOG':lambda *args:edited,'EL:FIXEDPOWERS':lambda *args:None,
             'EL:REMEMBERPANELPOWERS':lambda *args:True,'EL:SAVENAMEPOWERS':lambda *args:True,
@@ -100,7 +100,7 @@ class PanelCommandTests(unittest.TestCase):
             'PRINC':lambda value='':messages.append(value) or value,
         })
         self.h.run('(setq *EL:LogActive* T) (EL:EditPanel result cfg)')
-        self.assertEqual(len(prompts),1)
+        self.assertEqual(len(prompts),0)
         self.assertIn('TRANSACTION_MEMORY_RECOVERED',events)
         self.assertEqual(len(self.commands),5, ''.join(messages))  # box + 2 actual + 2 reserve
         self.assertEqual(len(self.undo),2)  # saved draft then generated diagram
@@ -109,7 +109,7 @@ class PanelCommandTests(unittest.TestCase):
         self.h.run('(EL:EditPanel result cfg)')
         self.assertEqual(len(self.commands),5)
         self.assertEqual(len(self.entities),count)
-        self.assertEqual(len(prompts),1)
+        self.assertEqual(len(prompts),0)
         self.assert_two_circuit_output()
 
     def test_two_circuit_cancel_then_retry_releases_live_guard(self):
@@ -123,6 +123,24 @@ class PanelCommandTests(unittest.TestCase):
         self.commands.clear()
         self.assertTrue(truth(self.invoke()))
         self.assert_two_circuit_output()
+
+    def test_existing_one_circuit_adds_second_using_reviewed_seed_identity(self):
+        self.assertTrue(truth(self.invoke()))
+        self.two_circuits()
+        # Real dialog receives PreparedResult, then confirms every row's type.
+        self.h.run('''(setq result (EL:Put 'engine 'fixed result))
+          (setq result (EL:PreparedResult result (EL:DiagramForPanel "source" (EL:StoreRead))))
+          (setq result (EL:Put 'circuits (mapcar '(lambda (c)
+            (EL:Put 'ground-source 'manual c)) (EL:Get 'circuits result)) result))''')
+        self.h.builtins['GETKWORD']=lambda *args:self.fail('adding a reviewed circuit must not prompt')
+        self.assertTrue(truth(self.invoke()))
+        self.assertEqual(len(self.commands),4)  # existing box is updated in place
+        self.assert_two_circuit_output()
+        record=self.h.run('(EL:DiagramForPanel "source" (EL:StoreRead))')
+        self.assertEqual([field(self.entities[self.get('block-handle',r)],10)
+                          for r in self.get('rows',record)],
+                         [[6527.,-5300.,0.],[6527.,-6500.,0.],
+                          [6527.,-7700.,0.],[6527.,-8900.,0.]])
 
     def test_panel_calls_real_command_places_native_box_and_85w_circuits(self):
         # The actual c:CCKK2 function runs; native COMMAND calls are recorded.

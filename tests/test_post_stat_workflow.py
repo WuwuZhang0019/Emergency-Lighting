@@ -50,7 +50,7 @@ class PostStatWorkflowTests(unittest.TestCase):
         self.h.run('(c:ELSTAT)')
         self.assertEqual(self.tiles['p_capacity'], 'p_300')
         self.assertNotIn('待核对',self.tiles['p_capacity_status'])
-        self.assertIn('/普通', self.tiles['p_row0'])
+        self.assertRegex(self.tiles['p_row0'], r'^ZE1 \| \d+W$')
         self.assertIn('点击生成时设置', self.tiles['p_template_status'])
         self.assertEqual(self.writes, [])
 
@@ -95,7 +95,7 @@ class PostStatWorkflowTests(unittest.TestCase):
         def second():
             self.assertEqual(self.tiles['b_watts0'], '7')
             self.assertEqual(self.tiles['p_capacity'], 'p_600')
-            self.assertIn('/普通', self.tiles['p_row0'])
+            self.assertRegex(self.tiles['p_row0'], r'^ZE1 \| \d+W$')
             self.done(1)
         self.actions = [first, second]
         edited = self.dialog()

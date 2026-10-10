@@ -94,7 +94,7 @@ class BlockTableTests(unittest.TestCase):
         self.result = prepared
         def reopen():
             self.assertEqual(self.tiles['b_ground0'], '1')
-            self.assertIn('/地面', self.tiles['p_row0'])
+            self.assertTrue(truth(self.get('is-ground', self.get('circuits', self.h.lookup('*EL:PANELDRAFT*'))[0])))
             return 0
         self.dialog(reopen)
 

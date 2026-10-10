@@ -69,7 +69,7 @@ class FixedDiagnosticTests(unittest.TestCase):
     def test_first_use_unknown_handseed_reaches_real_panel_without_writes(self):
         self.h.run('(c:ELSTAT)')
         self.assertEqual(self.dialogs, ['el_panel'])
-        self.assertIn('实际', self.tiles['p_row0'])
+        self.assertEqual(self.tiles['p_row0'], 'ZE1 | 0W')
         self.assertEqual(self.tiles['b_watts0'], '')
         self.assertEqual(self.writes, [])
         self.assertNotIn('HANDSEED', self.variables)

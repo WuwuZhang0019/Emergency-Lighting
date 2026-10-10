@@ -323,12 +323,10 @@
   (repeat 8
     (setq c (nth (+ *EL:PanelPage* i) cs) key (itoa i))
     (set_tile (strcat "p_row" key)
-      (if c (strcat (if (= (+ *EL:PanelPage* i) *EL:PanelIndex*) "> " "")
-        (EL:Get 'id c) " 实际 " (itoa (EL:Get 'watts c)) "W "
-        (if (equal (EL:Get 'power-status c) 'pass) "完整" "待核对/超限")
-        (if (EL:Get 'is-ground c) " /地面" " /普通"))
+      ;; Date: 2026-10-10. Display output numbering and watts only.
+      (if c (strcat "ZE" (itoa (1+ (+ *EL:PanelPage* i))) " | " (itoa (EL:Get 'watts c)) "W")
         (if (< (+ *EL:PanelPage* i) (EL:FixedOutputCount (length cs)))
-          (strcat "预留" (itoa (1+ (- (+ *EL:PanelPage* i) (length cs)))) "    预留    --") "")))
+          (strcat "预留" (itoa (1+ (- (+ *EL:PanelPage* i) (length cs))))) "")))
     (mode_tile (strcat "p_select" key) (if (< (+ *EL:PanelPage* i) (EL:FixedOutputCount (length cs))) 0 1))
     (setq i (1+ i)))
   (EL:PanelBlockFill)

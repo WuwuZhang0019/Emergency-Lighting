@@ -78,6 +78,23 @@ class FixedDiagnosticTests(unittest.TestCase):
             self.assertIn(value, log)
         self.assertFalse(truth(self.h.lookup('*EL:LOGACTIVE*')))
 
+    def test_single_wire_without_devices_returns_feedback_and_logs(self):
+        self.selected = ['panel', 'w1']
+        alerts, returns = [], []
+        self.h.builtins.update({'ALERT': alerts.append,
+            'EL:PANELSTARTDIALOG': lambda: returns.append(True),
+            'EL:EDITPANEL': lambda *args: self.fail('empty result reached editor')})
+        self.call('EL:FixedStatPick')
+        self.assertIn('未识别到连接设备', alerts[0])
+        self.assertEqual(returns, [True])
+        self.assertEqual(self.writes, [])
+        self.assertFalse(truth(self.h.lookup('*EL:RESULT*')))
+        self.assertIn('NO_CONNECTED_DEVICES', self.log.read_text(encoding='utf-8'))
+
+    def test_empty_device_rows_do_not_call_native_sort(self):
+        self.h.builtins['VL-SORT'] = lambda *args: self.fail('empty rows sorted')
+        self.assertFalse(truth(self.call('EL:SimpleRows', None, None)))
+
     def test_new_record_avoids_existing_ids_and_retains_existing_record(self):
         first = self.call('EL:NewRecord', 'panel', self.call('EL:StoreInitial'))
         store = self.call('EL:StorePutDiagram', first, self.call('EL:StoreInitial'))

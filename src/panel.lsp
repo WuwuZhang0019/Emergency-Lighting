@@ -348,7 +348,7 @@
   (repeat 8
     (setq key (itoa i) row (nth (+ *EL:ThumbPage* i) *EL:ThumbRows*))
     (set_tile (strcat "b_watts" key) (if (numberp (EL:Get 'watts row)) (itoa (EL:Get 'watts row)) ""))
-    (set_tile (strcat "b_ground" key) (if (EL:Get (EL:Get 'key row) (EL:Get 'block-ground *EL:PanelDraft*)) "1" "0"))
+    (set_tile (strcat "b_ground" key) (if (and row (EL:Get (EL:Get 'key row) (EL:Get 'block-ground *EL:PanelDraft*))) "1" "0"))
     (mode_tile (strcat "b_watts" key) (if row 0 1))
     (mode_tile (strcat "b_ground" key) (if row 0 1))
     (mode_tile (strcat "f_image" key) (if row 0 1))
@@ -448,6 +448,7 @@
     (setq i (1+ i)))
   (EL:PanelBlockFill)
   (set_tile "p_error" (cond
+    ((not *EL:ThumbRows*) "未识别到连接设备，请检查导线连接、设备图块或恢复已排除图块。")
     ((>= *EL:PanelIndex* (length cs)) "预留回路无需设置；右侧图块表仍显示本箱全部设备。")
     ((and (not (assoc 'block-ground *EL:PanelDraft*)) (vl-some '(lambda (c) (EL:Get 'is-ground c)) cs))
       "沿用旧回路地面设置；修改图块地面勾选后按图块统一重算。")

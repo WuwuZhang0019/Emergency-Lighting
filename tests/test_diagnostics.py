@@ -74,7 +74,7 @@ class DiagnosticTests(unittest.TestCase):
         # The subset host does not automatically dispatch AutoCAD's *error* hook.
         self.call('*ERROR*', str(caught.exception))
         text = self.log.read_text(encoding='utf-8')
-        for value in ('BEGIN', '027', 'PICKS', '1FD6', '1FCD', 'PREPARE_BOX',
+        for value in ('BEGIN', 'DIAGNOSTICS', 'PICKS', '1FD6', '1FCD', 'PREPARE_BOX',
                       'PANEL_RECORD', 'BLOCK_BOUNDS', 'ERROR', 'numberp: nil', 'END'):
             self.assertIn(value, text)
         self.assertIn(str(self.log.as_posix()), ''.join(self.messages))
@@ -259,6 +259,40 @@ class DiagnosticTests(unittest.TestCase):
         self.assertIn('日志写入失败', ''.join(self.messages))
         self.assertIn('numberp: nil', ''.join(self.messages))
         self.assertFalse(truth(self.h.lookup('*EL:LOGACTIVE*')))
+
+    def test_missing_output_directory_is_created(self):
+        self.logging()
+        self.log.parent.rmdir()
+        self.h.builtins['VL-MKDIR'] = lambda path: Path(path).mkdir(exist_ok=True)
+        self.h.run('(EL:LogStart) (EL:LogFailure "original error")')
+        self.assertIn('original error', self.log.read_text(encoding='utf-8'))
+
+    def test_unwritable_runtime_falls_back_to_temp_and_reports_real_path(self):
+        self.logging()
+        original_open, original_getvar = self.h.builtins['OPEN'], self.h.builtins['GETVAR']
+        fallback = self.log.parent.parent / 'ELTRACE-debug.log'
+        def open_file(path, *args):
+            if Path(path) == self.log:
+                raise PermissionError('runtime read-only')
+            return original_open(path, *args)
+        self.h.builtins.update({'OPEN': open_file,
+            'GETVAR': lambda key: fallback.parent.as_posix() + '/' if key == 'TEMPPREFIX' else original_getvar(key)})
+        self.h.run('(EL:LogStart) (EL:LogFailure "original error")')
+        contents = fallback.read_text(encoding='utf-8')
+        self.assertIn('LOG_FALLBACK', contents)
+        self.assertIn('original error', contents)
+        self.assertIn(fallback.as_posix(), ''.join(self.messages))
+        self.assertNotIn('日志写入失败', ''.join(self.messages))
+
+    def test_close_failure_never_claims_log_success(self):
+        self.logging()
+        def close_file(handle):
+            handle.close()
+            raise OSError('flush failed')
+        self.h.builtins['CLOSE'] = close_file
+        self.h.run('(EL:LogStart) (EL:LogFailure "original error")')
+        self.assertIn('日志写入失败', ''.join(self.messages))
+        self.assertNotIn('诊断日志：', ''.join(self.messages))
 
     def test_write_failure_closes_file_and_preserves_original_error(self):
         self.logging()

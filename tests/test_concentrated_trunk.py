@@ -128,6 +128,34 @@ class TrunkTests(unittest.TestCase):
         self.call('EL:FixedTrunkPick')
         self.assert_five(seen[1][0])
 
+    def test_trunk_outlets_without_devices_return_feedback_and_log(self):
+        self.selected = [x for x in self.selected if not x.startswith('d')]
+        picks = iter([['trunk', [10., 0., 0.]], ['panel', [0., 0., 0.]]])
+        alerts, returns = [], []
+        self.h.builtins.update({'EL:PICKMODEL': lambda *args: next(picks),
+            'ALERT': alerts.append, 'EL:PANELSTARTDIALOG': lambda: returns.append(True),
+            'EL:EDITPANEL': lambda *args: self.fail('empty result reached editor')})
+        self.call('EL:FixedTrunkPick')
+        self.assertIn('未识别到连接设备', alerts[0])
+        self.assertEqual(returns, [True])
+        self.assertEqual(self.writes, [])
+        self.assertFalse(truth(self.h.lookup('*EL:RESULT*')))
+        self.assertIn('NO_CONNECTED_DEVICES', self.log.read_text(encoding='utf-8'))
+
+    def test_only_trunk_line_preserves_validation_reason_in_log(self):
+        self.selected = ['panel', 'trunk']
+        self.line('trunk', [1., 0., 0.], [10., 0., 0.], 'W')
+        picks = iter([['trunk', [10., 0., 0.]], ['panel', [0., 0., 0.]]])
+        self.h.builtins['EL:PICKMODEL'] = lambda *args: next(picks)
+        with self.assertRaises(RuntimeError) as caught:
+            self.call('EL:FixedTrunkPick')
+        self.call('*ERROR*', str(caught.exception))
+        self.assertEqual(self.writes, [])
+        log = self.log.read_text(encoding='utf-8')
+        self.assertIn('VALIDATION_FAILED', log)
+        self.assertIn('未找到唯一的箱体到集中干线连接段', log)
+        self.assertIn('未找到唯一的箱体到集中干线连接段', ''.join(self.messages))
+
 
 class TrunkDialogTests(unittest.TestCase):
     call = workflow.PostStatWorkflowTests.call

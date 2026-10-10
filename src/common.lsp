@@ -84,12 +84,27 @@
   (setq textdata (vl-catch-all-apply 'vl-prin1-to-string (list value)))
   (if (vl-catch-all-error-p textdata) "<unprintable>"
     (if (> (strlen textdata) 16000) (strcat (substr textdata 1 16000) " <truncated>") textdata)))
-(defun EL:LogAppend (line / logfile result)
+(defun EL:LogAppend (line / logfile result closed)
   (if (setq logfile (open *EL:LogPath* "a" "utf8"))
     (progn
       (setq result (vl-catch-all-apply 'write-line (list line logfile)))
-      (vl-catch-all-apply 'close (list logfile))
-      (not (vl-catch-all-error-p result)))))
+      (setq closed (vl-catch-all-apply 'close (list logfile)))
+      (and (not (vl-catch-all-error-p result)) (not (vl-catch-all-error-p closed))))))
+;; Date: 2026-10-10. Retry in TEMP when the runtime output is unavailable.
+(defun EL:LogFallback (line / folder previous result)
+  (if (not *EL:LogFallbackUsed*)
+    (progn
+      (setq *EL:LogFallbackUsed* T previous *EL:LogPath*
+        folder (vl-catch-all-apply 'getvar (list "TEMPPREFIX")))
+      (if (and (equal (type folder) 'STR) (/= folder ""))
+        (progn
+          (setq *EL:LogPath* (strcat folder "ELTRACE-debug.log"))
+          (setq result (vl-catch-all-apply 'EL:LogAppend
+            (list (strcat "LOG_FALLBACK | original-path=" (EL:LogText previous)
+              " | last-context=" (EL:LogText *EL:LogLast*) " | stack=" (EL:LogText *EL:LogStack*)))))
+          (if (and (not (vl-catch-all-error-p result)) result)
+            (setq result (vl-catch-all-apply 'EL:LogAppend (list line))))
+          (and (not (vl-catch-all-error-p result)) result))))))
 (defun EL:LogEvent (stage context / line result)
   (if *EL:LogActive*
     (progn
@@ -105,12 +120,12 @@
         (progn
           (setq line (strcat (itoa *EL:LogSequence*) " | " stage " | " (EL:LogText context))
                 result (vl-catch-all-apply 'EL:LogAppend (list line)))
-          (if (and (not (vl-catch-all-error-p result)) result) (setq *EL:LogWritten* T)
+          (if (or (and (not (vl-catch-all-error-p result)) result) (EL:LogFallback line)) (setq *EL:LogWritten* T)
             (setq *EL:LogIOFailed* T *EL:LogPath* nil))))))
   nil)
 (defun EL:LogStart (/ stamp)
   (setq *EL:LogActive* T *EL:LogPath* nil *EL:LogStack* nil *EL:LogLast* nil
-        *EL:LogSequence* 0 *EL:LogWritten* nil *EL:LogIOFailed* nil)
+        *EL:LogSequence* 0 *EL:LogWritten* nil *EL:LogIOFailed* nil *EL:LogFallbackUsed* nil)
   (EL:LogAttach)
   (setq stamp (vl-catch-all-apply 'getvar (list "CDATE")))
   (EL:LogEvent "BEGIN" (list (cons 'command "ELSTAT/ELTRACE/ELPOWER") (cons 'diagnostics "031") (cons 'verbose *EL:LogVerbose*)
@@ -119,6 +134,7 @@
   (if (and *EL:LogActive* (not *EL:LogPath*) (not *EL:LogIOFailed*)
            (equal (type *EL:Root*) 'STR) (/= *EL:Root* ""))
     (progn
+      (vl-catch-all-apply 'vl-mkdir (list (strcat *EL:Root* "output")))
       (setq *EL:LogPath* (strcat *EL:Root* "output/ELTRACE-debug.log")
             stamp (vl-catch-all-apply 'getvar (list "CDATE")))
       (EL:LogEvent "ATTACH" (list (cons 'diagnostics "031")

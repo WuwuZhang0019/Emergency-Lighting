@@ -1,6 +1,8 @@
 ;; Date: 2026-10-10. Differential updates. Never infer identity from row labels.
 (defun EL:Require (condition message)
-  (if (not condition) (progn (princ (strcat "\n" message)) (exit))) T)
+  ;; Date: 2026-10-10. Preserve validation reason before exit becomes a generic abort.
+  (if (not condition) (progn (EL:LogEvent "VALIDATION_FAILED" (list (cons 'message message)))
+    (princ (strcat "\n" message)) (exit))) T)
 (defun EL:ActualRows (record)
   (vl-remove-if '(lambda (r) (equal (EL:Get 'mode r) 'reserve)) (EL:Get 'rows record)))
 (defun EL:SameStructure (record plan)

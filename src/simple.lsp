@@ -410,7 +410,7 @@
         (EL:Put 'count (1+ (EL:Get 'count row)) row)) row rows))
       (setq rows (cons (list (cons 'key key) (cons 'name (EL:Get 'name block)) (cons 'count 1)
         (cons 'ids (list (EL:Get 'id block))) (cons 'watts (EL:Get key powers))) rows))))
-  (vl-sort rows '(lambda (a b) (< (EL:Get 'key a) (EL:Get 'key b)))))
+  (if rows (vl-sort rows '(lambda (a b) (< (EL:Get 'key a) (EL:Get 'key b))))))
 (defun EL:SimpleSavePowers (rows / data powers row)
   ;; Reload before merge; preserve types not present in the current system.
   (if (setq data (EL:SimpleLoadPowers))

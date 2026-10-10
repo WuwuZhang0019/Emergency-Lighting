@@ -139,6 +139,15 @@
         (setq powers (EL:FixedPowers record) result (EL:PanelCompute result powers cfg))
         (setq result (EL:BoxStatistics result cfg (EL:LoadLibrary) nil)))
       (EL:SyncDiagram result cfg powers capacity nil nil))) result)
+;; Date: 2026-10-10. Empty recognition is a user-visible outcome, not a panel error.
+(defun EL:PickedDevicesReady (result / ids circuit message)
+  (foreach circuit (EL:Get 'circuits result) (setq ids (append ids (EL:Get 'devices circuit))))
+  (if ids T
+    (progn
+      (setq message "未识别到连接设备：当前配电箱出线只有导线或未接到可识别设备。请检查导线连接及设备图块后重新拾取；本次未保存或生成系统图。")
+      (EL:LogEvent "NO_CONNECTED_DEVICES" (list (cons 'panel (EL:Get 'panel result))
+        (cons 'circuits (length (EL:Get 'circuits result))) (cons 'message message)))
+      (princ (strcat "\n" message)) (alert message) nil)))
 (defun EL:FixedStatPick (/ *error* panel pd cfg result record powers next)
   (defun *error* (msg)
     (EL:LogFailure msg)
@@ -165,8 +174,8 @@
           (setq result (EL:Put 'excluded-seeds (EL:Get 'excluded-seeds record) result))
           (setq powers (EL:FixedPowers record) result (EL:PanelCompute result powers cfg)
             *EL:Result* result *EL:FixedConfig* cfg)
-          (if (EL:Get 'circuits result) (setq next (EL:EditPanel result cfg))
-            (princ "\n未取得有效实际出线；不能生成只有两条预留的系统图。")))
+          (if (EL:PickedDevicesReady result) (setq next (EL:EditPanel result cfg))
+            (setq *EL:Result* nil next (EL:PanelStartDialog))))
         (EL:MarkStale (cdr (assoc 5 pd)) 'recognition-cancelled))))
   (EL:ClearPickHighlights) (EL:LogFinish 'command-finished) next)
 ;; Date: 2026-10-10. Reuse an exact saved trunk association; first use identifies the real panel.
@@ -208,7 +217,9 @@
             result (EL:LogCall "RECOGNIZE_TRUNK" (list panel id) 'EL:RecognizeFixed (list cfg panel)))
           (princ (strcat "\n集中干线已识别 " (itoa (length (EL:Get 'circuits result)))
             " 条出线，箱侧连接段已排除；请用查看全部回路核对。"))
-          (setq *EL:Result* result *EL:FixedConfig* cfg next (EL:EditPanel result cfg))))))
+          (setq *EL:Result* result *EL:FixedConfig* cfg)
+          (if (EL:PickedDevicesReady result) (setq next (EL:EditPanel result cfg))
+            (setq *EL:Result* nil next (EL:PanelStartDialog)))))))
   (EL:ClearPickHighlights) (EL:LogFinish 'command-finished) next)
 (defun c:ELGEN (/ *error* cfg result record powers capacity)
   (defun *error* (msg)

@@ -108,6 +108,24 @@ class CircuitColorTests(unittest.TestCase):
     def test_palette_is_distinct(self):
         self.assertEqual(len({self.call('EL:CircuitColor', i) for i in range(24)}), 24)
 
+    def test_virtual_trunk_piece_uses_only_split_geometry_and_restores_source(self):
+        lines = []
+        def add_line(space, a, b):
+            key = f'piece{len(lines)}'
+            lines.append((a, b))
+            self.created.append(key)
+            self.objects[key] = {'visible': -1, 'color': 256, 'kind': 'AcDbLine'}
+            return key
+        self.h.builtins.update({'VLA-GET-MODELSPACE': lambda _: 'space',
+                               'VLAX-3D-POINT': lambda p: p, 'VLA-ADDLINE': add_line})
+        wire = self.h.run("'((source-wire . \"w1\") (segments ((5.0 0.0 0.0) (9.0 0.0 0.0))))")
+        self.call('EL:ColorPreviewWire', wire, 3)
+        self.assertEqual(lines, [([5., 0., 0.], [9., 0., 0.])])
+        self.assertEqual(self.objects['w1']['visible'], 0)
+        self.assertEqual(self.objects['piece0']['color'], 3)
+        self.call('EL:ColorPreviewCleanup')
+        self.assert_clean()
+
 
 if __name__ == '__main__':
     unittest.main()

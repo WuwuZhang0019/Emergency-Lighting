@@ -92,6 +92,7 @@ el_panel : dialog {
   label = "回路与图块设置";
   : row {
     : button { key = "p_pick"; label = "拾取配电箱"; width = 18; fixed_width = true; }
+    : button { key = "p_trunk"; label = "拾取配电箱的集中引出线"; width = 32; fixed_width = true; }
     : spacer { width = 1; }
   }
   : row {

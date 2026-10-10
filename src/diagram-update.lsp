@@ -146,6 +146,7 @@
 (defun EL:RecognizeFixed (cfg panel / snapshot network result record keys)
   (EL:Require (and (handent panel) (not (EL:ManagedEntity (handent panel)))) "来源配电箱缺失或为受管输出。")
   (setq snapshot (EL:LogCall "SIMPLE_COLLECT" (list (cons 'panel panel)) 'EL:SimpleCollect (list cfg))
+    snapshot (if (EL:Get 'concentrated-trunk cfg) (EL:TrunkSnapshot snapshot cfg panel) snapshot)
     network (EL:LogCall "SIMPLE_NETWORK" (list (cons 'panel panel) (cons 'wires (length (EL:Get 'wires snapshot)))
       (cons 'blocks (length (EL:Get 'blocks snapshot)))) 'EL:SimpleNetwork (list snapshot cfg panel)))
   (EL:SelectFixedExits (EL:LogCall "SPLIT_NETWORK" (list (cons 'panel panel)) 'EL:SplitNetwork (list network cfg)) nil))

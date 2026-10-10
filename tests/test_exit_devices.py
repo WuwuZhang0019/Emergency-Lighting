@@ -1,4 +1,4 @@
-"""Exit review must expose recognized devices. Date: 2026-10-09."""
+"""Exit review must expose recognized devices. Date: 2026-10-10."""
 import unittest
 from autolisp_host import Symbol
 import test_fixed_diagnostics as diagnostics
@@ -32,7 +32,9 @@ class ExitDeviceTests(unittest.TestCase):
     def test_actual_command_shows_exit_and_power_in_one_dialog(self):
         def start():
             self.assertEqual(self.dialogs, ['el_panel'])
-            self.assertIn('设备 2', self.lists['f_exits'][0])
+            self.assertNotIn('f_exits', self.lists)
+            self.assertNotIn('f_exits', self.actions)
+            self.assertNotIn('f_apply', self.actions)
             self.assertEqual(self.tiles['f_count0'], '数量：2')
             self.assertEqual(self.lists['p_devices'], ['LAMP\t2\t待填写'])
             return 0
@@ -41,24 +43,24 @@ class ExitDeviceTests(unittest.TestCase):
         self.assertEqual(self.dialogs, ['el_panel'])
         self.assertEqual(self.writes, [])
 
-    def test_inline_selection_preserves_power_and_blocks_empty_save(self):
-        self.h.builtins.update({'GET_TILE': lambda key: self.tiles.get(key, ''),
-            'DONE_DIALOG': lambda status: self.fail('inline changes must not close dialog')})
+    def test_all_picked_circuits_ignore_previous_exclusions(self):
+        self.block('SIGN', 'D', 'c', [0., 10., 0.])
+        self.line('out2', [0., 1., 0.], [0., 9., 0.], 'W')
+        self.selected += ['c', 'out2']
+        result = self.call('EL:RecognizeFixed', self.cfg, 'panel')
+        circuits = self.get('circuits', result)
+        self.assertEqual(len(circuits), 2)
+        keys = [self.get('key', self.get('seed', c)) for c in circuits]
+        result = self.call('EL:Put', Symbol('EXCLUDED-SEEDS'), keys, result)
         def start():
-            self.tiles['p_watts'] = '7'
-            self.h.run(self.actions['f_apply'])
-            self.assertEqual(self.lists['p_devices'], ['LAMP\t2\t7'])
-            self.call('EL:PanelExitApply', '')
-            self.assertEqual(self.lists['p_devices'], [])
-            self.call('EL:PanelAccept')
-            self.assertIn('至少保留', self.tiles['p_error'])
-            self.call('EL:PanelExitApply', '0')
-            self.assertEqual(self.lists['p_devices'], ['LAMP\t2\t7'])
-            self.assertEqual(self.dialogs, ['el_panel'])
-            return 0
+            draft = self.h.lookup('*EL:PANELDRAFT*')
+            self.assertEqual(len(self.get('circuits', draft)), 2)
+            self.assertFalse(self.get('excluded-seeds', draft))
+            self.assertEqual(self.h.lookup('*EL:FIXEDEXITSELECTION*'), '0 1 ')
+            return 1
         self.h.builtins['START_DIALOG'] = start
-        self.h.run('(c:ELSTAT)')
-        self.assertEqual(self.writes, [])
+        response = self.call('EL:PanelDialog', result, self.cfg, None, None)
+        self.assertEqual(len(self.get('circuits', self.get('result', response))), 2)
 
     def test_integrated_preview_returns_to_same_layout_with_draft(self):
         previews = []
@@ -69,7 +71,7 @@ class ExitDeviceTests(unittest.TestCase):
             if not previews:
                 self.tiles['p_watts'] = '9'
                 return self.h.run(self.actions['f_preview'])
-            self.assertEqual(self.tiles['f_exits'], '0 ')
+            self.assertNotIn('f_exits', self.tiles)
             self.assertEqual(self.lists['p_devices'], ['LAMP\t2\t9'])
             return 0
         self.h.builtins['START_DIALOG'] = start

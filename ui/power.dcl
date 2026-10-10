@@ -87,13 +87,12 @@ el_fixed_exits : dialog {
     : button { key = "cancel"; label = "取消"; is_cancel = true; }
   }
 }
+// Date: 2026-10-10. Status: implemented; all picked circuits are included.
 el_panel : dialog {
-  label = "核对出线与设备功率";
+  label = "回路与设备功率";
   : row {
-    : boxed_column { label = "出线核对";
-      : text { label = "默认全选，仅取消明确的进线或非本箱出线。"; }
-      : list_box { key = "f_exits"; width = 52; height = 9; multiple_select = true; }
-  : boxed_column { label = "所选出线设备：图面实景 / 数量";
+    : column {
+  : boxed_column { label = "全部回路设备：图面实景 / 数量";
     : row { : image_button { key = "f_image0"; width = 22; height = 4; fixed_width = true; fixed_height = true; color = 0; } : column { : text { key = "f_count0"; width = 26; } : text { key = "f_hint0"; width = 26; } } }
     : row { : image_button { key = "f_image1"; width = 22; height = 4; fixed_width = true; fixed_height = true; color = 0; } : column { : text { key = "f_count1"; width = 26; } : text { key = "f_hint1"; width = 26; } } }
     : row { : image_button { key = "f_image2"; width = 22; height = 4; fixed_width = true; fixed_height = true; color = 0; } : column { : text { key = "f_count2"; width = 26; } : text { key = "f_hint2"; width = 26; } } }
@@ -101,8 +100,7 @@ el_panel : dialog {
     : row { : button { key = "f_prev"; label = "上一页"; } : text { key = "f_page"; width = 10; } : button { key = "f_next"; label = "下一页"; } }
   }
       : text { key = "f_status"; width = 52; }
-      : button { key = "f_preview"; label = "在图面查看所选回路导线和设备"; }
-      : button { key = "f_apply"; label = "确认出线，刷新右侧功率表"; }
+      : button { key = "f_preview"; label = "在图面查看全部回路导线和设备"; }
     }
     : column {
   : radio_row { key = "p_capacity"; label = "当前配电箱容量档位";

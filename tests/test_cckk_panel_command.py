@@ -28,7 +28,7 @@ class PanelCommandTests(unittest.TestCase):
             self.commands.append(args)
             if self.fail_at==len(self.commands): raise RuntimeError('Function cancelled')
             self.assertEqual(args[0],'_.-INSERT')
-            point=[100.,200.,0.] if args[-1]=='pause' else args[-1]
+            point=getattr(self,'placement',[100.,200.,0.]) if args[-1]=='pause' else args[-1]
             self.last='native-'+str(len(self.commands))
             self.entity(self.last,'INSERT',point)
             self.entities[self.last].append(Pair(2,args[1]))
@@ -53,6 +53,129 @@ class PanelCommandTests(unittest.TestCase):
 
     def invoke(self):
         return self.h.run("(EL:InvokeCCKK2 result cfg nil 'cap300)")
+
+    def install_view(self):
+        # Execute the real padded zoom; only native entity extents and COM are adapted.
+        self.h.load_definitions(update.db.ROOT/'src/simple.lsp')
+        self.zoomed=[]; self.view_entities=[]; self.view_events=[]
+        self.messages=[]; self.regenerated=[]
+        def bounds(entity):
+            self.view_entities.append(entity)
+            data=self.entities[entity]
+            p=field(data,11) if field(data,0)=='TEXT' else field(data,10)
+            # Deliberately include full text width, not just insertion points.
+            return [[p[0]-200.,p[1]-300.,p[2]],
+                    [p[0]+6000.,p[1]+500.,p[2]]]
+        self.h.builtins.update({
+            'EL:ENTITYBOUNDS':bounds,
+            'VLA-ZOOMWINDOW':lambda app,lo,hi:self.zoomed.append((lo,hi)),
+            'VLA-REGEN':lambda *args:self.regenerated.append(args),
+            'EL:LOGEVENT':lambda name,data:self.view_events.append((name,data)),
+            'PRINC':lambda text=None:self.messages.append(text) or text,
+        })
+
+    def four_circuits(self):
+        self.h.run('''(setq result (EL:Put 'engine 'fixed result))
+          (setq result (EL:Put 'circuits (append (EL:Get 'circuits result)
+            (list (EL:Put 'id "R3" (EL:Put 'seed (list (cons 'key 's3)) (EL:Put 'output-order 3 (EL:Put 'watts 20 (car cs)))))
+                  (EL:Put 'id "R4" (EL:Put 'seed (list (cons 'key 's4)) (EL:Put 'output-order 4 (EL:Put 'watts 20 (car cs))))))) result))
+          (setq result (EL:PreparedResult result (EL:DiagramForPanel "source" (EL:StoreRead))))
+          (setq result (EL:Put 'circuits (mapcar '(lambda (c)
+            (EL:Put 'ground-source 'manual c)) (EL:Get 'circuits result)) result))''')
+
+    def test_two_to_four_updates_existing_output_and_shows_all_owned_entities(self):
+        self.install_view()
+        self.placement=[1279956.,449786.,0.]  # remote output, matching the field case
+        self.two_circuits()
+        self.assertTrue(truth(self.invoke()))
+        old=self.h.run('(EL:DiagramForPanel "source" (EL:StoreRead))')
+        self.four_circuits()
+        self.zoomed.clear(); self.view_entities.clear(); self.view_events.clear()
+        self.h.builtins['GETKWORD']=lambda *args:self.fail('no extra confirmation')
+        self.assertTrue(truth(self.invoke()))
+        record=self.h.run('(EL:DiagramForPanel "source" (EL:StoreRead))')
+        rows=self.get('rows',record)
+        self.assertEqual(len(rows),6)
+        self.assertEqual([self.get('watts',r) for r in rows[:4]],[85,20,20,20])
+        self.assertEqual([field(self.entities[self.get('text-handle',r)],1) for r in rows[:4]],
+                         ['85W','20W','20W','20W'])
+        self.assertEqual(len(self.commands),5)  # only the original two-row native insertion
+        self.assertEqual(self.get('panel-output-handle',record),self.get('panel-output-handle',old))
+        self.assertEqual([self.get('block-handle',r) for r in rows[:2]],
+                         [self.get('block-handle',r) for r in self.get('rows',old)[:2]])
+        self.assertEqual([self.get('block-handle',r) for r in rows[-2:]],
+                         [self.get('block-handle',r) for r in self.get('rows',old)[-2:]])
+        self.assertTrue(all(self.get('text-handle',r) is None for r in rows[-2:]))
+        expected={self.get('panel-output-handle',record)}
+        expected.update(self.get('block-handle',r) for r in rows)
+        expected.update(self.get('text-handle',r) for r in rows[:4])
+        expected.update(self.get('handle',l) for l in self.get('cckk-labels',record))
+        self.assertEqual(set(self.view_entities),expected)
+        self.assertEqual(len(expected),16)  # box + six blocks + four powers + five captions
+        self.assertEqual(len(self.zoomed),1)
+        lo,hi=self.zoomed[0]
+        for e in expected:
+            data=self.entities[e]
+            p=field(data,11) if field(data,0)=='TEXT' else field(data,10)
+            self.assertLess(lo[0],p[0]-200.); self.assertLess(lo[1],p[1]-300.)
+            self.assertGreater(hi[0],p[0]+6000.); self.assertGreater(hi[1],p[1]+500.)
+        self.assertIn('DIAGRAM_VIEW_SHOWN',[e[0] for e in self.view_events])
+        self.assertTrue(any('原位置更新' in str(m) for m in self.messages))
+        self.assertFalse(truth(self.h.lookup('*EL:TRANSACTIONOPEN*')))
+        # Clicking again with no changes still locates output without new entities.
+        before=copy.deepcopy(self.entities)
+        self.assertTrue(truth(self.invoke()))
+        self.assertEqual(self.entities,before)
+        self.assertEqual(len(self.zoomed),2)
+
+    def test_first_four_circuit_placement_shows_output_but_save_does_not_move_view(self):
+        self.install_view(); self.two_circuits(); self.four_circuits()
+        self.assertTrue(truth(self.invoke()))
+        self.assertEqual(len(self.commands),7)
+        self.assertEqual(len(self.zoomed),1)
+        self.assertEqual(len(self.view_entities),16)
+        self.assertTrue(truth(self.h.run("(EL:SyncDiagram result cfg nil 'cap300 nil T)")))
+        self.assertTrue(truth(self.h.run("(EL:SyncDiagram result cfg nil 'cap300 T nil)")))
+        self.assertEqual(len(self.zoomed),1)
+
+    def test_view_failure_does_not_rollback_successful_generation(self):
+        self.install_view(); self.two_circuits(); self.four_circuits()
+        def fail_zoom(*args): raise RuntimeError('zoom unavailable')
+        self.h.builtins['VLA-ZOOMWINDOW']=fail_zoom
+        self.assertTrue(truth(self.invoke()))
+        record=self.h.run('(EL:DiagramForPanel "source" (EL:StoreRead))')
+        self.assertEqual(len(self.get('rows',record)),6)
+        self.assertEqual(self.get('status',record),Symbol('CURRENT'))
+        self.assertNotIn('EL_FIXED_TX',self.dictionary)
+        self.assertIn('DIAGRAM_VIEW_FAILED',[e[0] for e in self.view_events])
+        self.assertTrue(any('已保存，但自动定位未完成' in str(m) for m in self.messages))
+
+    def test_failed_generation_does_not_show_partial_output(self):
+        self.install_view(); self.two_circuits(); self.four_circuits()
+        self.fail_at=4
+        self.assertFalse(truth(self.invoke()))
+        self.assertEqual(self.zoomed,[])
+        self.assertEqual(self.view_entities,[])
+
+    def test_view_rejects_missing_bounds_and_foreign_entity_without_writing(self):
+        self.install_view()
+        self.assertTrue(truth(self.invoke()))
+        record=self.h.run('(EL:DiagramForPanel "source" (EL:StoreRead))')
+        store=self.h.run('(EL:StoreRead)')
+        self.zoomed.clear()
+        bounds=self.h.builtins['EL:ENTITYBOUNDS']
+        self.h.builtins['EL:ENTITYBOUNDS']=lambda entity:None
+        before=copy.deepcopy(self.entities)
+        self.assertFalse(truth(self.call('EL:ShowDiagram',record,store)))
+        self.assertEqual(self.entities,before)
+        self.h.builtins['EL:ENTITYBOUNDS']=bounds
+        handle=self.get('block-handle',self.get('rows',record)[0])
+        self.entities[handle]=[p for p in self.entities[handle]
+                               if not (isinstance(p,list) and p[0]==-3)]
+        self.view_entities.clear()
+        self.assertFalse(truth(self.call('EL:ShowDiagram',record,store)))
+        self.assertNotIn(handle,self.view_entities)
+        self.assertEqual(self.zoomed,[])
 
     def two_circuits(self):
         self.h.run("""(setq result (EL:Put 'circuits

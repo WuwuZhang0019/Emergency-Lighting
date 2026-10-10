@@ -199,6 +199,45 @@
         (if (EL:Get 'text row)
           (if (or (not e) (not (equal (cdr (assoc 1 (entget e))) (EL:Get 'text row)))) (setq good nil))
           (if e (setq good nil)))))) good)
+;; Date: 2026-10-10. Locate committed output, including all rows and captions.
+;; This is presentation only: a failed zoom must not invalidate a saved diagram.
+(defun EL:DiagramViewBounds (record store / refs row label ref entity bounds lo hi good)
+  (setq refs (list (list (EL:Get 'panel-output-handle record) "panel" "panel")) good T)
+  (foreach row (EL:Get 'rows record)
+    (setq refs (cons (list (EL:Get 'block-handle row) "circuit" (EL:Get 'circuit-uid row)) refs))
+    (if (EL:Get 'text-handle row)
+      (setq refs (cons (list (EL:Get 'text-handle row) "text" (EL:Get 'circuit-uid row)) refs))))
+  (foreach label (EL:Get 'cckk-labels record)
+    (setq refs (cons (list (EL:Get 'handle label) "text" (EL:Get 'uid label)) refs)))
+  (foreach ref refs
+    (setq entity (EL:OwnedEntity (car ref) store record (cadr ref) (caddr ref))
+      bounds (if entity (EL:EntityBounds entity)))
+    (if bounds
+      (setq lo (if lo (mapcar 'min lo (car bounds)) (car bounds))
+        hi (if hi (mapcar 'max hi (cadr bounds)) (cadr bounds)))
+      (setq good nil)))
+  (if (and good lo hi) (list lo hi)))
+(defun EL:ShowDiagramBody (record store / bounds)
+  (if (and (= (getvar "TILEMODE") 1) (> (getvar "CVPORT") 1))
+    (progn
+      (vla-Regen (vla-get-ActiveDocument (vlax-get-acad-object)) 1)
+      (if (setq bounds (EL:DiagramViewBounds record store))
+        (progn
+          (EL:LogEvent "DIAGRAM_VIEW_BOUNDS" (list (cons 'panel (EL:Get 'panel-output-handle record))
+            (cons 'rows (length (EL:Get 'rows record))) (cons 'bounds bounds)))
+          (EL:SimpleZoom (car bounds) (cadr bounds)) T)))))
+(defun EL:ShowDiagram (record store / shown)
+  (setq shown (vl-catch-all-apply 'EL:ShowDiagramBody (list record store)))
+  (if (equal shown T)
+    (progn (EL:LogEvent "DIAGRAM_VIEW_SHOWN" (list (cons 'panel (EL:Get 'panel-output-handle record))))
+      (princ "\n已定位到完整系统图。") T)
+    (progn
+      (EL:LogEvent "DIAGRAM_VIEW_FAILED" (list (cons 'panel (EL:Get 'panel-output-handle record))
+        (cons 'position (EL:Get 'position (EL:Get 'plan record)))
+        (cons 'reason (if (vl-catch-all-error-p shown) (vl-catch-all-error-message shown) "OUTPUT_BOUNDS_OR_MODEL_VIEW_UNAVAILABLE"))))
+      (princ (strcat "\n系统图已保存，但自动定位未完成；输出箱体句柄："
+        (EL:Get 'panel-output-handle record) "，插入点："
+        (vl-prin1-to-string (EL:Get 'position (EL:Get 'plan record))) "。请查看诊断日志。")) nil)))
 (defun EL:SyncDiagram (result cfg powers capacity generate interactive / store record template transform plan point structural outcome rotation scale *EL:NativePreview*)
   (setq capacity (EL:CapacityDefault capacity))
   (setq store (cond ((EL:StoreRead)) (T (EL:StoreInitial)))
@@ -225,7 +264,9 @@
       (EL:Require (and (EL:FixedTemplate template) (EL:TemplateRuntimeValid template cfg)) "模板未适配或已变化，请运行 ELTEMPLATE。")
       (EL:Require (EL:UniqueDiagram store record) "发现复制系统图或外来标识，需显式修复关联，未更新。")
       (if (EL:Get 'panel-output-handle record)
-        (setq transform (EL:CheckLayout record store))
+        (progn
+          (if (and generate interactive) (princ "\n检测到已有系统图，将在原位置更新，完成后自动定位显示。"))
+          (setq transform (EL:CheckLayout record store)))
         (progn
           (EL:Require (and (= (getvar "TILEMODE") 1) (> (getvar "CVPORT") 1)) "请进入模型空间生成系统图。")
           ;; CCKK2 places the real block with native -INSERT inside the transaction.
@@ -274,7 +315,8 @@
           (if (not (EL:WriteData (strcat *EL:Root* "output/diagram-" (EL:Hash (EL:Get 'diagram-id record)) ".eld") outcome))
             (princ "\nDWG 主记录已保存；外部诊断副本导出失败。"))
           (princ (strcat "\n系统图已同步：" (itoa (length (EL:Get 'circuits result))) " 条实际回路，"
-            (itoa (- (length (EL:Get 'rows plan)) (length (EL:Get 'circuits result)))) " 条预留，无预留功率文字。")) T)
+            (itoa (- (length (EL:Get 'rows plan)) (length (EL:Get 'circuits result)))) " 条预留，无预留功率文字。"))
+          (if (and generate interactive) (EL:ShowDiagram outcome store)) T)
         (progn
           ;; Do not auto-recover and start another write after failed rollback.
           (if (not *EL:TransactionOpen*) (EL:MarkStale (EL:Get 'panel result) 'transaction-failed))

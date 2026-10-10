@@ -1,4 +1,4 @@
-"""Two-pick device table and persistent block powers. Date: 2026-10-08."""
+"""Two-pick device table and persistent block powers. Date: 2026-10-10."""
 import unittest
 from autolisp_host import Pair, Symbol, truth
 import test_cad_adapter as adapter
@@ -136,11 +136,11 @@ class SimpleFlowTests(unittest.TestCase):
         self.line('w2',[5.,0.,0.],[5.,5.,0.],'OTHER')
         self.assertEqual([self.get('id',b) for b in self.get('devices',self.network())],['a'])
 
-    def test_whole_block_middle_crossing_connects_and_never_reads_contents(self):
+    def test_device_middle_crossing_connects_without_role_review(self):
         self.block('BOX','P','panel',[0.,0.,0.]);self.block('LAMP','D','a',[10.,0.,0.])
         self.line('w',[-5.,0.,0.],[15.,0.,0.],'W');self.selected=['panel','a','w']
         def forbidden(*args): self.fail('Internal block geometry or role review invoked')
-        for name in ('ENTNEXT','EL:BLOCKCONTOUR','EL:DEFINITIONDATA','EL:CLOSEDRINGS','EL:REVIEWROLES','EL:REVIEWEXITS',
+        for name in ('EL:DEFINITIONDATA','EL:REVIEWROLES','EL:REVIEWEXITS',
                      'EL:COLLECTENDPOINTSNAPSHOT','EL:LOADROLELIBRARY','EL:DYNAMICSTATE'):
             self.h.builtins[name]=forbidden
         self.assertEqual([self.get('id',b) for b in self.get('devices',self.network())],['a'])

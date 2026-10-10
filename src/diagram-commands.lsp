@@ -31,6 +31,8 @@
     record (EL:Put 'draft-circuits (EL:Get 'circuits result) (EL:Put 'draft-capacity capacity
       (EL:Put 'powers powers (EL:Put 'config cfg (EL:Put 'engine (EL:Get 'engine result) record))))))
   ;; Date: 2026-10-10. Persist block-table ground choices with the draft.
+  (if (assoc 'excluded-devices result)
+    (setq record (EL:Put 'excluded-devices (EL:Get 'excluded-devices result) record)))
   (if (assoc 'block-ground result)
     (setq record (EL:Put 'block-ground (EL:Get 'block-ground result) record)))
   (setq record (EL:Put 'candidate-keys (EL:Get 'candidate-keys result)

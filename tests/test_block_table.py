@@ -126,7 +126,7 @@ class BlockTableTests(unittest.TestCase):
     def test_all_circuits_preview_returns_to_same_block_page_with_power(self):
         self.populate()
         previews = []
-        self.h.builtins['EL:FIXEDEXITPREVIEW'] = lambda result, selection: previews.append(selection)
+        self.h.builtins['EL:ALLCIRCUITCOLORPREVIEW'] = lambda result: previews.append('0 ')
         def action():
             if not previews:
                 self.call('EL:PanelBlockPage', 4)
@@ -146,6 +146,80 @@ class BlockTableTests(unittest.TestCase):
         for i in range(4):
             for prefix in ('f_image', 'b_watts', 'b_ground'):
                 self.assertIn(f'key = "{prefix}{i}"', ui)
+
+    def test_exclusion_removes_counts_power_ground_and_restores_draft_values(self):
+        self.populate()
+        def action():
+            for i in range(4):
+                self.tiles[f'b_watts{i}'] = str(i + 1)
+            self.call('EL:PanelBlockGround', 0, '1')
+            self.call('EL:PanelBlockExclude', 0)
+            draft = self.h.lookup('*EL:PANELDRAFT*')
+            c = self.get('circuits', draft)[0]
+            self.assertNotIn('id0', self.get('devices', c))
+            self.assertEqual(self.get('excluded-devices', draft), ['id0'])
+            self.assertFalse(truth(self.get('is-ground', c)))
+            self.assertEqual(self.tiles['b_watts0'], '2')
+            self.call('EL:PanelBlockRestore')
+            c = self.get('circuits', self.h.lookup('*EL:PANELDRAFT*'))[0]
+            self.assertIn('id0', self.get('devices', c))
+            self.assertEqual(self.tiles['b_watts0'], '1')
+            self.assertTrue(truth(self.get('is-ground', c)))
+            return 0
+        self.dialog(action)
+
+    def test_exclude_whole_row_counts_once_across_box_and_recalculates_watts(self):
+        def action():
+            self.tiles['b_watts0'] = '5'
+            self.call('EL:PanelStore')
+            self.assertEqual(self.get('box-watts', self.h.lookup('*EL:PANELDRAFT*')), 10)
+            self.call('EL:PanelBlockExclude', 0)
+            draft = self.h.lookup('*EL:PANELDRAFT*')
+            self.assertEqual(self.get('box-watts', draft), 0)
+            self.assertEqual(len(self.get('excluded-devices', draft)), 2)
+            self.assertFalse(self.call('EL:PanelBlockRows'))
+            self.assertFalse(self.get('power-issues', self.get('circuits', draft)[0]))
+            self.call('EL:PanelBlockRestore')
+            self.assertEqual(self.get('box-watts', self.h.lookup('*EL:PANELDRAFT*')), 10)
+            return 0
+        self.dialog(action)
+
+    def test_exclusion_save_reopen_and_restore_are_per_panel(self):
+        store = [self.call('EL:StoreInitial')]
+        self.h.builtins.update({
+            'EL:STOREREAD': lambda: store[0],
+            'EL:STOREWRITE': lambda value: store.__setitem__(0, value) or True,
+            'EL:TRANSACTION': lambda fn, args: self.h.builtins['EL:STOREWRITE'](args[0]),
+        })
+        def action():
+            self.call('EL:PanelBlockExclude', 0)
+            return 1
+        response = self.dialog(action)
+        self.assertTrue(truth(self.call('EL:SaveDraft', self.get('result', response), self.f.cfg, None, Symbol('CAP300'))))
+        record = self.call('EL:DiagramForPanel', 'panel', store[0])
+        self.assertFalse(self.call('EL:DiagramForPanel', 'other-panel', store[0]))
+        self.result = self.call('EL:PreparedResult', self.result, record)
+        def reopen():
+            self.assertFalse(self.call('EL:PanelBlockRows'))
+            self.call('EL:PanelBlockRestore')
+            self.assertEqual(len(self.call('EL:PanelBlockRows')), 1)
+            return 1
+        response = self.dialog(reopen)
+        self.assertTrue(truth(self.call('EL:SaveDraft', self.get('result', response), self.f.cfg, None, Symbol('CAP300'))))
+        self.assertFalse(self.get('excluded-devices', self.call('EL:DiagramForPanel', 'panel', store[0])))
+
+    def test_excluding_last_page_clamps_page_and_cancel_does_not_save(self):
+        self.populate()
+        before = len(self.f.writes)
+        def action():
+            self.call('EL:PanelBlockPage', 4)
+            self.call('EL:PanelBlockExclude', 0)
+            self.call('EL:PanelBlockExclude', 0)
+            self.assertEqual(self.h.lookup('*EL:THUMBPAGE*'), 0)
+            self.assertEqual(len(self.call('EL:PanelBlockRows')), 4)
+            return 0
+        self.assertFalse(self.dialog(action))
+        self.assertEqual(len(self.f.writes), before)
 
 
 if __name__ == '__main__':

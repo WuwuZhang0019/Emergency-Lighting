@@ -2,6 +2,7 @@
 import unittest
 import test_simple_flow as simple
 import test_cad_adapter as adapter
+from autolisp_host import Pair
 
 
 class DeviceContactTests(unittest.TestCase):
@@ -60,3 +61,29 @@ class DeviceContactTests(unittest.TestCase):
         self.block('SIGN', 'D', 'c', [100., 102., 0.])
         self.selected.append('c')
         self.assertEqual(self.ids(self.network()), ['a'])
+
+    def test_overlapping_bounds_without_real_contact_are_not_connected(self):
+        self.fixture((13., 3., 0.))
+        # A text/attribute extent can overlap both the other lamp and its wire.
+        self.bounds['b'] = [[8., -1., 0.], [15., 4., 0.]]
+        self.assertEqual(self.ids(self.network()), ['a'])
+
+    def test_circle_bounds_overlap_but_circles_do_not_touch(self):
+        self.fixture((11.5, 1.5, 0.))
+        for name in ('LAMP', 'SIGN'):
+            first = f'{name}-edge-0'
+            self.entities[first] = [Pair(0, 'CIRCLE'), Pair(5, first),
+                                    Pair(10, [0., 0., 0.]), Pair(40, 1.)]
+            self.next_entity[first] = f'{name}-end'
+        self.assertEqual(self.ids(self.network()), ['a'])
+
+    def test_near_wire_outside_actual_device_is_not_counted(self):
+        self.fixture((5., 1.01, 0.))
+        self.assertEqual(self.ids(self.network()), ['a'])
+
+    def test_changed_geometry_with_same_bounds_changes_signature(self):
+        self.fixture()
+        before = self.get('device-contact-signature', self.get('snapshot', self.network()))
+        self.line('SIGN-edge-0', [-0.5, -0.5, 0.], [0.5, -0.5, 0.])
+        after = self.get('device-contact-signature', self.get('snapshot', self.network()))
+        self.assertNotEqual(before, after)

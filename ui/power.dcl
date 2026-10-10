@@ -120,25 +120,30 @@ el_panel : dialog {
         : image_button { key = "f_image0"; width = 22; height = 4; fixed_width = true; fixed_height = true; color = 0; }
         : edit_box { key = "b_watts0"; width = 13; fixed_width = true; edit_width = 8; allow_accept = false; }
         : toggle { key = "b_ground0"; label = "是"; width = 12; fixed_width = true; }
+        : button { key = "b_remove0"; label = "×"; width = 4; fixed_width = true; }
       }
       : row {
         : image_button { key = "f_image1"; width = 22; height = 4; fixed_width = true; fixed_height = true; color = 0; }
         : edit_box { key = "b_watts1"; width = 13; fixed_width = true; edit_width = 8; allow_accept = false; }
         : toggle { key = "b_ground1"; label = "是"; width = 12; fixed_width = true; }
+        : button { key = "b_remove1"; label = "×"; width = 4; fixed_width = true; }
       }
       : row {
         : image_button { key = "f_image2"; width = 22; height = 4; fixed_width = true; fixed_height = true; color = 0; }
         : edit_box { key = "b_watts2"; width = 13; fixed_width = true; edit_width = 8; allow_accept = false; }
         : toggle { key = "b_ground2"; label = "是"; width = 12; fixed_width = true; }
+        : button { key = "b_remove2"; label = "×"; width = 4; fixed_width = true; }
       }
       : row {
         : image_button { key = "f_image3"; width = 22; height = 4; fixed_width = true; fixed_height = true; color = 0; }
         : edit_box { key = "b_watts3"; width = 13; fixed_width = true; edit_width = 8; allow_accept = false; }
         : toggle { key = "b_ground3"; label = "是"; width = 12; fixed_width = true; }
+        : button { key = "b_remove3"; label = "×"; width = 4; fixed_width = true; }
       }
       : row { : button { key = "f_prev"; label = "上一页"; } : text { key = "f_page"; width = 10; } : button { key = "f_next"; label = "下一页"; } }
       : text { label = "点击图块查看实景；按 Tab 记住功率。"; }
-      : text { label = "地面设置随草稿保存。"; }
+      : text { label = "× 排除本箱本行同类图块，不计数量和功率。"; }
+      : row { : text { key = "b_excluded"; width = 28; } : button { key = "b_restore"; label = "恢复排除"; } }
     }
   }
   : text { key = "p_total"; width = 70; }

@@ -72,7 +72,7 @@
 
 (defun EL:SimpleCollect (cfg / ss i e d bounds items tree wires ends blocks candidates wire candidate id issues block queue current shape)
   ;; Date: 2026-10-10. Filter wires by inferred style; only the selected panel
-  ;; uses its contour. Other devices retain whole-block connection behavior.
+  ;; uses its contour. Device geometry is checked lazily during network tracing.
   (setq ss (ssget "_X" '((410 . "Model") (0 . "INSERT,LINE,LWPOLYLINE"))) i 0)
   (if ss
     (repeat (sslength ss)
@@ -95,7 +95,7 @@
         (progn
           (setq id (EL:Get 'key candidate) *EL:SimpleEntity* (list id 'block-name)
                 candidates (cons id candidates)
-                block (list (cons 'id id) (cons 'name (EL:EffectiveName (EL:Get 'entity candidate)))
+                block (list (cons 'entity (EL:Get 'entity candidate)) (cons 'id id) (cons 'name (EL:EffectiveName (EL:Get 'entity candidate)))
                   (cons 'layer (EL:Get 'layer candidate)) (cons 'bounds (EL:Get 'bounds candidate)) (cons 'whole-block T)))
           (setq blocks (cons block blocks))))))
   ;; Date: 2026-10-10. Expand the candidate set along touching device chains.
@@ -107,7 +107,7 @@
       (if (not (member id candidates))
         (progn
           (setq candidates (cons id candidates) *EL:SimpleEntity* (list id 'block-name)
-                block (list (cons 'id id) (cons 'name (EL:EffectiveName (EL:Get 'entity candidate)))
+                block (list (cons 'entity (EL:Get 'entity candidate)) (cons 'id id) (cons 'name (EL:EffectiveName (EL:Get 'entity candidate)))
                   (cons 'layer (EL:Get 'layer candidate)) (cons 'bounds (EL:Get 'bounds candidate)) (cons 'whole-block T))
                 blocks (cons block blocks) queue (cons block queue))))))
   (if (EL:Get 'auto-panel cfg)
@@ -123,7 +123,7 @@
 (defun EL:SimpleEndState (ep tree cfg / point occupied candidate)
   (setq point (EL:Get 'point ep) occupied (EL:Get 'occupied ep))
   (foreach candidate (EL:SpatialBoxQuery tree (list point point) (EL:Get 'eps_boundary (EL:Get 'params cfg)))
-    (if (EL:BlockPointHit point (EL:Get 'block candidate) cfg) (setq occupied T)))
+    (if (EL:SimpleDevicePointHit point (EL:Get 'block candidate) cfg) (setq occupied T)))
   ;; Only this endpoint is occupied; a connection elsewhere on its wire does
   ;; not prevent a free broken end from continuing to its unique counterpart.
   (EL:Put 'wire-attached nil (EL:Put 'occupied occupied ep)))
@@ -144,7 +144,47 @@
         (cons 'open-ends count) (cons 'logged-ends logged) (cons 'omitted-ends (- count logged))
         (cons 'paired-gaps (length (EL:Get 'pairs pairs))))))))
 
-(defun EL:SimpleNetwork (snapshot cfg panel / wires blocks block wire bounds items tree edges ends ep other occupied tol ztol rows pairs component)
+;; Date: 2026-10-10. Bounds only select candidates; visible geometry proves contact.
+(defun EL:DeviceContactShape (block / id saved shape)
+  (setq id (EL:Get 'id block) saved (assoc id *EL:DeviceContactCache*))
+  (if saved (cdr saved)
+    (progn
+      (setq shape (vl-catch-all-apply 'EL:BlockContour
+        (list (cond ((EL:Get 'entity block)) (T (handent id)))
+          '(1.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0) 0.001 nil)))
+      (if (vl-catch-all-error-p shape) (setq shape nil))
+      (if (EL:Get 'segments shape)
+        (setq shape (EL:PrepareContactBlock
+          (EL:Put 'regions (if (not (EL:Get 'issues shape)) (EL:ClosedRings (EL:Get 'segments shape))) shape))))
+      (if (or (not (EL:Get 'segments shape)) (EL:Get 'issues shape))
+        (EL:LogEvent "DEVICE_CONTACT_GEOMETRY" (list id (EL:Get 'issues shape) 'no-bounds-fallback)))
+      (setq *EL:DeviceContactCache* (cons (cons id shape) *EL:DeviceContactCache*))
+      shape)))
+(defun EL:StrictDeviceConfig (cfg)
+  (EL:Put 'params (EL:Put 'eps_boundary (EL:GapEpsilon) (EL:Get 'params cfg)) cfg))
+(defun EL:SimpleDevicePathHit (wire block cfg)
+  (if (equal (EL:Get 'role block) 'panel) (EL:PathBlockHit wire block cfg)
+    (and (EL:PathBlockHit wire block cfg)
+      (EL:ContourPathHit wire (EL:DeviceContactShape block) (EL:StrictDeviceConfig cfg)))))
+(defun EL:SimpleDevicePointHit (point block cfg)
+  (if (equal (EL:Get 'role block) 'panel) (EL:BlockPointHit point block cfg)
+    (and (EL:BlockPointHit point block cfg)
+      (EL:ContourPointHit point (EL:DeviceContactShape block) (EL:StrictDeviceConfig cfg)))))
+(defun EL:DevicesTouch (a b / sa sb seg edge hit)
+  (setq sa (EL:DeviceContactShape a) sb (EL:DeviceContactShape b))
+  (foreach seg (EL:Get 'segments sa)
+    (if (not hit)
+      (foreach edge (EL:ContactSegments sb (EL:SegmentBounds (list seg)))
+        (if (and (<= (abs (- (caddr (car seg)) (caddr (car edge)))) (EL:GapEpsilon))
+                 (<= (abs (- (caddr (cadr seg)) (caddr (cadr edge)))) (EL:GapEpsilon))
+                 (or (EL:Touches (car seg) (list edge) (EL:GapEpsilon) (EL:GapEpsilon))
+                     (EL:Touches (cadr seg) (list edge) (EL:GapEpsilon) (EL:GapEpsilon))
+                     (EL:Touches (car edge) (list seg) (EL:GapEpsilon) (EL:GapEpsilon))
+                     (EL:Touches (cadr edge) (list seg) (EL:GapEpsilon) (EL:GapEpsilon))
+                     (EL:GapHitsSegment (car seg) (cadr seg) (car edge) (cadr edge))))
+          (setq hit T)))))
+  hit)
+(defun EL:SimpleNetwork (snapshot cfg panel / wires blocks block wire bounds items tree edges ends ep other occupied tol ztol rows pairs component *EL:DeviceContactCache*)
   (setq wires (EL:Get 'wires snapshot) tol (EL:Get 'eps_touch (EL:Get 'params cfg)) ztol (EL:GapEpsilon))
   (foreach block (EL:Get 'blocks snapshot)
     (setq blocks (cons (EL:Put 'role (if (equal (EL:Get 'id block) panel) 'panel 'device) block) blocks)))
@@ -164,25 +204,26 @@
           (EL:Touches (EL:Get 'point ep) (EL:Get 'segments wire) tol ztol))
         (setq occupied T edges (cons (EL:Edge (EL:Get 'wire ep) (EL:Get 'id wire)) edges))))
     (setq ends (cons (EL:Put 'occupied occupied ep) ends)))
-  ;; One item per whole block. Never expand internal geometry.
+  ;; One bounds item per block for coarse filtering before geometry checks.
   (setq items nil)
   (foreach block blocks
     (if (setq bounds (EL:Get 'bounds block))
       (setq items (cons (list (cons 'key (EL:Get 'id block)) (cons 'block block) (cons 'bounds bounds)
         (cons 'point (EL:V* 0.5 (EL:V+ (car bounds) (cadr bounds))))) items))))
   (setq tree (EL:SpatialTree items 0))
-  ;; Date: 2026-10-10. Touching whole devices conduct without an intervening wire.
+  ;; Date: 2026-10-10. Actual device geometry must touch without a wire.
   ;; Use numerical epsilon only; never bridge a visible gap or join through the panel.
   (foreach block blocks
     (if (and (not (equal (EL:Get 'id block) panel)) (EL:Get 'bounds block))
       (foreach other (EL:SpatialBoxQuery tree (EL:Get 'bounds block) (EL:GapEpsilon))
         (if (and (not (equal (EL:Get 'key other) panel))
-                 (< (EL:Get 'id block) (EL:Get 'key other)))
+                 (< (EL:Get 'id block) (EL:Get 'key other))
+                 (EL:DevicesTouch block (EL:Get 'block other)))
           (setq edges (cons (EL:Edge (EL:Get 'id block) (EL:Get 'key other)) edges))))))
   (foreach wire wires
     (foreach other (EL:SpatialBoxQuery tree (EL:SegmentBounds (EL:Get 'segments wire)) (max tol (EL:Get 'eps_boundary (EL:Get 'params cfg))))
       (setq block (EL:Get 'block other))
-      (if (EL:PathBlockHit wire block cfg)
+      (if (EL:SimpleDevicePathHit wire block cfg)
         (setq edges (cons (EL:Edge (EL:Get 'id wire) (EL:Get 'id block)) edges)))))
   (setq ends (mapcar '(lambda (e) (EL:SimpleEndState e tree cfg)) (reverse ends))
         snapshot (EL:Put 'ends ends snapshot)
@@ -190,7 +231,10 @@
   (EL:SimpleGapLog snapshot cfg rows pairs)
   (foreach other (EL:Get 'pairs pairs)
     (setq edges (cons (EL:Edge (car (EL:Get 'a other)) (car (EL:Get 'b other))) edges)))
-  (setq component (EL:Component panel (EL:Unique edges)))
+  (setq snapshot (EL:Put 'device-contact-signature
+    (EL:Signature (mapcar '(lambda (row) (list (car row) (EL:Get 'segments (cdr row)) (EL:Get 'holes (cdr row)) (EL:Get 'issues (cdr row))))
+      (vl-sort *EL:DeviceContactCache* '(lambda (a b) (< (car a) (car b)))))) snapshot)
+    component (EL:Component panel (EL:Unique edges)))
   (list (cons 'edges (EL:Unique edges)) (cons 'snapshot snapshot) (cons 'panel panel)
     (cons 'devices (vl-remove-if-not '(lambda (b) (and (not (equal (EL:Get 'id b) panel)) (member (EL:Get 'id b) component))) blocks))
     (cons 'wire-ids (vl-remove-if-not '(lambda (id) (member id component)) (mapcar '(lambda (w) (EL:Get 'id w)) wires)))

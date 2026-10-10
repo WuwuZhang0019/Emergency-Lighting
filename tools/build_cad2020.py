@@ -4,7 +4,7 @@ import shutil
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGE_NO = 67
+PACKAGE_NO = 68
 NAME = f'应急照明-{PACKAGE_NO:03d}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 DEST = ROOT / 'output' / NAME
@@ -101,7 +101,7 @@ def build():
     for filename in ('2026-10-08-header-alignment.md', '2026-10-08-header-alignment.json',
                      '2026-10-08-free-end-gaps.md', '2026-10-08-free-end-gaps.json'):
         shutil.copy2(ROOT / 'tests/evidence' / filename, DEST / 'tests/evidence' / filename)
-    for filename in ('05_常见错误原因与修复速查.md', '06_固定图块系统图与功率标注自动更新方案.md', '07_面板保存记录.md'):
+    for filename in ('05_常见错误原因与修复速查.md', '06_固定图块系统图与功率标注自动更新方案.md', '00_面板保存记录.md'):
         shutil.copy2(ROOT / 'docs' / filename, DEST / 'docs' / filename)
     for filename in ('2026-10-09-fixed-diagram.md', '2026-10-09-fixed-diagram.json',
                      '2026-10-09-panel-stringp-nil.md', '2026-10-09-template-choices.md',
@@ -120,6 +120,7 @@ def build():
     shutil.copy2(ROOT / 'tests/evidence/2026-10-10-startup-066.md', DEST / 'tests/evidence/2026-10-10-startup-066.md')
     shutil.copy2(ROOT / 'tests/evidence/2026-10-10-saved-records-067.md', DEST / 'tests/evidence/2026-10-10-saved-records-067.md')
     shutil.copy2(ROOT / 'tests/evidence/2026-10-10-circuit-colors-065.md', DEST / 'tests/evidence/2026-10-10-circuit-colors-065.md')
+    shutil.copy2(ROOT / 'tests/evidence/2026-10-10-contact-exclusion-068.md', DEST / 'tests/evidence/2026-10-10-contact-exclusion-068.md')
     readme = guide
     (DEST / '使用说明.md').write_text(readme, encoding='utf-8')
     for filename in ('cad-plan.dxf', 'cad-plan.expected.json'):

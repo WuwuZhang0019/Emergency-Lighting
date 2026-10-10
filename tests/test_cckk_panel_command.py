@@ -74,6 +74,87 @@ class PanelCommandTests(unittest.TestCase):
             'PRINC':lambda text=None:self.messages.append(text) or text,
         })
 
+    def deleted_output_fixture(self, all_members):
+        self.two_circuits(); self.four_circuits()
+        self.assertTrue(truth(self.invoke()))
+        record=self.h.run('(EL:DiagramForPanel "source" (EL:StoreRead))')
+        refs=self.call('EL:DiagramOutputRefs',record)
+        handles=[ref[0] for ref in refs]
+        removed=handles if all_members else [self.get('panel-output-handle',record)]
+        for handle in removed: self.entities.pop(handle)
+        return record,handles
+
+    def test_deleted_four_circuit_output_reenters_native_placement(self):
+        self.install_view()
+        old,handles=self.deleted_output_fixture(True)
+        # In native AutoCAD, HANDENT can still resolve an erased entity name.
+        original=self.h.builtins['HANDENT']
+        self.h.builtins['HANDENT']=lambda h:h if h in handles else original(h)
+        before=len(self.commands)
+        self.assertTrue(truth(self.invoke()))
+        record=self.h.run('(EL:DiagramForPanel "source" (EL:StoreRead))')
+        self.assertEqual(self.commands[before][-1],'pause')
+        self.assertEqual(len(self.commands)-before,7)
+        self.assertNotEqual(self.get('panel-output-handle',record),self.get('panel-output-handle',old))
+        self.assertEqual(self.get('diagram-id',record),self.get('diagram-id',old))
+        rows=self.get('rows',record)
+        self.assertEqual([self.get('circuit-uid',r) for r in rows],
+                         [self.get('circuit-uid',r) for r in self.get('rows',old)])
+        self.assertEqual([self.get('watts',r) for r in rows[:4]],[85,20,20,20])
+        self.assertEqual(len(self.get('cckk-labels',record)),5)
+        self.assertEqual(self.get('status',record),Symbol('CURRENT'))
+        self.assertIn('DIAGRAM_REBUILD',[e[0] for e in self.view_events])
+        self.assertIn('DIAGRAM_VIEW_SHOWN',[e[0] for e in self.view_events])
+
+    def test_deleted_box_rebuild_cleans_only_owned_remnants(self):
+        old,handles=self.deleted_output_fixture(False)
+        self.entity('unrelated','TEXT',[12.,34.,0.],'keep')
+        unrelated=copy.deepcopy(self.entities['unrelated'])
+        self.assertTrue(truth(self.invoke()))
+        self.assertTrue(all(h not in self.entities for h in handles))
+        self.assertEqual(self.entities['unrelated'],unrelated)
+        self.assertNotIn('EL_FIXED_TX',self.dictionary)
+
+    def test_cancel_rebuild_restores_remnants_and_old_association(self):
+        old,handles=self.deleted_output_fixture(False)
+        before=copy.deepcopy(self.entities)
+        self.fail_at=len(self.commands)+3
+        self.assertFalse(truth(self.invoke()))
+        for h in handles:
+            if h in before: self.assertEqual(self.entities[h],before[h])
+        record=self.h.run('(EL:DiagramForPanel "source" (EL:StoreRead))')
+        self.assertEqual(self.get('panel-output-handle',record),self.get('panel-output-handle',old))
+        self.assertEqual(self.get('rows',record),self.get('rows',old))
+        self.assertNotIn('EL_FIXED_TX',self.dictionary)
+
+    def test_deleted_box_with_foreign_remnant_is_not_rebuilt_or_deleted(self):
+        old,handles=self.deleted_output_fixture(False)
+        handle=self.get('block-handle',self.get('rows',old)[0])
+        self.entities[handle]=[p for p in self.entities[handle]
+                               if not (isinstance(p,list) and p[0]==-3)]
+        before=copy.deepcopy(self.entities);commands=len(self.commands)
+        with self.assertRaises(RuntimeError): self.invoke()
+        self.assertEqual(self.entities,before)
+        self.assertEqual(len(self.commands),commands)
+
+    def test_existing_box_ownership_and_locked_layer_are_distinguished(self):
+        self.install_view();self.assertTrue(truth(self.invoke()))
+        record=self.h.run('(EL:DiagramForPanel "source" (EL:StoreRead))')
+        handle=self.get('panel-output-handle',record)
+        original=copy.deepcopy(self.entities[handle])
+        self.entities[handle]=[p for p in original if not (isinstance(p,list) and p[0]==-3)]
+        with self.assertRaises(RuntimeError): self.invoke()
+        states=[self.get('state',d) for n,d in self.view_events if n=='DIAGRAM_OUTPUT_CHECK']
+        self.assertIn(Symbol('OWNERSHIP-MISMATCH'),states)
+        self.entities[handle]=[Pair(8,'locked-output') if isinstance(p,Pair) and p.car==8 else p for p in original]
+        tblsearch=self.h.builtins['TBLSEARCH']
+        self.h.builtins['TBLSEARCH']=lambda table,name:[Pair(70,4),Pair(62,7)] if name=='locked-output' else tblsearch(table,name)
+        before=len(self.commands)
+        with self.assertRaises(RuntimeError): self.invoke()
+        states=[self.get('state',d) for n,d in self.view_events if n=='DIAGRAM_OUTPUT_CHECK']
+        self.assertIn(Symbol('LOCKED-LAYER'),states)
+        self.assertEqual(len(self.commands),before)
+
     def four_circuits(self):
         self.h.run('''(setq result (EL:Put 'engine 'fixed result))
           (setq result (EL:Put 'circuits (append (EL:Get 'circuits result)

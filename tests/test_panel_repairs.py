@@ -29,6 +29,16 @@ class PanelRepairTests(unittest.TestCase):
         self.h.builtins['START_DIALOG'] = start
         self.call('EL:PanelDialog', self.result, self.cfg, self.h.run("'((\"LAMP\" . 5))"), None)
 
+    def test_compact_status_wraps_chinese_and_clears_old_lines(self):
+        value = '已识别设备合计：170 W；实际回路 5；输出 7；已完整核对回路 170 W'
+        self.call('EL:PanelText', 'p_total', value)
+        lines = [self.tiles['p_total' + (str(i) if i else '')] for i in range(4)]
+        self.assertEqual(''.join(lines), value)
+        self.assertTrue(all(sum(2 if ord(c) > 127 else 1 for c in line) <= 44 for line in lines))
+        self.call('EL:PanelText', 'p_total', '已保存')
+        self.assertEqual(self.tiles['p_total'], '已保存')
+        self.assertTrue(all(self.tiles['p_total' + str(i)] == '' for i in range(1, 4)))
+
     def test_screenshot_counts_total_85_even_when_connection_is_pending(self):
         self.h.run('''(setq *EL:PanelPowers* '(("A" . 5) ("B" . 1) ("C" . 1) ("D" . 1)))''')
         blocks, ids = [], []

@@ -1,3 +1,16 @@
+;; Date: 2026-10-10. Wrap Chinese/ASCII status text in the compact left column.
+(defun EL:PanelText (key value / lines line units char cost index limit)
+  (setq line "" units 0 index 1 limit (cond ((equal key "p_total") 4) ((equal key "p_error") 3) (T 2)))
+  (repeat (strlen value)
+    (setq char (substr value index 1) cost (if (> (ascii char) 127) 2 1))
+    (if (> (+ units cost) 44)
+      (setq lines (append lines (list line)) line "" units 0))
+    (setq line (strcat line char) units (+ units cost) index (1+ index)))
+  (setq lines (append lines (list line)) index 0)
+  (repeat limit
+    (set_tile (if (= index 0) key (strcat key (itoa index))) (cond ((nth index lines)) (T "")))
+    (setq index (1+ index)))
+  (if (> (length lines) limit) (princ (strcat "\n" value))))
 ;; Date: 2026-10-09. Native slide capture happens only outside modal dialogs.
 (defun EL:ThumbSlideCommand (path)
   (command-s "_.MSLIDE" path))
@@ -394,7 +407,7 @@
           (if (not bad) (setq bad (strcat "b_watts" (itoa i)))))))
     (setq i (1+ i)))
   (if bad
-    (progn (set_tile "p_error" "单个功率请输入非负整数 W；请修正后再切换。") (mode_tile bad 2) nil)
+    (progn (EL:PanelText "p_error" "单个功率请输入非负整数 W；请修正后再切换。") (mode_tile bad 2) nil)
     (progn
       (setq *EL:PanelPowers* pending
         *EL:PanelDraft* (EL:PanelCompute *EL:PanelDraft* pending *EL:PanelConfig*)) T)))
@@ -429,11 +442,11 @@
 (defun EL:PanelGenerate ()
   (if (EL:PanelStoreSelections)
     (cond
-      ((not (EL:Get 'circuits *EL:PanelDraft*)) (set_tile "p_error" "请至少保留一条实际出线。"))
-      ((> (length (EL:Get 'circuits *EL:PanelDraft*)) 8) (set_tile "p_error" "本图块最多容纳8条实际回路，请拆箱后统计；不会截断回路。"))
-      ((not (EL:Get 'can-generate *EL:PanelDraft*)) (set_tile "p_error" "识别或功率未通过，不能生成；可保存草稿。"))
+      ((not (EL:Get 'circuits *EL:PanelDraft*)) (EL:PanelText "p_error" "请至少保留一条实际出线。"))
+      ((> (length (EL:Get 'circuits *EL:PanelDraft*)) 8) (EL:PanelText "p_error" "本图块最多容纳8条实际回路，请拆箱后统计；不会截断回路。"))
+      ((not (EL:Get 'can-generate *EL:PanelDraft*)) (EL:PanelText "p_error" "识别或功率未通过，不能生成；可保存草稿。"))
       ((not (EL:SelectionsReady *EL:PanelDraft* *EL:PanelCapacity*))
-        (set_tile "p_error" "请先选择箱体容量。"))
+        (EL:PanelText "p_error" "请先选择箱体容量。"))
       (*EL:PanelTemplateReady* (done_dialog 2))
       (T (done_dialog 4)))))
 (defun EL:PanelFill (/ cs i c key)
@@ -447,25 +460,25 @@
           (strcat "预留" (itoa (1+ (- (+ *EL:PanelPage* i) (length cs))))) "")))
     (setq i (1+ i)))
   (EL:PanelBlockFill)
-  (set_tile "p_error" (cond
+  (EL:PanelText "p_error" (cond
     ((not *EL:ThumbRows*) "未识别到连接设备，请检查导线连接、设备图块或恢复已排除图块。")
     ((>= *EL:PanelIndex* (length cs)) "预留回路无需设置；右侧图块表仍显示本箱全部设备。")
     ((and (not (assoc 'block-ground *EL:PanelDraft*)) (vl-some '(lambda (c) (EL:Get 'is-ground c)) cs))
       "沿用旧回路地面设置；修改图块地面勾选后按图块统一重算。")
     (T "图块表显示本箱全部设备；含地面图块的回路自动设为地面。")))
-  (set_tile "p_total" (strcat (EL:PanelKnownTotal) "；实际回路 " (itoa (length cs)) "；输出 " (itoa (EL:FixedOutputCount (length cs)))
+  (EL:PanelText "p_total" (strcat (EL:PanelKnownTotal) "；实际回路 " (itoa (length cs)) "；输出 " (itoa (EL:FixedOutputCount (length cs)))
     "；已完整核对回路 " (itoa (EL:Get 'box-watts *EL:PanelDraft*)) " W"))
   (set_tile "p_capacity" (cond ((equal *EL:PanelCapacity* 'cap600) "p_600")
     ((equal *EL:PanelCapacity* 'cap1000) "p_1000") (T "p_300")))
-  (set_tile "p_capacity_status" "默认 0.3kW；可按需要调整为 0.6kW 或 1kW。")
-  (set_tile "p_template_status" (if *EL:PanelTemplateReady* "模板已验证，生成时自动切换状态。"
+  (EL:PanelText "p_capacity_status" "默认 0.3kW；可按需要调整为 0.6kW 或 1kW。")
+  (EL:PanelText "p_template_status" (if *EL:PanelTemplateReady* "模板已验证，生成时自动切换状态。"
     "模板未设置或已变化：点击生成时设置；不影响统计和保存草稿。")))
 (defun EL:PanelPowerChanged (/ saved)
   (if (EL:PanelStore)
     (progn
       (EL:PanelFill)
       (setq saved (vl-catch-all-apply 'EL:RememberPanelPowers (list *EL:PanelDraft* *EL:PanelPowers*)))
-      (set_tile "p_error" (if (and (not (vl-catch-all-error-p saved)) saved)
+      (EL:PanelText "p_error" (if (and (not (vl-catch-all-error-p saved)) saved)
         "功率已记住；回路草稿请点保存。" "功率未写入文件，请点保存重试；当前窗口草稿仍保留。")))))
 (defun EL:PanelKnownTotal (/ ids circuit rows row total missing overflow watts)
   (foreach circuit (EL:Get 'circuits *EL:PanelDraft*)
@@ -506,7 +519,7 @@
 (defun EL:PanelAccept ()
   (if (EL:PanelStoreSelections)
     (if (EL:Get 'circuits *EL:PanelDraft*) (done_dialog 1)
-      (set_tile "p_error" "请至少保留一条实际出线。"))))
+      (EL:PanelText "p_error" "请至少保留一条实际出线。"))))
 ;; Date: 2026-10-10. Saved records stay in this drawing; selection is read-only.
 (defun EL:HistoryState (record)
   (cond ((equal (EL:Get 'status record) 'stale) "待更新")
@@ -632,7 +645,7 @@
   (setq status 0 dialog (load_dialog (strcat *EL:Root* "ui/power.dcl")) *EL:DialogID* dialog)
   (if (and (> dialog 0) (new_dialog "el_panel" dialog))
     (progn
-      (set_tile "p_error" "请拾取配电箱或配电箱的集中引出线，开始统计。")
+      (EL:PanelText "p_error" "请拾取配电箱或配电箱的集中引出线，开始统计。")
       (EL:TrunkButtonDraw)
       (foreach key '("p_capacity" "f_preview" "f_prev" "f_next" "b_restore" "accept" "p_generate" "h_open")
         (mode_tile key 1))

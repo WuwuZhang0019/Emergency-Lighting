@@ -150,7 +150,7 @@ class Host:
             'LISTP': lambda x: x is None or isinstance(x,(list,Pair)),
             'NULL': lambda x:not truth(x), 'NOT': lambda x:not truth(x),
             'STRCAT': lambda *xs: ''.join(xs), 'STRCASE': lambda x,lower=None:x.lower() if lower else x.upper(),
-            'ITOA': str, 'ATOI': int, 'STRLEN': len, 'RTOS': lambda x,*opts: f'{x:.{opts[1] if len(opts)>1 else 4}f}',
+            'ITOA': str, 'ATOI': int, 'STRLEN': len, 'ASCII': lambda value: ord(value[0]), 'RTOS': lambda x,*opts: f'{x:.{opts[1] if len(opts)>1 else 4}f}',
             'VL-SYMBOL-NAME': str, 'VL-STRING->LIST': lambda x:list(map(ord,x)),
             'VL-LIST->STRING': lambda xs: ''.join(map(chr,seq(xs))),
             'VL-STRING-MISMATCH': lambda a,b: next((i for i,(x,y) in enumerate(zip(a,b)) if x!=y), min(len(a),len(b))),

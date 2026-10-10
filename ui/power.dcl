@@ -94,8 +94,8 @@ el_panel : dialog {
     : column {
   : row {
     : row { fixed_width = true; alignment = left;
-      : image_button { key = "p_pick"; width = 18; height = 1.8; fixed_width = true; fixed_height = true; color = 3; is_tab_stop = true; }
-      : image_button { key = "p_trunk"; width = 32; height = 1.8; fixed_width = true; fixed_height = true; color = 3; is_tab_stop = true; }
+      : image_button { key = "p_pick"; width = 14; height = 1.8; fixed_width = true; fixed_height = true; color = 3; is_tab_stop = true; }
+      : image_button { key = "p_trunk"; width = 28; height = 1.8; fixed_width = true; fixed_height = true; color = 3; is_tab_stop = true; }
     }
     : spacer { width = 1; }
   }
@@ -104,7 +104,10 @@ el_panel : dialog {
     : radio_button { key = "p_600"; width = 10; fixed_width = true; label = "0.6kW"; }
     : radio_button { key = "p_1000"; width = 10; fixed_width = true; label = "1kW"; }
   }
-  : text { key = "p_capacity_status"; width = 70; }
+  : column { fixed_width = true;
+    : text { key = "p_capacity_status"; width = 46; fixed_width = true; height = 1; fixed_height = true; }
+    : text { key = "p_capacity_status1"; width = 46; fixed_width = true; height = 1; fixed_height = true; }
+  }
     : boxed_column { label = "回路编号 / 功率";
       : boxed_row { : text { label = "回路1"; width = 7; fixed_width = true; } : text { key = "p_row0"; width = 16; fixed_width = true; height = 1.8; fixed_height = true; } }
       : boxed_row { : text { label = "回路2"; width = 7; fixed_width = true; } : text { key = "p_row1"; width = 16; fixed_width = true; height = 1.8; fixed_height = true; } }
@@ -116,9 +119,21 @@ el_panel : dialog {
       : boxed_row { : text { label = "回路8"; width = 7; fixed_width = true; } : text { key = "p_row7"; width = 16; fixed_width = true; height = 1.8; fixed_height = true; } }
       : button { key = "f_preview"; label = "查看全部回路"; }
     }
-  : text { key = "p_total"; width = 70; }
-  : text { key = "p_template_status"; width = 70; }
-  : text { key = "p_error"; width = 70; }
+  : column { fixed_width = true;
+    : text { key = "p_total"; width = 46; fixed_width = true; height = 1; fixed_height = true; }
+    : text { key = "p_total1"; width = 46; fixed_width = true; height = 1; fixed_height = true; }
+    : text { key = "p_total2"; width = 46; fixed_width = true; height = 1; fixed_height = true; }
+    : text { key = "p_total3"; width = 46; fixed_width = true; height = 1; fixed_height = true; }
+  }
+  : column { fixed_width = true;
+    : text { key = "p_template_status"; width = 46; fixed_width = true; height = 1; fixed_height = true; }
+    : text { key = "p_template_status1"; width = 46; fixed_width = true; height = 1; fixed_height = true; }
+  }
+  : column { fixed_width = true;
+    : text { key = "p_error"; width = 46; fixed_width = true; height = 1; fixed_height = true; }
+    : text { key = "p_error1"; width = 46; fixed_width = true; height = 1; fixed_height = true; }
+    : text { key = "p_error2"; width = 46; fixed_width = true; height = 1; fixed_height = true; }
+  }
   : column {
     : button { key = "accept"; label = "保存"; is_default = true; }
     : button { key = "p_generate"; label = "生成或更新"; }

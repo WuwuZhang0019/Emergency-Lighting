@@ -327,7 +327,6 @@
       (if c (strcat "ZE" (itoa (1+ (+ *EL:PanelPage* i))) " | " (itoa (EL:Get 'watts c)) "W")
         (if (< (+ *EL:PanelPage* i) (EL:FixedOutputCount (length cs)))
           (strcat "预留" (itoa (1+ (- (+ *EL:PanelPage* i) (length cs))))) "")))
-    (mode_tile (strcat "p_select" key) (if (< (+ *EL:PanelPage* i) (EL:FixedOutputCount (length cs))) 0 1))
     (setq i (1+ i)))
   (EL:PanelBlockFill)
   (set_tile "p_error" (cond
@@ -342,17 +341,6 @@
   (set_tile "p_capacity_status" "默认 0.3kW；可按需要调整为 0.6kW 或 1kW。")
   (set_tile "p_template_status" (if *EL:PanelTemplateReady* "模板已验证，生成时自动切换状态。"
     "模板未设置或已变化：点击生成时设置；不影响统计和保存草稿。")))
-(defun EL:PanelSelect (index)
-  (if (EL:PanelStore)
-    (progn
-      (setq *EL:PanelIndex* index)
-      (if (< index (length (EL:Get 'circuits *EL:PanelDraft*)))
-        (done_dialog 8)
-        (EL:PanelFill)))))
-(defun EL:PanelSafeSelect (index / checked)
-  (setq checked (vl-catch-all-apply 'EL:PanelSelect (list index)))
-  (if (vl-catch-all-error-p checked)
-    (set_tile "p_error" (strcat "切换未完成，功率草稿保留：" (vl-catch-all-error-message checked)))))
 (defun EL:PanelPowerChanged (/ saved)
   (if (EL:PanelStore)
     (progn
@@ -433,10 +421,6 @@
           (setq i (1+ i)))
         (setq i 0)
         (action_tile "f_preview" "(if (EL:PanelStore) (done_dialog 5))")
-        (repeat 8
-          (setq key (itoa i))
-          (action_tile (strcat "p_select" key) (strcat "(EL:PanelSafeSelect (+ *EL:PanelPage* " key "))"))
-          (setq i (1+ i)))
         (action_tile "p_prev" "(EL:PanelPage -8)") (action_tile "p_next" "(EL:PanelPage 8)")
         (action_tile "p_capacity" "(EL:PanelCapacity $value)")
         (action_tile "accept" "(EL:PanelAccept)")
@@ -458,8 +442,6 @@
             (setq row (nth *EL:PanelDevice* (EL:PanelDevices)))
             (if row (EL:SimpleLocate (list (cons 'devices (EL:Get 'blocks (EL:Get 'snapshot result)))) row))
             (getstring "\n按 Enter 返回主面板：") (EL:ClearGapPreview)))
-        (if (= status 8)
-          (progn (EL:FixedExitPreview *EL:PanelDraft* (itoa *EL:PanelIndex*)) (setq status 7)))
         (if (= status 5)
           (progn (EL:FixedExitPreview *EL:FixedExitResult* *EL:FixedExitSelection*) (setq status 3)))
         (if (member status '(4 7)) (setq status 3)))

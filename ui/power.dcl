@@ -98,14 +98,14 @@ el_panel : dialog {
   : text { key = "p_capacity_status"; width = 100; }
   : row {
     : boxed_column { label = "回路编号 / 功率";
-      : row { : text { key = "p_row0"; width = 43; fixed_width = true; } : button { key = "p_select0"; label = "查看"; width = 5; fixed_width = true; } }
-      : row { : text { key = "p_row1"; width = 43; fixed_width = true; } : button { key = "p_select1"; label = "查看"; width = 5; fixed_width = true; } }
-      : row { : text { key = "p_row2"; width = 43; fixed_width = true; } : button { key = "p_select2"; label = "查看"; width = 5; fixed_width = true; } }
-      : row { : text { key = "p_row3"; width = 43; fixed_width = true; } : button { key = "p_select3"; label = "查看"; width = 5; fixed_width = true; } }
-      : row { : text { key = "p_row4"; width = 43; fixed_width = true; } : button { key = "p_select4"; label = "查看"; width = 5; fixed_width = true; } }
-      : row { : text { key = "p_row5"; width = 43; fixed_width = true; } : button { key = "p_select5"; label = "查看"; width = 5; fixed_width = true; } }
-      : row { : text { key = "p_row6"; width = 43; fixed_width = true; } : button { key = "p_select6"; label = "查看"; width = 5; fixed_width = true; } }
-      : row { : text { key = "p_row7"; width = 43; fixed_width = true; } : button { key = "p_select7"; label = "查看"; width = 5; fixed_width = true; } }
+      : text { key = "p_row0"; width = 43; fixed_width = true; height = 1.8; fixed_height = true; }
+      : text { key = "p_row1"; width = 43; fixed_width = true; height = 1.8; fixed_height = true; }
+      : text { key = "p_row2"; width = 43; fixed_width = true; height = 1.8; fixed_height = true; }
+      : text { key = "p_row3"; width = 43; fixed_width = true; height = 1.8; fixed_height = true; }
+      : text { key = "p_row4"; width = 43; fixed_width = true; height = 1.8; fixed_height = true; }
+      : text { key = "p_row5"; width = 43; fixed_width = true; height = 1.8; fixed_height = true; }
+      : text { key = "p_row6"; width = 43; fixed_width = true; height = 1.8; fixed_height = true; }
+      : text { key = "p_row7"; width = 43; fixed_width = true; height = 1.8; fixed_height = true; }
       : row { : button { key = "p_prev"; label = "上一页"; } : button { key = "p_next"; label = "下一页"; } }
       : button { key = "f_preview"; label = "在图面查看全部回路导线和设备"; }
     }

@@ -123,7 +123,7 @@ class BlockTableTests(unittest.TestCase):
             self.h.builtins[name] = checked
         self.dialog(lambda: 0)
 
-    def test_circuit_preview_returns_to_same_block_page_with_power(self):
+    def test_all_circuits_preview_returns_to_same_block_page_with_power(self):
         self.populate()
         previews = []
         self.h.builtins['EL:FIXEDEXITPREVIEW'] = lambda result, selection: previews.append(selection)
@@ -131,12 +131,12 @@ class BlockTableTests(unittest.TestCase):
             if not previews:
                 self.call('EL:PanelBlockPage', 4)
                 self.tiles['b_watts0'] = '9'
-                return self.call('EL:PanelSelect', 0)
+                return self.h.run(self.f.actions['f_preview'])
             self.assertEqual(self.get('name', self.h.lookup('*EL:THUMBROWS*')[self.h.lookup('*EL:THUMBPAGE*')]), 'TYPE4')
             self.assertEqual(self.tiles['b_watts0'], '9')
             return 0
         self.dialog(action)
-        self.assertEqual(previews, ['0'])
+        self.assertEqual(previews, ['0 '])
         self.assertEqual(self.f.dialogs, ['el_panel', 'el_panel'])
 
     def test_main_dcl_has_inline_table_and_no_duplicate_editor(self):

@@ -18,13 +18,12 @@ class PanelRepairTests(unittest.TestCase):
     def test_circuit_text_is_not_a_button_value_and_reserve_stays_open(self):
         ui = (Path(__file__).resolve().parents[1] / 'ui/power.dcl').read_text(encoding='utf-8')
         self.assertIn(': text { key = "p_row0"', ui)
-        self.assertIn(': button { key = "p_select1"; label = "查看"', ui)
+        self.assertNotIn('p_select', ui)
         self.h.builtins['GET_TILE'] = lambda key: self.tiles.get(key, '')
         self.h.builtins['DONE_DIALOG'] = lambda status: self.fail('reserve must not close panel')
         def start():
-            self.h.run(self.actions['p_select1'])
-            self.assertIn('预留回路', self.tiles['p_error'])
-            self.assertEqual(self.tiles['b_watts0'], '5')
+            self.assertNotIn('p_select1', self.actions)
+            self.assertEqual(self.tiles['p_row1'], '预留1')
             self.assertEqual(self.tiles['b_watts0'], '5')
             return 0
         self.h.builtins['START_DIALOG'] = start

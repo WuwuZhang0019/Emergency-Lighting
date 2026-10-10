@@ -91,19 +91,20 @@ el_fixed_exits : dialog {
 el_panel : dialog {
   label = "回路与图块设置";
   : row {
+    : column {
+  : row {
     : row { fixed_width = true; alignment = left;
       : image_button { key = "p_pick"; width = 18; height = 1.8; fixed_width = true; fixed_height = true; color = 3; is_tab_stop = true; }
       : image_button { key = "p_trunk"; width = 32; height = 1.8; fixed_width = true; fixed_height = true; color = 3; is_tab_stop = true; }
     }
     : spacer { width = 1; }
   }
-  : radio_row { key = "p_capacity"; label = "当前配电箱容量档位";
-    : radio_button { key = "p_300"; label = "0.3kW"; value = "1"; }
-    : radio_button { key = "p_600"; label = "0.6kW"; }
-    : radio_button { key = "p_1000"; label = "1kW"; }
+  : radio_row { key = "p_capacity"; label = "当前配电箱容量档位"; fixed_width = true; alignment = left;
+    : radio_button { key = "p_300"; width = 10; fixed_width = true; label = "0.3kW"; value = "1"; }
+    : radio_button { key = "p_600"; width = 10; fixed_width = true; label = "0.6kW"; }
+    : radio_button { key = "p_1000"; width = 10; fixed_width = true; label = "1kW"; }
   }
   : text { key = "p_capacity_status"; width = 70; }
-  : row {
     : boxed_column { label = "回路编号 / 功率";
       : boxed_row { : text { label = "回路1"; width = 7; fixed_width = true; } : text { key = "p_row0"; width = 16; fixed_width = true; height = 1.8; fixed_height = true; } }
       : boxed_row { : text { label = "回路2"; width = 7; fixed_width = true; } : text { key = "p_row1"; width = 16; fixed_width = true; height = 1.8; fixed_height = true; } }
@@ -115,8 +116,17 @@ el_panel : dialog {
       : boxed_row { : text { label = "回路8"; width = 7; fixed_width = true; } : text { key = "p_row7"; width = 16; fixed_width = true; height = 1.8; fixed_height = true; } }
       : button { key = "f_preview"; label = "查看全部回路"; }
     }
+  : text { key = "p_total"; width = 70; }
+  : text { key = "p_template_status"; width = 70; }
+  : text { key = "p_error"; width = 70; }
+  : column {
+    : button { key = "accept"; label = "保存"; is_default = true; }
+    : button { key = "p_generate"; label = "生成或更新"; }
+    : button { key = "cancel"; label = "取消"; is_cancel = true; }
+  }
+    }
   : boxed_column { label = "保存记录（本图）";
-    : list_box { key = "h_records"; width = 40; fixed_width = true; height = 24; multiple_select = false; }
+    : list_box { key = "h_records"; width = 40; fixed_width = true; height = 38; multiple_select = false; }
     : text { key = "h_detail"; width = 40; fixed_width = true; }
     : text { label = "单击记录查看；当前箱标有 [当前]。"; }
     : text { label = "切换会保存当前草稿，不更新系统图。"; }
@@ -178,18 +188,11 @@ el_panel : dialog {
         : toggle { key = "b_ground7"; label = "是"; width = 7; fixed_width = true; }
         : button { key = "b_remove7"; label = "×"; width = 4; fixed_width = true; }
       }
+      : spacer { height = 1; }
       : row { : button { key = "f_prev"; label = "上一页"; } : text { key = "f_page"; width = 10; } : button { key = "f_next"; label = "下一页"; } }
       : text { label = "点击图块查看；按 Tab 记住功率。"; }
       : text { label = "× 排除本箱同类图块，不计数量和功率。"; }
       : row { : text { key = "b_excluded"; width = 24; } : button { key = "b_restore"; label = "恢复排除"; } }
     }
-  }
-  : text { key = "p_total"; width = 70; }
-  : text { key = "p_template_status"; width = 70; }
-  : text { key = "p_error"; width = 70; }
-  : row {
-    : button { key = "accept"; label = "保存"; is_default = true; }
-    : button { key = "p_generate"; label = "生成或更新"; }
-    : button { key = "cancel"; label = "取消"; is_cancel = true; }
   }
 }

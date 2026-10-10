@@ -85,7 +85,14 @@ class AssemblyTests(unittest.TestCase):
                     self.assertEqual(self.states[e], '普通' if i<n else '预留')
                     self.assertEqual(field(d,8), 'SYS_系统标注_E')
                 texts = [d for d in self.entities.values() if field(d,0)=='TEXT']
-                self.assertEqual(len(texts), 1+2*n)
+                self.assertEqual(len(texts), 1+2*n+n+reserve)
+                numbers = [d for d in texts if field(d,1).startswith('ZE')]
+                self.assertEqual([field(d,1) for d in numbers], [f'ZE{i+1}' for i in range(n+reserve)])
+                for i,d in enumerate(numbers):
+                    self.assertEqual(field(d,11), [8627., -5160.-1200.*i, 0.])
+                    self.assertEqual(field(d,7), '_TEL_DIM')
+                    self.assertEqual(field(d,8), 'TEL_TEXT')
+                    self.assertEqual(field(d,62), 256)
                 self.assertEqual(sum(field(d,1)=='132W' for d in texts), n)
                 self.assertEqual(sum(field(d,1)=='预留' for d in texts), 0)
                 box = next(d for d in texts if field(d,1)=='CK-B1AL1')

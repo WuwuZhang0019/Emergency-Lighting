@@ -72,8 +72,9 @@ class UpdateTests(unittest.TestCase):
         labels=[]
         for label in self.call('EL:CCKKLabels',self.h.lookup('PLAN')):
             uid=self.get('uid',label); entity='caption-'+uid
-            parent='panel' if uid=='panel-label' else 'b'+str(int(uid[-1])-1)
-            made=self.call('EL:CCKKCaptionText',parent,self.get('kind',label))
+            parent='panel' if uid=='panel-label' else next(self.get('block-handle',r) for r in self.get('rows',self.h.lookup('RECORD')) if self.get('circuit-uid',r)==self.get('parent-uid',label))
+            spec=self.call('EL:CCKKCaptionDef',self.get('kind',label))
+            made=self.call('EL:CCKKText',parent,self.get('text',label),*spec[1:])
             self.entities[entity]=[Pair(p.car,entity) if isinstance(p,Pair) and p.car in (-1,5) else p
                                    for p in self.entities.pop(made)]
             self.call('EL:TagEntity',entity,self.h.lookup('STORE'),self.h.lookup('RECORD'),'text',uid)
@@ -98,8 +99,8 @@ class UpdateTests(unittest.TestCase):
           (setq record (EL:CreateDiagram result template 'cap300 plan record store))""")
         record=self.h.lookup('RECORD')
         self.assertEqual(len(self.get('rows',record)),3)
-        self.assertEqual(len(self.get('cckk-labels',record)),2)
-        self.assertEqual(self.counter,7)  # panel, 3 circuits, power, purpose, panel number
+        self.assertEqual(len(self.get('cckk-labels',record)),5)
+        self.assertEqual(self.counter,10)  # panel, circuits, power, purpose, box label and circuit numbers
         actual=self.get('rows',record)[0]
         text=self.entities[self.get('text-handle',actual)]
         self.assertIn(Pair(1,'85W'),text)
@@ -113,7 +114,7 @@ class UpdateTests(unittest.TestCase):
         del self.entities['caption-label/u1']
         updated=self.update()
         self.assertEqual(self.counter,1)
-        self.assertEqual(len(self.get('cckk-labels',updated)),3)
+        self.assertEqual(len(self.get('cckk-labels',updated)),7)
         self.entities['caption-panel-label']=[p for p in self.entities['caption-panel-label']
                                              if not (isinstance(p,list) and p[0]==-3)]
         with self.assertRaises(RuntimeError):
@@ -127,7 +128,7 @@ class UpdateTests(unittest.TestCase):
         updated=self.update(True)
         self.assertIn('t0',self.deleted)
         self.assertIn('t1',self.deleted)
-        self.assertEqual(self.counter,5)
+        self.assertEqual(self.counter,9)
         self.assertEqual([self.get('block-handle',r) for r in self.get('rows',updated)],['b0','b1','b2','b3'])
 
     def test_v53_caption_upgrade_keeps_manual_offset_and_repairs_native_text(self):
@@ -135,7 +136,7 @@ class UpdateTests(unittest.TestCase):
           (EL:Put 'cckk-text-version nil label)) (EL:Get 'cckk-labels record)) record))""")
         self.call('EL:MoveManaged','caption-label/u1',[77.,88.,0.])
         updated=self.update()
-        self.assertEqual(self.counter,3)
+        self.assertEqual(self.counter,7)
         label=self.call('EL:By',Symbol('UID'),'label/u1',self.get('cckk-labels',updated))
         self.assertEqual(field(self.entities[self.get('handle',label)],11),[77.,88.,0.])
         self.assertNotEqual(self.get('text-position',label),[77.,88.,0.])
@@ -144,7 +145,7 @@ class UpdateTests(unittest.TestCase):
 
     def test_caption_requirements_do_not_depend_on_v52_plan_marker(self):
         plan=self.call('EL:Put',Symbol('CCKK-LAYOUT'),None,self.h.lookup('PLAN'))
-        self.assertEqual(len(self.call('EL:CCKKLabels',plan)),3)
+        self.assertEqual(len(self.call('EL:CCKKLabels',plan)),7)
 
     def test_power_update_keeps_handles_manual_position_and_no_reserve_text(self):
         self.entities['t0']=[Pair(10,[99.,88.,0.]) if isinstance(p,Pair) and p.car==10 else p for p in self.entities['t0']]
@@ -162,7 +163,7 @@ class UpdateTests(unittest.TestCase):
     def test_remove_retains_reserve_identity_and_cleans_owned_row(self):
         self.h.run("(setq result (EL:Put 'circuits (cdr cs) result)) (setq plan (EL:FixedPlan result template 'cap600 '(0.0 0.0 0.0) 0.0 1.0))")
         updated=self.update(True)
-        self.assertEqual(self.deleted,['b0','t0','caption-label/u1']);self.assertEqual(self.counter,0)
+        self.assertEqual(set(self.deleted),{'b0','t0','caption-label/u1','caption-number/u1','caption-number/u2','caption-number/reserve-1','caption-number/reserve-2'});self.assertEqual(self.counter,3)
         self.assertEqual([self.get('block-handle',r) for r in self.get('rows',updated)],['b1','b2','b3'])
         self.assertEqual(self.dynamic['panel'],'CAP600')
 
@@ -217,7 +218,7 @@ class UpdateTests(unittest.TestCase):
         self.h.run("(setq result (EL:Put 'circuits (append cs '(((id . \"R3\") (circuit-uid . \"u3\") (watts . 12) (output-order . 3)))) result)) (setq plan (EL:FixedPlan result template 'cap300 '(0.0 0.0 0.0) 0.0 1.0))")
         updated=self.update(True)
         rows=self.get('rows',updated)
-        self.assertEqual(len(rows),5); self.assertEqual(self.counter,3)
+        self.assertEqual(len(rows),5); self.assertEqual(self.counter,6)
         self.assertEqual([self.get('block-handle',r) for r in rows[-2:]],['b2','b3'])
         self.assertTrue(all(self.get('text-handle',r) is None for r in rows[-2:]))
 

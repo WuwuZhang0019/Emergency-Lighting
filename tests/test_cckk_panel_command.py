@@ -101,7 +101,7 @@ class PanelCommandTests(unittest.TestCase):
         self.assertEqual([self.get('circuit-uid',r) for r in rows],
                          [self.get('circuit-uid',r) for r in self.get('rows',old)])
         self.assertEqual([self.get('watts',r) for r in rows[:4]],[85,20,20,20])
-        self.assertEqual(len(self.get('cckk-labels',record)),5)
+        self.assertEqual(len(self.get('cckk-labels',record)),11)
         self.assertEqual(self.get('status',record),Symbol('CURRENT'))
         self.assertIn('DIAGRAM_REBUILD',[e[0] for e in self.view_events])
         self.assertIn('DIAGRAM_VIEW_SHOWN',[e[0] for e in self.view_events])
@@ -164,6 +164,30 @@ class PanelCommandTests(unittest.TestCase):
           (setq result (EL:Put 'circuits (mapcar '(lambda (c)
             (EL:Put 'ground-source 'manual c)) (EL:Get 'circuits result)) result))''')
 
+    def test_three_actual_plus_two_reserve_numbers_and_shrink(self):
+        original_entities=set(self.entities)
+        self.two_circuits(); self.four_circuits()
+        self.h.run("(setq result (EL:Put 'circuits (reverse (cdr (reverse (EL:Get 'circuits result)))) result))")
+        self.assertTrue(truth(self.invoke()))
+        def check(count):
+            record=self.h.run('(EL:DiagramForPanel "source" (EL:StoreRead))')
+            labels=[l for l in self.get('cckk-labels',record) if self.get('kind',l)==Symbol('NUMBER')]
+            self.assertEqual([field(self.entities[self.get('handle',l)],1) for l in labels],
+                             [f'ZE{i+1}' for i in range(count)])
+            for row,label in zip(self.get('rows',record),labels):
+                self.assertEqual(self.get('parent-uid',label),self.get('circuit-uid',row))
+                base=field(self.entities[self.get('block-handle',row)],10)
+                self.assertEqual(field(self.entities[self.get('handle',label)],11),[base[0]+2100.,base[1]+140.,base[2]])
+            return [self.get('handle',l) for l in labels]
+        self.h.builtins.update({'INITGET':lambda *args:None, 'GETKWORD':lambda *args:'Replace'})
+        handles=check(5)
+        self.assertTrue(truth(self.invoke()))
+        self.assertEqual(check(5),handles)
+        self.h.run("(setq result (EL:Put 'circuits (list (car (EL:Get 'circuits result))) result))")
+        self.assertTrue(truth(self.invoke()))
+        check(3)
+        self.assertEqual(sum(str(field(d,1)).startswith('ZE') for e,d in self.entities.items() if e not in original_entities),3)
+
     def test_two_to_four_updates_existing_output_and_shows_all_owned_entities(self):
         self.install_view()
         self.placement=[1279956.,449786.,0.]  # remote output, matching the field case
@@ -192,7 +216,7 @@ class PanelCommandTests(unittest.TestCase):
         expected.update(self.get('text-handle',r) for r in rows[:4])
         expected.update(self.get('handle',l) for l in self.get('cckk-labels',record))
         self.assertEqual(set(self.view_entities),expected)
-        self.assertEqual(len(expected),16)  # box + six blocks + four powers + five captions
+        self.assertEqual(len(expected),22)  # box + six blocks + four powers + eleven labels
         self.assertEqual(len(self.zoomed),1)
         lo,hi=self.zoomed[0]
         for e in expected:
@@ -214,7 +238,7 @@ class PanelCommandTests(unittest.TestCase):
         self.assertTrue(truth(self.invoke()))
         self.assertEqual(len(self.commands),7)
         self.assertEqual(len(self.zoomed),1)
-        self.assertEqual(len(self.view_entities),16)
+        self.assertEqual(len(self.view_entities),22)
         self.assertTrue(truth(self.h.run("(EL:SyncDiagram result cfg nil 'cap300 nil T)")))
         self.assertTrue(truth(self.h.run("(EL:SyncDiagram result cfg nil 'cap300 T nil)")))
         self.assertEqual(len(self.zoomed),1)
@@ -282,7 +306,7 @@ class PanelCommandTests(unittest.TestCase):
                          ['NORMAL','NORMAL','RESERVE','RESERVE'])
         self.assertEqual([field(self.entities[self.get('handle',label)],1)
                           for label in self.get('cckk-labels',record)],
-                         ['CK-B1AL1','商铺疏散指示及应急照明','商铺疏散指示及应急照明'])
+                         ['CK-B1AL1','ZE1','商铺疏散指示及应急照明','ZE2','商铺疏散指示及应急照明','ZE3','ZE4'])
         for flag in ('OPEN','DIRTY','RUNNING'):
             self.assertFalse(truth(self.h.lookup('*EL:TRANSACTION'+flag+'*')))
         self.assertNotIn('EL_FIXED_TX',self.dictionary)
@@ -430,7 +454,15 @@ class PanelCommandTests(unittest.TestCase):
         row=self.get('rows',record)[0]
         self.assertIn(Pair(1,'85W'),self.entities[self.get('text-handle',row)])
         labels=self.get('cckk-labels',record)
-        self.assertEqual(len(labels),2)
+        self.assertEqual(len(labels),5)
+        numbers=[l for l in labels if self.get('kind',l)==Symbol('NUMBER')]
+        self.assertEqual([self.get('text',l) for l in numbers],['ZE1','ZE2','ZE3'])
+        for i,label in enumerate(numbers):
+            data=self.entities[self.get('handle',label)]
+            self.assertEqual(field(data,11),[8627.,-5160.-1200.*i,0.])
+            for code,value in [(7,'_TEL_DIM'),(8,'TEL_TEXT'),(62,256),(40,350.),(41,.7),(72,1),(73,0)]:
+                self.assertEqual(field(data,code),value)
+        labels=[l for l in labels if self.get('kind',l)!=Symbol('NUMBER')]
         for label,text,point,style,layer,color in zip(labels,
                 ['CK-B1AL1','商铺疏散指示及应急照明'],[[2550.,-255.,0.],[17510.,-5235.,0.]],
                 ['ICDA-STYLE1','_TEL_DIM'],['SYS_系统标注_E','TEL_TEXT'],[0,256]):
@@ -454,7 +486,7 @@ class PanelCommandTests(unittest.TestCase):
         record=self.h.run('(EL:DiagramForPanel "source" (EL:StoreRead))')
         self.assertEqual([field(self.entities[self.get('handle',label)],1)
                           for label in self.get('cckk-labels',record)],
-                         ['CK-B1AL1','商铺疏散指示及应急照明'])
+                         ['CK-B1AL1','ZE1','商铺疏散指示及应急照明','ZE2','ZE3'])
         count=len(self.entities)
         self.assertTrue(truth(self.invoke()))
         self.assertEqual(len(self.entities),count)

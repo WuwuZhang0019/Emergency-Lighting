@@ -35,8 +35,8 @@ class ExitDeviceTests(unittest.TestCase):
             self.assertNotIn('f_exits', self.lists)
             self.assertNotIn('f_exits', self.actions)
             self.assertNotIn('f_apply', self.actions)
-            self.assertEqual(self.tiles['f_count0'], '数量：2')
-            self.assertEqual(self.tiles['b_name0'], 'LAMP')
+            self.assertNotIn('f_count0', self.tiles)
+            self.assertNotIn('b_name0', self.tiles)
             self.assertEqual(self.tiles['b_watts0'], '')
             return 0
         self.h.builtins['START_DIALOG'] = start

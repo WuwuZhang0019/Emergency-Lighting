@@ -37,15 +37,18 @@
         sw (max 1 (fix (* scale (car screen)))) sh (max 1 (fix (* scale (cadr screen)))))
       (vl-catch-all-apply 'slide_image (list (fix (/ (- w sw) 2)) (fix (/ (- h sh) 2)) sw sh (car geometry)))))
   (end_image))
-(defun EL:ThumbFill (/ i row key geometry)
+;; Date: 2026-10-10. Main table shows images only; legacy review keeps captions.
+(defun EL:ThumbFill () (EL:ThumbFillRows T))
+(defun EL:ThumbFillRows (captions / i row key geometry)
   (setq i 0)
   (repeat 4
     (setq key (itoa i) row (nth (+ *EL:ThumbPage* i) *EL:ThumbRows*) geometry nil)
     (if row (setq geometry (cdr (assoc (EL:Get 'name row) *EL:ThumbCache*))))
     (EL:ThumbDraw (strcat "f_image" key) geometry)
+    (if captions (progn
     (set_tile (strcat "f_count" key) (if row (strcat "数量：" (itoa (EL:Get 'count row))) ""))
     (set_tile (strcat "f_hint" key) (cond ((not row) "") ((not (car geometry)) "预览失败，点击在图面查看")
-      (T "图面实景，点击放大")))
+      (T "图面实景，点击放大")))))
     (setq i (1+ i)))
   (set_tile "f_page" (strcat (itoa (1+ (fix (/ *EL:ThumbPage* 4)))) " / "
     (itoa (max 1 (fix (/ (+ (length *EL:ThumbRows*) 3) 4))))))
@@ -241,11 +244,10 @@
     (EL:Get 'blocks (EL:Get 'snapshot *EL:PanelDraft*))) *EL:PanelPowers*))
 (defun EL:PanelBlockFill (/ i row key)
   (setq *EL:ThumbRows* (EL:PanelBlockRows))
-  (EL:ThumbFill)
+  (EL:ThumbFillRows nil)
   (setq i 0)
   (repeat 4
     (setq key (itoa i) row (nth (+ *EL:ThumbPage* i) *EL:ThumbRows*))
-    (set_tile (strcat "b_name" key) (if row (EL:Get 'name row) ""))
     (set_tile (strcat "b_watts" key) (if (numberp (EL:Get 'watts row)) (itoa (EL:Get 'watts row)) ""))
     (set_tile (strcat "b_ground" key) (if (EL:Get (EL:Get 'key row) (EL:Get 'block-ground *EL:PanelDraft*)) "1" "0"))
     (mode_tile (strcat "b_watts" key) (if row 0 1))
@@ -331,7 +333,7 @@
     (setq i (1+ i)))
   (EL:PanelBlockFill)
   (set_tile "p_error" (cond
-    ((>= *EL:PanelIndex* (length cs)) "预留回路无需设置；左侧图块表仍显示本箱全部设备。")
+    ((>= *EL:PanelIndex* (length cs)) "预留回路无需设置；右侧图块表仍显示本箱全部设备。")
     ((and (not (assoc 'block-ground *EL:PanelDraft*)) (vl-some '(lambda (c) (EL:Get 'is-ground c)) cs))
       "沿用旧回路地面设置；修改图块地面勾选后按图块统一重算。")
     (T "图块表显示本箱全部设备；含地面图块的回路自动设为地面。")))

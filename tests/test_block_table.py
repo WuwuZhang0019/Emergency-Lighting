@@ -34,7 +34,7 @@ class BlockTableTests(unittest.TestCase):
                 self.tiles[f'b_watts{i}'] = str(i + 1)
             self.call('EL:PanelBlockGround', 0, '1')
             self.call('EL:PanelBlockPage', 4)
-            self.assertEqual(self.tiles['b_name0'], 'TYPE4')
+            self.assertEqual(self.get('name', self.h.lookup('*EL:THUMBROWS*')[self.h.lookup('*EL:THUMBPAGE*')]), 'TYPE4')
             self.tiles['b_watts0'], self.tiles['b_watts1'] = '5', '6'
             self.call('EL:PanelBlockPage', -4)
             self.assertEqual(self.tiles['b_watts3'], '4')
@@ -51,7 +51,7 @@ class BlockTableTests(unittest.TestCase):
         def action():
             self.tiles['b_watts0'], self.tiles['b_watts1'] = '7', '12x'
             self.call('EL:PanelBlockPage', 4)
-            self.assertEqual(self.tiles['b_name0'], 'TYPE0')
+            self.assertEqual(self.get('name', self.h.lookup('*EL:THUMBROWS*')[self.h.lookup('*EL:THUMBPAGE*')]), 'TYPE0')
             self.assertEqual(self.tiles['b_watts1'], '12x')
             self.assertFalse(self.h.lookup('*EL:PANELPOWERS*'))
             self.call('EL:PanelBlockGround', 0, '1')
@@ -132,7 +132,7 @@ class BlockTableTests(unittest.TestCase):
                 self.call('EL:PanelBlockPage', 4)
                 self.tiles['b_watts0'] = '9'
                 return self.call('EL:PanelSelect', 0)
-            self.assertEqual(self.tiles['b_name0'], 'TYPE4')
+            self.assertEqual(self.get('name', self.h.lookup('*EL:THUMBROWS*')[self.h.lookup('*EL:THUMBPAGE*')]), 'TYPE4')
             self.assertEqual(self.tiles['b_watts0'], '9')
             return 0
         self.dialog(action)
@@ -141,7 +141,7 @@ class BlockTableTests(unittest.TestCase):
 
     def test_main_dcl_has_inline_table_and_no_duplicate_editor(self):
         ui = (Path(__file__).resolve().parents[1] / 'ui/power.dcl').read_text(encoding='utf-8').split('el_panel : dialog {')[1]
-        for key in ('p_devices', 'p_watts', 'p_ground0', 'f_exits', 'f_apply'):
+        for key in ('p_devices', 'p_watts', 'p_ground0', 'f_exits', 'f_apply', 'b_name0', 'f_count0', 'f_hint0'):
             self.assertNotIn(f'key = "{key}"', ui)
         for i in range(4):
             for prefix in ('f_image', 'b_watts', 'b_ground'):

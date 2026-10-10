@@ -1,4 +1,4 @@
-"""DWG record adapter checks; no native CAD acceptance. Date: 2026-10-09."""
+"""DWG record adapter checks; no native CAD acceptance. Date: 2026-10-10."""
 import pathlib
 import copy
 import math
@@ -33,9 +33,12 @@ class StoreTests(unittest.TestCase):
         self.h=Host()
         for name in ('common','diagram-store'):
             self.h.load_definitions(ROOT/'src'/f'{name}.lsp')
-        self.entities={}; self.dictionary={}
+        self.entities={}; self.dictionary={}; self.xrecord_id=0
         def create(data):
-            e=str(len(self.entities)+1); self.entities[e]=[Pair(-1,e),Pair(5,e)]+data; return e
+            # Native handles do not overwrite a live entity after a deletion.
+            self.xrecord_id+=1
+            while str(self.xrecord_id) in self.entities: self.xrecord_id+=1
+            e=str(self.xrecord_id); self.entities[e]=[Pair(-1,e),Pair(5,e)]+data; return e
         def modify(data):
             e=next(p.cdr for p in data if p.car==-1); self.entities[e]=data; return e
         def fill(array, values):

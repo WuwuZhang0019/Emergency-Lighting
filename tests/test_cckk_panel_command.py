@@ -1,4 +1,4 @@
-"""Native CCKK2 panel dispatch and cancellation adapters. Date: 2026-10-09."""
+"""Native CCKK2 panel dispatch and cancellation adapters. Date: 2026-10-10."""
 import copy
 import unittest
 from autolisp_host import Symbol, Pair, truth
@@ -53,6 +53,76 @@ class PanelCommandTests(unittest.TestCase):
 
     def invoke(self):
         return self.h.run("(EL:InvokeCCKK2 result cfg nil 'cap300)")
+
+    def two_circuits(self):
+        self.h.run("""(setq result (EL:Put 'circuits
+          (mapcar '(lambda (c) (EL:Put 'ground-source 'manual c))
+            (list (EL:Put 'watts 85 (car cs)) (EL:Put 'watts 20 (cadr cs)))) result))""")
+
+    def assert_two_circuit_output(self):
+        record=self.h.run('(EL:DiagramForPanel "source" (EL:StoreRead))')
+        rows=self.get('rows',record)
+        self.assertEqual(len(rows),4)
+        self.assertEqual([self.get('watts',r) for r in rows[:2]],[85,20])
+        self.assertEqual([field(self.entities[self.get('text-handle',r)],1)
+                          for r in rows[:2]],['85W','20W'])
+        self.assertTrue(all(self.get('text-handle',r) is None for r in rows[2:]))
+        self.assertEqual([self.dynamic[self.get('block-handle',r)] for r in rows],
+                         ['NORMAL','NORMAL','RESERVE','RESERVE'])
+        self.assertEqual([field(self.entities[self.get('handle',label)],1)
+                          for label in self.get('cckk-labels',record)],
+                         ['CK-B1AL1','商铺疏散指示及应急照明','商铺疏散指示及应急照明'])
+        for flag in ('OPEN','DIRTY','RUNNING'):
+            self.assertFalse(truth(self.h.lookup('*EL:TRANSACTION'+flag+'*')))
+        self.assertNotIn('EL_FIXED_TX',self.dictionary)
+
+    def test_two_circuit_generate_click_recovers_memory_and_repeated_update(self):
+        self.two_circuits()
+        self.h.run('(setq *EL:TransactionOpen* T *EL:TransactionDirty* T)')
+        # Reproduce the reported UNDOCTL=61, without a dictionary TX marker.
+        state=[61]; prompts=[]; events=[]; messages=[]
+        original_getvar=self.h.builtins['GETVAR']
+        begin=self.h.builtins['VLA-STARTUNDOMARK']
+        def end(_): state[0] &= ~8
+        def start(doc):
+            self.assertEqual(state[0] & 8,0)
+            begin(doc); state[0] |= 8
+        edited=self.h.run("(list (cons 'result result) (cons 'config cfg) '(generate . T) '(capacity . cap300))")
+        self.h.builtins.update({
+            'GETVAR':lambda key:state[0] if key=='UNDOCTL' else original_getvar(key),
+            'VLA-ENDUNDOMARK':end,'VLA-STARTUNDOMARK':start,
+            'INITGET':lambda *args:None,'GETKWORD':lambda *args:prompts.append(args) or 'Yes',
+            'COMMAND-S':lambda *args:self.fail('recovery must preserve user edits'),
+            'EL:PANELDIALOG':lambda *args:edited,'EL:FIXEDPOWERS':lambda *args:None,
+            'EL:REMEMBERPANELPOWERS':lambda *args:True,'EL:SAVENAMEPOWERS':lambda *args:True,
+            'EL:TEMPLATEREADY':lambda *args:True,'EL:CLEARPICKHIGHLIGHTS':lambda:None,
+            'EL:LOGEVENT':lambda name,data:events.append(name),
+            'PRINC':lambda value='':messages.append(value) or value,
+        })
+        self.h.run('(setq *EL:LogActive* T) (EL:EditPanel result cfg)')
+        self.assertEqual(len(prompts),1)
+        self.assertIn('TRANSACTION_MEMORY_RECOVERED',events)
+        self.assertEqual(len(self.commands),5, ''.join(messages))  # box + 2 actual + 2 reserve
+        self.assertEqual(len(self.undo),2)  # saved draft then generated diagram
+        self.assert_two_circuit_output()
+        count=len(self.entities)
+        self.h.run('(EL:EditPanel result cfg)')
+        self.assertEqual(len(self.commands),5)
+        self.assertEqual(len(self.entities),count)
+        self.assertEqual(len(prompts),1)
+        self.assert_two_circuit_output()
+
+    def test_two_circuit_cancel_then_retry_releases_live_guard(self):
+        self.two_circuits()
+        self.fail_at=3
+        self.assertFalse(truth(self.invoke()))
+        self.assertFalse(any(e.startswith('native-') for e in self.entities))
+        for flag in ('OPEN','DIRTY','RUNNING'):
+            self.assertFalse(truth(self.h.lookup('*EL:TRANSACTION'+flag+'*')))
+        self.fail_at=None
+        self.commands.clear()
+        self.assertTrue(truth(self.invoke()))
+        self.assert_two_circuit_output()
 
     def test_panel_calls_real_command_places_native_box_and_85w_circuits(self):
         # The actual c:CCKK2 function runs; native COMMAND calls are recorded.

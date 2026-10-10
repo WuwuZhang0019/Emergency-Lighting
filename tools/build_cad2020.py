@@ -1,10 +1,10 @@
-"""Build the AutoCAD 2020 trial package. Date: 2026-10-09."""
+"""Build the AutoCAD 2020 trial package. Date: 2026-10-10."""
 from pathlib import Path
 import shutil
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGE_NO = 54
+PACKAGE_NO = 55
 NAME = f'应急照明-{PACKAGE_NO:03d}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 DEST = ROOT / 'output' / NAME
@@ -35,14 +35,14 @@ def build():
             data = text.encode('gb2312', errors='strict')
             assert data.decode('gb2312') == text
             (DEST / folder / source.name).write_bytes(data)
-    standalone = (DEST / 'src/insert-circuit.lsp').read_bytes() + '\n(princ "\\nCCKK / CCKK1 / CCKK2 已加载（v54）：CCKK 回路，CCKK1 配电箱，CCKK2 整组箱体与回路。")\n(princ)\n'.encode('gb2312', errors='strict')
+    standalone = (DEST / 'src/insert-circuit.lsp').read_bytes() + f'\n(princ "\\nCCKK / CCKK1 / CCKK2 已加载（v{PACKAGE_NO}）：CCKK 回路，CCKK1 配电箱，CCKK2 整组箱体与回路。")\n(princ)\n'.encode('gb2312', errors='strict')
     (DEST / 'CCKK.lsp').write_bytes(standalone)
     shutil.copy2(ROOT / 'ui/box-ui-011.marker', DEST / 'ui/box-ui-011.marker')
     shutil.copy2(ROOT / 'ui/diagram-ui-044.marker', DEST / 'ui/diagram-ui-044.marker')
     # Keep an existing valid data root; initialize it for a standalone update.
     # All modules are included; readiness requires a complete package directory.
     modules = ('common', 'config', 'geometry', 'topology', 'statistics', 'generation', 'main', 'simple', 'fixed', 'panel', 'diagram-store', 'diagram-update', 'diagram-commands', 'insert-circuit')
-    update = (';; Date: 2026-10-09. Validate or initialize the plugin data root.\n'
+    update = (';; Date: 2026-10-10. Validate or initialize the plugin data root.\n'
               '(vl-load-com)\n' + '\n'.join(
                   (DEST / 'src' / f'{module}.lsp').read_bytes().decode('gb2312') for module in modules) +
               '\n(EL:ClearPickHighlights)\n(setq *EL:Result* nil *EL:DeviceResult* nil)\n'
@@ -80,7 +80,8 @@ def build():
                      '2026-10-09-inline-power.md', '2026-10-09-device-thumbnails.md', '2026-10-09-panel-repairs.md', '2026-10-09-save-insert-037.md', '2026-10-09-save-insert-037.json',
                      '2026-10-09-store-parser-043.md', '2026-10-09-store-parser-043.json',
                      '2026-10-09-native-store-045.md', '2026-10-09-native-store-045.json',
-                     '2026-10-09-store-readback-046.md', '2026-10-09-store-readback-046.json', '2026-10-09-cckk-generation-052.md', '2026-10-09-cckk-command-053.md', '2026-10-09-cckk-captions-054.md'):
+                     '2026-10-09-store-readback-046.md', '2026-10-09-store-readback-046.json', '2026-10-09-cckk-generation-052.md', '2026-10-09-cckk-command-053.md', '2026-10-09-cckk-captions-054.md',
+                     '2026-10-10-transaction-memory-055.md'):
         shutil.copy2(ROOT / 'tests/evidence' / filename, DEST / 'tests/evidence' / filename)
     readme = guide
     (DEST / '使用说明.md').write_text(readme, encoding='utf-8')

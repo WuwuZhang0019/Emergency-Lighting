@@ -1,4 +1,4 @@
-"""Actual update functions against a finite DWG adapter. Date: 2026-10-09."""
+"""Actual update functions against a finite DWG adapter. Date: 2026-10-10."""
 import copy
 import math
 import unittest
@@ -493,6 +493,81 @@ class UpdateTests(unittest.TestCase):
         self.assertIsNone(self.h.run("(EL:Transaction 'EL:StoreWrite (list store))"))
         self.assertIn('EL_FIXED_TX', self.dictionary)
         self.assertEqual(self.undo, [])
+
+    def test_empty_memory_residue_saves_without_prompt_or_undo(self):
+        self.install_transaction()
+        self.h.run('(setq *EL:TransactionOpen* T *EL:TransactionDirty* nil)')
+        self.h.builtins['GETKWORD'] = lambda *args: self.fail('empty residue needs no prompt')
+        self.assertTrue(truth(self.h.run("(EL:Transaction 'EL:StoreWrite (list store))")))
+        self.assertFalse(truth(self.h.lookup('*EL:TRANSACTIONOPEN*')))
+        self.assertFalse(truth(self.h.lookup('*EL:TRANSACTIONRUNNING*')))
+        self.assertEqual(len(self.undo), 1)  # no undo of preceding user work
+
+    def test_dirty_marker_free_residue_cancel_preserves_all_state(self):
+        for answer in (None, 'No'):
+            with self.subTest(answer=answer):
+                self.install_transaction()
+                self.h.run('(setq *EL:TransactionOpen* T *EL:TransactionDirty* T)')
+                before = copy.deepcopy((self.entities, self.dictionary))
+                self.h.builtins.update({'INITGET': lambda *args: None,
+                    'GETKWORD': lambda *args: answer,
+                    'VLA-ENDUNDOMARK': lambda *args: self.fail('cancel must not close group')})
+                self.assertIsNone(self.h.run("(EL:Transaction 'EL:StoreWrite (list store))"))
+                self.assertEqual((self.entities, self.dictionary), before)
+                self.assertTrue(truth(self.h.lookup('*EL:TRANSACTIONOPEN*')))
+                self.assertTrue(truth(self.h.lookup('*EL:TRANSACTIONDIRTY*')))
+                self.assertEqual(self.undo, [])
+
+    def test_memory_recovery_cannot_clear_blocker_if_undo_group_stays_open(self):
+        self.install_transaction()
+        self.h.run('(setq *EL:TransactionOpen* T *EL:TransactionDirty* T)')
+        before = copy.deepcopy((self.entities, self.dictionary))
+        self.h.builtins.update({'INITGET': lambda *args: None, 'GETKWORD': lambda *args: 'Yes',
+            'GETVAR': lambda key: 61 if key == 'UNDOCTL' else 'drawing-guid'})
+        self.assertIsNone(self.h.run("(EL:Transaction 'EL:StoreWrite (list store))"))
+        self.assertEqual((self.entities, self.dictionary), before)
+        self.assertTrue(truth(self.h.lookup('*EL:TRANSACTIONOPEN*')))
+        self.assertTrue(truth(self.h.lookup('*EL:TRANSACTIONDIRTY*')))
+        self.assertFalse(truth(self.h.lookup('*EL:TRANSACTIONRUNNING*')))
+        self.assertEqual(self.undo, [])
+
+    def test_reentrant_write_and_rollback_remain_guarded(self):
+        self.install_transaction()
+        before = copy.deepcopy((self.entities, self.dictionary, self.dynamic))
+        undo = self.h.builtins['COMMAND-S']
+        nested = []
+        def check_nested():
+            self.assertTrue(truth(self.h.lookup('*EL:TRANSACTIONRUNNING*')))
+            nested.append(self.h.run("(EL:Transaction 'EL:StoreWrite (list store))"))
+        def write(_):
+            check_nested()
+            raise RuntimeError('write failure')
+        def rollback(*args):
+            check_nested()
+            return undo(*args)
+        self.h.builtins.update({'EL:STOREWRITE': write, 'COMMAND-S': rollback,
+            'GETKWORD': lambda *args: self.fail('live transaction must not offer recovery')})
+        self.assertIsNone(self.h.run("(EL:Transaction 'EL:StoreWrite (list store))"))
+        self.assertEqual(nested, [None, None])
+        self.assertEqual((self.entities, self.dictionary, self.dynamic), before)
+        self.assertFalse(truth(self.h.lookup('*EL:TRANSACTIONRUNNING*')))
+
+    def test_failed_commit_and_rollback_without_marker_can_recover_on_retry(self):
+        self.install_transaction()
+        def failed_end(_): raise RuntimeError('end mark failed')
+        self.h.builtins['VLA-ENDUNDOMARK'] = failed_end
+        self.assertIsNone(self.h.run("(EL:Transaction 'EL:StoreWrite (list store))"))
+        self.assertNotIn('EL_FIXED_TX', self.dictionary)  # removed before failed commit
+        self.assertTrue(truth(self.h.lookup('*EL:TRANSACTIONOPEN*')))
+        self.assertFalse(truth(self.h.lookup('*EL:TRANSACTIONRUNNING*')))
+        before = copy.deepcopy(self.entities)
+        self.h.builtins.update({'VLA-ENDUNDOMARK': lambda _: None,
+            'INITGET': lambda *args: None, 'GETKWORD': lambda *args: 'Yes',
+            'COMMAND-S': lambda *args: self.fail('recovery must not undo unrelated history')})
+        self.assertTrue(truth(self.h.run("(EL:Transaction 'EL:StoreWrite (list store))")))
+        self.assertEqual(self.entities, before)
+        self.assertFalse(truth(self.h.lookup('*EL:TRANSACTIONOPEN*')))
+        self.assertFalse(truth(self.h.lookup('*EL:TRANSACTIONDIRTY*')))
 
     def test_recovery_command_yes_archives_marker(self):
         self.install_interrupted_marker()

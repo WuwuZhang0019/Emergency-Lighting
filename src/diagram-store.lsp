@@ -370,7 +370,9 @@
   ;; Date: 2026-10-09. Close an existing mark without undoing its edits.
   ;; PRINC returns its argument in native AutoLISP: failures MUST return nil.
   (setq state (getvar "UNDOCTL"))
-  (EL:LogEvent "TRANSACTION_START" (list (cons 'undoctl state)))
+  (EL:LogEvent "TRANSACTION_START" (list (cons 'undoctl state)
+    (cons 'open *EL:TransactionOpen*) (cons 'dirty *EL:TransactionDirty*)
+    (cons 'running *EL:TransactionRunning*)))
   (cond
     ((= 0 (logand 1 state))
       (princ "\nUNDO 已关闭，未写入。请执行 UNDO 的 Control/All 后重试。") nil)
@@ -382,8 +384,7 @@
         (progn (princ "\n无法结束已有撤销组，本次未写入。") nil)
         (progn (EL:LogCall "UNDO_BEGIN" nil 'vla-StartUndoMark (list doc))
           (setq *EL:TransactionOpen* T *EL:Created* nil *EL:TransactionDirty* nil) T)))))
-(defun EL:TransactionRun (doc function args / outcome *EL:TransactionRunning*)
-  (setq *EL:TransactionRunning* T)
+(defun EL:TransactionRun (doc function args / outcome)
   (if (EL:TransactionStart doc)
     (progn
       (setq outcome (EL:TransactionBody function args))
@@ -406,38 +407,58 @@
       (setq *EL:TransactionOpen* nil *EL:TransactionDirty* nil *EL:Created* nil)
       (EL:LogEvent "TRANSACTION_RECOVERED" (list (cons 'archive name)))
       T)))
-(defun EL:EnsureTransactionReady (/ outcome answer)
-  ;; Date: 2026-10-09. Resolve stale markers in the current save/generate flow.
+(defun EL:RecoverInterruptedTransaction (/ doc *EL:TransactionRunning*)
+  ;; Date: 2026-10-10. Preserve drawing edits; never UNDO a stale group.
+  ;; Keep all blockers if ending the mark fails. Also covers marker-free residue.
+  (setq *EL:TransactionRunning* T)
+  (if (/= 0 (logand 8 (getvar "UNDOCTL")))
+    (progn
+      (setq doc (vla-get-ActiveDocument (vlax-get-acad-object)))
+      (EL:LogCall "RECOVERY_UNDO_END" nil 'vla-EndUndoMark (list doc))
+      (EL:Require (= 0 (logand 8 (getvar "UNDOCTL"))) "无法结束中断的撤销组，未解除事务拦截。")))
+  (if (dictsearch (namedobjdict) "EL_FIXED_TX")
+    (EL:ArchiveInterruptedTransaction)
+    (progn
+      (setq *EL:TransactionOpen* nil *EL:TransactionDirty* nil *EL:Created* nil)
+      (EL:LogEvent "TRANSACTION_MEMORY_RECOVERED" nil) T)))
+(defun EL:EnsureTransactionReady (/ outcome answer marker)
+  ;; Date: 2026-10-10. Live ownership is scoped to execution, not leftover flags.
+  (setq marker (dictsearch (namedobjdict) "EL_FIXED_TX"))
+  (EL:LogEvent "TRANSACTION_CHECK" (list (cons 'running *EL:TransactionRunning*)
+    (cons 'open *EL:TransactionOpen*) (cons 'dirty *EL:TransactionDirty*)
+    (cons 'marker (if marker T nil)) (cons 'undoctl (getvar "UNDOCTL"))))
   (cond
     (*EL:TransactionRunning*
       (princ "\n已有事务正在执行，不能恢复或嵌套写入。") nil)
-    ((not (dictsearch (namedobjdict) "EL_FIXED_TX")) T)
+    ((and (not marker) (not *EL:TransactionOpen*) (not *EL:TransactionDirty*)) T)
+    ((and (not marker) (not *EL:TransactionDirty*))
+      ;; No transaction write occurred. Start will safely close any old mark.
+      (setq *EL:TransactionOpen* nil *EL:Created* nil)
+      (EL:LogEvent "TRANSACTION_MEMORY_RECOVERED" (list (cons 'empty T))) T)
     (T
       (EL:LogEvent "TRANSACTION_RECOVERY_REQUIRED" nil)
-      (princ "\n检测到上次中断的事务标记。可保留当前图形和草稿、归档旧标记后继续。")
+      (princ "\n检测到上次中断的事务状态。可保留当前图形和草稿、清理中断状态后继续。")
       (princ "\n这不会撤销或修复上次的部分修改；已有系统图需核对完整性。")
       (initget "Yes No")
       (setq answer (getkword "\n保留当前内容并继续？[Yes/No] <No>："))
       (if (and answer (member (strcase answer) '("YES" "Y")))
         (progn
-          (setq outcome (vl-catch-all-apply 'EL:ArchiveInterruptedTransaction nil))
+          (setq outcome (vl-catch-all-apply 'EL:RecoverInterruptedTransaction nil))
           (if (vl-catch-all-error-p outcome)
             (progn
               (EL:LogEvent "TRANSACTION_RECOVERY_FAILED" (list (cons 'message (vl-catch-all-error-message outcome))))
               (princ (strcat "\n恢复未完成：" (vl-catch-all-error-message outcome))) nil)
-            (if outcome (progn (princ "\n旧标记已归档，继续当前操作。") T))))
+            (if outcome (progn (princ "\n中断状态已清理，已有旧标记已归档，继续当前操作。") T))))
         (progn (EL:LogEvent "TRANSACTION_RECOVERY_CANCELLED" nil)
           (princ "\n已取消恢复，图纸未改动。") nil)))))
 (defun c:ELRECOVER ()
   (if (EL:EnsureTransactionReady)
     (princ "\n事务检查完成，可运行 ELSTAT。"))
   (princ))
-(defun EL:Transaction (function args / doc outcome rollback stack)
-  ;; Date: 2026-10-09. Catch start, write and commit together. Never let an
-  ;; error during rollback hide the original failure or report success.
-  (setq doc (vla-get-ActiveDocument (vlax-get-acad-object)) stack *EL:LogStack*)
-  (if (EL:EnsureTransactionReady)
-    (progn
+(defun EL:TransactionGuarded (function args / doc outcome rollback stack *EL:TransactionRunning*)
+  ;; Date: 2026-10-10. Hold the live guard through commit AND rollback.
+  (setq *EL:TransactionRunning* T
+    doc (vla-get-ActiveDocument (vlax-get-acad-object)) stack *EL:LogStack*)
   (setq outcome (vl-catch-all-apply 'EL:TransactionRun (list doc function args)))
   (if (vl-catch-all-error-p outcome)
     (progn
@@ -451,7 +472,10 @@
           (princ "\n自动撤销未完成，请停止继续生成，使用 UNDO 或恢复图纸。"))
         (princ "\n本次事务已停止；已撤销本次已记录的修改。"))
       (setq *EL:LogStack* stack) nil)
-    outcome))))
+    outcome))
+(defun EL:Transaction (function args)
+  ;; Check the caller's guard before creating a new dynamically scoped guard.
+  (if (EL:EnsureTransactionReady) (EL:TransactionGuarded function args)))
 (defun EL:ConfirmDiagram (/ answer)
   ;; Date: 2026-10-09. Enter keeps the preview; only explicit No cancels it.
   (initget "Yes No")

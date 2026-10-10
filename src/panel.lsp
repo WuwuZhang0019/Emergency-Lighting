@@ -143,6 +143,10 @@
   (setq edges (vl-remove-if '(lambda (e) (member panel e)) (EL:Get 'edges network)))
   (foreach wire (reverse seeds)
     (setq circuits (cons (EL:TraceCircuit wire snapshot edges (EL:Get 'gap-issues network)) circuits)))
+  (foreach wire (reverse circuits)
+    (EL:LogEvent "CIRCUIT_TRACE_RESULT" (list (cons 'id (EL:Get 'id wire))
+      (cons 'wires (EL:Get 'wires wire)) (cons 'devices (EL:Get 'devices wire))
+      (cons 'complete (EL:Get 'complete wire)))))
   (list (cons 'panel panel) (cons 'drawing (EL:Get 'drawing snapshot)) (cons 'snapshot snapshot)
     (cons 'rules (EL:RecognitionRules cfg)) (cons 'circuits (reverse circuits))
     (cons 'complete (and circuits (not (EL:Get 'issues snapshot))
@@ -475,7 +479,8 @@
       (setq *EL:PanelDraft* (EL:Put 'circuits
         (mapcar '(lambda (c) (EL:Put 'ground-source 'manual c)) (EL:Get 'circuits *EL:PanelDraft*)) *EL:PanelDraft*))
       T)))
-(defun EL:PanelGenerate ()
+(defun EL:PanelGenerateBody ()
+  (EL:LogEvent "PANEL_ACTION" 'generate)
   (if (EL:PanelStoreSelections)
     (cond
       ((not (EL:Get 'circuits *EL:PanelDraft*)) (EL:PanelText "p_error" "请至少保留一条实际出线。"))
@@ -483,8 +488,17 @@
       ((not (EL:Get 'can-generate *EL:PanelDraft*)) (EL:PanelText "p_error" "识别或功率未通过，不能生成；可保存草稿。"))
       ((not (EL:SelectionsReady *EL:PanelDraft* *EL:PanelCapacity*))
         (EL:PanelText "p_error" "请先选择箱体容量。"))
-      (*EL:PanelTemplateReady* (done_dialog 2))
-      (T (done_dialog 4)))))
+      (*EL:PanelTemplateReady* (setq *EL:PanelAction* 'generate) (done_dialog 2))
+      (T (setq *EL:PanelAction* 'generate) (done_dialog 4)))))
+(defun EL:PanelGenerate (/ outcome)
+  ;; Date: 2026-10-10. Keep callback failures visible while preserving the draft.
+  (setq outcome (vl-catch-all-apply 'EL:PanelGenerateBody nil))
+  (if (vl-catch-all-error-p outcome)
+    (progn
+      (setq *EL:PanelAction* nil)
+      (EL:LogEvent "PANEL_GENERATE_ERROR" (vl-catch-all-error-message outcome))
+      (EL:PanelText "p_error" (strcat "生成未开始：" (vl-catch-all-error-message outcome)))
+      (alert (strcat "生成未开始：" (vl-catch-all-error-message outcome) "\n当前设置已保留，请查看诊断日志。")))))
 (defun EL:PanelFill (/ cs i c key)
   (setq cs (EL:Get 'circuits *EL:PanelDraft*) i 0)
   (repeat 8
@@ -553,8 +567,9 @@
     (set_tile "p_capacity" (cond ((equal *EL:PanelCapacity* 'cap600) "p_600")
       ((equal *EL:PanelCapacity* 'cap1000) "p_1000") (T "p_300")))))
 (defun EL:PanelAccept ()
+  (EL:LogEvent "PANEL_ACTION" 'save)
   (if (EL:PanelStoreSelections)
-    (if (EL:Get 'circuits *EL:PanelDraft*) (done_dialog 1)
+    (if (EL:Get 'circuits *EL:PanelDraft*) (progn (setq *EL:PanelAction* 'save) (done_dialog 1))
       (EL:PanelText "p_error" "请至少保留一条实际出线。"))))
 ;; Date: 2026-10-10. Saved records stay in this drawing; selection is read-only.
 (defun EL:HistoryState (record)
@@ -597,7 +612,7 @@
   (princ "\n当前草稿已保存到本图；系统图需生成或更新，关闭前请保存 DWG。")
   (list (cons 'switch-result result) (cons 'switch-config cfg)))
 ;; Date: 2026-10-10. All picked circuits enter the panel without exit selection.
-(defun EL:PanelDialog (result cfg powers capacity / dialog status i key row captured switched
+(defun EL:PanelDialog (result cfg powers capacity / dialog status i key row captured switched *EL:PanelAction*
     *EL:HistoryRecords* *EL:HistoryIndex*
     *EL:PanelDraft* *EL:PanelPowers* *EL:PanelCapacity* *EL:PanelConfig*
     *EL:PanelIndex* *EL:PanelPage* *EL:PanelDevice* *EL:PanelTemplateReady*
@@ -643,7 +658,8 @@
         (action_tile "accept" "(EL:PanelAccept)")
         (action_tile "p_generate" "(EL:PanelGenerate)")
         (action_tile "cancel" "(done_dialog 0)")
-        (setq status (start_dialog))
+        (setq *EL:PanelAction* nil status (start_dialog))
+        (EL:LogEvent "PANEL_DIALOG_RETURN" (list (cons 'status status) (cons 'action *EL:PanelAction*)))
         (if (= status 8)
           (progn
             (setq switched (vl-catch-all-apply 'EL:HistoryOpen nil))
@@ -674,7 +690,8 @@
   (if (member status '(9 10)) (list (cons 'pick-panel (if (= status 10) 'trunk T)))
     (if switched switched
     (if (member status '(1 2)) (list (cons 'result *EL:PanelDraft*) (cons 'powers *EL:PanelPowers*)
-      (cons 'config *EL:PanelConfig*) (cons 'capacity *EL:PanelCapacity*) (cons 'generate (= status 2)))))))
+      (cons 'config *EL:PanelConfig*) (cons 'capacity *EL:PanelCapacity*)
+      (cons 'generate (or (equal *EL:PanelAction* 'generate) (= status 2))))))))
 
 ;; Date: 2026-10-10. Empty state uses the same main panel and disables model actions.
 (defun EL:PanelStartDialog (/ dialog status i key *EL:PanelDraft* *EL:HistoryRecords* *EL:HistoryIndex*)

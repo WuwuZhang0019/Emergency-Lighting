@@ -96,6 +96,8 @@
         cfg (cond ((EL:Get 'config edited)) (T cfg))
         syncable (and (EL:Get 'can-generate result) (EL:SelectionsReady result capacity)
           (EL:TemplateReady (EL:Get 'template cfg) cfg)))
+      (EL:LogEvent "PANEL_SUBMIT" (list (cons 'generate (EL:Get 'generate edited))
+        (cons 'syncable syncable) (cons 'panel (EL:Get 'panel result))))
       (EL:RememberPanelPowers result powers)
       (if (not (EL:SaveNamePowers powers))
         (princ "\n功率库写入失败，请保留当前窗口数值并检查插件目录写入权限。"))
@@ -110,7 +112,10 @@
             (if (EL:Get 'generate edited)
               (EL:InvokeCCKK2 result cfg powers capacity)
               (EL:SyncDiagram result cfg powers capacity nil T))
-            (progn (EL:MarkStale (EL:Get 'panel result) 'review-or-template-pending) T)))
+            (progn
+              (if (EL:Get 'generate edited)
+                (princ "\n生成未执行：回路、功率或模板校验未通过；已保存为待更新草稿，请重新统计并核对。"))
+              (EL:MarkStale (EL:Get 'panel result) 'review-or-template-pending) T)))
           (if saved
             (progn
               ;; The DWG keeps a recoverable power copy even when export is unavailable.

@@ -95,6 +95,28 @@ class PostStatWorkflowTests(unittest.TestCase):
         self.assertEqual(self.get('capacity',edited),Symbol('CAP300'))
         self.assertEqual(self.get('capacity-source',self.get('result',edited)),Symbol('DEFAULT'))
         self.assertTrue(truth(self.get('generate',edited)))
+
+    def test_generate_callback_intent_survives_generic_accept_return(self):
+        self.h.builtins['EL:TEMPLATEREADY'] = lambda *args: True
+        self.actions = [lambda: (self.call('EL:PanelGenerate'), self.done(1))]
+        self.assertTrue(truth(self.get('generate', self.dialog())))
+
+    def test_generate_callback_error_keeps_dialog_and_explains_failure(self):
+        events, alerts = [], []
+        self.h.builtins['EL:LOGEVENT'] = lambda name, data: events.append((name, data))
+        self.h.builtins['ALERT'] = alerts.append
+        def broken():
+            raise RuntimeError('injected generation callback failure')
+        self.h.builtins['EL:PANELSTORESELECTIONS'] = broken
+        def action():
+            self.call('EL:PanelGenerate')
+            self.assertIsNone(self.closed)
+            self.assertIsNone(self.h.lookup('*EL:PANELACTION*'))
+            self.done(0)
+        self.actions = [action]
+        self.assertFalse(self.dialog())
+        self.assertTrue(any(name == 'PANEL_GENERATE_ERROR' for name, _ in events))
+        self.assertIn('injected generation callback failure', alerts[0])
         self.assertEqual(self.writes, [])
 
     def test_save_records_all_pages_without_changing_checkbox_values(self):

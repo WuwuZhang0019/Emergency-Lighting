@@ -288,6 +288,21 @@ class PackagedUpdateTests(RootFixture):
         self.assertEqual(pathlib.Path(self.h.lookup('*EL:ROOT*')).resolve(),self.built.resolve())
         self.assertEqual(self.dialogs,[])
 
+    def test_startup_registry_full_filename_needs_no_selection(self):
+        for relative in ('START-CAD2020.lsp', 'src/load.lsp'):
+            with self.subTest(relative=relative):
+                self.run_startup((self.built / relative).as_posix())
+                self.assertEqual(pathlib.Path(self.h.lookup('*EL:ROOT*')).resolve(), self.built.resolve())
+                self.assertEqual(self.dialogs, [])
+
+    def test_startup_src_search_path_without_visible_marker(self):
+        original = self.h.builtins['FINDFILE']
+        self.h.builtins['FINDFILE'] = lambda path: ((self.built / 'src/load.lsp').as_posix()
+            if path == 'load.lsp' else original(path))
+        self.run_startup(registry_error=True)
+        self.assertEqual(pathlib.Path(self.h.lookup('*EL:ROOT*')).resolve(), self.built.resolve())
+        self.assertEqual(self.dialogs, [])
+
     def test_startup_search_path_works_when_registry_unavailable(self):
         self.run_startup(registry_error=True,search=True)
         self.assertEqual(pathlib.Path(self.h.lookup('*EL:ROOT*')).resolve(),self.built.resolve())

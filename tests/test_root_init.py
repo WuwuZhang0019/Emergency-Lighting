@@ -88,6 +88,8 @@ class RootFixture(unittest.TestCase):
             'ENTSEL': lambda prompt: self.picks.append(prompt) and None,
             'TBLSEARCH': lambda *args: True,
             'VL-LOAD-COM': lambda: None,
+            'GETENV': lambda name: None,
+            'VL-MKDIR': lambda path: pathlib.Path(path).mkdir(exist_ok=True) or True,
         })
 
     @staticmethod
@@ -313,7 +315,7 @@ class PackagedUpdateTests(RootFixture):
         self.selections=iter([None])
         self.run_startup(self.root)
         self.assertIsNone(self.h.lookup('*EL:ROOT*'))
-        self.assertEqual(len(self.dialogs),1)
+        self.assertEqual(len(self.dialogs),0)
         self.assertIn('未确认插件目录',''.join(self.messages))
 
     def test_startup_incomplete_package_requires_repair(self):
@@ -323,7 +325,33 @@ class PackagedUpdateTests(RootFixture):
         self.selections=iter([None])
         self.run_startup(self.root)
         self.assertIsNone(self.h.lookup('*EL:ROOT*'))
-        self.assertEqual(len(self.dialogs),1)
+        self.assertEqual(len(self.dialogs),0)
+
+    def test_startup_embedded_resources_without_registry_or_search_path(self):
+        local = pathlib.Path(self.temp.name) / '中文 local data'
+        local.mkdir()
+        self.h.builtins['GETENV'] = lambda name: local.as_posix()
+        self.run_startup(registry_error=True)
+        root = pathlib.Path(self.h.lookup('*EL:ROOT*'))
+        self.assertEqual(root, local / 'Emergency-Lighting' / f'runtime-{self.builder.PACKAGE_NO:03d}')
+        self.assertEqual(self.dialogs, [])
+        self.assertEqual((root / 'ui/power.dcl').read_bytes().decode('gb2312').splitlines(),
+                         (self.built / 'ui/power.dcl').read_bytes().decode('gb2312').splitlines())
+        config = root / 'config/keep.eld'
+        config.write_bytes(b'keep user data')
+        self.run_startup(registry_error=True)
+        self.assertEqual(config.read_bytes(), b'keep user data')
+        self.h.run('(c:ELSTAT)')
+        self.assertEqual(self.dialogs, [])
+        self.assertEqual(len(self.picks), 1)
+
+    def test_startup_embedded_write_failure_does_not_report_ready_or_prompt(self):
+        self.h.builtins['GETENV'] = lambda name: self.temp.name
+        self.h.builtins['OPEN'] = lambda *args: None
+        self.run_startup(registry_error=True)
+        self.assertIsNone(self.h.lookup('*EL:ROOT*'))
+        self.assertEqual(self.dialogs, [])
+        self.assertNotIn('目录已确认', ''.join(self.messages))
 
     def test_standalone_update_initializes_root_then_setup_reaches_actual_pick(self):
         # A fresh drawing/session has no definitions and no *EL:Root*.

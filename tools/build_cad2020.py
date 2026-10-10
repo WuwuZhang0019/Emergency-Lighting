@@ -4,7 +4,7 @@ import shutil
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGE_NO = 65
+PACKAGE_NO = 66
 NAME = f'应急照明-{PACKAGE_NO:03d}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 DEST = ROOT / 'output' / NAME
@@ -13,6 +13,33 @@ DEST = ROOT / 'output' / NAME
 def replace_once(text, old, new):
     assert text.count(old) == 1, old
     return text.replace(old, new)
+
+
+def lisp_string(text):
+    return '"' + text.replace('\\', '\\\\').replace('"', '\\"') + '"'
+
+
+def embedded_resources():
+    """Date: 2026-10-10. Portable fallback; never overwrite config or output."""
+    assets = sorted((DEST / 'src').glob('*.lsp')) + sorted((DEST / 'ui').glob('*'))
+    writes = []
+    for path in assets:
+        if not path.is_file():
+            continue
+        lines = path.read_bytes().decode('gb2312').splitlines()
+        payload = '\n'.join(lisp_string(line) for line in lines)
+        relative = lisp_string(path.relative_to(DEST).as_posix())
+        writes.append(f'(if (not (EL:StartupWriteLines (strcat root {relative})\n\'({payload}))) (setq ok nil))')
+    return ('(defun EL:StartupEmbeddedRoot (/ base root folder ok)\n'
+            '  (if (setq base (EL:NormalizeRoot (getenv "LOCALAPPDATA")))\n'
+            '    (progn\n'
+            '      (setq base (strcat base "Emergency-Lighting/"))\n'
+            '      (vl-mkdir base)\n'
+            f'      (setq root (strcat base "runtime-{PACKAGE_NO:03d}/") ok T)\n'
+            '      (vl-mkdir root)\n'
+            '      (foreach folder \'("src" "ui" "config" "output" "templates")\n'
+            '        (vl-mkdir (strcat root folder)))\n' + '\n'.join(writes) +
+            '\n      (if (and ok (EL:RootValid root)) root))))\n')
 
 
 def build():
@@ -56,6 +83,9 @@ def build():
     # Date: 2026-10-10. Resolve APPLOAD folder, then validate version and assets.
     startup = update.replace('(if (EL:EnsureRoot)',
                              f'(if (EL:StartupRoot "{marker}")', 1)
+    startup = startup.replace('(if (EL:StartupRoot', embedded_resources() + '\n(if (EL:StartupRoot', 1)
+    startup = startup.replace('运行 ELSETUP 或 ELSTAT 后选择完整包内的 src/load.lsp。',
+                              '请检查本地数据目录写入权限后重新加载启动文件。')
     (DEST / 'START-CAD2020.lsp').write_bytes(startup.encode('gb2312', errors='strict'))
     (DEST / 'src/load.lsp').write_bytes(startup.encode('gb2312', errors='strict'))
     guide = (ROOT / 'docs/03_加载使用与验收说明.md').read_text(encoding='utf-8')
@@ -87,6 +117,7 @@ def build():
                      '2026-10-10-deleted-diagram-059.md', '2026-10-10-device-contact-060.md', '2026-10-10-circuit-numbers-061.md', '2026-10-10-startup-062.md', '2026-10-10-auto-wire-063.md', '2026-10-10-auto-wire-063.json'):
         shutil.copy2(ROOT / 'tests/evidence' / filename, DEST / 'tests/evidence' / filename)
     shutil.copy2(ROOT / 'tests/evidence/2026-10-10-startup-064.md', DEST / 'tests/evidence/2026-10-10-startup-064.md')
+    shutil.copy2(ROOT / 'tests/evidence/2026-10-10-startup-066.md', DEST / 'tests/evidence/2026-10-10-startup-066.md')
     shutil.copy2(ROOT / 'tests/evidence/2026-10-10-circuit-colors-065.md', DEST / 'tests/evidence/2026-10-10-circuit-colors-065.md')
     readme = guide
     (DEST / '使用说明.md').write_text(readme, encoding='utf-8')

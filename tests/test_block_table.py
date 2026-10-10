@@ -20,9 +20,9 @@ class BlockTableTests(unittest.TestCase):
         return self.call('EL:PanelDialog', self.result, self.f.cfg, None, None)
 
     def populate(self):
-        blocks = [self.h.run(f"'((id . \"id{i}\") (name . \"TYPE{i}\"))") for i in range(6)]
+        blocks = [self.h.run(f"'((id . \"id{i}\") (name . \"TYPE{i}\"))") for i in range(10)]
         cs = self.get('circuits', self.result)
-        cs = [self.call('EL:Put', Symbol('DEVICES'), [f'id{i}' for i in range(6)], cs[0])]
+        cs = [self.call('EL:Put', Symbol('DEVICES'), [f'id{i}' for i in range(10)], cs[0])]
         self.result = self.call('EL:Put', Symbol('CIRCUITS'), cs, self.result)
         snapshot = self.call('EL:Put', Symbol('BLOCKS'), blocks, self.get('snapshot', self.result))
         self.result = self.call('EL:Put', Symbol('SNAPSHOT'), snapshot, self.result)
@@ -30,27 +30,27 @@ class BlockTableTests(unittest.TestCase):
     def test_paging_keeps_every_visible_power_and_ground_setting(self):
         self.populate()
         def action():
-            for i in range(4):
+            for i in range(8):
                 self.tiles[f'b_watts{i}'] = str(i + 1)
             self.call('EL:PanelBlockGround', 0, '1')
-            self.call('EL:PanelBlockPage', 4)
-            self.assertEqual(self.get('name', self.h.lookup('*EL:THUMBROWS*')[self.h.lookup('*EL:THUMBPAGE*')]), 'TYPE4')
-            self.tiles['b_watts0'], self.tiles['b_watts1'] = '5', '6'
-            self.call('EL:PanelBlockPage', -4)
+            self.call('EL:PanelBlockPage', 8)
+            self.assertEqual(self.get('name', self.h.lookup('*EL:THUMBROWS*')[self.h.lookup('*EL:THUMBPAGE*')]), 'TYPE8')
+            self.tiles['b_watts0'], self.tiles['b_watts1'] = '9', '10'
+            self.call('EL:PanelBlockPage', -8)
             self.assertEqual(self.tiles['b_watts3'], '4')
             self.assertEqual(self.tiles['b_ground0'], '1')
             self.assertTrue(truth(self.get('is-ground', self.get('circuits', self.h.lookup('*EL:PANELDRAFT*'))[0])))
             return self.call('EL:PanelAccept') or 1
         response = self.dialog(action)
         powers = self.get('powers', response)
-        for i in range(6):
+        for i in range(10):
             self.assertEqual(self.call('EL:Get', f'TYPE{i}', powers), i + 1)
 
     def test_invalid_input_blocks_page_ground_and_save_without_partial_store(self):
         self.populate()
         def action():
             self.tiles['b_watts0'], self.tiles['b_watts1'] = '7', '12x'
-            self.call('EL:PanelBlockPage', 4)
+            self.call('EL:PanelBlockPage', 8)
             self.assertEqual(self.get('name', self.h.lookup('*EL:THUMBROWS*')[self.h.lookup('*EL:THUMBPAGE*')]), 'TYPE0')
             self.assertEqual(self.tiles['b_watts1'], '12x')
             self.assertFalse(self.h.lookup('*EL:PANELPOWERS*'))
@@ -129,10 +129,10 @@ class BlockTableTests(unittest.TestCase):
         self.h.builtins['EL:ALLCIRCUITCOLORPREVIEW'] = lambda result: previews.append('0 ')
         def action():
             if not previews:
-                self.call('EL:PanelBlockPage', 4)
+                self.call('EL:PanelBlockPage', 8)
                 self.tiles['b_watts0'] = '9'
                 return self.h.run(self.f.actions['f_preview'])
-            self.assertEqual(self.get('name', self.h.lookup('*EL:THUMBROWS*')[self.h.lookup('*EL:THUMBPAGE*')]), 'TYPE4')
+            self.assertEqual(self.get('name', self.h.lookup('*EL:THUMBROWS*')[self.h.lookup('*EL:THUMBPAGE*')]), 'TYPE8')
             self.assertEqual(self.tiles['b_watts0'], '9')
             return 0
         self.dialog(action)
@@ -143,14 +143,14 @@ class BlockTableTests(unittest.TestCase):
         ui = (Path(__file__).resolve().parents[1] / 'ui/power.dcl').read_text(encoding='utf-8').split('el_panel : dialog {')[1]
         for key in ('p_devices', 'p_watts', 'p_ground0', 'f_exits', 'f_apply', 'b_name0', 'f_count0', 'f_hint0'):
             self.assertNotIn(f'key = "{key}"', ui)
-        for i in range(4):
+        for i in range(8):
             for prefix in ('f_image', 'b_watts', 'b_ground'):
                 self.assertIn(f'key = "{prefix}{i}"', ui)
 
     def test_exclusion_removes_counts_power_ground_and_restores_draft_values(self):
         self.populate()
         def action():
-            for i in range(4):
+            for i in range(8):
                 self.tiles[f'b_watts{i}'] = str(i + 1)
             self.call('EL:PanelBlockGround', 0, '1')
             self.call('EL:PanelBlockExclude', 0)
@@ -212,11 +212,11 @@ class BlockTableTests(unittest.TestCase):
         self.populate()
         before = len(self.f.writes)
         def action():
-            self.call('EL:PanelBlockPage', 4)
+            self.call('EL:PanelBlockPage', 8)
             self.call('EL:PanelBlockExclude', 0)
             self.call('EL:PanelBlockExclude', 0)
             self.assertEqual(self.h.lookup('*EL:THUMBPAGE*'), 0)
-            self.assertEqual(len(self.call('EL:PanelBlockRows')), 4)
+            self.assertEqual(len(self.call('EL:PanelBlockRows')), 8)
             return 0
         self.assertFalse(self.dialog(action))
         self.assertEqual(len(self.f.writes), before)

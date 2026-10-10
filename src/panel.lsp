@@ -39,9 +39,9 @@
   (end_image))
 ;; Date: 2026-10-10. Main table shows images only; legacy review keeps captions.
 (defun EL:ThumbFill () (EL:ThumbFillRows T))
-(defun EL:ThumbFillRows (captions / i row key geometry)
-  (setq i 0)
-  (repeat 4
+(defun EL:ThumbFillRows (captions / i row key geometry size)
+  (setq i 0 size (if captions 4 8))
+  (repeat size
     (setq key (itoa i) row (nth (+ *EL:ThumbPage* i) *EL:ThumbRows*) geometry nil)
     (if row (setq geometry (cdr (assoc (EL:Get 'name row) *EL:ThumbCache*))))
     (EL:ThumbDraw (strcat "f_image" key) geometry)
@@ -50,10 +50,10 @@
     (set_tile (strcat "f_hint" key) (cond ((not row) "") ((not (car geometry)) "预览失败，点击在图面查看")
       (T "图面实景，点击放大")))))
     (setq i (1+ i)))
-  (set_tile "f_page" (strcat (itoa (1+ (fix (/ *EL:ThumbPage* 4)))) " / "
-    (itoa (max 1 (fix (/ (+ (length *EL:ThumbRows*) 3) 4))))))
+  (set_tile "f_page" (strcat (itoa (1+ (fix (/ *EL:ThumbPage* size)))) " / "
+    (itoa (max 1 (fix (/ (+ (length *EL:ThumbRows*) (1- size)) size))))))
   (mode_tile "f_prev" (if (> *EL:ThumbPage* 0) 0 1))
-  (mode_tile "f_next" (if (< (+ *EL:ThumbPage* 4) (length *EL:ThumbRows*)) 0 1)))
+  (mode_tile "f_next" (if (< (+ *EL:ThumbPage* size) (length *EL:ThumbRows*)) 0 1)))
 (defun EL:ThumbPage (delta)
   (setq *EL:ThumbPage* (max 0 (min (+ *EL:ThumbPage* delta)
     (* 4 (fix (/ (max 0 (1- (length *EL:ThumbRows*))) 4))))))
@@ -345,7 +345,7 @@
   (setq *EL:ThumbRows* (EL:PanelBlockRows))
   (EL:ThumbFillRows nil)
   (setq i 0)
-  (repeat 4
+  (repeat 8
     (setq key (itoa i) row (nth (+ *EL:ThumbPage* i) *EL:ThumbRows*))
     (set_tile (strcat "b_watts" key) (if (numberp (EL:Get 'watts row)) (itoa (EL:Get 'watts row)) ""))
     (set_tile (strcat "b_ground" key) (if (EL:Get (EL:Get 'key row) (EL:Get 'block-ground *EL:PanelDraft*)) "1" "0"))
@@ -358,7 +358,7 @@
   (set_tile "b_excluded" (strcat "已排除 " (itoa (length (EL:Get 'excluded-devices *EL:PanelDraft*))) " 个图块")))
 (defun EL:PanelExcludeRefresh ()
   (setq *EL:PanelDraft* (EL:PanelCompute *EL:PanelDraft* *EL:PanelPowers* *EL:PanelConfig*)
-    *EL:ThumbPage* (max 0 (min *EL:ThumbPage* (* 4 (fix (/ (max 0 (1- (length (EL:PanelBlockRows)))) 4))))))
+    *EL:ThumbPage* (max 0 (min *EL:ThumbPage* (* 8 (fix (/ (max 0 (1- (length (EL:PanelBlockRows)))) 8))))))
   (if (assoc 'block-ground *EL:PanelDraft*) (EL:PanelBlockGroundApply))
   (EL:PanelFill))
 (defun EL:PanelBlockExclude (index / row)
@@ -384,7 +384,7 @@
   (setq *EL:PanelDraft* (EL:Put 'circuits (reverse cs) *EL:PanelDraft*)))
 (defun EL:PanelStore (/ rows row value watts i bad pending)
   (setq rows (EL:PanelBlockRows) i 0 pending *EL:PanelPowers*)
-  (repeat 4
+  (repeat 8
     (setq row (nth (+ *EL:ThumbPage* i) rows))
     (if row
       (progn
@@ -412,7 +412,7 @@
   (if (EL:PanelStore)
     (progn
       (setq *EL:ThumbPage* (max 0 (min (+ *EL:ThumbPage* delta)
-        (* 4 (fix (/ (max 0 (1- (length (EL:PanelBlockRows)))) 4))))))
+        (* 8 (fix (/ (max 0 (1- (length (EL:PanelBlockRows)))) 8))))))
       (EL:PanelBlockFill))))
 (defun EL:CapacityDefault (capacity)
   ;; Date: 2026-10-09. Use 0.3kW immediately; retain a valid saved choice.
@@ -577,11 +577,12 @@
         (action_tile "h_records" "(EL:HistorySelect $value)")
         (action_tile "h_open" "(if (EL:PanelStore) (done_dialog 8))")
         (EL:ThumbActions)
-        (action_tile "f_prev" "(EL:PanelBlockPage -4)")
-        (action_tile "f_next" "(EL:PanelBlockPage 4)")
+        (action_tile "f_prev" "(EL:PanelBlockPage -8)")
+        (action_tile "f_next" "(EL:PanelBlockPage 8)")
         (action_tile "b_restore" "(EL:PanelBlockRestore)")
-        (repeat 4
+        (repeat 8
           (setq key (itoa i))
+          (action_tile (strcat "f_image" key) (strcat "(EL:ThumbRequest " key ")"))
           (action_tile (strcat "b_watts" key) "(EL:PanelPowerChanged)")
           (action_tile (strcat "b_ground" key) (strcat "(EL:PanelBlockGround " key " $value)"))
           (action_tile (strcat "b_remove" key) (strcat "(EL:PanelBlockExclude " key ")"))
@@ -635,7 +636,7 @@
       (foreach key '("p_capacity" "f_preview" "f_prev" "f_next" "b_restore" "accept" "p_generate" "h_open")
         (mode_tile key 1))
       (setq i 0)
-      (repeat 4
+      (repeat 8
         (foreach key '("f_image" "b_watts" "b_ground" "b_remove")
           (mode_tile (strcat key (itoa i)) 1))
         (setq i (1+ i)))

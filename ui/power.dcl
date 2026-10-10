@@ -148,7 +148,7 @@ el_panel : dialog {
     : text { label = "关闭图纸前请保存 DWG。"; }
     : button { key = "h_open"; label = "保存当前并打开"; }
   }
-    : boxed_column { label = "图块表（本箱全部图块）";
+    : boxed_column { label = "图例表（本箱全部图块）";
       // Date: 2026-10-10. Fixed-height table prevents stretched row gaps.
       : column { fixed_height = true; alignment = top;
       : boxed_row { fixed_height = true;

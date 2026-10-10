@@ -462,10 +462,10 @@
   (EL:PanelBlockFill)
   (EL:PanelText "p_error" (cond
     ((not *EL:ThumbRows*) "未识别到连接设备，请检查导线连接、设备图块或恢复已排除图块。")
-    ((>= *EL:PanelIndex* (length cs)) "预留回路无需设置；右侧图块表仍显示本箱全部设备。")
+    ((>= *EL:PanelIndex* (length cs)) "预留回路无需设置；右侧图例表仍显示本箱全部设备。")
     ((and (not (assoc 'block-ground *EL:PanelDraft*)) (vl-some '(lambda (c) (EL:Get 'is-ground c)) cs))
       "沿用旧回路地面设置；修改图块地面勾选后按图块统一重算。")
-    (T "图块表显示本箱全部设备；含地面图块的回路自动设为地面。")))
+    (T "图例表显示本箱全部设备；含地面图块的回路自动设为地面。")))
   (EL:PanelText "p_total" (strcat (EL:PanelKnownTotal) "；实际回路 " (itoa (length cs)) "；输出 " (itoa (EL:FixedOutputCount (length cs)))
     "；已完整核对回路 " (itoa (EL:Get 'box-watts *EL:PanelDraft*)) " W"))
   (set_tile "p_capacity" (cond ((equal *EL:PanelCapacity* 'cap600) "p_600")

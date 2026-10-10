@@ -76,7 +76,7 @@ class SourceContracts(unittest.TestCase):
                     if isinstance(expr[2], str):
                         self.assertTrue(parse(expr[2]))
                     else:
-                        for index in range(4 if str(form[1]) == "EL:THUMBACTIONS" else 8):
+                        for index in range(4 if str(form[1]) == "EL:THUMBACTIONS" or 'b_ground' in str(expr[1]) else 8):
                             self.h.frames[0]['KEY'] = str(index)
                             self.assertIn(self.h.evaluate(expr[1]), keys)
                             self.assertTrue(parse(self.h.evaluate(expr[2])))

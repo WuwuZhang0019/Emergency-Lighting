@@ -1,4 +1,4 @@
-"""Reported native panel failures. Date: 2026-10-09."""
+"""Reported native panel failures. Date: 2026-10-10."""
 import unittest
 from pathlib import Path
 from autolisp_host import Symbol
@@ -24,9 +24,8 @@ class PanelRepairTests(unittest.TestCase):
         def start():
             self.h.run(self.actions['p_select1'])
             self.assertIn('预留回路', self.tiles['p_error'])
-            self.assertEqual(self.tiles['p_watts'], '')
-            self.h.run(self.actions['p_select0'])
-            self.assertEqual(self.tiles['p_watts'], '5')
+            self.assertEqual(self.tiles['b_watts0'], '5')
+            self.assertEqual(self.tiles['b_watts0'], '5')
             return 0
         self.h.builtins['START_DIALOG'] = start
         self.call('EL:PanelDialog', self.result, self.cfg, self.h.run("'((\"LAMP\" . 5))"), None)
@@ -56,8 +55,8 @@ class PanelRepairTests(unittest.TestCase):
             'EL:READDATA': lambda path: files.get(path),
         })
         def start():
-            self.tiles['p_watts'] = '7'
-            self.h.run(self.actions['p_watts'])
+            self.tiles['b_watts0'] = '7'
+            self.h.run(self.actions['b_watts0'])
             self.assertIn('已记住', self.tiles['p_error'])
             self.assertIn('14 W', self.tiles['p_total'])
             return 0
@@ -73,10 +72,10 @@ class PanelRepairTests(unittest.TestCase):
         self.h.builtins['GET_TILE'] = lambda key: self.tiles.get(key, '')
         self.h.builtins['EL:WRITEDATA'] = lambda *args: None
         def start():
-            self.tiles['p_watts'] = '8'
-            self.h.run(self.actions['p_watts'])
+            self.tiles['b_watts0'] = '8'
+            self.h.run(self.actions['b_watts0'])
             self.assertIn('未写入文件', self.tiles['p_error'])
-            self.assertEqual(self.tiles['p_watts'], '8')
+            self.assertEqual(self.tiles['b_watts0'], '8')
             return 0
         self.h.builtins['START_DIALOG'] = start
         self.call('EL:PanelDialog', self.result, self.cfg, None, None)

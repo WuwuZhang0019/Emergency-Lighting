@@ -1,4 +1,4 @@
-"""Post-statistics setup and explicit selection gates. Date: 2026-10-09.
+"""Post-statistics setup and explicit selection gates. Date: 2026-10-10.
 
 Runs actual command/dialog functions with finite CAD/DCL adapters.
 """
@@ -89,11 +89,11 @@ class PostStatWorkflowTests(unittest.TestCase):
             return None
         self.h.builtins['EL:CAPTUREFIXEDTEMPLATE'] = capture
         def first():
-            self.tiles['p_watts'] = '7'
+            self.tiles['b_watts0'] = '7'
             self.confirm()
             self.call('EL:PanelGenerate')
         def second():
-            self.assertEqual(self.tiles['p_watts'], '7')
+            self.assertEqual(self.tiles['b_watts0'], '7')
             self.assertEqual(self.tiles['p_capacity'], 'p_600')
             self.assertIn('/普通', self.tiles['p_row0'])
             self.done(1)

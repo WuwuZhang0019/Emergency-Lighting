@@ -1,4 +1,4 @@
-"""Circuit draft and identity checks. Date: 2026-10-09."""
+"""Circuit draft and identity checks. Date: 2026-10-10."""
 import unittest
 import test_simple_flow as simple
 from autolisp_host import Symbol, truth
@@ -73,9 +73,9 @@ class PanelTests(unittest.TestCase):
     def test_invalid_power_blocks_ground_toggle_and_preserves_input(self):
         self.plan(); result=self.call('EL:SplitNetwork',simple.SimpleFlowTests.network(self),self.cfg)
         self.h.frames[0]['RESULT']=result
-        self.h.run("(setq *EL:PanelDraft* result *EL:PanelPowers* nil *EL:PanelIndex* 0 *EL:PanelDevice* 0 *EL:PanelPage* 0)")
-        tiles={'p_watts':'12x'}
+        self.h.run("(setq *EL:PanelDraft* result *EL:PanelPowers* nil *EL:PanelIndex* 0 *EL:PanelDevice* 0 *EL:PanelPage* 0 *EL:ThumbPage* 0)")
+        tiles={'b_watts0':'12x'}
         self.h.builtins.update({'GET_TILE':lambda key:tiles.get(key,''),'SET_TILE':lambda k,v:tiles.__setitem__(k,v), 'MODE_TILE':lambda *args:None})
         self.h.run('(EL:PanelGround 0 "1")')
-        self.assertEqual(tiles['p_watts'],'12x');self.assertEqual(tiles['p_ground0'],'0')
+        self.assertEqual(tiles['b_watts0'],'12x');self.assertEqual(tiles['p_ground0'],'0')
         self.assertFalse(truth(self.h.run("(EL:Get 'is-ground (car (EL:Get 'circuits *EL:PanelDraft*)))")))

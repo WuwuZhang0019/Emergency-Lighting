@@ -1,4 +1,4 @@
-"""Fixed entry, real panel fill and missing system-variable regressions. Date: 2026-10-09.
+"""Fixed entry, real panel fill and missing system-variable regressions. Date: 2026-10-10.
 
 Finite CAD/DCL adapters only; native AutoCAD acceptance remains pending.
 """
@@ -70,7 +70,7 @@ class FixedDiagnosticTests(unittest.TestCase):
         self.h.run('(c:ELSTAT)')
         self.assertEqual(self.dialogs, ['el_panel'])
         self.assertIn('实际', self.tiles['p_row0'])
-        self.assertEqual(self.tiles['p_watts'], '')
+        self.assertEqual(self.tiles['b_watts0'], '')
         self.assertEqual(self.writes, [])
         self.assertNotIn('HANDSEED', self.variables)
         log = self.log.read_text(encoding='utf-8')

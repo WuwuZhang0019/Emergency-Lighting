@@ -36,7 +36,8 @@ class ExitDeviceTests(unittest.TestCase):
             self.assertNotIn('f_exits', self.actions)
             self.assertNotIn('f_apply', self.actions)
             self.assertEqual(self.tiles['f_count0'], '数量：2')
-            self.assertEqual(self.lists['p_devices'], ['LAMP\t2\t待填写'])
+            self.assertEqual(self.tiles['b_name0'], 'LAMP')
+            self.assertEqual(self.tiles['b_watts0'], '')
             return 0
         self.h.builtins['START_DIALOG'] = start
         self.h.run('(c:ELSTAT)')
@@ -69,10 +70,10 @@ class ExitDeviceTests(unittest.TestCase):
             'EL:FIXEDEXITPREVIEW': lambda result, selection: previews.append(selection)})
         def start():
             if not previews:
-                self.tiles['p_watts'] = '9'
+                self.tiles['b_watts0'] = '9'
                 return self.h.run(self.actions['f_preview'])
             self.assertNotIn('f_exits', self.tiles)
-            self.assertEqual(self.lists['p_devices'], ['LAMP\t2\t9'])
+            self.assertEqual(self.tiles['b_watts0'], '9')
             return 0
         self.h.builtins['START_DIALOG'] = start
         self.h.run('(c:ELSTAT)')

@@ -225,14 +225,15 @@
 (defun EL:TranslateDeviceShape (shape offset / matrix)
   ;; Date: 2026-10-10. Translation preserves closed rings, holes and resolution.
   (setq matrix (list 1.0 0.0 0.0 1.0 (car offset) (cadr offset) (caddr offset) 1.0))
-  (list (cons 'segments (EL:TransformSegments (EL:Get 'segments shape) matrix))
+  (list (cons 'curves (EL:TranslateCurves (EL:Get 'curves shape) offset))
+    (cons 'segments (EL:TransformSegments (EL:Get 'segments shape) matrix))
     (cons 'regions (mapcar '(lambda (ring) (EL:TransformSegments ring matrix)) (EL:Get 'regions shape)))
     (cons 'holes (mapcar '(lambda (ring) (EL:TransformSegments ring matrix)) (EL:Get 'holes shape)))
     (cons 'segment-bounds (mapcar '(lambda (point) (EL:V+ point offset)) (EL:Get 'segment-bounds shape)))
     (cons 'contact-template shape) (cons 'contact-offset offset)
     (cons 'contact-ready T)
     (cons 'issues (EL:Get 'issues shape))))
-(defun EL:DeviceContactShape (block / id saved shape entity matrix key origin template context)
+(defun EL:DeviceContactShape (block / id saved shape entity matrix key origin template context data)
   (setq id (EL:Get 'id block) saved (assoc id *EL:DeviceContactCache*))
   (if saved (cdr saved)
     (progn
@@ -245,8 +246,8 @@
         (progn
           (setq matrix (vl-catch-all-apply 'EL:InsertMatrix (list entity)))
           (if (and matrix (not (vl-catch-all-error-p matrix)))
-            (setq key (list (cdr (assoc 2 (entget entity))) (nth 0 matrix) (nth 1 matrix)
-              (nth 2 matrix) (nth 3 matrix) (nth 7 matrix))
+            (setq data (entget entity)
+              key (mapcar '(lambda (code) (assoc code data)) '(2 41 42 43 50 210))
               origin (list (nth 4 matrix) (nth 5 matrix) (nth 6 matrix))
               template (assoc key *EL:DeviceTemplateCache*)))))
       (if template
@@ -254,20 +255,19 @@
           (setq shape (EL:TranslateDeviceShape (caddr template) (EL:V- origin (cadr template))))
           (EL:LogEvent "DEVICE_TEMPLATE_REUSE" context))
         (progn
-          (setq shape (vl-catch-all-apply 'EL:BlockContour
-            (list entity '(1.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0) 0.001 nil)))
+          (setq shape (vl-catch-all-apply 'EL:DeviceContour (list entity)))
           (if (vl-catch-all-error-p shape) (setq shape nil))
           (if (and (EL:Get 'segments shape) (not (EL:Get 'issues shape)))
             (setq shape (EL:Put 'regions (EL:LogCall "DEVICE_REGIONS"
               (append context (list (cons 'segments (length (EL:Get 'segments shape)))))
               'EL:ClosedRings (list (EL:Get 'segments shape))) shape)))))
-      (if (and (EL:Get 'segments shape) (not template))
+      (if (and (EL:ShapeGeometry shape) (not template))
         (setq shape (EL:PrepareContactBlock (EL:Put 'contact-envelope (EL:Get 'bounds block)
           (EL:Put 'id id (EL:Put 'name (EL:Get 'name block) shape))))))
       (setq shape (EL:Put 'id id (EL:Put 'name (EL:Get 'name block) shape)))
-      (if (and key (not template) (EL:Get 'segments shape) (not (EL:Get 'issues shape)))
+      (if (and key (not template) (EL:ShapeGeometry shape) (not (EL:Get 'issues shape)))
         (setq *EL:DeviceTemplateCache* (cons (list key origin shape) *EL:DeviceTemplateCache*)))
-      (if (or (not (EL:Get 'segments shape)) (EL:Get 'issues shape))
+      (if (or (not (EL:ShapeGeometry shape)) (EL:Get 'issues shape))
         (EL:LogEvent "DEVICE_CONTACT_GEOMETRY" (list id (EL:Get 'issues shape) 'no-bounds-fallback)))
       (setq *EL:DeviceContactCache* (cons (cons id shape) *EL:DeviceContactCache*))
       shape)))
@@ -297,6 +297,13 @@
                      (EL:Touches (cadr edge) (list seg) (EL:GapEpsilon) (EL:GapEpsilon))
                      (EL:GapHitsSegment (car seg) (cadr seg) (car edge) (cadr edge))))
           (setq hit T))))
+  (if (not hit)
+    (setq hit (or
+      (vl-some '(lambda (curve)
+        (or (vl-some '(lambda (seg) (EL:CurveSegmentHit seg curve (EL:GapEpsilon))) (EL:Get 'segments sb))
+          (vl-some '(lambda (other) (EL:CurvesTouch curve other)) (EL:Get 'curves sb)))) (EL:Get 'curves sa))
+      (vl-some '(lambda (curve)
+        (vl-some '(lambda (seg) (EL:CurveSegmentHit seg curve (EL:GapEpsilon))) (EL:Get 'segments sa))) (EL:Get 'curves sb)))))
   hit)
 (defun EL:DeviceCandidateScope (snapshot cfg panel edges tree / block other wire ep endpoints limit rows)
   ;; Date: 2026-10-10. Conservative reachability only, never final connectivity.
@@ -373,7 +380,7 @@
   (foreach other (EL:Get 'pairs pairs)
     (setq edges (cons (EL:Edge (car (EL:Get 'a other)) (car (EL:Get 'b other))) edges)))
   (setq snapshot (EL:Put 'device-contact-signature
-    (EL:Signature (mapcar '(lambda (row) (list (car row) (EL:Get 'segments (cdr row)) (EL:Get 'holes (cdr row)) (EL:Get 'issues (cdr row))))
+    (EL:Signature (mapcar '(lambda (row) (list (car row) (EL:Get 'segments (cdr row)) (EL:Get 'curves (cdr row)) (EL:Get 'holes (cdr row)) (EL:Get 'issues (cdr row))))
       (vl-sort *EL:DeviceContactCache* '(lambda (a b) (< (car a) (car b)))))) snapshot)
     component (EL:Component panel (EL:Unique edges)))
   (list (cons 'edges (EL:Unique edges)) (cons 'snapshot snapshot) (cons 'panel panel)

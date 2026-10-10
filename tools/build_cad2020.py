@@ -4,7 +4,7 @@ import shutil
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGE_NO = 78
+PACKAGE_NO = 79
 NAME = f'应急照明-{PACKAGE_NO:03d}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 DEST = ROOT / 'output' / NAME
@@ -75,6 +75,7 @@ def build():
               '(vl-load-com)\n' + '\n'.join(
                   (DEST / 'src' / f'{module}.lsp').read_bytes().decode('gb2312') for module in modules) +
               '\n(EL:ClearPickHighlights)\n(setq *EL:Result* nil *EL:DeviceResult* nil)\n'
+              f'(setq *EL:PackageMarker* "{marker}")\n'
               '(if (EL:EnsureRoot)\n'
               f'  (princ "\\n已加载（CAD2020 v{PACKAGE_NO}）：目录已确认。输入 ELSTAT 开始统计。")\n'
               f'  (princ "\\nCAD2020 v{PACKAGE_NO} 模块已载入，但未确认插件目录。运行 ELSETUP 或 ELSTAT 后选择完整包内的 src/load.lsp。"))\n'
@@ -124,6 +125,7 @@ def build():
     shutil.copy2(ROOT / 'docs/2026-10-10-解析圆与圆弧识别-074.md', DEST / 'docs/2026-10-10-解析圆与圆弧识别-074.md')
     shutil.copy2(ROOT / 'tests/evidence/2026-10-10-empty-pick-076.md', DEST / 'tests/evidence/2026-10-10-empty-pick-076.md')
     shutil.copy2(ROOT / "docs/2026-10-10-独立图例预览-078.md", DEST / "docs/2026-10-10-独立图例预览-078.md")
+    shutil.copy2(ROOT / 'docs/2026-10-10-回路漏识别与生成诊断-079.md', DEST / 'docs/2026-10-10-回路漏识别与生成诊断-079.md')
     readme = guide
     (DEST / '使用说明.md').write_text(readme, encoding='utf-8')
     for filename in ('cad-plan.dxf', 'cad-plan.expected.json'):

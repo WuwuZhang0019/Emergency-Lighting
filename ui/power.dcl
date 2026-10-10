@@ -149,65 +149,68 @@ el_panel : dialog {
     : button { key = "h_open"; label = "保存当前并打开"; }
   }
     : boxed_column { label = "图块表（本箱全部图块）";
-      : row {
+      // Date: 2026-10-10. Fixed-height table prevents stretched row gaps.
+      : column { fixed_height = true; alignment = top;
+      : boxed_row { fixed_height = true;
         : text { label = "图块"; width = 18; fixed_width = true; }
         : text { label = "单个功率(W)"; width = 12; fixed_width = true; }
         : text { label = "地面"; width = 7; fixed_width = true; }
-        : spacer { width = 4; fixed_width = true; }
+        : text { label = "排除"; width = 4; fixed_width = true; }
       }
-      : row {
+      : boxed_row { fixed_height = true;
         : image_button { key = "f_image0"; width = 18; height = 2.6; fixed_width = true; fixed_height = true; color = 0; }
         : edit_box { key = "b_watts0"; width = 12; fixed_width = true; edit_width = 7; allow_accept = false; }
         : toggle { key = "b_ground0"; label = "是"; width = 7; fixed_width = true; }
         : button { key = "b_remove0"; label = "×"; width = 4; fixed_width = true; }
       }
-      : row {
+      : boxed_row { fixed_height = true;
         : image_button { key = "f_image1"; width = 18; height = 2.6; fixed_width = true; fixed_height = true; color = 0; }
         : edit_box { key = "b_watts1"; width = 12; fixed_width = true; edit_width = 7; allow_accept = false; }
         : toggle { key = "b_ground1"; label = "是"; width = 7; fixed_width = true; }
         : button { key = "b_remove1"; label = "×"; width = 4; fixed_width = true; }
       }
-      : row {
+      : boxed_row { fixed_height = true;
         : image_button { key = "f_image2"; width = 18; height = 2.6; fixed_width = true; fixed_height = true; color = 0; }
         : edit_box { key = "b_watts2"; width = 12; fixed_width = true; edit_width = 7; allow_accept = false; }
         : toggle { key = "b_ground2"; label = "是"; width = 7; fixed_width = true; }
         : button { key = "b_remove2"; label = "×"; width = 4; fixed_width = true; }
       }
-      : row {
+      : boxed_row { fixed_height = true;
         : image_button { key = "f_image3"; width = 18; height = 2.6; fixed_width = true; fixed_height = true; color = 0; }
         : edit_box { key = "b_watts3"; width = 12; fixed_width = true; edit_width = 7; allow_accept = false; }
         : toggle { key = "b_ground3"; label = "是"; width = 7; fixed_width = true; }
         : button { key = "b_remove3"; label = "×"; width = 4; fixed_width = true; }
       }
-      : row {
+      : boxed_row { fixed_height = true;
         : image_button { key = "f_image4"; width = 18; height = 2.6; fixed_width = true; fixed_height = true; color = 0; }
         : edit_box { key = "b_watts4"; width = 12; fixed_width = true; edit_width = 7; allow_accept = false; }
         : toggle { key = "b_ground4"; label = "是"; width = 7; fixed_width = true; }
         : button { key = "b_remove4"; label = "×"; width = 4; fixed_width = true; }
       }
-      : row {
+      : boxed_row { fixed_height = true;
         : image_button { key = "f_image5"; width = 18; height = 2.6; fixed_width = true; fixed_height = true; color = 0; }
         : edit_box { key = "b_watts5"; width = 12; fixed_width = true; edit_width = 7; allow_accept = false; }
         : toggle { key = "b_ground5"; label = "是"; width = 7; fixed_width = true; }
         : button { key = "b_remove5"; label = "×"; width = 4; fixed_width = true; }
       }
-      : row {
+      : boxed_row { fixed_height = true;
         : image_button { key = "f_image6"; width = 18; height = 2.6; fixed_width = true; fixed_height = true; color = 0; }
         : edit_box { key = "b_watts6"; width = 12; fixed_width = true; edit_width = 7; allow_accept = false; }
         : toggle { key = "b_ground6"; label = "是"; width = 7; fixed_width = true; }
         : button { key = "b_remove6"; label = "×"; width = 4; fixed_width = true; }
       }
-      : row {
+      : boxed_row { fixed_height = true;
         : image_button { key = "f_image7"; width = 18; height = 2.6; fixed_width = true; fixed_height = true; color = 0; }
         : edit_box { key = "b_watts7"; width = 12; fixed_width = true; edit_width = 7; allow_accept = false; }
         : toggle { key = "b_ground7"; label = "是"; width = 7; fixed_width = true; }
         : button { key = "b_remove7"; label = "×"; width = 4; fixed_width = true; }
       }
-      : spacer { height = 1; }
-      : row { : button { key = "f_prev"; label = "上一页"; } : text { key = "f_page"; width = 10; } : button { key = "f_next"; label = "下一页"; } }
+      : row { fixed_height = true; : button { key = "f_prev"; label = "上一页"; } : text { key = "f_page"; width = 10; } : button { key = "f_next"; label = "下一页"; } }
       : text { label = "点击图块查看；按 Tab 记住功率。"; }
       : text { label = "× 排除本箱同类图块，不计数量和功率。"; }
-      : row { : text { key = "b_excluded"; width = 24; } : button { key = "b_restore"; label = "恢复排除"; } }
+      : row { fixed_height = true; : text { key = "b_excluded"; width = 24; } : button { key = "b_restore"; label = "恢复排除"; } }
+      }
+      : spacer { height = 0; }
     }
   }
 }

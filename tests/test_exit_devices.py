@@ -67,7 +67,7 @@ class ExitDeviceTests(unittest.TestCase):
         previews = []
         self.h.builtins.update({'GET_TILE': lambda key: self.tiles.get(key, ''),
             'DONE_DIALOG': lambda status: status,
-            'EL:FIXEDEXITPREVIEW': lambda result, selection: previews.append(selection)})
+            'EL:ALLCIRCUITCOLORPREVIEW': lambda result: previews.append(len(self.get('circuits', result)))})
         def start():
             if not previews:
                 self.tiles['b_watts0'] = '9'
@@ -78,7 +78,7 @@ class ExitDeviceTests(unittest.TestCase):
         self.h.builtins['START_DIALOG'] = start
         self.h.run('(c:ELSTAT)')
         self.assertEqual(self.dialogs, ['el_panel', 'el_panel'])
-        self.assertEqual(previews, ['0 '])
+        self.assertEqual(previews, [1])
         self.assertEqual(self.writes, [])
 
     def test_selection_refresh_and_preview_preserve_selected_devices(self):

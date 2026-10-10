@@ -4,7 +4,7 @@ import shutil
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGE_NO = 68
+PACKAGE_NO = 69
 NAME = f'应急照明-{PACKAGE_NO:03d}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 DEST = ROOT / 'output' / NAME
@@ -81,8 +81,7 @@ def build():
               '(princ)\n')
     (DEST / UPDATE_NAME).write_bytes(update.encode('gb2312'))
     # Date: 2026-10-10. Resolve APPLOAD folder, then validate version and assets.
-    startup = update.replace('(if (EL:EnsureRoot)',
-                             f'(if (EL:StartupRoot "{marker}")', 1)
+    startup = f'(if (EL:StartupRoot "{marker}")'.join(update.rsplit('(if (EL:EnsureRoot)', 1))
     startup = startup.replace('(if (EL:StartupRoot', embedded_resources() + '\n(if (EL:StartupRoot', 1)
     startup = startup.replace('运行 ELSETUP 或 ELSTAT 后选择完整包内的 src/load.lsp。',
                               '请检查本地数据目录写入权限后重新加载启动文件。')

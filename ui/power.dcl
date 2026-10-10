@@ -91,6 +91,10 @@ el_fixed_exits : dialog {
 el_panel : dialog {
   label = "回路与图块设置";
   : row {
+    : button { key = "p_pick"; label = "拾取配电箱"; width = 18; fixed_width = true; }
+    : spacer { width = 1; }
+  }
+  : row {
   : column {
   : radio_row { key = "p_capacity"; label = "当前配电箱容量档位";
     : radio_button { key = "p_300"; label = "0.3kW"; value = "1"; }

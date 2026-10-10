@@ -40,7 +40,7 @@ class ExitDeviceTests(unittest.TestCase):
             self.assertEqual(self.tiles['b_watts0'], '')
             return 0
         self.h.builtins['START_DIALOG'] = start
-        self.h.run('(c:ELSTAT)')
+        self.h.run('(EL:FixedStatPick)')
         self.assertEqual(self.dialogs, ['el_panel'])
         self.assertEqual(self.writes, [])
 
@@ -76,7 +76,7 @@ class ExitDeviceTests(unittest.TestCase):
             self.assertEqual(self.tiles['b_watts0'], '9')
             return 0
         self.h.builtins['START_DIALOG'] = start
-        self.h.run('(c:ELSTAT)')
+        self.h.run('(EL:FixedStatPick)')
         self.assertEqual(self.dialogs, ['el_panel', 'el_panel'])
         self.assertEqual(previews, [1])
         self.assertEqual(self.writes, [])

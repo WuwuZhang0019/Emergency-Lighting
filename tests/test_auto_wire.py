@@ -115,7 +115,7 @@ class AutoWireTests(unittest.TestCase):
         fixture.setUp()
         picks = []
         fixture.h.builtins['EL:PICKMODEL'] = lambda *a: picks.append(a) or ['panel', [0., 0., 0.]]
-        fixture.h.run('(c:ELSTAT)')
+        fixture.h.run('(EL:FixedStatPick)')
         self.assertEqual(len(picks), 1)
         cfg = fixture.h.lookup('*EL:FIXEDCONFIG*')
         result = fixture.h.lookup('*EL:RESULT*')

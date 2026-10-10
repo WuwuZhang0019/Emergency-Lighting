@@ -280,7 +280,7 @@ class PackagedUpdateTests(RootFixture):
         self.assertEqual(self.dialogs,[])
         self.assertNotIn('输入 CCKK',''.join(self.messages))
         self.assertIn('输入 ELSTAT',''.join(self.messages))
-        self.h.run('(c:ELSTAT)')
+        self.h.run('(EL:FixedStatPick)')
         self.assertEqual(self.dialogs,[])
         self.assertEqual(len(self.picks),1)
 
@@ -341,7 +341,7 @@ class PackagedUpdateTests(RootFixture):
         config.write_bytes(b'keep user data')
         self.run_startup(registry_error=True)
         self.assertEqual(config.read_bytes(), b'keep user data')
-        self.h.run('(c:ELSTAT)')
+        self.h.run('(EL:FixedStatPick)')
         self.assertEqual(self.dialogs, [])
         self.assertEqual(len(self.picks), 1)
 
@@ -376,7 +376,7 @@ class PackagedUpdateTests(RootFixture):
         self.h.run(self.update)
         self.assertEqual(self.h.lookup('*EL:ROOT*'), self.root)
         self.assertEqual(self.h.run('(EL:LoadConfig)'), cfg)
-        self.h.run('(c:ELSTAT)')
+        self.h.run('(EL:FixedStatPick)')
         self.assertEqual(self.dialogs, [])
         self.assertEqual(len(self.picks), 1)
         self.assertIn('拾取配电箱', self.picks[0])

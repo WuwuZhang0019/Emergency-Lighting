@@ -47,11 +47,41 @@ class PostStatWorkflowTests(unittest.TestCase):
         self.h.builtins['EL:CAPTUREFIXEDTEMPLATE'] = lambda cfg: self.fail('setup before generation')
         self.h.builtins['EL:PUBLISHDIAGRAM'] = lambda *args: self.fail('must not publish before review')
         self.actions = [lambda: self.done(0)]
-        self.h.run('(c:ELSTAT)')
+        self.call('EL:FixedStatPick')
         self.assertEqual(self.tiles['p_capacity'], 'p_300')
         self.assertNotIn('待核对',self.tiles['p_capacity_status'])
         self.assertRegex(self.tiles['p_row0'], r'^ZE1 \| \d+W$')
         self.assertIn('点击生成时设置', self.tiles['p_template_status'])
+        self.assertEqual(self.writes, [])
+
+    def test_elstat_opens_panel_without_any_model_pick(self):
+        self.h.builtins['EL:PICKMODEL'] = lambda *args: self.fail('picked before button')
+        self.actions = [lambda: self.done(0)]
+        self.h.run('(c:ELSTAT)')
+        self.assertEqual(self.dialogs, ['el_panel'])
+        self.assertIn('拾取配电箱', self.tiles['p_error'])
+        self.assertEqual(self.writes, [])
+
+    def test_pick_button_closes_initial_panel_before_model_pick(self):
+        events = []
+        self.h.builtins['EL:FIXEDSTATPICK'] = lambda: events.append('pick')
+        self.actions = [lambda: (events.append('panel'), self.done(9))]
+        self.h.run('(c:ELSTAT)')
+        self.assertEqual(events, ['panel', 'pick'])
+        self.assertIsNone(self.h.lookup('*EL:DIALOGID*'))
+        self.assertEqual(self.writes, [])
+
+    def test_elstat_pick_action_reaches_recognized_panel(self):
+        self.actions = [lambda: self.done(9), lambda: self.done(0)]
+        self.h.run('(c:ELSTAT)')
+        self.assertEqual(self.dialogs, ['el_panel', 'el_panel'])
+        self.assertRegex(self.tiles['p_row0'], r'^ZE1 \| \d+W$')
+        self.assertEqual(self.writes, [])
+
+    def test_existing_panel_returns_repick_request_without_saving(self):
+        self.actions = [lambda: self.done(9)]
+        edited = self.dialog()
+        self.assertTrue(truth(self.get('pick-panel', edited)))
         self.assertEqual(self.writes, [])
 
     def test_default_capacity_generates_without_extra_confirmation(self):

@@ -67,7 +67,7 @@ class FixedDiagnosticTests(unittest.TestCase):
         })
 
     def test_first_use_unknown_handseed_reaches_real_panel_without_writes(self):
-        self.h.run('(c:ELSTAT)')
+        self.call('EL:FixedStatPick')
         self.assertEqual(self.dialogs, ['el_panel'])
         self.assertEqual(self.tiles['p_row0'], 'ZE1 | 0W')
         self.assertEqual(self.tiles['b_watts0'], '')
@@ -91,7 +91,7 @@ class FixedDiagnosticTests(unittest.TestCase):
             raise TypeError('bad argument type: stringp nil')
         self.h.builtins['SET_TILE'] = fail
         with self.assertRaisesRegex(TypeError, 'stringp nil') as caught:
-            self.h.run('(c:ELSTAT)')
+            self.call('EL:FixedStatPick')
         # Subset host requires explicit dispatch of AutoCAD's error hook.
         self.call('*ERROR*', str(caught.exception))
         log = self.log.read_text(encoding='utf-8')
@@ -109,7 +109,7 @@ class FixedDiagnosticTests(unittest.TestCase):
             raise TypeError('bad argument type: stringp nil')
         self.h.builtins['SET_TILE'] = fail
         with self.assertRaisesRegex(TypeError, 'stringp nil') as caught:
-            self.h.run('(c:ELSTAT)')
+            self.call('EL:FixedStatPick')
         self.call('*ERROR*', str(caught.exception))
         text = ''.join(self.messages)
         for value in ('日志写入失败', 'PANEL_FILL', 'stringp nil'):
@@ -123,12 +123,12 @@ class FixedDiagnosticTests(unittest.TestCase):
             first = self.get('drawing-uuid', self.call('EL:StoreInitial'))
             self.assertTrue(first.startswith('EL-'))
             self.assertEqual(first, self.get('drawing-uuid', self.call('EL:StoreInitial')))
-        self.h.run('(c:ELSTAT)')
+        self.call('EL:FixedStatPick')
         self.assertEqual(self.dialogs, ['el_panel'])
         self.assertEqual(self.writes, [])
 
     def test_power_reopen_preserves_legacy_record_identity_and_appends_session(self):
-        self.h.run('(c:ELSTAT)')
+        self.call('EL:FixedStatPick')
         record = self.h.run("'((diagram-id . \"guid/panel/A0\") (source-panel-handle . \"panel\"))")
         store = self.call('EL:StorePutDiagram', record, self.call('EL:StoreInitial'))
         self.h.builtins['EL:STOREREAD'] = lambda: store
@@ -145,7 +145,7 @@ class FixedDiagnosticTests(unittest.TestCase):
             raise TypeError('recognition stringp nil')
         self.h.builtins['EL:RECOGNIZEFIXED'] = fail
         with self.assertRaisesRegex(TypeError, 'recognition stringp nil') as caught:
-            self.h.run('(c:ELSTAT)')
+            self.call('EL:FixedStatPick')
         self.call('*ERROR*', str(caught.exception))
         log = self.log.read_text(encoding='utf-8')
         for value in ('PICKS', 'RECOGNIZE_FIXED', 'recognition stringp nil', 'END'):

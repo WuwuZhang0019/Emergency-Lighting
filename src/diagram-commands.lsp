@@ -62,7 +62,8 @@
   (while result
     (setq *EL:Result* result *EL:FixedConfig* cfg)
     (setq next (EL:EditPanelOnce result cfg)
-      result (EL:Get 'switch-result next) cfg (EL:Get 'switch-config next))))
+      result (EL:Get 'switch-result next) cfg (EL:Get 'switch-config next)))
+  next)
 (defun EL:EditPanelOnce (result cfg / *error* store record powers capacity edited prepared saved ownlog syncable template)
   (defun *error* (msg)
     (EL:LogFailure msg)
@@ -90,7 +91,7 @@
   (setq cfg (EL:Put 'template template cfg))
   (if (setq edited (EL:LogCall "PANEL_DIALOG" (list (cons 'panel (EL:Get 'panel result)))
       'EL:PanelDialog (list prepared cfg powers capacity)))
-    (if (not (EL:Get 'switch-result edited)) (progn
+    (if (not (or (EL:Get 'switch-result edited) (EL:Get 'pick-panel edited))) (progn
       (setq result (EL:Get 'result edited) powers (EL:Get 'powers edited) capacity (EL:Get 'capacity edited)
         cfg (cond ((EL:Get 'config edited)) (T cfg))
         syncable (and (EL:Get 'can-generate result) (EL:SelectionsReady result capacity)
@@ -128,7 +129,7 @@
     (EL:MarkStale (EL:Get 'panel result) 'review-cancelled))
   (EL:ClearPickHighlights)
   (if ownlog (EL:LogFinish (if edited 'panel-accepted 'panel-cancelled)))
-  (if (EL:Get 'switch-result edited) edited))
+  (if (or (EL:Get 'switch-result edited) (EL:Get 'pick-panel edited)) edited))
 (defun EL:PublishDiagram (result cfg / store record powers capacity)
   (setq store (EL:StoreRead) record (EL:DiagramForPanel (EL:Get 'panel result) store))
   (if record
@@ -138,7 +139,7 @@
         (setq powers (EL:FixedPowers record) result (EL:PanelCompute result powers cfg))
         (setq result (EL:BoxStatistics result cfg (EL:LoadLibrary) nil)))
       (EL:SyncDiagram result cfg powers capacity nil nil))) result)
-(defun EL:FixedStat (/ *error* panel pd cfg result record powers)
+(defun EL:FixedStatPick (/ *error* panel pd cfg result record powers next)
   (defun *error* (msg)
     (EL:LogFailure msg)
     (vl-catch-all-apply 'EL:ClearPickHighlights nil)
@@ -164,10 +165,10 @@
           (setq result (EL:Put 'excluded-seeds (EL:Get 'excluded-seeds record) result))
           (setq powers (EL:FixedPowers record) result (EL:PanelCompute result powers cfg)
             *EL:Result* result *EL:FixedConfig* cfg)
-          (if (EL:Get 'circuits result) (EL:EditPanel result cfg)
+          (if (EL:Get 'circuits result) (setq next (EL:EditPanel result cfg))
             (princ "\n未取得有效实际出线；不能生成只有两条预留的系统图。")))
         (EL:MarkStale (cdr (assoc 5 pd)) 'recognition-cancelled))))
-  (EL:ClearPickHighlights) (EL:LogFinish 'command-finished) (princ))
+  (EL:ClearPickHighlights) (EL:LogFinish 'command-finished) next)
 (defun c:ELGEN (/ *error* cfg result record powers capacity)
   (defun *error* (msg)
     (redraw) (EL:ClearPickHighlights)
@@ -218,3 +219,15 @@
         (EL:EditPanel result cfg)
         (EL:SyncDiagram result cfg (EL:Get 'powers record) (EL:Get 'capacity-option record) nil T))))
   (EL:ClearPickHighlights) (princ))
+
+;; Date: 2026-10-10. ELSTAT opens the panel before requesting model selection.
+(defun EL:FixedStat (/ *error* next)
+  (defun *error* (msg)
+    (vl-catch-all-apply 'EL:ReleasePowerUI nil)
+    (if msg (princ (strcat "\n面板已停止：" msg))) (princ))
+  (if (EL:EnsureRoot)
+    (progn
+      (setq next (EL:PanelStartDialog))
+      (while (EL:Get 'pick-panel next)
+        (setq next (EL:FixedStatPick)))))
+  (princ))

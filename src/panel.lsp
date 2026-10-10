@@ -555,6 +555,7 @@
         (EL:LogCall "PANEL_FILL" (list (cons 'panel (EL:Get 'panel result))
           (cons 'circuits (length (EL:Get 'circuits *EL:PanelDraft*)))) 'EL:PanelFill nil) (setq i 0)
         (EL:HistoryFill)
+        (action_tile "p_pick" "(if (EL:PanelStore) (done_dialog 9))")
         (action_tile "h_records" "(EL:HistorySelect $value)")
         (action_tile "h_open" "(if (EL:PanelStore) (done_dialog 8))")
         (EL:ThumbActions)
@@ -601,6 +602,26 @@
       (setq status 0)))
   (EL:ThumbCleanup)
   (if (> dialog 0) (unload_dialog dialog)) (setq *EL:DialogID* nil)
-  (if switched switched
+  (if (= status 9) (list '(pick-panel . T))
+    (if switched switched
     (if (member status '(1 2)) (list (cons 'result *EL:PanelDraft*) (cons 'powers *EL:PanelPowers*)
-      (cons 'config *EL:PanelConfig*) (cons 'capacity *EL:PanelCapacity*) (cons 'generate (= status 2))))))
+      (cons 'config *EL:PanelConfig*) (cons 'capacity *EL:PanelCapacity*) (cons 'generate (= status 2)))))))
+
+;; Date: 2026-10-10. Empty state uses the same main panel and disables model actions.
+(defun EL:PanelStartDialog (/ dialog status i key *EL:PanelDraft* *EL:HistoryRecords* *EL:HistoryIndex*)
+  (setq status 0 dialog (load_dialog (strcat *EL:Root* "ui/power.dcl")) *EL:DialogID* dialog)
+  (if (and (> dialog 0) (new_dialog "el_panel" dialog))
+    (progn
+      (set_tile "p_error" "请点击左上角拾取配电箱，开始统计。")
+      (foreach key '("p_capacity" "f_preview" "f_prev" "f_next" "b_restore" "accept" "p_generate" "h_open")
+        (mode_tile key 1))
+      (setq i 0)
+      (repeat 4
+        (foreach key '("f_image" "b_watts" "b_ground" "b_remove")
+          (mode_tile (strcat key (itoa i)) 1))
+        (setq i (1+ i)))
+      (action_tile "p_pick" "(done_dialog 9)")
+      (action_tile "cancel" "(done_dialog 0)")
+      (setq status (start_dialog))))
+  (if (> dialog 0) (unload_dialog dialog)) (setq *EL:DialogID* nil)
+  (if (= status 9) (list '(pick-panel . T))))

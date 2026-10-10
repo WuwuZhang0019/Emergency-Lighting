@@ -12,7 +12,7 @@ class SimpleFlowTests(unittest.TestCase):
 
     def setUp(self):
         adapter.CadAdapterTests.setUp(self)
-        for name in ('statistics','main','simple'):
+        for name in ('statistics','main','simple','diagram-update'):
             self.h.load_definitions(adapter.ROOT/'src'/f'{name}.lsp')
         self.cfg=self.h.lookup('CFG')
 
@@ -155,12 +155,12 @@ class SimpleFlowTests(unittest.TestCase):
         self.network()
         self.assertEqual(set(seen),{'w1','w2','wr'})
 
-    def test_legacy_summary_two_picks_and_one_table_then_remembers_powers(self):
+    def test_legacy_summary_one_pick_and_one_table_then_remembers_powers(self):
         self.plan();picks=[];tables=[];written=[];files={}
         self.h.frames[0]['*EL:ROOT*']='package/'
         def pick(prompt):
             picks.append(prompt)
-            self.assertLessEqual(len(picks),2)
+            self.assertLessEqual(len(picks),1)
             return ['panel' if len(picks)==1 else 'w2',[0.,0.,0.]]
         def table(result,rows):
             tables.append(rows)
@@ -174,7 +174,7 @@ class SimpleFlowTests(unittest.TestCase):
             'REDRAW':lambda *a:None,'HANDENT':lambda x:x,'PRINC':lambda *a:None,
             'EL:REVIEWROLES':forbidden,'EL:REVIEWEXITS':forbidden,'EL:POWERDIALOG':forbidden})
         self.h.run('(EL:SimpleStat)')
-        self.assertEqual(len(picks),2);self.assertEqual(len(tables),1)
+        self.assertEqual(len(picks),1);self.assertEqual(len(tables),1)
         self.assertEqual(self.get('count',tables[0][0]),2)
         self.assertEqual(len(written),1)
         self.assertTrue(written[0][0].endswith('config/block-powers.eld'))
@@ -182,7 +182,7 @@ class SimpleFlowTests(unittest.TestCase):
         self.assertIsNone(self.h.lookup('*EL:RESULT*'))
         picks.clear()
         self.h.run('(EL:SimpleStat)')
-        self.assertEqual(len(picks),2);self.assertEqual(len(tables),2)
+        self.assertEqual(len(picks),1);self.assertEqual(len(tables),2)
         self.assertEqual(self.get('watts',tables[1][0]),7)
         # Cancelled edits must not replace the saved per-block value.
         self.h.builtins['EL:SIMPLEDIALOG']=lambda *args:None

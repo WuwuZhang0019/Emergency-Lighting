@@ -55,7 +55,7 @@
         (cons 'leader-pairs nil) (cons 'powers nil) (cons 'template nil)))
 (defun EL:ConfigValid (cfg id / ok k pair seen)
   (setq ok (and (EL:OnlyKeys cfg '(version drawing revision calibrated units params
-        wire-layers panel-layers device-layers leader-layers panel-names device-names
+        wire-styles auto-panel wire-layers panel-layers device-layers leader-layers panel-names device-names
         leader-names layer-pairs gap-pairs leader-pairs powers template roles exits))
         (member (EL:Get 'version cfg) '(1 2)) (equal (EL:Get 'drawing cfg) id)
         (equal (type (EL:Get 'revision cfg)) 'INT) (>= (EL:Get 'revision cfg) 0)
@@ -65,6 +65,10 @@
                (equal (type (EL:Get 'units cfg)) 'STR) (/= (EL:Get 'units cfg) "")))))
   (foreach k '(wire-layers panel-layers device-layers leader-layers panel-names device-names leader-names)
     (if (not (EL:Strings (EL:Get k cfg))) (setq ok nil)))
+  ;; Date: 2026-10-10. Optional inferred style and exact panel-contact identity.
+  (if (and (EL:Get 'auto-panel cfg) (not (equal (type (EL:Get 'auto-panel cfg)) 'STR))) (setq ok nil))
+  (foreach pair (EL:Get 'wire-styles cfg)
+    (if (not (and (EL:Strings pair) (= (length pair) 2))) (setq ok nil)))
   (foreach pair (EL:Get 'layer-pairs cfg)
     (if (not (and (EL:Strings pair) (= (length pair) 2))) (setq ok nil)))
   (foreach pair (EL:Get 'gap-pairs cfg)

@@ -1,0 +1,594 @@
+{
+  "date": "2026-10-10",
+  "passed": true,
+  "test_count": 120,
+  "tests": [
+    {
+      "test": "test_auto_wire.AutoWireTests.test_actual_contour_rejects_bbox_corner_and_other_elevation",
+      "status": "passed"
+    },
+    {
+      "test": "test_auto_wire.AutoWireTests.test_cancel_ambiguous_selection_returns_no_config",
+      "status": "passed"
+    },
+    {
+      "test": "test_auto_wire.AutoWireTests.test_fixed_entry_uses_one_pick_and_source_change_invalidates_result",
+      "status": "passed"
+    },
+    {
+      "test": "test_auto_wire.AutoWireTests.test_hidden_wire_is_not_an_auto_candidate",
+      "status": "passed"
+    },
+    {
+      "test": "test_auto_wire.AutoWireTests.test_inside_endpoint_and_middle_crossing_count",
+      "status": "passed"
+    },
+    {
+      "test": "test_auto_wire.AutoWireTests.test_mixed_contacts_highlight_and_require_choice_reject_unrelated_style",
+      "status": "passed"
+    },
+    {
+      "test": "test_auto_wire.AutoWireTests.test_no_contact_never_chooses_nearest_wire",
+      "status": "passed"
+    },
+    {
+      "test": "test_auto_wire.AutoWireTests.test_resolves_bylayer_and_model_space_byblock",
+      "status": "passed"
+    },
+    {
+      "test": "test_auto_wire.AutoWireTests.test_single_style_auto_detects_arbitrary_layer_and_filters_other_linetype",
+      "status": "passed"
+    },
+    {
+      "test": "test_auto_wire.AutoWireTests.test_unsupported_contour_falls_back_to_manual_sample",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_bent_polylines_continue_along_the_actual_broken_end_direction",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_block_inside_gap_is_not_skipped_by_wire_bounds_filter",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_collection_does_not_parse_outside_wire_layers",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_connected_system_joins_t_branches_and_groups_without_roles",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_dialog_preview_restores_current_row_and_unsaved_values",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_endpoint_on_device_does_not_continue_to_remote_wire",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_free_gap_ends_reconnect_when_opposite_ends_touch_panel_and_device",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_gap_does_not_jump_to_parallel_other_elevation_or_out_of_range_wire",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_gap_log_records_endpoint_coordinates_candidates_and_pair_count",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_legacy_summary_one_pick_and_one_table_then_remembers_powers",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_multiple_breaks_continue_past_middle_device_and_t_branch",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_noncollinear_crossing_in_gap_is_not_a_connection_or_blocker",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_other_wire_layer_and_bare_crossing_do_not_merge_systems",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_power_edit_requires_valid_values_and_keeps_zero",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_whole_block_middle_crossing_connects_and_never_reads_contents",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimplePersistenceTests.test_corrupt_power_file_is_not_overwritten",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimplePersistenceTests.test_file_reload_and_merge_preserve_unrelated_block_types",
+      "status": "passed"
+    },
+    {
+      "test": "test_fixed_diagnostics.FixedDiagnosticTests.test_first_use_unknown_handseed_reaches_real_panel_without_writes",
+      "status": "passed"
+    },
+    {
+      "test": "test_fixed_diagnostics.FixedDiagnosticTests.test_missing_drawing_identity_opens_panel_with_stable_fallback",
+      "status": "passed"
+    },
+    {
+      "test": "test_fixed_diagnostics.FixedDiagnosticTests.test_new_record_avoids_existing_ids_and_retains_existing_record",
+      "status": "passed"
+    },
+    {
+      "test": "test_fixed_diagnostics.FixedDiagnosticTests.test_panel_fill_failure_reports_stage_and_original_error",
+      "status": "passed"
+    },
+    {
+      "test": "test_fixed_diagnostics.FixedDiagnosticTests.test_power_reopen_preserves_legacy_record_identity_and_appends_session",
+      "status": "passed"
+    },
+    {
+      "test": "test_fixed_diagnostics.FixedDiagnosticTests.test_recognition_failure_uses_outer_error_handler",
+      "status": "passed"
+    },
+    {
+      "test": "test_fixed_diagnostics.FixedDiagnosticTests.test_unwritable_log_still_reports_panel_failure_on_command_line",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_cancelled_review_preserves_old_choices_and_marks_output_unupdated",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_cancelled_setup_returns_to_same_draft_without_saving",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_capacity_and_manual_no_restore_from_saved_draft",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_captured_config_reaches_sync_with_confirmed_choices",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_default_capacity_generates_without_extra_confirmation",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_drawing_template_cache_is_reused_for_other_box",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_escape_during_setup_returns_to_panel_and_preserves_draft",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_legacy_generation_retains_capacity_fallback_without_fixed_review",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_prepared_record_template_is_reused_for_same_box",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_save_capacity_then_recognize_same_panel",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_save_complete_statistics_without_template_still_saves_draft",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_save_records_all_pages_without_changing_checkbox_values",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_shared_sync_rejects_unconfirmed_fixed_result",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_statistics_without_template_open_panel_without_setup_or_publication",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_successful_setup_returns_new_config_for_generation_without_repick",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_valid_template_is_reused_without_setup",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.SelectionStoreTests.test_draft_confirmation_and_shared_template_roundtrip_through_xrecord",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.SelectionStoreTests.test_missing_capacity_defaults_but_unconfirmed_types_remain_stale",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_caption_requirements_do_not_depend_on_v52_plan_marker",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_cckk_create_uses_actual_85w_and_tracks_all_captions",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_cckk_missing_caption_repaired_and_foreign_caption_rejected",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_cckk_old_plan_migrates_power_alignment_and_adds_captions",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_commit_failure_rolls_back_and_keeps_original_error",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_common_sync_noop_and_invalid_result_never_reports_saved",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_confirmed_fixed_update_uses_new_template_and_persists_sources",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_corrupt_xrecord_readback_rolls_back_existing_store_and_graphics",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_dirty_marker_free_residue_recovers_without_prompt_or_undo",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_disabled_or_unclosed_undo_is_not_a_truthy_message",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_draft_requires_store_readback_not_only_success_flag",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_draft_then_sync_keep_low_real_digits_and_default_capacity",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_dynamic_failure_rolls_back_prior_capacity_change",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_empty_memory_residue_saves_without_prompt_or_undo",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_existing_undo_group_saves_capacity_and_powers_with_real_transaction",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_failed_commit_and_rollback_without_marker_can_recover_on_retry",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_failed_write_rolls_back_modified_deleted_created_and_dictionary",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_ground_change_updates_state_and_not_power",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_identical_update_is_noop_and_manual_text_content_is_repaired",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_inline_recovery_bad_marker_does_not_start_transaction",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_large_template_draft_recovers_saves_and_reopens_with_bounded_read",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_layout_conflict_and_locked_layer_preflight",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_memory_recovery_cannot_clear_blocker_if_undo_group_stays_open",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_missing_text_only_is_recreated",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_native_readback_value_mismatch_reports_field_and_rolls_back",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_new_row_appends_before_existing_reserve_handles",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_nil_rollback_without_closing_state_does_not_report_cleanup_success",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_nil_writer_rolls_back_without_using_exit_as_an_exception",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_power_update_keeps_handles_manual_position_and_no_reserve_text",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_recovery_archives_marker_without_changing_graphics_or_store",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_recovery_command_automatically_archives_marker",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_recovery_failed_rename_keeps_blocker",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_recovery_preserves_entities_without_asking_yes",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_recovery_rejects_unrecognized_marker",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_reentrant_write_and_rollback_remain_guarded",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_remove_retains_reserve_identity_and_cleans_owned_row",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_rollback_failure_is_reported_without_erasing_original_error",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_running_transaction_cannot_be_recovered_or_nested",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_save_recovers_inline_and_continues_without_separate_command",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_silent_undo_noop_keeps_transaction_blocker",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_start_failure_is_caught_without_writing_or_undoing_user_work",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_successful_single_undo_restores_both_graphics_and_record",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_sync_rejects_prompt_string_and_does_not_export_or_report_success",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_v53_caption_upgrade_keeps_manual_offset_and_repairs_native_text",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_whole_rotation_scale_is_adopted_but_panel_only_move_is_rejected",
+      "status": "passed"
+    },
+    {
+      "test": "test_device_contact.DeviceContactTests.test_corner_overlap_and_containment_connect",
+      "status": "passed"
+    },
+    {
+      "test": "test_device_contact.DeviceContactTests.test_disconnected_touching_pair_stays_outside_circuit",
+      "status": "passed"
+    },
+    {
+      "test": "test_device_contact.DeviceContactTests.test_gap_and_different_elevation_do_not_connect",
+      "status": "passed"
+    },
+    {
+      "test": "test_device_contact.DeviceContactTests.test_touch_chain_reaches_device_and_onward_wire_once",
+      "status": "passed"
+    },
+    {
+      "test": "test_device_contact.DeviceContactTests.test_touching_panel_does_not_create_device_connection",
+      "status": "passed"
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_atomic_config_write_restores_previous_file_on_failure",
+      "status": "passed"
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_dcl_keys_and_callback_syntax",
+      "status": "passed"
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_forms_arities_and_local_assignments",
+      "status": "passed"
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_geometry_and_topology_do_not_mutate_drawing",
+      "status": "passed"
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_rollback_only_deletes_created_objects_even_if_one_delete_fails",
+      "status": "passed"
+    },
+    {
+      "test": "test_setup.SetupTests.test_changed_parameter_requires_confirmation_and_can_save_draft",
+      "status": "passed"
+    },
+    {
+      "test": "test_setup.SetupTests.test_changed_unit_label_requires_confirmation_but_never_unit_input",
+      "status": "passed"
+    },
+    {
+      "test": "test_setup.SetupTests.test_choices_outside_one_or_two_reprompt_without_saving_early",
+      "status": "passed"
+    },
+    {
+      "test": "test_setup.SetupTests.test_confirmed_unchanged_setup_does_not_ask_for_confirmation_again",
+      "status": "passed"
+    },
+    {
+      "test": "test_setup.SetupTests.test_editing_without_value_changes_keeps_existing_confirmation",
+      "status": "passed"
+    },
+    {
+      "test": "test_setup.SetupTests.test_enter_saves_uncalibrated_draft_and_explains_next_step",
+      "status": "passed"
+    },
+    {
+      "test": "test_setup.SetupTests.test_fixed_mm_reuses_custom_parameters_and_power_values",
+      "status": "passed"
+    },
+    {
+      "test": "test_setup.SetupTests.test_invalid_custom_parameters_do_not_save_or_confirm",
+      "status": "passed"
+    },
+    {
+      "test": "test_setup.SetupTests.test_missing_sample_does_not_save",
+      "status": "passed"
+    },
+    {
+      "test": "test_setup.SetupTests.test_reopen_draft_reuses_samples_and_only_explicit_choice_confirms",
+      "status": "passed"
+    },
+    {
+      "test": "test_setup.SetupTests.test_resample_is_explicit",
+      "status": "passed"
+    },
+    {
+      "test": "test_setup.SetupTests.test_resampling_confirmed_config_requires_new_confirmation",
+      "status": "passed"
+    },
+    {
+      "test": "test_setup.SetupTests.test_write_failure_never_reports_success",
+      "status": "passed"
+    }
+  ],
+  "cad_status": "pending native AutoCAD 2020 acceptance",
+  "startup_passed": true,
+  "startup_test_count": 25,
+  "startup_tests": [
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_old_ui_directory_requires_complete_new_package",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_package_encoding_layout_and_update_forms",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_packaged_setup_uses_fixed_mm_and_numeric_choices_with_real_data_io",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_standalone_update_initializes_root_then_setup_reaches_actual_pick",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_startup_appload_folder_needs_no_file_selection_and_can_start",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_startup_from_src_folder_and_old_root_selects_new_package",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_startup_incomplete_package_requires_repair",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_startup_search_path_works_when_registry_unavailable",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_startup_wrong_version_does_not_silently_reuse_old_root",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_update_cancel_reports_not_ready_and_command_can_retry_once",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_update_preserves_old_root_and_config_then_stat_reaches_panel_pick",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootFixture.test_old_ui_directory_requires_complete_new_package",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_cancelled_save_does_not_write_config_or_report_success",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_cancelled_setup_config_does_not_build_invalid_backup_path",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_cancelled_setup_does_not_reprompt_backup_or_create_config",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_config_path_rejects_nil_or_non_string_root_and_drawing_id",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_empty_wrong_type_and_deleted_roots_request_relocation",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_invalid_config_backup_still_preserves_previous_data",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_missing_post_stat_ui_marker_rejects_old_dialog",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_missing_root_is_initialized_before_config_path_is_used",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_old_ui_directory_requires_complete_new_package",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_save_initializes_missing_root_and_can_read_back_the_config",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_unsaved_drawing_stops_before_directory_selection",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_valid_root_with_or_without_trailing_separator_keeps_saved_config",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_wrong_file_and_incomplete_package_are_not_accepted",
+      "status": "passed"
+    }
+  ],
+  "packaged_lisp_parsed": 19,
+  "gb2312_zip_checked": true
+}

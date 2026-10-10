@@ -1,4 +1,65 @@
-;; Date: 2026-10-08. Two picks, connected devices, one persistent power table.
+;; Date: 2026-10-10. Infer wire style from actual panel contacts.
+(defun EL:WireStyle (d / layer lt)
+  (setq layer (cdr (assoc 8 d)) lt (strcase (cond ((cdr (assoc 6 d))) (T "BYLAYER"))))
+  (if (equal lt "BYLAYER")
+    (setq lt (strcase (cond ((cdr (assoc 6 (tblsearch "LAYER" layer)))) (T "CONTINUOUS")))))
+  ;; Model-space entities have no parent INSERT from which to inherit ByBlock.
+  (if (equal lt "BYBLOCK") (setq lt "CONTINUOUS"))
+  (list layer lt))
+(defun EL:WireStyleAllowed (d cfg)
+  (and (member (cdr (assoc 8 d)) (EL:Get 'wire-layers cfg))
+    (or (not (EL:Get 'wire-styles cfg)) (member (EL:WireStyle d) (EL:Get 'wire-styles cfg)))))
+(defun EL:PanelContactShape (entity cfg / shape)
+  (setq shape (EL:BlockContour entity '(1.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0)
+    (EL:Get 'eps_boundary (EL:Get 'params cfg)) nil))
+  (if (and (not (EL:Get 'issues shape)) (EL:Get 'segments shape))
+    (EL:Put 'regions (EL:ClosedRings (EL:Get 'segments shape)) shape)))
+(defun EL:PanelWireCandidates (panel cfg / shape ss i e d wire rows)
+  (setq shape (vl-catch-all-apply 'EL:PanelContactShape (list panel cfg)))
+  (if (vl-catch-all-error-p shape) (setq shape nil))
+  (if shape
+    (progn
+      (setq shape (EL:PrepareContactBlock shape)
+        ss (ssget "_X" '((410 . "Model") (0 . "LINE,LWPOLYLINE"))) i 0)
+      (if ss
+        (repeat (sslength ss)
+          (setq e (ssname ss i) d (entget e) i (1+ i))
+          (if (and (member (cdr (assoc 0 d)) '("LINE" "LWPOLYLINE"))
+                   (not (equal (cdr (assoc 60 d)) 1)) (not (EL:ManagedEntity e)))
+            (progn
+              (setq wire (EL:WireRecord e cfg))
+              (if (and (not (EL:Get 'issues wire)) (EL:Get 'ends wire)
+                       (EL:PathBlockHit wire shape cfg))
+                (setq rows (cons (list (cons 'entity e) (cons 'style (EL:WireStyle d))) rows)))))))))
+  (list (cons 'shape shape) (cons 'candidates (reverse rows))))
+(defun EL:PanelWireConfig (panel cfg / found rows styles row pick chosen d wire valid)
+  (princ "\n正在从配电箱接线自动识别导线...")
+  (setq found (EL:PanelWireCandidates panel cfg) rows (EL:Get 'candidates found))
+  (foreach row rows (setq styles (cons (EL:Get 'style row) styles)))
+  (setq styles (EL:Unique styles))
+  (if (= (length styles) 1)
+    (setq chosen (car styles))
+    (progn
+      (foreach row rows (EL:HighlightPick (EL:Get 'entity row)))
+      (princ (if styles "\n箱口存在多种图层或线型，候选已高亮，请选择本系统导线。"
+        "\n未能明确识别箱口导线，请补选本系统导线；不会按最近距离猜测。"))
+      (while (and (not chosen) (setq pick (EL:PickModel 'wire "\n补选一条导线，Enter 取消：")))
+        (setq d (entget (car pick)) wire (EL:WireRecord (car pick) cfg)
+          valid (and (not (EL:ManagedEntity (car pick))) (not (EL:Get 'issues wire))
+            (not (equal (cdr (assoc 60 d)) 1))))
+        (if (and valid (or (not styles) (member (EL:WireStyle d) styles)))
+          (setq chosen (EL:WireStyle d))
+          (princ "\n请选择与箱口候选同图层、同线型的有效导线。")))))
+  (EL:ClearPickHighlights)
+  (if chosen
+    (progn
+      (princ (strcat "\n导线图层：" (car chosen) "；线型：" (cadr chosen)))
+      (EL:LogEvent "AUTO_WIRE_STYLE" (list (cons 'candidates (mapcar '(lambda (r) (EL:LogEntity (EL:Get 'entity r))) rows))
+        (cons 'styles styles) (cons 'chosen chosen)))
+      (setq cfg (EL:Put 'wire-styles (list chosen) (EL:Put 'wire-layers (list (car chosen)) cfg)))
+      (if (EL:Get 'shape found) (setq cfg (EL:Put 'auto-panel (cdr (assoc 5 (entget panel))) cfg)))
+      cfg)))
+;; Date: 2026-10-10. One panel pick, connected devices, persistent power table.
 (defun EL:SimpleBlockCandidates (wire tree cfg / candidates ep)
   (setq candidates (EL:SpatialBoxQuery tree (EL:SegmentBounds (EL:Get 'segments wire))
     (EL:Get 'eps_boundary (EL:Get 'params cfg))))
@@ -9,9 +70,9 @@
         (EL:Get 'direction ep) (EL:Get 'Dmax (EL:Get 'params cfg)))))))
   candidates)
 
-(defun EL:SimpleCollect (cfg / ss i e d bounds items tree wires ends blocks candidates wire candidate id issues block queue current)
-  ;; Collect only the sampled wire layer and whole INSERT bounds. No role library,
-  ;; outside-layer paths, dynamic-state signatures or block contents are needed.
+(defun EL:SimpleCollect (cfg / ss i e d bounds items tree wires ends blocks candidates wire candidate id issues block queue current shape)
+  ;; Date: 2026-10-10. Filter wires by inferred style; only the selected panel
+  ;; uses its contour. Other devices retain whole-block connection behavior.
   (setq ss (ssget "_X" '((410 . "Model") (0 . "INSERT,LINE,LWPOLYLINE"))) i 0)
   (if ss
     (repeat (sslength ss)
@@ -24,7 +85,7 @@
             (setq items (cons (list (cons 'key id) (cons 'entity e) (cons 'layer (cdr (assoc 8 d)))
               (cons 'bounds bounds) (cons 'point (EL:V* 0.5 (EL:V+ (car bounds) (cadr bounds))))) items))
             (setq issues (cons (EL:Issue 'MISSING_BLOCK_BOUNDS id nil) issues))))
-        ((member (cdr (assoc 8 d)) (EL:Get 'wire-layers cfg))
+        ((EL:WireStyleAllowed d cfg)
           (setq wire (EL:WireRecord e cfg) wires (cons wire wires)
                 ends (append (EL:Get 'ends wire) ends) issues (append (EL:Get 'issues wire) issues))))))
   (setq tree (EL:SpatialTree items 0))
@@ -49,6 +110,13 @@
                 block (list (cons 'id id) (cons 'name (EL:EffectiveName (EL:Get 'entity candidate)))
                   (cons 'layer (EL:Get 'layer candidate)) (cons 'bounds (EL:Get 'bounds candidate)) (cons 'whole-block T))
                 blocks (cons block blocks) queue (cons block queue))))))
+  (if (EL:Get 'auto-panel cfg)
+    (progn
+      (setq id (EL:Get 'auto-panel cfg) block (EL:By 'id id blocks)
+        shape (EL:PanelContactShape (handent id) cfg))
+      (EL:Require shape "配电箱轮廓已变化或无法读取，请重新运行 ELSTAT 并核对箱口。")
+      (if block
+        (setq blocks (subst (append (EL:Put 'whole-block nil block) shape) block blocks)))))
   (EL:LogEvent "SIMPLE_COUNTS" (list (cons 'wires (length wires)) (cons 'blocks (length blocks)) (cons 'issues issues)))
   (list (cons 'drawing (EL:DrawingID)) (cons 'wires wires) (cons 'blocks blocks) (cons 'ends ends) (cons 'issues issues)))
 
@@ -239,7 +307,7 @@
             (princ (strcat "\n已保存图块功率。设备合计 " (rtos (EL:SimpleTotal edited) 2 0) " W。")))
           (princ "\n功率未保存，请检查 config 目录写入权限；原文件保留。")))))
   (princ))
-(defun EL:SimpleStat (/ *error* cfg panel sample pd wd snapshot result *EL:SimpleEntity*)
+(defun EL:SimpleStat (/ *error* cfg panel pd snapshot result *EL:SimpleEntity*)
   (defun *error* (msg)
     (EL:LogEvent "SIMPLE_ENTITY" *EL:SimpleEntity*)
     (EL:LogFailure msg) (vl-catch-all-apply 'EL:ClearGapPreview nil)
@@ -249,14 +317,13 @@
   (EL:LogStart) (EL:ClearPickHighlights)
   (if (and (EL:EnsureRoot)
            (setq panel (EL:PickModel 'panel "\n拾取配电箱："))
-           (setq sample (EL:PickModel 'wire "\n拾取该系统的一条导线：")))
+           (setq cfg (EL:PanelWireConfig (car panel)
+             (EL:Put 'params (EL:GapParams (EL:SuggestedParams)) (EL:DefaultConfig (EL:DrawingID))))))
     (progn
-      (setq pd (entget (car panel)) wd (entget (car sample)) cfg (EL:DefaultConfig (EL:DrawingID))
-            cfg (EL:Put 'params (EL:GapParams (EL:SuggestedParams)) cfg)
-            cfg (EL:Put 'wire-layers (list (cdr (assoc 8 wd))) cfg))
-      (EL:LogEvent "SIMPLE_PICKS" (list (EL:LogEntity (car panel)) (EL:LogEntity (car sample))))
+      (setq pd (entget (car panel)))
+      (EL:LogEvent "SIMPLE_PICKS" (list (EL:LogEntity (car panel))))
       (princ "\n正在识别所选配电箱连接的设备...")
-      (setq snapshot (EL:LogCall "SIMPLE_COLLECT" (cdr (assoc 8 wd)) 'EL:SimpleCollect (list cfg))
+      (setq snapshot (EL:LogCall "SIMPLE_COLLECT" (EL:Get 'wire-layers cfg) 'EL:SimpleCollect (list cfg))
             result (EL:LogCall "SIMPLE_NETWORK" (cdr (assoc 5 pd)) 'EL:SimpleNetwork (list snapshot cfg (cdr (assoc 5 pd)))))
       (EL:ClearPickHighlights)
       (EL:LogEvent "SIMPLE_RESULT" (list (cons 'device-count (length (EL:Get 'devices result)))

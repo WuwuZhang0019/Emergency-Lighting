@@ -55,7 +55,7 @@
         (T data)))
 (defun EL:Signature (data) (vl-prin1-to-string (EL:StableData data)))
 (defun EL:RecognitionRules (cfg / rows key)
-  (foreach key '(wire-layers panel-layers device-layers leader-layers panel-names device-names leader-names
+  (foreach key '(wire-styles auto-panel wire-layers panel-layers device-layers leader-layers panel-names device-names leader-names
       layer-pairs params calibrated gap-pairs leader-pairs roles exits)
     (setq rows (cons (cons key (EL:Get key cfg)) rows)))
   (cons '(box-policy . 19) (cons '(gap-policy . 10) (reverse rows))))

@@ -126,7 +126,7 @@
         (setq powers (EL:FixedPowers record) result (EL:PanelCompute result powers cfg))
         (setq result (EL:BoxStatistics result cfg (EL:LoadLibrary) nil)))
       (EL:SyncDiagram result cfg powers capacity nil nil))) result)
-(defun EL:FixedStat (/ *error* panel sample pd wd cfg result record powers)
+(defun EL:FixedStat (/ *error* panel pd cfg result record powers)
   (defun *error* (msg)
     (EL:LogFailure msg)
     (vl-catch-all-apply 'EL:ClearPickHighlights nil)
@@ -139,15 +139,14 @@
     (progn
       (setq pd (entget (car panel)))
       (EL:Require (not (EL:ManagedEntity (car panel))) "请选择平面图配电箱，不能统计系统图输出。")
-      (if (setq sample (EL:PickModel 'wire "\n拾取该系统的一条导线（确定图层）："))
+      (setq cfg (EL:Put 'template (EL:Get 'template (EL:LoadConfig))
+        (EL:Put 'params (EL:GapParams (EL:SuggestedParams)) (EL:DefaultConfig (EL:DrawingID)))))
+      (if (setq cfg (EL:PanelWireConfig (car panel) cfg))
         (progn
-          (setq wd (entget (car sample)))
-          (EL:LogEvent "PICKS" (list (cons 'panel (EL:LogEntity (car panel))) (cons 'wire (EL:LogEntity (car sample)))))
-          (setq cfg (EL:DefaultConfig (EL:DrawingID))
-            cfg (EL:Put 'template (EL:Get 'template (EL:LoadConfig))
-              (EL:Put 'params (EL:GapParams (EL:SuggestedParams)) (EL:Put 'wire-layers (list (cdr (assoc 8 wd))) cfg)))
+          (EL:LogEvent "PICKS" (list (cons 'panel (EL:LogEntity (car panel)))))
+          (setq
             result (EL:LogCall "RECOGNIZE_FIXED" (list (cons 'panel (cdr (assoc 5 pd)))
-              (cons 'wire (cdr (assoc 5 wd)))) 'EL:RecognizeFixed (list cfg (cdr (assoc 5 pd))))
+              (cons 'styles (EL:Get 'wire-styles cfg))) 'EL:RecognizeFixed (list cfg (cdr (assoc 5 pd))))
             record (EL:DiagramForPanel (cdr (assoc 5 pd)) (EL:StoreRead)))
           ;; Review and powers now share one modal dialog.
           (setq result (EL:Put 'excluded-seeds (EL:Get 'excluded-seeds record) result))

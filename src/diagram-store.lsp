@@ -311,7 +311,11 @@
     tag (list "EL_FIXED_V1" (cons 1000 (EL:Get 'drawing-uuid store))
       (cons 1000 (EL:Get 'diagram-id record)) (cons 1000 kind) (cons 1000 uid)
       (cons 1000 (cdr (assoc 5 data)))))
-  (if (not (entmod (append data (list (list -3 tag))))) (exit))
+  (EL:Require (EL:LogCall "TAG_ENTITY" (list (cons 'kind kind) (cons 'uid uid)
+      (cons 'handle (cdr (assoc 5 data)))) 'entmod (list (append data (list (list -3 tag)))))
+    (strcat "系统图关联写入失败：" kind " / " uid))
+  (EL:Require (EL:OwnedEntity (cdr (assoc 5 data)) store record kind uid)
+    (strcat "系统图关联回读失败：" kind " / " uid))
   (cdr (assoc 5 data)))
 (defun EL:OwnedEntity (handle store record kind uid / e data tag)
   (if (and (equal (type handle) 'STR) (setq e (handent handle)))
@@ -355,6 +359,7 @@
       (vla-EndUndoMark doc)
       ;; The single group contains INSERT/TEXT, deletes, dynamic state and XRecord.
       (if *EL:TransactionDirty* (command-s "_.UNDO" "1"))
+      (EL:Require (not (dictsearch (namedobjdict) "EL_FIXED_TX")) "撤销后事务标记仍存在，未确认清理完成。")
       (setq *EL:TransactionOpen* nil *EL:Created* nil *EL:TransactionDirty* nil)))
   (redraw))
 (defun EL:TransactionBody (function args / marker outcome)
@@ -364,8 +369,11 @@
   (if marker (setq *EL:TransactionDirty* T))
   (EL:Require (and marker (dictadd (namedobjdict) "EL_FIXED_TX" marker)) "无法建立事务记录。")
   (setq outcome (EL:LogCall "TX_WRITE" nil function args))
-  (EL:Require (dictremove (namedobjdict) "EL_FIXED_TX") "无法清理事务记录。")
-  (EL:Require (entdel marker) "无法删除事务记录。") outcome)
+  ;; Date: 2026-10-10. NIL is failure too. Retain the marker until rollback.
+  (if outcome
+    (progn
+      (EL:Require (dictremove (namedobjdict) "EL_FIXED_TX") "无法清理事务记录。")
+      (EL:Require (entdel marker) "无法删除事务记录。"))) outcome)
 (defun EL:TransactionStart (doc / state)
   ;; Date: 2026-10-09. Close an existing mark without undoing its edits.
   ;; PRINC returns its argument in native AutoLISP: failures MUST return nil.
@@ -388,9 +396,10 @@
   (if (EL:TransactionStart doc)
     (progn
       (setq outcome (EL:TransactionBody function args))
-      (EL:Require outcome "事务写入未完成。")
-      (EL:LogCall "UNDO_END" nil 'vla-EndUndoMark (list doc))
-      (setq *EL:TransactionOpen* nil *EL:TransactionDirty* nil *EL:Created* nil)
+      (if outcome
+        (progn
+          (EL:LogCall "UNDO_END" nil 'vla-EndUndoMark (list doc))
+          (setq *EL:TransactionOpen* nil *EL:TransactionDirty* nil *EL:Created* nil)))
       outcome)))
 (defun EL:ArchiveInterruptedTransaction (/ entry entity name index)
   ;; Date: 2026-10-09. Preserve the record and every existing drawing object.
@@ -454,15 +463,18 @@
   (setq *EL:TransactionRunning* T
     doc (vla-get-ActiveDocument (vlax-get-acad-object)) stack *EL:LogStack*)
   (setq outcome (vl-catch-all-apply 'EL:TransactionRun (list doc function args)))
-  (if (vl-catch-all-error-p outcome)
+  (if (or (vl-catch-all-error-p outcome) (and (not outcome) *EL:TransactionOpen*))
     (progn
-      (EL:LogEvent "TRANSACTION_ERROR" (list (cons 'message (vl-catch-all-error-message outcome))
+      (EL:LogEvent "TRANSACTION_ERROR" (list (cons 'message
+          (if (vl-catch-all-error-p outcome) (vl-catch-all-error-message outcome) "事务写入返回空值，未完成。"))
         (cons 'stack *EL:LogStack*)))
-      (princ (strcat "\n系统图事务失败：" (vl-catch-all-error-message outcome)))
+      (princ (strcat "\n系统图事务失败："
+        (if (vl-catch-all-error-p outcome) (vl-catch-all-error-message outcome) "事务写入返回空值，未完成。")))
       (setq rollback (vl-catch-all-apply 'EL:TransactionRollback nil))
-      (if (vl-catch-all-error-p rollback)
+      (if (or (vl-catch-all-error-p rollback) *EL:TransactionOpen*)
         (progn
-          (EL:LogEvent "ROLLBACK_ERROR" (list (cons 'message (vl-catch-all-error-message rollback))))
+          (EL:LogEvent "ROLLBACK_ERROR" (list (cons 'message
+            (if (vl-catch-all-error-p rollback) (vl-catch-all-error-message rollback) "撤销返回后事务仍未关闭。"))))
           (princ "\n自动撤销未完成，请停止继续生成，使用 UNDO 或恢复图纸。"))
         (princ "\n本次事务已停止；已撤销本次已记录的修改。"))
       (setq *EL:LogStack* stack) nil)
@@ -595,6 +607,31 @@
   (setvar "CMDECHO" 0) (setvar "ATTREQ" 0) (setvar "DRAGMODE" 2)
   (setvar "CLAYER" (EL:Get 'layer template))
   (EL:CCKK2CreateBody result template capacity plan record store))
+(defun EL:CreatePowerAnnotation (space row plan layer block / entity object data)
+  ;; Date: 2026-10-10. Fixed CCKK power uses the same native TEXT constructor
+  ;; as the original plugin, without the separate ActiveX formatting chain.
+  (if (not (EL:Get 'cckk-layout plan))
+    (EL:CreateAnnotation space row plan layer)
+    (progn
+      (EL:Require (and block (EL:Get 'text row) (tblsearch "STYLE" "_TEL_DIM")
+        (EL:CCKKLayer "TEL_TEXT")) "功率文字缺少回路图块、样式或可用图层。")
+      (setq entity (EL:LogCall "CCKK_POWER_TEXT" (list (cons 'uid (EL:Get 'circuit-uid row))
+          (cons 'text (EL:Get 'text row)) (cons 'block (cdr (assoc 5 (entget block)))))
+        'EL:CCKKText (list block (EL:Get 'text row) 10983.0 -450.0 "TEL_TEXT" "_TEL_DIM" 256)))
+      (EL:Require entity "CCKK 功率文字创建失败。")
+      (setq object (vlax-ename->vla-object entity) *EL:Created* (cons object *EL:Created*))
+      (if (not (equal (EL:Get 'scale plan) 1.0 1.0e-8))
+        (progn (setq data (entget entity))
+          (EL:Require (entmod (subst (cons 40 (* 350.0 (EL:Get 'scale plan))) (assoc 40 data) data))
+            "功率文字缩放失败。")))
+      (setq data (entget entity))
+      (EL:Require (and (equal (cdr (assoc 0 data)) "TEXT")
+        (equal (cdr (assoc 1 data)) (EL:Get 'text row))
+        (equal (cdr (assoc 8 data)) "TEL_TEXT") (equal (cdr (assoc 7 data)) "_TEL_DIM")
+        (equal (cdr (assoc 40 data)) (* 350.0 (EL:Get 'scale plan)) 1.0e-6)
+        (equal (cdr (assoc 41 data)) 0.7 1.0e-8) (equal (cdr (assoc 72 data)) 1)
+        (equal (cdr (assoc 73 data)) 0) (equal (EL:TextPoint entity) (EL:CCKKPoint block 10983.0 -450.0) 1.0e-6))
+        "CCKK 功率文字回读不符，停止生成。") object)))
 (defun EL:CreateDiagram (result template capacity plan record store / doc space layer object handles row h)
   (setq doc (vla-get-ActiveDocument (vlax-get-acad-object)) space (vla-get-ModelSpace doc) layer (EL:Get 'layer template))
   (if (not (tblsearch "LAYER" layer)) (vla-Add (vla-get-Layers doc) layer))
@@ -613,7 +650,8 @@
       h (list (cons 'circuit-uid (EL:Get 'circuit-uid row))
         (cons 'block-handle (EL:TagEntity object store record "circuit" (EL:Get 'circuit-uid row)))))
     (if (EL:Get 'text row)
-      (setq h (EL:Put 'text-handle (EL:TagEntity (EL:CreateAnnotation space row plan layer)
+      (setq h (EL:Put 'text-handle (EL:TagEntity (EL:CreatePowerAnnotation space row plan layer
+          (vlax-vla-object->ename object))
         store record "text" (EL:Get 'circuit-uid row)) h)))
     (setq handles (cons h handles))
     (EL:LogEvent "CCKK_ROW_CREATED" h))

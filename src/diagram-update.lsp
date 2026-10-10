@@ -86,7 +86,8 @@
               (vla-put-TextString (vlax-ename->vla-object textentity) (EL:Get 'text row)))
             (if structural (EL:MoveManaged textentity (EL:Get 'text-position row)))
             (setq h (EL:Put 'text-handle (EL:Get 'text-handle old) h)))
-          (setq h (EL:Put 'text-handle (EL:TagEntity (EL:CreateAnnotation space row plan (EL:Get 'layer template))
+          (setq h (EL:Put 'text-handle (EL:TagEntity (EL:CreatePowerAnnotation space row plan
+              (EL:Get 'layer template) (handent (EL:Get 'block-handle h)))
             store record "text" key) h))))
       ;; Legacy reserve text is deleted only after ownership verification.
       (if textentity (EL:Require (entdel textentity) "无法删除旧预留文字。")))
@@ -274,4 +275,7 @@
             (princ "\nDWG 主记录已保存；外部诊断副本导出失败。"))
           (princ (strcat "\n系统图已同步：" (itoa (length (EL:Get 'circuits result))) " 条实际回路，"
             (itoa (- (length (EL:Get 'rows plan)) (length (EL:Get 'circuits result)))) " 条预留，无预留功率文字。")) T)
-        (progn (EL:MarkStale (EL:Get 'panel result) 'transaction-failed) nil)))))
+        (progn
+          ;; Do not auto-recover and start another write after failed rollback.
+          (if (not *EL:TransactionOpen*) (EL:MarkStale (EL:Get 'panel result) 'transaction-failed))
+          nil)))))

@@ -66,6 +66,13 @@ class PanelCommandTests(unittest.TestCase):
         self.assertEqual([self.get('watts',r) for r in rows[:2]],[85,20])
         self.assertEqual([field(self.entities[self.get('text-handle',r)],1)
                           for r in rows[:2]],['85W','20W'])
+        for r in rows[:2]:
+            data=self.entities[self.get('text-handle',r)]
+            for code,value in [(0,'TEXT'),(7,'_TEL_DIM'),(8,'TEL_TEXT'),(40,350.),
+                               (41,.7),(62,256),(72,1),(73,0)]:
+                self.assertEqual(field(data,code),value)
+            block=field(self.entities[self.get('block-handle',r)],10)
+            self.assertEqual(field(data,11),[block[0]+10983.,block[1]-450.,block[2]])
         self.assertTrue(all(self.get('text-handle',r) is None for r in rows[2:]))
         self.assertEqual([self.dynamic[self.get('block-handle',r)] for r in rows],
                          ['NORMAL','NORMAL','RESERVE','RESERVE'])
@@ -123,6 +130,70 @@ class PanelCommandTests(unittest.TestCase):
         self.commands.clear()
         self.assertTrue(truth(self.invoke()))
         self.assert_two_circuit_output()
+
+    def test_power_uses_cckk_entmake_not_the_activex_annotation_path(self):
+        self.two_circuits()
+        self.h.builtins['EL:CREATEANNOTATION']=lambda *args:self.fail('fixed power must use original CCKK TEXT')
+        self.assertTrue(truth(self.invoke()))
+        self.assert_two_circuit_output()
+
+    def test_nil_after_first_row_rolls_back_without_recovery_then_retry_succeeds(self):
+        self.two_circuits()
+        before=copy.deepcopy(self.entities)
+        events=[]
+        def interrupted(result,template,capacity,plan,record,store):
+            panel=self.call('EL:CCKK2ManagedBlock',self.get('panel-name',plan),None,
+                            self.get('panel',template),self.get('panel-value',plan))
+            row=self.get('rows',plan)[0]
+            circuit=self.call('EL:CCKK2ManagedBlock',self.get('name',self.get('circuit',template)),
+                              self.get('position',row),self.get('circuit',template),self.get('value',row))
+            self.call('EL:CreatePowerAnnotation','space',row,plan,'TEL_TEXT',circuit)
+            return None  # observed TX_WRITE NIL, with objects already created
+        self.h.builtins.update({'EL:CCKK2CREATECONFIGURED':interrupted,
+                               'EL:LOGEVENT':lambda stage,context:events.append(stage)})
+        self.assertFalse(truth(self.invoke()))
+        self.assertIn('TRANSACTION_ERROR',events)
+        self.assertNotIn('TRANSACTION_MEMORY_RECOVERED',events)
+        self.assertNotIn('TRANSACTION_RECOVERY_REQUIRED',events)
+        self.assertFalse(any(e.startswith('native-') for e in self.entities))
+        for e,data in before.items():
+            if e!=self.dictionary['EL_FIXED_V1']: self.assertEqual(self.entities[e],data)
+        for flag in ('OPEN','DIRTY','RUNNING'):
+            self.assertFalse(truth(self.h.lookup('*EL:TRANSACTION'+flag+'*')))
+        del self.h.builtins['EL:CCKK2CREATECONFIGURED']
+        self.commands.clear()
+        self.assertTrue(truth(self.invoke()))
+        self.assert_two_circuit_output()
+
+    def test_power_entmake_failure_rolls_back_all_rows(self):
+        self.two_circuits()
+        original=self.h.builtins['ENTMAKE']
+        self.h.builtins['ENTMAKE']=lambda data:None if field(data,1)=='20W' else original(data)
+        before=set(self.entities)
+        self.assertFalse(truth(self.invoke()))
+        self.assertEqual(set(self.entities),before)
+        self.assertFalse(truth(self.h.lookup('*EL:TRANSACTIONOPEN*')))
+
+    def test_power_tag_silent_write_failure_is_read_back_and_rolled_back(self):
+        self.two_circuits()
+        original=self.h.builtins['ENTMOD']
+        self.h.builtins['ENTMOD']=lambda data:data if field(data,1)=='85W' else original(data)
+        before=set(self.entities)
+        self.assertFalse(truth(self.invoke()))
+        self.assertEqual(set(self.entities),before)
+        self.assertFalse(truth(self.h.lookup('*EL:TRANSACTIONOPEN*')))
+
+    def test_rollback_failure_does_not_start_stale_record_write_or_recovery(self):
+        self.two_circuits()
+        self.fail_at=3
+        events=[]
+        self.h.builtins.update({
+            'COMMAND-S':lambda *args:(_ for _ in ()).throw(RuntimeError('undo failed')),
+            'EL:LOGEVENT':lambda stage,context:events.append(stage)})
+        self.assertFalse(truth(self.invoke()))
+        self.assertIn('ROLLBACK_ERROR',events)
+        self.assertNotIn('TRANSACTION_RECOVERY_REQUIRED',events)
+        self.assertTrue(truth(self.h.lookup('*EL:TRANSACTIONOPEN*')))
 
     def test_existing_one_circuit_adds_second_using_reviewed_seed_identity(self):
         self.assertTrue(truth(self.invoke()))

@@ -333,6 +333,37 @@ class UpdateTests(unittest.TestCase):
         self.assertEqual(self.undo, [])
         self.assertIn('start failed', ''.join(messages))
 
+    def test_nil_writer_rolls_back_without_using_exit_as_an_exception(self):
+        self.install_transaction()
+        before=copy.deepcopy((self.entities,self.dictionary,self.dynamic))
+        exits=[]
+        def incomplete(_):
+            self.entity('partial','TEXT',[12.,34.,0.],'85W')
+            return None
+        self.h.builtins.update({'EL:STOREWRITE':incomplete, 'EXIT':lambda:exits.append(1)})
+        self.assertIsNone(self.h.run("(EL:Transaction 'EL:StoreWrite (list store))"))
+        self.assertEqual(exits,[])
+        self.assertEqual((self.entities,self.dictionary,self.dynamic),before)
+        self.assertFalse(truth(self.h.lookup('*EL:TRANSACTIONOPEN*')))
+
+    def test_silent_undo_noop_keeps_transaction_blocker(self):
+        self.install_transaction()
+        self.h.builtins.update({'EL:STOREWRITE':lambda *args:None, 'COMMAND-S':lambda *args:None})
+        self.assertIsNone(self.h.run("(EL:Transaction 'EL:StoreWrite (list store))"))
+        self.assertIn('EL_FIXED_TX',self.dictionary)
+        self.assertTrue(truth(self.h.lookup('*EL:TRANSACTIONOPEN*')))
+
+    def test_nil_rollback_without_closing_state_does_not_report_cleanup_success(self):
+        self.install_transaction()
+        messages=[]
+        self.h.builtins.update({'EL:STOREWRITE':lambda *args:None,
+            'EL:TRANSACTIONROLLBACK':lambda:None,
+            'PRINC':lambda value='':messages.append(value) or value})
+        self.assertIsNone(self.h.run("(EL:Transaction 'EL:StoreWrite (list store))"))
+        self.assertTrue(truth(self.h.lookup('*EL:TRANSACTIONOPEN*')))
+        self.assertIn('自动撤销未完成',''.join(messages))
+        self.assertNotIn('已撤销本次已记录的修改',''.join(messages))
+
     def test_commit_failure_rolls_back_and_keeps_original_error(self):
         self.install_transaction()
         before = copy.deepcopy((self.entities, self.dictionary, self.dynamic))

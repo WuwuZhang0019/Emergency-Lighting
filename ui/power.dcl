@@ -92,8 +92,8 @@ el_panel : dialog {
   label = "回路与图块设置";
   : row {
     : row { fixed_width = true; alignment = left;
-      : button { key = "p_pick"; label = "拾取配电箱"; width = 18; fixed_width = true; }
-      : image_button { key = "p_trunk"; width = 32; height = 1.4; fixed_width = true; fixed_height = true; color = 3; is_tab_stop = true; }
+      : image_button { key = "p_pick"; width = 18; height = 1.8; fixed_width = true; fixed_height = true; color = 3; is_tab_stop = true; }
+      : image_button { key = "p_trunk"; width = 32; height = 1.8; fixed_width = true; fixed_height = true; color = 3; is_tab_stop = true; }
     }
     : spacer { width = 1; }
   }

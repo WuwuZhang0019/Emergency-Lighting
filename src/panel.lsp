@@ -648,11 +648,20 @@
 
 ;; Date: 2026-10-10. Green image button with embedded Chinese label; no runtime font/file dependency.
 ;; Label: 拾取配电箱的集中引出线. Raster source: Windows SimSun, 12 px.
-(defun EL:TrunkButtonDraw (/ w h scale ox oy run)
-  (setq w (dimx_tile "p_trunk") h (dimy_tile "p_trunk")
-    scale (min (/ (float w) 144.0) (/ (float h) 16.0))
-    ox (fix (/ (- w (* 132 scale)) 2.0)) oy (fix (/ (- h (* 12 scale)) 2.0)))
-  (start_image "p_trunk") (fill_image 0 0 w h 3)
+(defun EL:TrunkButtonDraw ()
+  (EL:GreenPickButton "p_pick" 60)
+  (EL:GreenPickButton "p_trunk" 132))
+;; Date: 2026-10-10. Raised borders and equal padding for both green buttons.
+(defun EL:GreenPickButton (key labelwidth / w h scale ox oy run)
+  (setq w (dimx_tile key) h (dimy_tile key)
+    scale (max 1 (fix (min (/ (float w) (+ labelwidth 16)) (/ (float h) 20.0))))
+    ox (fix (/ (- w (* labelwidth scale)) 2.0)) oy (fix (/ (- h (* 12 scale)) 2.0)))
+  (start_image key)
+  (fill_image 0 0 w h 0)
+  (fill_image 1 1 (- w 2) (- h 2) 8)
+  (fill_image 1 1 (- w 3) 2 7)
+  (fill_image 1 1 2 (- h 3) 7)
+  (fill_image 3 3 (- w 6) (- h 6) 3)
   (foreach run '(
     (2 0 1) (7 0 1) (40 0 1) (49 0 1) (54 0 1) (62 0 1) (67 0 1) (75 0 1)
     (78 0 1) (89 0 1) (105 0 1) (113 0 1) (122 0 1) (127 0 1) (129 0 1) (2 1 1)
@@ -692,7 +701,8 @@
     (16 11 1) (18 11 1) (22 11 1) (24 11 1) (30 11 1) (33 11 2) (41 11 6) (50 11 1)
     (53 11 1) (58 11 1) (60 11 1) (64 11 1) (68 11 2) (72 11 2) (77 11 1) (81 11 2)
     (89 11 1) (98 11 3) (105 11 1) (118 11 1) (124 11 2) (129 11 2))
+    (if (< (car run) labelwidth)
     (fill_image (+ ox (fix (* (car run) scale))) (+ oy (fix (* (cadr run) scale)))
       (max 1 (- (fix (* (+ (car run) (caddr run)) scale)) (fix (* (car run) scale))))
-      (max 1 (- (fix (* (1+ (cadr run)) scale)) (fix (* (cadr run) scale)))) 0))
+      (max 1 (- (fix (* (1+ (cadr run)) scale)) (fix (* (cadr run) scale)))) 0)))
   (end_image))

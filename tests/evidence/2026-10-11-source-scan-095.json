@@ -1,0 +1,1461 @@
+{
+  "date": "2026-10-11",
+  "package": 95,
+  "scope": "fresh raw source and complete device geometry validation before command-scoped network reuse; unchanged source signature and generation/update/readback boundaries",
+  "passed": true,
+  "test_count": 331,
+  "failure_count": 0,
+  "error_count": 0,
+  "tests": [
+    {
+      "test": "test_analytic_curves.AnalyticCurveTests.test_arc_crossing_zero_has_no_disk_interior",
+      "status": "passed"
+    },
+    {
+      "test": "test_analytic_curves.AnalyticCurveTests.test_circle_and_two_lines_avoid_thousands_of_segments",
+      "status": "passed"
+    },
+    {
+      "test": "test_analytic_curves.AnalyticCurveTests.test_circle_circle_and_arc_contact",
+      "status": "passed"
+    },
+    {
+      "test": "test_analytic_curves.AnalyticCurveTests.test_circle_hole_subtracts_from_polygon_region",
+      "status": "passed"
+    },
+    {
+      "test": "test_analytic_curves.AnalyticCurveTests.test_circle_no_sampling_and_exact_points_paths",
+      "status": "passed"
+    },
+    {
+      "test": "test_analytic_curves.AnalyticCurveTests.test_closed_arc_line_region_uses_existing_fallback",
+      "status": "passed"
+    },
+    {
+      "test": "test_analytic_curves.AnalyticCurveTests.test_device_to_device_including_line_circle",
+      "status": "passed"
+    },
+    {
+      "test": "test_analytic_curves.AnalyticCurveTests.test_hidden_circle_is_not_read",
+      "status": "passed"
+    },
+    {
+      "test": "test_analytic_curves.AnalyticCurveTests.test_mirror_rotation_scale_and_translation_cache",
+      "status": "passed"
+    },
+    {
+      "test": "test_analytic_curves.AnalyticCurveTests.test_negative_ocs_normal_reverses_arc",
+      "status": "passed"
+    },
+    {
+      "test": "test_analytic_curves.AnalyticCurveTests.test_nested_circle_keeps_one_primitive",
+      "status": "passed"
+    },
+    {
+      "test": "test_analytic_curves.AnalyticCurveTests.test_network_reaches_circle_at_unsampled_tangent",
+      "status": "passed"
+    },
+    {
+      "test": "test_analytic_curves.AnalyticCurveTests.test_nonuniform_scale_falls_back_to_ellipse_segments",
+      "status": "passed"
+    },
+    {
+      "test": "test_analytic_curves.AnalyticCurveTests.test_polygon_hole_subtracts_from_circle_region",
+      "status": "passed"
+    },
+    {
+      "test": "test_cckk_panel_command.PanelCommandTests.test_cancel_rebuild_restores_remnants_and_old_association",
+      "status": "passed"
+    },
+    {
+      "test": "test_cckk_panel_command.PanelCommandTests.test_caption_creation_failure_rolls_back_instead_of_silent_omission",
+      "status": "passed"
+    },
+    {
+      "test": "test_cckk_panel_command.PanelCommandTests.test_deleted_box_rebuild_cleans_only_owned_remnants",
+      "status": "passed"
+    },
+    {
+      "test": "test_cckk_panel_command.PanelCommandTests.test_deleted_box_with_foreign_remnant_is_not_rebuilt_or_deleted",
+      "status": "passed"
+    },
+    {
+      "test": "test_cckk_panel_command.PanelCommandTests.test_deleted_four_circuit_output_reenters_native_placement",
+      "status": "passed"
+    },
+    {
+      "test": "test_cckk_panel_command.PanelCommandTests.test_escape_restores_variables_and_undoes_partial_native_objects",
+      "status": "passed"
+    },
+    {
+      "test": "test_cckk_panel_command.PanelCommandTests.test_existing_box_ownership_and_locked_layer_are_distinguished",
+      "status": "passed"
+    },
+    {
+      "test": "test_cckk_panel_command.PanelCommandTests.test_existing_one_circuit_adds_second_using_reviewed_seed_identity",
+      "status": "passed"
+    },
+    {
+      "test": "test_cckk_panel_command.PanelCommandTests.test_failed_generation_does_not_show_partial_output",
+      "status": "passed"
+    },
+    {
+      "test": "test_cckk_panel_command.PanelCommandTests.test_first_four_circuit_placement_shows_output_but_save_does_not_move_view",
+      "status": "passed"
+    },
+    {
+      "test": "test_cckk_panel_command.PanelCommandTests.test_missing_v53_captions_repaired_without_reinserting_blocks",
+      "status": "passed"
+    },
+    {
+      "test": "test_cckk_panel_command.PanelCommandTests.test_nil_after_first_row_rolls_back_without_recovery_then_retry_succeeds",
+      "status": "passed"
+    },
+    {
+      "test": "test_cckk_panel_command.PanelCommandTests.test_panel_calls_real_command_places_native_box_and_85w_circuits",
+      "status": "passed"
+    },
+    {
+      "test": "test_cckk_panel_command.PanelCommandTests.test_power_entmake_failure_rolls_back_all_rows",
+      "status": "passed"
+    },
+    {
+      "test": "test_cckk_panel_command.PanelCommandTests.test_power_tag_silent_write_failure_is_read_back_and_rolled_back",
+      "status": "passed"
+    },
+    {
+      "test": "test_cckk_panel_command.PanelCommandTests.test_power_uses_cckk_entmake_not_the_activex_annotation_path",
+      "status": "passed"
+    },
+    {
+      "test": "test_cckk_panel_command.PanelCommandTests.test_rollback_failure_does_not_start_stale_record_write_or_recovery",
+      "status": "passed"
+    },
+    {
+      "test": "test_cckk_panel_command.PanelCommandTests.test_three_actual_plus_two_reserve_numbers_and_shrink",
+      "status": "passed"
+    },
+    {
+      "test": "test_cckk_panel_command.PanelCommandTests.test_two_circuit_cancel_then_retry_releases_live_guard",
+      "status": "passed"
+    },
+    {
+      "test": "test_cckk_panel_command.PanelCommandTests.test_two_circuit_generate_click_recovers_memory_and_repeated_update",
+      "status": "passed"
+    },
+    {
+      "test": "test_cckk_panel_command.PanelCommandTests.test_two_to_four_updates_existing_output_and_shows_all_owned_entities",
+      "status": "passed"
+    },
+    {
+      "test": "test_cckk_panel_command.PanelCommandTests.test_view_failure_does_not_rollback_successful_generation",
+      "status": "passed"
+    },
+    {
+      "test": "test_cckk_panel_command.PanelCommandTests.test_view_rejects_missing_bounds_and_foreign_entity_without_writing",
+      "status": "passed"
+    },
+    {
+      "test": "test_concentrated_trunk.TrunkDialogTests.test_existing_panel_can_switch_to_trunk",
+      "status": "passed"
+    },
+    {
+      "test": "test_concentrated_trunk.TrunkDialogTests.test_trunk_button_dispatches_after_dialog_closes",
+      "status": "passed"
+    },
+    {
+      "test": "test_concentrated_trunk.TrunkTests.test_config_validation_and_native_record_roundtrip",
+      "status": "passed"
+    },
+    {
+      "test": "test_concentrated_trunk.TrunkTests.test_different_elevation_is_not_an_outlet",
+      "status": "passed"
+    },
+    {
+      "test": "test_concentrated_trunk.TrunkTests.test_first_pick_and_saved_pick_reach_existing_panel",
+      "status": "passed"
+    },
+    {
+      "test": "test_concentrated_trunk.TrunkTests.test_five_outlets_do_not_merge_at_shared_root",
+      "status": "passed"
+    },
+    {
+      "test": "test_concentrated_trunk.TrunkTests.test_middle_outlet_and_feeder_can_be_one_entity",
+      "status": "passed"
+    },
+    {
+      "test": "test_concentrated_trunk.TrunkTests.test_missing_feeder_or_overlapping_wire_stops_instead_of_guessing",
+      "status": "passed"
+    },
+    {
+      "test": "test_concentrated_trunk.TrunkTests.test_only_trunk_line_preserves_validation_reason_in_log",
+      "status": "passed"
+    },
+    {
+      "test": "test_concentrated_trunk.TrunkTests.test_open_polyline_trunk_and_entity_order_are_supported",
+      "status": "passed"
+    },
+    {
+      "test": "test_concentrated_trunk.TrunkTests.test_saved_association_uses_exact_trunk_handle",
+      "status": "passed"
+    },
+    {
+      "test": "test_concentrated_trunk.TrunkTests.test_shared_downstream_device_blocks_generation",
+      "status": "passed"
+    },
+    {
+      "test": "test_concentrated_trunk.TrunkTests.test_source_freshness_includes_trunk_and_feeder",
+      "status": "passed"
+    },
+    {
+      "test": "test_concentrated_trunk.TrunkTests.test_trunk_outlets_without_devices_return_feedback_and_log",
+      "status": "passed"
+    },
+    {
+      "test": "test_contact_index.ContactIndexTests.test_44_wires_48_blocks_reuse_contact_indexes_and_finish",
+      "status": "passed"
+    },
+    {
+      "test": "test_contact_index.ContactIndexTests.test_contact_index_prunes_large_contour_and_returns_on_first_hit",
+      "status": "passed"
+    },
+    {
+      "test": "test_contact_index.ContactIndexTests.test_failed_path_keeps_wire_block_and_progress_context",
+      "status": "passed"
+    },
+    {
+      "test": "test_contact_index.ContactIndexTests.test_prepared_predicates_match_frozen_v16_for_holes_concavity_z_and_crossings",
+      "status": "passed"
+    },
+    {
+      "test": "test_contact_index.ContactIndexTests.test_whole_physical_result_matches_legacy_and_does_not_store_indexes",
+      "status": "passed"
+    },
+    {
+      "test": "test_contact_reuse.ContactReuseTests.test_cancel_during_bounds_retains_device_and_segment_count",
+      "status": "passed"
+    },
+    {
+      "test": "test_contact_reuse.ContactReuseTests.test_dense_shared_index_matches_uncached_contacts",
+      "status": "passed"
+    },
+    {
+      "test": "test_contact_reuse.ContactReuseTests.test_device_contact_stops_after_first_exact_hit",
+      "status": "passed"
+    },
+    {
+      "test": "test_contact_reuse.ContactReuseTests.test_empty_panel_network_skips_unrelated_device_contours",
+      "status": "passed"
+    },
+    {
+      "test": "test_contact_reuse.ContactReuseTests.test_holes_and_elevation_translate_and_each_pass_reloads_geometry",
+      "status": "passed"
+    },
+    {
+      "test": "test_contact_reuse.ContactReuseTests.test_large_bounds_do_not_allocate_lists_per_endpoint_and_report_progress",
+      "status": "passed"
+    },
+    {
+      "test": "test_contact_reuse.ContactReuseTests.test_native_extents_skip_contact_bounds_scan_but_do_not_prove_contact",
+      "status": "passed"
+    },
+    {
+      "test": "test_contact_reuse.ContactReuseTests.test_occupied_endpoint_does_not_expand_more_device_geometry",
+      "status": "passed"
+    },
+    {
+      "test": "test_contact_reuse.ContactReuseTests.test_rotation_scale_and_anonymous_definitions_are_not_interchanged",
+      "status": "passed"
+    },
+    {
+      "test": "test_contact_reuse.ContactReuseTests.test_twelve_translated_instances_expand_and_find_rings_once",
+      "status": "passed"
+    },
+    {
+      "test": "test_device_branches.DeviceBranchTests.test_loop_and_other_panel_still_block",
+      "status": "passed"
+    },
+    {
+      "test": "test_device_branches.DeviceBranchTests.test_three_wire_device_branch_counts_downstream_and_allows_generation",
+      "status": "passed"
+    },
+    {
+      "test": "test_device_branches.PhysicalBranchTests.test_three_verified_contacts_are_not_abnormal",
+      "status": "passed"
+    },
+    {
+      "test": "test_device_contact.DeviceContactTests.test_changed_geometry_with_same_bounds_changes_signature",
+      "status": "passed"
+    },
+    {
+      "test": "test_device_contact.DeviceContactTests.test_circle_bounds_overlap_but_circles_do_not_touch",
+      "status": "passed"
+    },
+    {
+      "test": "test_device_contact.DeviceContactTests.test_corner_overlap_and_containment_connect",
+      "status": "passed"
+    },
+    {
+      "test": "test_device_contact.DeviceContactTests.test_disconnected_touching_pair_stays_outside_circuit",
+      "status": "passed"
+    },
+    {
+      "test": "test_device_contact.DeviceContactTests.test_gap_and_different_elevation_do_not_connect",
+      "status": "passed"
+    },
+    {
+      "test": "test_device_contact.DeviceContactTests.test_near_wire_outside_actual_device_is_not_counted",
+      "status": "passed"
+    },
+    {
+      "test": "test_device_contact.DeviceContactTests.test_overlapping_bounds_without_real_contact_are_not_connected",
+      "status": "passed"
+    },
+    {
+      "test": "test_device_contact.DeviceContactTests.test_touch_chain_reaches_device_and_onward_wire_once",
+      "status": "passed"
+    },
+    {
+      "test": "test_device_contact.DeviceContactTests.test_touching_panel_does_not_create_device_connection",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_74_legacy_fields_are_replaced_even_when_entmod_would_retain_them",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_chunked_xrecord_roundtrip_and_reopen",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_corrupt_store_and_serialization_mismatch_never_modify_dwg",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_dictionary_only_extra_field_is_distinguished_from_entity_data",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_difference_reports_field_path_and_late_string_offset_without_long_values",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_fallback_identity_persists_across_store_reload",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_foreign_or_copied_handle_is_not_owned",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_gb2312_byte_engine_never_splits_multibyte_strings_in_xrecord",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_large_list_of_short_atoms_roundtrips_without_tail_recursion",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_large_signature_save_reopen_and_rewrite_with_bounded_read",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_legacy_large_v1_xrecord_reopens_without_format_migration",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_legacy_record_migrates_atomically_in_place_and_preserves_metadata",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_native_doubles_preserve_low_digits_tiny_values_and_signed_coordinates",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_native_field_mutation_is_logged_before_decoder_exit",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_native_strings_bypass_printer_reader_escapes_and_keep_case",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_parser_preserves_numbers_nil_symbols_and_improper_lists",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_parser_rejects_truncation_bad_pairs_and_trailing_data",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_schema_and_parse_errors_are_separate_and_diagnostics_are_bounded",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_string_escape_sequences_across_parser_boundaries",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_typed_decoder_rejects_missing_end_wrong_types_and_unknown_version",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_typed_values_keep_empty_nil_boolean_integer_and_improper_lists",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_caption_requirements_do_not_depend_on_v52_plan_marker",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_cckk_create_uses_actual_85w_and_tracks_all_captions",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_cckk_missing_caption_repaired_and_foreign_caption_rejected",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_cckk_old_plan_migrates_power_alignment_and_adds_captions",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_commit_failure_rolls_back_and_keeps_original_error",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_common_sync_noop_and_invalid_result_never_reports_saved",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_confirmed_fixed_update_uses_new_template_and_persists_sources",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_corrupt_xrecord_readback_rolls_back_existing_store_and_graphics",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_dirty_marker_free_residue_recovers_without_prompt_or_undo",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_disabled_or_unclosed_undo_is_not_a_truthy_message",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_draft_requires_store_readback_not_only_success_flag",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_draft_then_sync_keep_low_real_digits_and_default_capacity",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_dynamic_failure_rolls_back_prior_capacity_change",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_empty_memory_residue_saves_without_prompt_or_undo",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_existing_undo_group_saves_capacity_and_powers_with_real_transaction",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_failed_commit_and_rollback_without_marker_can_recover_on_retry",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_failed_write_rolls_back_modified_deleted_created_and_dictionary",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_ground_change_updates_state_and_not_power",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_identical_update_is_noop_and_manual_text_content_is_repaired",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_inline_recovery_bad_marker_does_not_start_transaction",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_large_template_draft_recovers_saves_and_reopens_with_bounded_read",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_layout_conflict_and_locked_layer_preflight",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_memory_recovery_cannot_clear_blocker_if_undo_group_stays_open",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_missing_text_only_is_recreated",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_native_readback_value_mismatch_reports_field_and_rolls_back",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_new_row_appends_before_existing_reserve_handles",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_nil_rollback_without_closing_state_does_not_report_cleanup_success",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_nil_writer_rolls_back_without_using_exit_as_an_exception",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_power_update_keeps_handles_manual_position_and_no_reserve_text",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_recovery_archives_marker_without_changing_graphics_or_store",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_recovery_command_automatically_archives_marker",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_recovery_failed_rename_keeps_blocker",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_recovery_preserves_entities_without_asking_yes",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_recovery_rejects_unrecognized_marker",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_reentrant_write_and_rollback_remain_guarded",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_remove_retains_reserve_identity_and_cleans_owned_row",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_rollback_failure_is_reported_without_erasing_original_error",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_running_transaction_cannot_be_recovered_or_nested",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_save_recovers_inline_and_continues_without_separate_command",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_silent_undo_noop_keeps_transaction_blocker",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_start_failure_is_caught_without_writing_or_undoing_user_work",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_successful_single_undo_restores_both_graphics_and_record",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_sync_rejects_prompt_string_and_does_not_export_or_report_success",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_v53_caption_upgrade_keeps_manual_offset_and_repairs_native_text",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_whole_rotation_scale_is_adopted_but_panel_only_move_is_rejected",
+      "status": "passed"
+    },
+    {
+      "test": "test_fixed_source_signature.FixedSourceMigrationTests.test_old_record_upgrades_then_noop_keeps_output_handles",
+      "status": "passed"
+    },
+    {
+      "test": "test_fixed_source_signature.FixedSourceSignatureTests.test_exact_changes_still_fail_and_log_bounded_leaf_evidence",
+      "status": "passed"
+    },
+    {
+      "test": "test_fixed_source_signature.FixedSourceSignatureTests.test_native_dxf_roundtrip_preserves_typed_signature",
+      "status": "passed"
+    },
+    {
+      "test": "test_fixed_source_signature.FixedSourceSignatureTests.test_no_large_printer_call_and_repeated_freshness_passes",
+      "status": "passed"
+    },
+    {
+      "test": "test_fixed_source_signature.RejectionAlertTimingTests.test_actual_command_alerts_count_as_user_wait",
+      "status": "passed"
+    },
+    {
+      "test": "test_freshness_reuse.FreshnessReuseTests.test_input_change_is_detected_even_with_a_previous_successful_sample",
+      "status": "passed"
+    },
+    {
+      "test": "test_freshness_reuse.FreshnessReuseTests.test_same_operation_reuses_but_input_and_writes_force_new_sample",
+      "status": "passed"
+    },
+    {
+      "test": "test_freshness_reuse.FreshnessReuseTests.test_signature_equals_complete_recognition_in_branched_and_gap_networks",
+      "status": "passed"
+    },
+    {
+      "test": "test_freshness_reuse.FreshnessReuseTests.test_unscoped_calls_and_rule_changes_are_not_reused",
+      "status": "passed"
+    },
+    {
+      "test": "test_gap_index.GapIndexTests.test_equipment_contact_excludes_both_ends_and_manual_pair",
+      "status": "passed"
+    },
+    {
+      "test": "test_gap_index.GapIndexTests.test_index_matches_all_pairs_for_rotated_negative_and_duplicate_points",
+      "status": "passed"
+    },
+    {
+      "test": "test_gap_index.GapIndexTests.test_index_prunes_unrelated_rows_before_pair_validation",
+      "status": "passed"
+    },
+    {
+      "test": "test_gap_index.GapIndexTests.test_noncollinear_geometry_ignored_but_collinear_segment_blocks",
+      "status": "passed"
+    },
+    {
+      "test": "test_gap_index.GapIndexTests.test_strict_alignment_ignores_legacy_large_tolerances",
+      "status": "passed"
+    },
+    {
+      "test": "test_gap_index.GapIndexTests.test_upgrade_defaults_and_stale_confirmation_without_losing_samples",
+      "status": "passed"
+    },
+    {
+      "test": "test_generation_boundaries.FreshCallbackBoundaryTests.test_input_callback_sample_cannot_survive_its_later_source_edit",
+      "status": "passed"
+    },
+    {
+      "test": "test_generation_boundaries.FreshCallbackBoundaryTests.test_native_placement_callback_sample_is_invalidated_on_return",
+      "status": "passed"
+    },
+    {
+      "test": "test_generation_boundaries.FreshCallbackBoundaryTests.test_native_write_callback_sample_is_invalidated_on_return",
+      "status": "passed"
+    },
+    {
+      "test": "test_generation_boundaries.FreshCallbackBoundaryTests.test_regen_and_zoom_callbacks_cannot_leave_reusable_source_samples",
+      "status": "passed"
+    },
+    {
+      "test": "test_generation_boundaries.FreshCallbackBoundaryTests.test_template_probe_cleanup_invalidates_a_sample_taken_by_probe",
+      "status": "passed"
+    },
+    {
+      "test": "test_generation_boundaries.NativePlacementBoundaryTests.test_actual_template_definition_change_during_placement_rolls_back",
+      "status": "passed"
+    },
+    {
+      "test": "test_generation_boundaries.NativePlacementBoundaryTests.test_source_change_during_mouse_placement_rolls_back_before_rows",
+      "status": "passed"
+    },
+    {
+      "test": "test_incremental_updates.IncrementalTests.test_actual_layer_difference_repairs_only_that_object",
+      "status": "passed"
+    },
+    {
+      "test": "test_incremental_updates.IncrementalTests.test_actual_native_failure_rolls_back_graphics_and_store",
+      "status": "passed"
+    },
+    {
+      "test": "test_incremental_updates.IncrementalTests.test_added_uid_keeps_existing_blocks_and_renumbers_reserves_in_place",
+      "status": "passed"
+    },
+    {
+      "test": "test_incremental_updates.IncrementalTests.test_business_only_change_compares_saved_record_and_writes_once",
+      "status": "passed"
+    },
+    {
+      "test": "test_incremental_updates.IncrementalTests.test_capacity_change_writes_only_panel_dynamic_value",
+      "status": "passed"
+    },
+    {
+      "test": "test_incremental_updates.IncrementalTests.test_foreign_or_locked_entity_stops_before_any_write",
+      "status": "passed"
+    },
+    {
+      "test": "test_incremental_updates.IncrementalTests.test_identical_update_metrics_report_zero_operations_and_native_writes",
+      "status": "passed"
+    },
+    {
+      "test": "test_incremental_updates.IncrementalTests.test_locked_layer_stops_read_only_planning_before_any_write",
+      "status": "passed"
+    },
+    {
+      "test": "test_incremental_updates.IncrementalTests.test_no_change_has_no_native_write_or_transaction",
+      "status": "passed"
+    },
+    {
+      "test": "test_incremental_updates.IncrementalTests.test_removed_uid_deletes_only_owned_members_retains_caption_handles",
+      "status": "passed"
+    },
+    {
+      "test": "test_incremental_updates.IncrementalTests.test_single_power_update_writes_only_its_text_and_one_record",
+      "status": "passed"
+    },
+    {
+      "test": "test_incremental_updates.IncrementalTests.test_stale_global_operation_list_is_not_reused_by_direct_update",
+      "status": "passed"
+    },
+    {
+      "test": "test_incremental_updates.IncrementalTests.test_transaction_start_callback_invalidates_the_precomputed_write_set",
+      "status": "passed"
+    },
+    {
+      "test": "test_incremental_updates.IncrementalTests.test_type_change_writes_only_one_dynamic_value",
+      "status": "passed"
+    },
+    {
+      "test": "test_incremental_updates.IncrementalTests.test_write_reactor_changes_unplanned_member_and_final_readback_rolls_back",
+      "status": "passed"
+    },
+    {
+      "test": "test_network_reuse.FreshNetworkSignatureTests.test_trunk_snapshot_and_unregistered_devices_match_full_recognition",
+      "status": "passed"
+    },
+    {
+      "test": "test_network_reuse.FreshNetworkSignatureTests.test_verified_network_keeps_full_source_signature_and_detects_definition_edit",
+      "status": "passed"
+    },
+    {
+      "test": "test_network_reuse.NetworkReuseTests.test_add_delete_move_wire_and_changed_rules_match_full_build",
+      "status": "passed"
+    },
+    {
+      "test": "test_network_reuse.NetworkReuseTests.test_anonymous_curved_definition_is_not_validated_by_name_or_bounds",
+      "status": "passed"
+    },
+    {
+      "test": "test_network_reuse.NetworkReuseTests.test_boundary_during_geometry_read_rejects_and_discards",
+      "status": "passed"
+    },
+    {
+      "test": "test_network_reuse.NetworkReuseTests.test_cancelled_geometry_validation_leaves_no_memo",
+      "status": "passed"
+    },
+    {
+      "test": "test_network_reuse.NetworkReuseTests.test_changed_definition_with_same_name_bounds_and_count_rebuilds",
+      "status": "passed"
+    },
+    {
+      "test": "test_network_reuse.NetworkReuseTests.test_end_error_reload_and_document_switch_do_not_reuse",
+      "status": "passed"
+    },
+    {
+      "test": "test_network_reuse.NetworkReuseTests.test_five_scans_read_source_and_geometry_but_build_once",
+      "status": "passed"
+    },
+    {
+      "test": "test_network_reuse.NetworkReuseTests.test_gap_blocker_and_crossing_still_use_complete_candidate_set",
+      "status": "passed"
+    },
+    {
+      "test": "test_network_reuse.NetworkReuseTests.test_input_and_write_callbacks_recheck_definition_and_undo",
+      "status": "passed"
+    },
+    {
+      "test": "test_network_reuse.NetworkReuseTests.test_nested_definition_visibility_is_checked_again",
+      "status": "passed"
+    },
+    {
+      "test": "test_network_reuse.ScanGenerationIntegrationTests.test_new_power_update_and_noop_keep_verified_store_and_uid",
+      "status": "passed"
+    },
+    {
+      "test": "test_ocs_transforms.OcsTransformTests.test_arc_crossing_zero_preserves_direction_elevation_and_negative_normal",
+      "status": "passed"
+    },
+    {
+      "test": "test_ocs_transforms.OcsTransformTests.test_bad_curve_results_stop_before_affine_and_keep_sample_context",
+      "status": "passed"
+    },
+    {
+      "test": "test_ocs_transforms.OcsTransformTests.test_nested_circle_applies_bases_mirror_scales_rotation_and_ocs_once",
+      "status": "passed"
+    },
+    {
+      "test": "test_ocs_transforms.OcsTransformTests.test_nil_insert_axis_stops_before_matrix_arithmetic",
+      "status": "passed"
+    },
+    {
+      "test": "test_ocs_transforms.OcsTransformTests.test_user_circle_keeps_radius_and_closure_when_entity_trans_returns_nil",
+      "status": "passed"
+    },
+    {
+      "test": "test_performance.PerformanceFlowTests.test_caught_native_cancel_stops_interaction_and_preserves_rollback",
+      "status": "passed"
+    },
+    {
+      "test": "test_performance.PerformanceFlowTests.test_no_change_update_is_measured_with_zero_entity_and_master_writes",
+      "status": "passed"
+    },
+    {
+      "test": "test_performance.PerformanceFlowTests.test_real_managed_placement_marks_then_reads_and_counts_writes",
+      "status": "passed"
+    },
+    {
+      "test": "test_performance.PerformanceTests.test_caught_cancel_unwinds_wait_before_following_work",
+      "status": "passed"
+    },
+    {
+      "test": "test_performance.PerformanceTests.test_detail_only_enables_selected_fine_stages",
+      "status": "passed"
+    },
+    {
+      "test": "test_performance.PerformanceTests.test_log_scope_does_not_reset_or_finish_its_top_command",
+      "status": "passed"
+    },
+    {
+      "test": "test_performance.PerformanceTests.test_logs_off_still_emits_one_independent_readable_record",
+      "status": "passed"
+    },
+    {
+      "test": "test_performance.PerformanceTests.test_marks_report_after_submit_and_after_placement",
+      "status": "passed"
+    },
+    {
+      "test": "test_performance.PerformanceTests.test_native_values_nil_and_exceptions_are_preserved",
+      "status": "passed"
+    },
+    {
+      "test": "test_performance.PerformanceTests.test_nested_waits_are_a_union_and_stages_remain_inclusive",
+      "status": "passed"
+    },
+    {
+      "test": "test_performance.PerformanceTests.test_reporting_errors_do_not_replace_the_business_result",
+      "status": "passed"
+    },
+    {
+      "test": "test_performance.PerformanceTests.test_signed_tick_rollover_is_not_reported_as_zero",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_cancelled_review_preserves_old_choices_and_marks_output_unupdated",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_cancelled_setup_returns_to_same_draft_without_saving",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_capacity_and_manual_no_restore_from_saved_draft",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_captured_config_reaches_sync_with_confirmed_choices",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_default_capacity_generates_without_extra_confirmation",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_drawing_template_cache_is_reused_for_other_box",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_elstat_opens_panel_without_any_model_pick",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_elstat_pick_action_reaches_recognized_panel",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_escape_during_setup_returns_to_panel_and_preserves_draft",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_existing_panel_returns_repick_request_without_saving",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_generate_callback_error_keeps_dialog_and_explains_failure",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_generate_callback_intent_survives_generic_accept_return",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_legacy_generation_retains_capacity_fallback_without_fixed_review",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_pick_button_closes_initial_panel_before_model_pick",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_prepared_record_template_is_reused_for_same_box",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_save_capacity_then_recognize_same_panel",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_save_complete_statistics_without_template_still_saves_draft",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_save_records_all_pages_without_changing_checkbox_values",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_shared_sync_rejects_unconfirmed_fixed_result",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_statistics_without_template_open_panel_without_setup_or_publication",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_successful_setup_returns_new_config_for_generation_without_repick",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_valid_template_is_reused_without_setup",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.SelectionStoreTests.test_draft_confirmation_and_shared_template_roundtrip_through_xrecord",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.SelectionStoreTests.test_missing_capacity_defaults_but_unconfirmed_types_remain_stale",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_elroot_switches_to_selected_complete_package_and_cancel_keeps_root",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_missing_registry_reuses_remembered_output_root_without_prompt",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_old_ui_directory_requires_complete_new_package",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_package_encoding_layout_and_update_forms",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_packaged_setup_uses_fixed_mm_and_numeric_choices_with_real_data_io",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_standalone_update_initializes_root_then_setup_reaches_actual_pick",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_startup_appload_folder_needs_no_file_selection_and_can_start",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_startup_embedded_resources_without_registry_or_search_path",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_startup_embedded_write_failure_does_not_report_ready_or_prompt",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_startup_from_src_folder_and_old_root_selects_new_package",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_startup_incomplete_package_requires_repair",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_startup_registry_full_filename_needs_no_selection",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_startup_search_path_works_when_registry_unavailable",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_startup_src_search_path_without_visible_marker",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_startup_wrong_version_does_not_silently_reuse_old_root",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_update_cancel_reports_not_ready_and_command_can_retry_once",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_update_preserves_old_root_and_config_then_stat_reaches_panel_pick",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootFixture.test_old_ui_directory_requires_complete_new_package",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_cancelled_save_does_not_write_config_or_report_success",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_cancelled_setup_config_does_not_build_invalid_backup_path",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_cancelled_setup_does_not_reprompt_backup_or_create_config",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_config_path_rejects_nil_or_non_string_root_and_drawing_id",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_empty_wrong_type_and_deleted_roots_request_relocation",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_invalid_config_backup_still_preserves_previous_data",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_missing_post_stat_ui_marker_rejects_old_dialog",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_missing_root_is_initialized_before_config_path_is_used",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_old_ui_directory_requires_complete_new_package",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_save_initializes_missing_root_and_can_read_back_the_config",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_unsaved_drawing_stops_before_directory_selection",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_valid_root_with_or_without_trailing_separator_keeps_saved_config",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_wrong_file_and_incomplete_package_are_not_accepted",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_bent_polylines_continue_along_the_actual_broken_end_direction",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_block_inside_gap_is_not_skipped_by_wire_bounds_filter",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_collection_does_not_parse_outside_wire_layers",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_connected_system_joins_t_branches_and_groups_without_roles",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_device_middle_crossing_connects_without_role_review",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_dialog_preview_restores_current_row_and_unsaved_values",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_endpoint_on_device_does_not_continue_to_remote_wire",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_free_gap_ends_reconnect_when_opposite_ends_touch_panel_and_device",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_gap_does_not_jump_to_parallel_other_elevation_or_out_of_range_wire",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_gap_log_records_endpoint_coordinates_candidates_and_pair_count",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_legacy_summary_one_pick_and_one_table_then_remembers_powers",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_multiple_breaks_continue_past_middle_device_and_t_branch",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_noncollinear_crossing_in_gap_is_not_a_connection_or_blocker",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_other_wire_layer_and_bare_crossing_do_not_merge_systems",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimpleFlowTests.test_power_edit_requires_valid_values_and_keeps_zero",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimplePersistenceTests.test_corrupt_power_file_is_not_overwritten",
+      "status": "passed"
+    },
+    {
+      "test": "test_simple_flow.SimplePersistenceTests.test_file_reload_and_merge_preserve_unrelated_block_types",
+      "status": "passed"
+    },
+    {
+      "test": "test_solid_contact.SolidContactTests.test_hidden_solid_does_not_supply_contact_region",
+      "status": "passed"
+    },
+    {
+      "test": "test_solid_contact.SolidContactTests.test_mirror_scale_and_translation_reuse_preserves_filled_region",
+      "status": "passed"
+    },
+    {
+      "test": "test_solid_contact.SolidContactTests.test_nested_solid_preserves_interior_after_parent_transform",
+      "status": "passed"
+    },
+    {
+      "test": "test_solid_contact.SolidContactTests.test_quad_perimeter_and_interior_are_not_bow_tie",
+      "status": "passed"
+    },
+    {
+      "test": "test_solid_contact.SolidContactTests.test_solid_branch_counts_all_downstream_devices",
+      "status": "passed"
+    },
+    {
+      "test": "test_solid_contact.SolidContactTests.test_triangle_does_not_use_bounding_rectangle",
+      "status": "passed"
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_atomic_config_write_restores_previous_file_on_failure",
+      "status": "passed"
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_dcl_keys_and_callback_syntax",
+      "status": "passed"
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_forms_arities_and_local_assignments",
+      "status": "passed"
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_geometry_and_topology_do_not_mutate_drawing",
+      "status": "passed"
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_rollback_only_deletes_created_objects_even_if_one_delete_fails",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_context.StoreContextTests.test_commit_callback_change_discards_candidate_and_reads_current_dwg",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_context.StoreContextTests.test_dictionary_association_and_native_only_change_invalidate_context",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_context.StoreContextTests.test_direct_write_and_legacy_transaction_keep_original_truth_values",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_context.StoreContextTests.test_failed_end_undo_cannot_commit_verified_readback",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_context.StoreContextTests.test_late_payload_corruption_uses_decoder_failure_instead_of_cached_data",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_context.StoreContextTests.test_later_write_or_document_switch_requires_fresh_read",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_context.StoreContextTests.test_native_readback_difference_does_not_publish_context",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_context.StoreContextTests.test_nil_writer_and_exception_discard_candidate_and_rollback",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_context.StoreContextTests.test_second_write_failure_cannot_reuse_first_candidate",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_context.StoreContextTests.test_silent_end_undo_that_leaves_group_open_does_not_promote_context",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_context.StoreContextTests.test_success_reuses_actual_decoded_readback_after_commit",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_context.StoreContextTests.test_unrelated_transaction_and_empty_context_never_reuse_prior_operation",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_decode_cache.StoreDecodeCacheTests.test_cache_check_stage_is_reported_without_detail_mode",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_decode_cache.StoreDecodeCacheTests.test_callback_starting_next_command_cannot_publish_old_scope",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_decode_cache.StoreDecodeCacheTests.test_changed_payload_decodes_current_data_and_never_old_value",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_decode_cache.StoreDecodeCacheTests.test_corrupt_future_or_changed_schema_cannot_hide_in_cache",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_decode_cache.StoreDecodeCacheTests.test_decode_callback_change_cannot_publish_old_data",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_decode_cache.StoreDecodeCacheTests.test_dictsearch_only_difference_cannot_hit",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_decode_cache.StoreDecodeCacheTests.test_end_undo_callback_change_is_read_instead_of_reusing_written_value",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_decode_cache.StoreDecodeCacheTests.test_entget_only_difference_disables_reuse_and_write_still_refuses",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_decode_cache.StoreDecodeCacheTests.test_failed_transaction_clears_cache_and_restores_old_store",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_decode_cache.StoreDecodeCacheTests.test_finish_cancel_error_and_new_command_have_no_shared_cache",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_decode_cache.StoreDecodeCacheTests.test_hit_reads_each_native_route_once_without_an_extra_dictionary_lookup",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_decode_cache.StoreDecodeCacheTests.test_input_callback_can_reuse_only_when_full_stored_data_matches",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_decode_cache.StoreDecodeCacheTests.test_legacy_read_is_readonly_and_migration_keeps_fresh_backup_checks",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_decode_cache.StoreDecodeCacheTests.test_owner_replacement_deletion_and_undo_redo_invalidate",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_decode_cache.StoreDecodeCacheTests.test_readback_always_decodes_actual_data_then_followup_reuses_it",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_decode_cache.StoreDecodeCacheTests.test_reentry_uses_fresh_decoder_without_publishing_inner_value",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_decode_cache.StoreDecodeCacheTests.test_six_reads_decode_once_without_business_writes",
+      "status": "passed"
+    },
+    {
+      "test": "test_visibility_signature.VisibilitySignatureTests.test_hidden_and_changed_geometry_remain_different",
+      "status": "passed"
+    },
+    {
+      "test": "test_visibility_signature.VisibilitySignatureTests.test_implicit_and_explicit_visible_are_equal",
+      "status": "passed"
+    },
+    {
+      "test": "test_wire_width.WireWidthTests.test_recorded_21a6_22c8_centerline_misses_but_actual_width_hits",
+      "status": "passed"
+    },
+    {
+      "test": "test_wire_width.WireWidthTests.test_recorded_network_continues_beyond_first_lamp",
+      "status": "passed"
+    },
+    {
+      "test": "test_wire_width.WireWidthTests.test_scope_includes_device_touched_only_by_actual_width",
+      "status": "passed"
+    },
+    {
+      "test": "test_wire_width.WireWidthTests.test_true_strip_width_and_butt_ends_not_distance_buffer",
+      "status": "passed"
+    },
+    {
+      "test": "test_wire_width.WireWidthTests.test_trunk_piece_does_not_inherit_other_pieces_contact_area",
+      "status": "passed"
+    },
+    {
+      "test": "test_wire_width.WireWidthTests.test_variable_width_taper_and_explicit_zero_override",
+      "status": "passed"
+    }
+  ],
+  "native_094_baseline": {
+    "package": "package-094.marker",
+    "program-ms": 21782,
+    "interaction-ms": 31077,
+    "after-placement": 9297,
+    "stages": {
+      "FRESH_SOURCE_SCAN": {
+        "calls": 4,
+        "program-ms": 8657
+      },
+      "SIMPLE_COLLECT": {
+        "calls": 5,
+        "program-ms": 2720
+      },
+      "SIMPLE_NETWORK": {
+        "calls": 5,
+        "program-ms": 7516
+      },
+      "STORE_DECODE": {
+        "calls": 3,
+        "program-ms": 1267
+      }
+    },
+    "exact_readbacks": 4,
+    "scope": "native 094 new diagram; no optimized CAD timing recorded"
+  },
+  "work_measurements": {
+    "five_unchanged_scans": {
+      "source_collections": 5,
+      "original_network_builds": 5,
+      "optimized_network_builds": 1,
+      "verified_reuses": 4,
+      "fresh_geometry_checks": 12,
+      "native_contour_reads": 5,
+      "equal_full_network_results": true
+    },
+    "generation_scenarios": [
+      {
+        "scenario": "new",
+        "collections": 3,
+        "network_builds": 1,
+        "verified_reuses": 2,
+        "master_writes": 1,
+        "stable_uids": true,
+        "actual_store_readback": true
+      },
+      {
+        "scenario": "power",
+        "collections": 1,
+        "network_builds": 1,
+        "verified_reuses": 0,
+        "master_writes": 1,
+        "stable_uids": true,
+        "actual_store_readback": true
+      },
+      {
+        "scenario": "noop",
+        "collections": 1,
+        "network_builds": 1,
+        "verified_reuses": 0,
+        "master_writes": 0,
+        "stable_uids": true,
+        "actual_store_readback": false
+      }
+    ]
+  },
+  "cad_status": "095 pending; finite adapter call counts are not native CAD elapsed times, real dynamic block, save/reopen or UNDO acceptance",
+  "sha256": {
+    ".gitignore": "ec7c55e3724b7875e990c49f0463c8a70a7b0ce4cd221693c43587f0e18a339a",
+    "src\\batch-number.lsp": "35cbca8234afd4577a930494e3b55f8d2d3f62b38498f8b8b85125109de0d282",
+    "src\\common.lsp": "8e6a1ce98c8a40aac440fd5ddbb6f8bcee0a0680718c4bbbcb7c9051b551851b",
+    "src\\config.lsp": "77b0df1d6cea432debb9a35874135c4379a7e86d88b08353993ae23b490f0f7b",
+    "src\\diagram-commands.lsp": "a412510c8741b69a3974dac75ae13951bcffb0abca7b5c8f8b3a40c55074c684",
+    "src\\diagram-store.lsp": "1a5865577a09225ea823179677eb7f0323e84c816fed24b30f238329ead68d62",
+    "src\\diagram-update.lsp": "911aa09e685aacf7055bf53849b7f748539427a0367b6e4d3bfe3a0552cabbbd",
+    "src\\fixed.lsp": "dcfce113d9e332ec1544439ea999219d5ede67a9571af0b2c69d4148b7b52f83",
+    "src\\generation.lsp": "99e1b9fef2af875637393cc4ebee9b001e1959fe54d5318a2c55fad8e0dcd93f",
+    "src\\geometry.lsp": "2db8452439c3939e2bf9b7423d9c6f5a15e24960a296fef1123e52193aea3134",
+    "src\\insert-circuit.lsp": "e7a9306c8f79849f51b26499ac5c1b0232e18fc54f911597c4334e06b66ae2cd",
+    "src\\load.lsp": "8e784de552be150fd3bc96cb736e52f28a9d97a0042b391147ddb97d19a7c713",
+    "src\\main.lsp": "5a229c0b3081eca2a5e171e60a4e812321fcb85adb28ea32f60fb25d3ab65d6a",
+    "src\\panel.lsp": "e63c15a0a5281d35ec466cd1e95781f3b228028cdcd3041c057ad8447cd0e03c",
+    "src\\simple.lsp": "f6ad7f944dc5faca8a1a9e9da8fc5c158e780ac45ef17be4642ef84333f21b59",
+    "src\\startup.lsp": "557207ee99beb8b8777315491ff884e2b19f21225a0eb34b5e93dc67e39db4a0",
+    "src\\statistics.lsp": "45e713b3653d0c204e58cd3feef7cc11de890cc765f6dba36d4da3f85b05ddb7",
+    "src\\store-compact.lsp": "e0cbddc4da1bcc9b3d069ffae7c2c8295fd0df8256a01ffaa6c1ba31a901dc2c",
+    "src\\topology.lsp": "136f648ad54d3535cc60449a2c630a4a29be694621276fd4b036869bed3d092b",
+    "tests\\autolisp_host.py": "24c741135fef5f07f574f9c54545cb93e076eab76359644d237a5cf24fe6265d",
+    "tests\\run_checks.py": "5fe178f215df688528ed78f09a70b135a468363e86fcb32f5c7b204680245d17",
+    "tests\\run_source_scan_checks.py": "f81b59309d3813d1c28753842eb29e2fefcba290432775aeddbc9746f290f874",
+    "tests\\test_analytic_curves.py": "4b089253cdd569bb3b47f72ea01225787e279246ac70f42af738a3e546af2bb5",
+    "tests\\test_cckk_panel_command.py": "1e38a609ddf0b286c1a30870a007a0b864b657c28062349cd2dfeb412beef1e9",
+    "tests\\test_concentrated_trunk.py": "0d0d281a3d3ef9945331d28c045c7673af617728a09b1bc57a9f19a077969667",
+    "tests\\test_contact_index.py": "eea49bc151b375f460da0142f5dd402578682516d7adcf86a6d44c84e434e3cd",
+    "tests\\test_contact_reuse.py": "b144eb1d7c65f9961de64d4d02ab03bfa1e82cd8a1cea1b34ac06053cf2c6c39",
+    "tests\\test_device_branches.py": "2fe842d5bef4a34637164ce407ee9a1774094df070ab0bd0ff4dfa90cb545a8e",
+    "tests\\test_device_contact.py": "8574dc69d8efee43fd7f68ebd5719fc8982e8a0893c26ed9bb994a57cf5d25b4",
+    "tests\\test_diagram_store.py": "eaed3d9a561ff0b1ab4eac43a6dba8008ebd612de2cdf0a3a32bc4b3d7cb75fb",
+    "tests\\test_diagram_update.py": "6add964042a15465cf47bea4cf8208a8de8dea3f99155b6982251d9c8c9005bd",
+    "tests\\test_fixed_source_signature.py": "71f91aa116f8e4356a3f458a85829eafcaf316ad3504e25cff130f903c5fa922",
+    "tests\\test_freshness_reuse.py": "b209556fef3f490171e13badc987e46e2d61d349c6d392c00d3c43b994b5e726",
+    "tests\\test_gap_index.py": "0522a4476db8e2a50e20edd7648da1183a429abd52929549a94e971941c8de79",
+    "tests\\test_generation_boundaries.py": "2f67dce217dc262471f0f000db71561de454f30e041b950075ef23ffe2a94178",
+    "tests\\test_incremental_updates.py": "98eb75f503508ee7294bef504d53dfab3f45fae21a29dc9f62e2f68712f8d8f7",
+    "tests\\test_network_reuse.py": "6f2936c0728f95e30e00f65c59d8f07b3c932bcb796037473b5fa1a160410c61",
+    "tests\\test_ocs_transforms.py": "8f57ff475a879aea2f7ebcb7cb96783fb989060eb20bef1234f6719a225ddd83",
+    "tests\\test_performance.py": "a11988cc0f1699d17a0f79d85d106ac277ac0f28ce88dea4f8f5970a7180d9a1",
+    "tests\\test_post_stat_workflow.py": "a9dcc3e40b242de3436669d6848b66bc48e69b4caa145f266ba334678fdcc910",
+    "tests\\test_root_init.py": "2c9ffe5b86c9efa4cd27b092838d7b1532b0c3b89783f992ca0e9a473cb17909",
+    "tests\\test_simple_flow.py": "88795478b13f71b6a507aeca5bdf5c9e8ecd16e8c2a1f5061c6d3f64547f9389",
+    "tests\\test_solid_contact.py": "cf6ae2376900c0c080a1af6a37e101e4e52d0821312c061cdbd6e86a5315428e",
+    "tests\\test_source_contracts.py": "10513c1d7df4e8031deea405831d90bd81666a83c35c60eaeb7e119d99232ce8",
+    "tests\\test_store_context.py": "4820962c13bec7b0ebb4eb2b8d627fd5fdf992cc5cadf9b0c72cb3f86dc0c8d0",
+    "tests\\test_store_decode_cache.py": "3382eee51fc09e4eed445f54591eda3bbdd0eddaa71a91eb357c9b3507df8785",
+    "tests\\test_visibility_signature.py": "3029048be631d1f4160ff660c498cf2d8151bace7d644b5d4befa35aef322a07",
+    "tests\\test_wire_width.py": "69776f2e23a41a1629ef72f4c39b5a94623af56bd03caa39d1e853a5c29b70b1",
+    "tools\\build_cad2020.py": "6ac5dad92173a51b83d85a3b85e3950196acf2958cd6b7b4d94ec3bd2d9cad23",
+    "ui\\power.dcl": "3d3805d4da869b24e70a0cf743070cdd882f183a738a7eae9ca7d03bf3374ef9"
+  },
+  "post_test_checked_inputs": {
+    ".gitignore": {
+      "sha256": "e327d5625c225a53174e815ab21fcf175e461fb9f0a3754c0dc8faf1113ebf1b",
+      "check": "git check-ignore -v passed for explicit output/cad2020-source-scan-check/, output/应急照明-095/ and output/应急照明-095.zip rules",
+      "reason": "added exact generated-package ignore rules after regression; no LISP, DCL, test or build implementation changed"
+    }
+  }
+}

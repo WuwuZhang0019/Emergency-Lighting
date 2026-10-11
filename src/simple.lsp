@@ -145,10 +145,13 @@
         (EL:Get 'direction ep) (EL:Get 'Dmax (EL:Get 'params cfg)))))))
   candidates)
 
-(defun EL:SimpleCollect (cfg / ss i e d bounds items tree wires ends blocks candidates wire candidate id issues block queue current shape)
+(defun EL:SimpleCollect (cfg / ss i e d bounds items tree wires ends blocks candidates wire candidate id issues block queue current shape perf)
   ;; Date: 2026-10-10. Filter wires by inferred style; only the selected panel
   ;; uses its contour. Device geometry is checked lazily during network tracing.
   (setq ss (ssget "_X" '((410 . "Model") (0 . "INSERT,LINE,LWPOLYLINE"))) i 0)
+  (EL:PerfCount "source-collect-calls" 1)
+  (EL:PerfCount "source-selection-entities" (if ss (sslength ss) 0))
+  (setq perf (EL:PerfBegin "COLLECT_ENTITY_READ"))
   (if ss
     (repeat (sslength ss)
       (setq e (ssname ss i) d (entget e) i (1+ i) id (cdr (assoc 5 d))
@@ -156,14 +159,17 @@
       (cond
         ((EL:ManagedEntity e) nil)
         ((equal (cdr (assoc 0 d)) "INSERT")
+          (EL:PerfCount "source-block-bounds-reads" 1)
           (if (setq bounds (EL:EntityBounds e))
             (setq items (cons (list (cons 'key id) (cons 'entity e) (cons 'layer (cdr (assoc 8 d)))
               (cons 'bounds bounds) (cons 'point (EL:V* 0.5 (EL:V+ (car bounds) (cadr bounds))))) items))
             (setq issues (cons (EL:Issue 'MISSING_BLOCK_BOUNDS id nil) issues))))
         ((EL:WireStyleAllowed d cfg)
+          (EL:PerfCount "source-wire-record-reads" 1)
           (setq wire (EL:WireRecord e cfg) wires (cons wire wires)
                 ends (append (EL:Get 'ends wire) ends) issues (append (EL:Get 'issues wire) issues))))))
-  (setq tree (EL:SpatialTree items 0))
+  (EL:PerfEnd perf 'returned)
+  (setq perf (EL:PerfBegin "COLLECT_CANDIDATES") tree (EL:SpatialTree items 0))
   (foreach wire wires
     (foreach candidate (EL:SimpleBlockCandidates wire tree cfg)
       (if (not (member (EL:Get 'key candidate) candidates))
@@ -185,6 +191,7 @@
                 block (list (cons 'entity (EL:Get 'entity candidate)) (cons 'id id) (cons 'name (EL:EffectiveName (EL:Get 'entity candidate)))
                   (cons 'layer (EL:Get 'layer candidate)) (cons 'bounds (EL:Get 'bounds candidate)) (cons 'whole-block T))
                 blocks (cons block blocks) queue (cons block queue))))))
+  (EL:PerfEnd perf 'returned)
   (if (EL:Get 'auto-panel cfg)
     (progn
       (setq id (EL:Get 'auto-panel cfg) block (EL:By 'id id blocks)
@@ -253,9 +260,11 @@
               template (assoc key *EL:DeviceTemplateCache*)))))
       (if template
         (progn
+          (EL:PerfCount "device-template-reuses" 1)
           (setq shape (EL:TranslateDeviceShape (caddr template) (EL:V- origin (cadr template))))
           (EL:LogEvent "DEVICE_TEMPLATE_REUSE" context))
         (progn
+          (EL:PerfCount "device-contour-reads" 1)
           (setq shape (vl-catch-all-apply 'EL:DeviceContour (list entity)))
           (if (vl-catch-all-error-p shape) (setq shape nil))
           (if (and (EL:Get 'segments shape) (not (EL:Get 'issues shape)))
@@ -350,8 +359,55 @@
   (EL:LogEvent "DEVICE_CANDIDATE_SCOPE" (list (cons 'objects (length rows))
     (cons 'blocks (length (EL:Get 'blocks snapshot)))))
   rows)
-(defun EL:SimpleNetwork (snapshot cfg panel / wires blocks block wire bounds items tree edges ends ep other occupied tol ztol rows pairs component scope *EL:DeviceContactCache* *EL:DeviceTemplateCache* *EL:DeviceTemplateEnabled*)
+;; Date: 2026-10-11. A memo is a candidate only, never proof of unchanged source.
+;; Every call receives a newly collected snapshot. Re-read every geometry dependency
+;; in original visit order; no prior definition/shape cache crosses this check.
+(setq *EL:NetworkMemo* nil)
+(defun EL:NetworkGeometryCurrent (contacts snapshot / row block shape good)
+  (setq good T)
+  (foreach row (reverse contacts)
+    (if good
+      (progn
+        (setq block (EL:By 'id (car row) (EL:Get 'blocks snapshot)))
+        (if block
+          (progn
+            (EL:PerfCount "network-geometry-checks" 1)
+            (setq shape (EL:DeviceContactShape block))
+            (setq good (and (EL:ShapeGeometry shape) (not (EL:Get 'issues shape))
+              (equal shape (cdr row)))))
+          (setq good nil))))) good)
+(defun EL:SimpleNetwork (snapshot cfg panel / saved key epoch result reused *EL:DeviceContactCache* *EL:DeviceTemplateCache* *EL:DeviceTemplateEnabled*)
+  (setq *EL:DeviceTemplateEnabled* T epoch *EL:FreshEpoch*
+    key (list (namedobjdict) cfg panel snapshot)
+    saved (if (and *EL:PerfActive* (not *EL:NetworkReuseDisabled*)) *EL:NetworkMemo*)
+    *EL:NetworkMemo* nil)
+  ;; Snapshot and configuration comparison is exact, including all candidate
+  ;; wires/blocks, panel/trunk geometry and issues. Different input rebuilds.
+  (if (and saved (equal key (car saved))
+      (EL:PerfCall "NETWORK_VERIFY_GEOMETRY" 'EL:NetworkGeometryCurrent
+        (list (caddr saved) snapshot)) (equal epoch *EL:FreshEpoch*))
+    (progn (setq result (cadr saved) reused T)
+      (EL:PerfCount "network-verified-reuses" 1)))
+  (if (not reused)
+    (progn
+      ;; A failed comparison may have populated a partial cache in another
+      ;; order. Rebuild with the original fresh-pass geometry semantics.
+      (setq *EL:DeviceContactCache* nil *EL:DeviceTemplateCache* nil)
+      (EL:PerfCount "network-build-calls" 1)
+      (setq result (EL:PerfCall "NETWORK_BUILD" 'EL:SimpleNetworkBuild (list snapshot cfg panel)))))
+  (if (not (and (equal epoch *EL:FreshEpoch*) (equal (car key) (namedobjdict))))
+    (progn (setq *EL:NetworkMemo* nil)
+      (EL:Require nil "SOURCE_CHANGED：建网复核期间发生写入、交互或切图，请重新统计。")))
+  (if (and result *EL:PerfActive* (not *EL:NetworkReuseDisabled*)
+      (equal epoch *EL:FreshEpoch*) (not (EL:Get 'issues snapshot))
+      (vl-every '(lambda (row) (and (EL:ShapeGeometry (cdr row))
+        (not (EL:Get 'issues (cdr row))))) *EL:DeviceContactCache*))
+    (setq *EL:NetworkMemo* (list key result *EL:DeviceContactCache*))
+    (setq *EL:NetworkMemo* nil))
+  result)
+(defun EL:SimpleNetworkBuild (snapshot cfg panel / wires blocks block wire bounds items tree edges ends ep other occupied tol ztol rows pairs component scope perf)
   (setq *EL:DeviceTemplateEnabled* T wires (EL:Get 'wires snapshot) tol (EL:Get 'eps_touch (EL:Get 'params cfg)) ztol (EL:GapEpsilon))
+  (setq perf (EL:PerfBegin "NETWORK_WIRE_CONTACT"))
   (foreach block (EL:Get 'blocks snapshot)
     (setq blocks (cons (EL:Put 'role (if (equal (EL:Get 'id block) panel) 'panel 'device) block) blocks)))
   (setq blocks (reverse blocks) snapshot (EL:Put 'blocks blocks snapshot))
@@ -372,6 +428,8 @@
           (EL:Touches (EL:Get 'point ep) (EL:Get 'segments wire) tol ztol))
         (setq occupied T edges (cons (EL:Edge (EL:Get 'wire ep) (EL:Get 'id wire)) edges))))
     (setq ends (cons (EL:Put 'occupied occupied ep) ends)))
+  (EL:PerfEnd perf 'returned)
+  (setq perf (EL:PerfBegin "NETWORK_CANDIDATE_SCOPE"))
   ;; One bounds item per block for coarse filtering before geometry checks.
   (setq items nil)
   (foreach block blocks
@@ -382,6 +440,8 @@
   (setq scope (EL:DeviceCandidateScope snapshot cfg panel edges tree)
     items (vl-remove-if-not '(lambda (item) (member (EL:Get 'key item) scope)) items)
     tree (EL:SpatialTree items 0))
+  (EL:PerfEnd perf 'returned)
+  (setq perf (EL:PerfBegin "NETWORK_DEVICE_CONTACT"))
   ;; Date: 2026-10-10. Actual device geometry must touch without a wire.
   ;; Use numerical epsilon only; never bridge a visible gap or join through the panel.
   (foreach block blocks
@@ -397,15 +457,20 @@
       (if (EL:SimpleDevicePathHit wire block cfg)
         (setq edges (cons (EL:Edge (EL:Get 'id wire) (EL:Get 'id block)) edges)))))
   (setq ends (mapcar '(lambda (e) (EL:SimpleEndState e tree cfg)) (reverse ends))
-        snapshot (EL:Put 'ends ends snapshot)
+        snapshot (EL:Put 'ends ends snapshot))
+  (EL:PerfEnd perf 'returned)
+  (setq perf (EL:PerfBegin "NETWORK_GAPS")
         rows (EL:FindGapCandidates snapshot cfg) pairs (EL:BuildMutualPairs rows snapshot cfg))
   (EL:SimpleGapLog snapshot cfg rows pairs)
   (foreach other (EL:Get 'pairs pairs)
     (setq edges (cons (EL:Edge (car (EL:Get 'a other)) (car (EL:Get 'b other))) edges)))
+  (EL:PerfEnd perf 'returned)
+  (setq perf (EL:PerfBegin "NETWORK_SIGNATURE"))
   (setq snapshot (EL:Put 'device-contact-signature
     (EL:Signature (mapcar '(lambda (row) (list (car row) (EL:Get 'segments (cdr row)) (EL:Get 'curves (cdr row)) (EL:Get 'holes (cdr row)) (EL:Get 'issues (cdr row))))
       (vl-sort *EL:DeviceContactCache* '(lambda (a b) (< (car a) (car b)))))) snapshot)
     component (EL:Component panel (EL:Unique edges)))
+  (EL:PerfEnd perf 'returned)
   (list (cons 'edges (EL:Unique edges)) (cons 'snapshot snapshot) (cons 'panel panel)
     (cons 'devices (vl-remove-if-not '(lambda (b) (and (not (equal (EL:Get 'id b) panel)) (member (EL:Get 'id b) component))) blocks))
     (cons 'wire-ids (vl-remove-if-not '(lambda (id) (member id component)) (mapcar '(lambda (w) (EL:Get 'id w)) wires)))

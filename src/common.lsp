@@ -103,7 +103,7 @@
     (progn
       (setq tick (vl-catch-all-apply 'getvar (list "MILLISECS")))
       (setq *EL:PerfActive* T *EL:PerfCommand* commandname *EL:PerfStarted* (if (numberp tick) tick 0)
-        *EL:PerfMetrics* nil *EL:PerfStages* nil *EL:PerfPending* nil *EL:PerfMarks* nil *EL:StoreReadCache* nil
+        *EL:PerfMetrics* nil *EL:PerfStages* nil *EL:PerfPending* nil *EL:PerfMarks* nil *EL:StoreReadCache* nil *EL:NetworkMemo* nil
         *EL:PerfWaitMS* 0 *EL:PerfWaitDepth* 0 *EL:PerfSerial* 0 *EL:PerfOutcome* nil
         *EL:StoreReadScope* (1+ (cond (*EL:StoreReadScope*) (T 0))))
       (setq stamp (vl-catch-all-apply 'getvar (list "CDATE")))
@@ -113,7 +113,10 @@
           "entity-write-attempts" "entity-write-returned" "master-write-attempts"
           "block-create-attempts" "text-create-attempts" "transaction-starts"
           "transaction-failures" "log-open-attempts" "log-write-attempts" "log-close-attempts" "panel-submits"
-          "store-read-cache-hits" "store-read-cache-misses")
+          "store-read-cache-hits" "store-read-cache-misses"
+          "source-collect-calls" "source-selection-entities" "source-block-bounds-reads"
+          "source-wire-record-reads" "device-contour-reads" "device-template-reuses"
+          "network-build-calls" "network-verified-reuses" "network-geometry-checks")
         (EL:PerfSet key 0)) T)))
 (defun EL:PerfBegin (stage / token wait parent)
   (if *EL:PerfActive*
@@ -158,7 +161,7 @@
   (if (member stage '("USER_INPUT" "PLACEMENT_INPUT" "PANEL_DIALOG")) (EL:FreshBoundary))
   (if (and *EL:PerfActive* (or (member stage
       '("USER_INPUT" "PLACEMENT_INPUT" "PANEL_DIALOG" "RECOGNIZE_FIXED_RUN"
-        "SIMPLE_COLLECT" "SIMPLE_NETWORK" "SPLIT_NETWORK" "PRE_GENERATE_FRESH" "FRESH_SOURCE_SCAN"
+        "SIMPLE_COLLECT" "SIMPLE_NETWORK" "NETWORK_VERIFY_GEOMETRY" "NETWORK_BUILD" "SPLIT_NETWORK" "PRE_GENERATE_FRESH" "FRESH_SOURCE_SCAN"
         "CCKK2" "TX_WRITE" "STORE_READ" "STORE_DECODE" "STORE_CACHE_CHECK" "STORE_SERIALIZE"
         "STORE_PARSE" "STORE_READBACK" "DIAGRAM_VIEW" "DIAGNOSTIC_EXPORT"))
       (and *EL:PerfDetail* (member stage
@@ -231,7 +234,7 @@
       (setq *EL:PerfLastSummary* summary *EL:PerfActive* nil *EL:PerfPending* nil
         *EL:PerfMetrics* nil *EL:PerfStages* nil *EL:PerfMarks* nil *EL:PerfLogOwner* nil *EL:StoreReadCache* nil)
       (vl-catch-all-apply 'EL:PerfReport (list summary))))
-  (setq *EL:StoreReadCache* nil) nil)
+  (setq *EL:StoreReadCache* nil *EL:NetworkMemo* nil) nil)
 (defun c:ELPERF (/ option)
   (if *EL:PerfActive* (princ "\n请结束当前统计或生成后再调整性能采样。")
     (progn

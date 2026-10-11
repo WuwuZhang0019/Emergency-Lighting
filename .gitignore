@@ -18,6 +18,9 @@ config/*.invalid-*
 /output/*-final.log
 /output/startup-no-prompt-validation/
 /output/source-signature-validation/
+/output/cad2020-source-scan-check/
+/output/应急照明-095/
+/output/应急照明-095.zip
 
 config/power-input-*.eld
 

@@ -514,6 +514,7 @@
     outcome))
 (defun EL:Transaction (function args)
   ;; Check the caller's guard before creating a new dynamically scoped guard.
+  (EL:FreshBoundary)
   (if (EL:EnsureTransactionReady) (EL:TransactionGuarded function args)))
 ;; Date: 2026-10-09. CCKK captions share the managed diagram transaction.
 (defun EL:CCKKLabelPlan (kind uid parent origin plan / spec)

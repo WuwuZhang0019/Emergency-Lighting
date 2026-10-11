@@ -23,6 +23,7 @@
     ((not (tblsearch "BLOCK" name))
       (princ (strcat "\n未找到系统图块 " name "，请将该图块拷入当前图纸后重试。")) nil)
     (T
+      (EL:FreshBoundary)
       (setq object (vl-catch-all-apply 'vla-InsertBlock
         (list (vla-get-ModelSpace (vla-get-ActiveDocument (vlax-get-acad-object)))
           (vlax-3d-point '(0.0 0.0 0.0)) name 1.0 1.0 1.0 0.0)))

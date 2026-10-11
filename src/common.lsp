@@ -148,10 +148,15 @@
 (defun EL:PerfUnwind (checkpoint)
   (while (and *EL:PerfPending* (not (equal checkpoint *EL:PerfPending*)))
     (EL:PerfEnd (car *EL:PerfPending*) 'interrupted)) nil)
+(defun EL:FreshBoundary ()
+  ;; Date: 2026-10-11. Input, native commands, writes and unknown callbacks
+  ;; invalidate the current operation's sampled source; never cache a command.
+  (setq *EL:FreshEpoch* (1+ (cond (*EL:FreshEpoch*) (T 0)))) nil)
 (defun EL:PerfCall (stage function arguments / token result)
+  (if (member stage '("USER_INPUT" "PLACEMENT_INPUT")) (EL:FreshBoundary))
   (if (and *EL:PerfActive* (or (member stage
       '("USER_INPUT" "PLACEMENT_INPUT" "PANEL_DIALOG" "RECOGNIZE_FIXED_RUN"
-        "SIMPLE_COLLECT" "SIMPLE_NETWORK" "SPLIT_NETWORK" "PRE_GENERATE_FRESH"
+        "SIMPLE_COLLECT" "SIMPLE_NETWORK" "SPLIT_NETWORK" "PRE_GENERATE_FRESH" "FRESH_SOURCE_SCAN"
         "CCKK2" "TX_WRITE" "STORE_READ" "STORE_DECODE" "STORE_SERIALIZE"
         "STORE_PARSE" "STORE_READBACK" "DIAGRAM_VIEW" "DIAGNOSTIC_EXPORT"))
       (and *EL:PerfDetail* (member stage
@@ -166,6 +171,7 @@
   (EL:PerfCall "USER_INPUT" function arguments))
 (defun EL:PerfWrite (function arguments / result)
   ;; Attempts count the actual interface invocation, including nil/error returns.
+  (EL:FreshBoundary)
   (EL:PerfCount "entity-write-attempts" 1)
   (if *EL:PerfDetail* (EL:PerfCount (strcat "write/" (vl-symbol-name function)) 1))
   (setq result (apply function arguments))

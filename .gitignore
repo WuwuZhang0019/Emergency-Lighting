@@ -13,5 +13,8 @@ config/*.invalid-*
 /output/Emergency-Lighting-CAD*/
 /output/应急照明-*/
 /output/cad2020*-check/
+/output/*-check.log
+/output/*-final.log
+/output/startup-no-prompt-validation/
 
 config/power-input-*.eld

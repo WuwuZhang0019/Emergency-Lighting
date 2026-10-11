@@ -49,7 +49,7 @@ def check():
         assert source == packaged
         wanted.update(definitions(source))
     # The source scanner's exact network/geometry checks remain present in every merged loader.
-    for module in ('simple', 'geometry', 'topology', 'circuit-number'):
+    for module in ('simple', 'geometry', 'topology', 'circuit-number', 'diagram-commands'):
         source = (ROOT / 'src' / f'{module}.lsp').read_text(encoding='utf-8')
         assert source == (PACKAGE / 'src' / f'{module}.lsp').read_bytes().decode('gb2312')
         wanted.update(definitions(source))

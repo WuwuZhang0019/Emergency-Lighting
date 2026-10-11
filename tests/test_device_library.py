@@ -151,6 +151,9 @@ class DeviceLibraryTests(unittest.TestCase):
             'VL-FILENAME-MKTEMP': lambda prefix, folder, ext: str(Path(folder)/(prefix+str(len(list(Path(folder).glob('*'))))+ext)),
             'VL-FILENAME-DIRECTORY': lambda p:str(Path(p).parent),
             'EL:DLOPERATIONID': lambda: 'op-test',
+            'OPEN': lambda p,m: open(p, m, encoding='ascii'),
+            'READ-LINE': lambda f: f.readline().rstrip('\r\n'),
+            'CLOSE': lambda f: f.close(),
             'EL:DLLockAcquire'.upper(): lambda p,o: Path(p).write_text(o) or True,
         })
         return root
@@ -202,6 +205,45 @@ class DeviceLibraryTests(unittest.TestCase):
             root = self.fs(folder)
             Path(folder, '.write-lock').write_text('other-owner')
             self.assertFalse(truth(self.call('EL:DLSnapshotLoad', root)))
+
+    def test_release_reads_ascii_crlf_owner_without_catalog_decoder(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = self.fs(folder)
+            path = root + '.write-lock'
+            Path(path).write_bytes(b'op-test\r\n')
+            self.h.builtins['EL:DLREADTEXT'] = lambda _: self.fail('catalog decoder used for lock')
+            self.assertTrue(truth(self.call('EL:DLLockRelease', path, 'op-test')))
+            self.assertFalse(Path(path).exists())
+
+    def test_release_never_removes_other_owner_or_unreadable_marker(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = self.fs(folder)
+            path = root + '.write-lock'
+            Path(path).write_bytes(b'other-owner\r\n')
+            self.assertFalse(truth(self.call('EL:DLLockRelease', path, 'op-test')))
+            self.h.builtins['OPEN'] = lambda *args: None
+            self.assertFalse(truth(self.call('EL:DLLockRelease', path, 'op-test')))
+            self.assertEqual(Path(path).read_bytes(), b'other-owner\r\n')
+
+    def test_lock_write_failure_closes_stream_before_cleanup(self):
+        events = []
+        def invoke(obj, method, *args):
+            events.append(str(method))
+            if str(method) == 'CREATETEXTFILE': return 'stream'
+            if str(method) == 'WRITELINE': raise RuntimeError('write failed')
+        self.h.builtins.update({'VLAX-CREATE-OBJECT': lambda _: 'fso',
+            'VLAX-INVOKE-METHOD': invoke,
+            'VLAX-RELEASE-OBJECT': lambda obj: events.append('release-' + obj),
+            'VL-FILE-DELETE': lambda _: events.append('delete') or True})
+        self.assertFalse(truth(self.call('EL:DLLockAcquire', 'owned.lock', 'op-test')))
+        self.assertEqual(events, ['CREATETEXTFILE', 'WRITELINE', 'CLOSE', 'release-stream', 'release-fso', 'delete'])
+
+    def test_failed_lock_claim_never_deletes_existing_marker(self):
+        def denied(*args): raise RuntimeError('already exists')
+        self.h.builtins.update({'VLAX-CREATE-OBJECT': lambda _: 'fso',
+            'VLAX-INVOKE-METHOD': denied, 'VLAX-RELEASE-OBJECT': lambda _: None,
+            'VL-FILE-DELETE': lambda _: self.fail('deleted someone else lock')})
+        self.assertFalse(truth(self.call('EL:DLLockAcquire', 'other.lock', 'op-test')))
 
 
 if __name__ == '__main__':

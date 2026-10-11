@@ -780,7 +780,7 @@
   (if (not (EL:Get 'capacity-source *EL:PanelDraft*))
     (setq *EL:PanelDraft* (EL:Put 'capacity-source 'default *EL:PanelDraft*)))
   (if (assoc 'block-ground *EL:PanelDraft*) (EL:PanelBlockGroundApply))
-  (EL:ThumbPrepare result)
+  (if *EL:DLPanelPosition* (EL:ThumbRefresh result) (EL:ThumbPrepare result))
   (if *EL:DLPanelPosition*
     (progn
       (setq *EL:PanelIndex* (max 0 (min (EL:Get 'index *EL:DLPanelPosition*)
@@ -806,7 +806,7 @@
         (action_tile "f_prev" "(EL:PanelBlockPage -8)")
         (action_tile "f_next" "(EL:PanelBlockPage 8)")
         (action_tile "b_restore" "(EL:PanelBlockRestore)")
-        (action_tile "b_library" "(if (EL:PanelStore) (done_dialog 11))")
+        (action_tile "b_library" "(EL:DLPanelOpen)")
         (action_tile "b_apply_library" "(EL:DLPanelApply)")
         (repeat 8
           (setq key (itoa i))
@@ -848,7 +848,7 @@
           (progn (EL:AllCircuitColorPreview *EL:PanelDraft*) (setq status 3)))
         (if (member status '(4 7)) (setq status 3)))
       (setq status 0)))
-  (EL:ThumbCleanup)
+  (if (/= status 11) (EL:ThumbCleanup))
   (if (> dialog 0) (unload_dialog dialog)) (setq *EL:DialogID* nil)
   (if (= status 11) (list (cons 'library-panel (list (cons 'result *EL:PanelDraft*) (cons 'powers *EL:PanelPowers*)
     (cons 'config *EL:PanelConfig*) (cons 'capacity *EL:PanelCapacity*)

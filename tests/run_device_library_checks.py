@@ -36,7 +36,7 @@ def run():
     evidence = {
         'date': '2026-10-11', 'status': 'automated_passed' if result.wasSuccessful() else 'automated_failed',
         'package': PACKAGE_NO, 'native_cad_status': 'pending_user_validation',
-        'scope': 'native-format SLD validation, incomplete-draft legends, actual-source preview fallback and modal reuse; device catalog, CRUD, save/update, source freshness and network reuse regressions',
+        'scope': 'lock ownership and failure cleanup, blocked library button and success/failure navigation preview reuse; device catalog, CRUD, save/update, source freshness and network reuse regressions',
         'test_count': result.testsRun, 'failure_count': len(result.failures), 'error_count': len(result.errors),
         'tests': sorted(result.records, key=lambda row: row['test']),
         'sha256': {path.relative_to(ROOT).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest() for path in files},

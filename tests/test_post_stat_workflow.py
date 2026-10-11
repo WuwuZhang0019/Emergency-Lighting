@@ -128,6 +128,56 @@ class PostStatWorkflowTests(unittest.TestCase):
         self.assertFalse(truth(self.h.lookup('*EL:DLPANELPOSITION*')))
         self.assertEqual(self.writes,[])
 
+    def test_locked_library_button_keeps_live_dialog_draft_and_preview(self):
+        captures = []
+        self.h.builtins['EL:THUMBCAPTURE'] = lambda block: captures.append(block)
+        self.h.builtins['EL:DLROOT'] = lambda: 'library/'
+        self.h.builtins['VL-STRING-RIGHT-TRIM'] = lambda chars, text: text.rstrip(chars)
+        self.h.builtins['FINDFILE'] = lambda path: path if path == 'library/.write-lock' else None
+        self.h.builtins['ALERT'] = lambda _: self.fail('blocking alert on library button')
+        def action():
+            self.h.set('*EL:PANELINDEX*', 1)
+            before = len(captures)
+            self.call('EL:DLPanelOpen')
+            self.assertIsNone(self.closed)
+            self.assertEqual(self.h.lookup('*EL:PANELINDEX*'), 1)
+            self.assertEqual(len(captures), before)
+            self.assertIn('占用文件', self.tiles['p_error'])
+            self.done(0)
+        self.actions = [action]
+        self.dialog()
+        self.assertEqual(self.dialogs, ['el_panel'])
+        self.assertEqual(self.writes, [])
+
+    def test_library_roundtrip_reuses_previews_and_prepared_draft_on_success_or_error(self):
+        for outcome in ('closed', 'failed', 'error'):
+            with self.subTest(outcome=outcome):
+                self.setUp()
+                captures, preparations = [], []
+                original = self.h.functions['EL:PREPAREDRESULT']
+                def prepare(*args):
+                    preparations.append(True)
+                    return self.h.call([Symbol('LAMBDA'), original[0], *original[1]], list(args))
+                def library():
+                    if outcome == 'error': raise RuntimeError('library failed')
+                    return True if outcome == 'closed' else None
+                self.h.builtins.update({'EL:THUMBCAPTURE': lambda block: captures.append(block),
+                    'EL:PREPAREDRESULT': prepare, 'EL:DLUIOPEN': library})
+                count = []
+                def opening():
+                    self.h.set('*EL:PANELINDEX*', 1)
+                    count.append(len(captures))
+                    self.done(11)
+                def resumed():
+                    self.assertEqual(len(captures), count[0])
+                    self.assertEqual(len(preparations), 1)
+                    self.assertEqual(self.h.lookup('*EL:PANELINDEX*'), 1)
+                    self.done(0)
+                self.actions = [opening, resumed]
+                self.call('EL:EditPanel', self.result, self.cfg)
+                self.assertEqual(self.writes, [])
+                self.assertFalse(truth(self.h.lookup('*EL:THUMBSOURCES*')))
+
     def test_generate_callback_intent_survives_generic_accept_return(self):
         self.h.builtins['EL:TEMPLATEREADY'] = lambda *args: True
         self.actions = [lambda: (self.call('EL:PanelGenerate'), self.done(1))]

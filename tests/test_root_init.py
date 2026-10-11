@@ -17,7 +17,7 @@ from autolisp_host import Host, Pair, Symbol, parse, quoted, truth
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 CHECK_ROOT = ROOT / 'output' / 'cad2020-root-check'
-MODULES = ('common', 'config', 'geometry', 'topology', 'statistics', 'generation', 'main', 'simple', 'fixed', 'panel', 'store-compact', 'diagram-store', 'diagram-update', 'diagram-commands')
+MODULES = ('common', 'config', 'geometry', 'topology', 'statistics', 'generation', 'main', 'simple', 'circuit-number', 'fixed', 'panel', 'store-compact', 'diagram-store', 'diagram-update', 'diagram-commands')
 
 
 def lisp_data(value):
@@ -134,6 +134,11 @@ class RootFixture(unittest.TestCase):
 
 
 class RootInitTests(RootFixture):
+    def test_missing_circuit_number_module_rejects_incomplete_root(self):
+        self.assertTrue(truth(self.h.call(Symbol('EL:ROOTVALID'), [self.root])))
+        (self.package / 'src/circuit-number.lsp').unlink()
+        self.assertFalse(truth(self.h.call(Symbol('EL:ROOTVALID'), [self.root])))
+
     def test_missing_post_stat_ui_marker_rejects_old_dialog(self):
         (self.package / 'ui/diagram-ui-044.marker').unlink()
         self.assertFalse(truth(self.h.call(Symbol('EL:ROOTVALID'), [self.root])))

@@ -6,6 +6,7 @@ from autolisp_host import Host, Pair, Symbol, cons, parse, quoted, truth
 import test_simple_flow as simple
 import test_diagram_update as update
 import test_cckk_panel_command as command_fixture
+import test_post_stat_workflow as workflow
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -122,6 +123,15 @@ class NumberScopeTests(unittest.TestCase):
         self.f.selected += ['early']
         self.assertEqual(self.get('sources', self.scope('before')), ['before'])
 
+    def test_interior_crossing_does_not_extend_number_scope(self):
+        self.f.plan()
+        self.f.line('cross', [3., -10., 0.], [3., 10., 0.], 'W')
+        self.f.block('LAMP', 'D', 'cross-device', [3., 11., 0.])
+        self.f.selected += ['cross', 'cross-device']
+        network = self.f.network()
+        self.assertNotIn('cross', self.get('sources', self.scope(network=network)))
+        self.assertNotIn('cross-device', self.get('boundaries', self.scope(network=network)))
+
     def test_missing_root_direction_is_an_explicit_problem(self):
         self.f.plan()
         self.f.line('w1', [-5., 0., 0.], [9., 0., 0.], 'W')
@@ -223,6 +233,21 @@ class NumberAllocationTests(unittest.TestCase):
         result = self.call('EL:ResolveCircuitNumbers', [pair('circuits', rows)])
         self.assertEqual(self.reads, ['H1'])
         self.assertTrue(all(self.get('number-status', c) == Symbol('PATH-AMBIGUOUS') for c in self.get('circuits', result)))
+
+    def test_multiple_scope_wires_merge_same_number_and_report_different_numbers(self):
+        rows = self.circuits(['ZE1', 'ze1'])
+        c = self.call('EL:Put', Symbol('NUMBER-SCOPE'),
+                      [pair('status', Symbol('READY')), pair('sources', ['H1', 'H2'])], rows[0])
+        result = self.call('EL:ResolveCircuitNumbers', [pair('circuits', [c])])
+        self.assertTrue(truth(self.call('EL:CircuitNumbersReady', result)))
+        self.assertEqual(self.get('circuit-number', self.get('circuits', result)[0]), 'ZE1')
+        self.assertEqual(len(self.get('inputs', self.get('number-evidence', self.get('circuits', result)[0]))), 2)
+        self.data['H2'] = [[-3, ['linenum', Pair(1000, 'ZE2')]]]
+        result = self.call('EL:ResolveCircuitNumbers', [pair('circuits', [c])])
+        current = self.get('circuits', result)[0]
+        self.assertEqual(self.get('number-status', current), Symbol('CONFLICT'))
+        self.assertIsNone(self.get('circuit-number', current))
+        self.assertEqual(self.get('candidates', self.get('number-evidence', current)), ['ZE1', 'ZE2'])
 
     def test_saved_order_and_uid_are_restored_before_allocation(self):
         self.h.load_definitions(ROOT / 'src/panel.lsp')
@@ -438,11 +463,15 @@ class NumberPersistenceTests(unittest.TestCase):
         return self.h.run('(EL:DiagramForPanel "source" (EL:StoreRead))')
 
     def test_formal_fields_exact_readback_noop_and_plane_is_readonly(self):
+        long_number = '应急照明-ALE(JZ)-' + 'A' * 200
+        self.stamp('H1', long_number)
+        self.refresh()
         plane = copy.deepcopy({h: self.f.entities[h] for h in ('H1', 'H2')})
         self.assertTrue(truth(self.sync()))
         record = self.saved()
         actual = self.get('rows', record)[:2]
-        self.assertEqual([self.get('circuit-number', c) for c in actual], ['WL7', 'ZE3'])
+        self.assertEqual([self.get('circuit-number', c) for c in actual], [long_number, 'ZE3'])
+        self.assertEqual(next(p.cdr for p in self.f.entities['caption-number/u1'] if isinstance(p, Pair) and p.car == 1), long_number)
         self.assertEqual([self.get('number-source', c) for c in actual], [Symbol('PLANE')] * 2)
         self.assertEqual(self.get('number-inputs', record), self.get('number-inputs', self.result))
         before = copy.deepcopy(self.f.entities)
@@ -495,6 +524,166 @@ class NumberPersistenceTests(unittest.TestCase):
         self.h.builtins['VLA-SETXRECORDDATA'] = corrupt
         self.assertFalse(truth(self.sync()))
         self.assertEqual(before, (self.f.entities, self.f.dictionary, self.f.dynamic))
+
+    def test_source_renumbered_by_update_callback_cannot_commit_old_review(self):
+        self.assertTrue(truth(self.sync()))
+        old = self.saved()
+        self.stamp('H1', 'WL8')
+        self.refresh()
+        graphics = copy.deepcopy({h: data for h, data in self.f.entities.items()
+                                  if not any(isinstance(p, Pair) and p == Pair(0, 'XRECORD') for p in data)})
+        original = self.h.builtins['VLA-PUT-TEXTSTRING']
+        def callback(entity, text):
+            original(entity, text)
+            if entity == 'caption-number/u1':
+                self.stamp('H1', 'WL9')
+        self.h.builtins['VLA-PUT-TEXTSTRING'] = callback
+        self.assertFalse(truth(self.sync()))
+        self.assertEqual(graphics, {h: data for h, data in self.f.entities.items()
+                                   if not any(isinstance(p, Pair) and p == Pair(0, 'XRECORD') for p in data)})
+        self.assertEqual(self.get('rows', self.saved()), self.get('rows', old))
+        self.assertEqual(self.get('status', self.saved()), Symbol('STALE'))
+
+
+class NumberWorkflowTests(unittest.TestCase):
+    call = NumberReadTests.call
+    get = NumberReadTests.get
+
+    def setUp(self):
+        self.f = workflow.PostStatWorkflowTests()
+        self.f.setUp()
+        self.addCleanup(self.f.doCleanups)
+        self.h = self.f.h
+
+    def five_exits(self, marked=True):
+        f = self.f
+        f.block('BOX', 'P', 'panel', [0., 0., 0.])
+        f.entities['panel'] += [Pair(41, 100.), Pair(42, 100.)]
+        f.bounds['panel'] = [[-100., -100., 0.], [100., 100., 0.]]
+        f.selected = ['panel']
+        for i, y in enumerate((-80., -40., 0., 40., 80.), 1):
+            f.block('LAMP', 'D', f'lamp{i}', [1000., y, 0.])
+            f.line(f'w{i}', [100., y, 0.], [999., y, 0.], 'W')
+            if marked:
+                f.entities[f'w{i}'].append([-3, ['linenum', Pair(1000, f'ZE{6-i}')]])
+            f.selected += [f'lamp{i}', f'w{i}']
+        self.seen = []
+
+    def capture_panel(self):
+        self.seen.append(copy.deepcopy(self.h.lookup('*EL:PANELDRAFT*')))
+        self.f.done(0)
+
+    def test_actual_elstat_pick_five_plane_numbers_reach_panel_and_plan(self):
+        self.five_exits()
+        self.f.actions = [lambda: self.f.done(9), self.capture_panel]
+        self.h.run('(c:ELSTAT)')
+        self.assertEqual(self.f.dialogs, ['el_panel', 'el_panel'])
+        result = self.seen[0]
+        circuits = self.get('circuits', result)
+        self.assertEqual(len(circuits), 5)
+        for index, c in enumerate(circuits):
+            source = self.get('sources', self.get('number-scope', c))
+            self.assertEqual(len(source), 1)
+            expected = 'ZE' + str(6-int(source[0][1:]))
+            self.assertEqual(self.get('circuit-number', c), expected)
+            self.assertTrue(self.f.tiles[f'p_row{index}'].startswith(expected + ' | '))
+            self.assertEqual(self.get('devices', c), ['lamp' + source[0][1:]])
+        update.UpdateTests.generation_fixture(self.f)
+        self.h.run('''(setq template (EL:Put 'panel (EL:Put 'name "dfgjhdrtyjtfgj4SADFG3" (EL:Get 'panel template))
+          (EL:Put 'circuit (EL:Put 'name "fghjftyuk" (EL:Get 'circuit template)) template)))''')
+        result = self.call('EL:PanelCompute', result, self.f.powers, self.f.cfg)
+        self.assertTrue(truth(self.get('can-generate', result)))
+        plan = self.call('EL:FixedPlan', result, self.h.lookup('TEMPLATE'), Symbol('CAP300'), [0., 0., 0.], 0., 1.)
+        labels = self.call('EL:CCKKLabels', plan)
+        actual = [self.get('text', label) for label in labels if self.get('kind', label) == Symbol('NUMBER')][:5]
+        self.assertEqual(actual, [self.get('circuit-number', c) for c in circuits])
+        self.assertEqual(self.f.writes, [])
+
+    def test_actual_pick_without_plane_numbers_keeps_original_order_defaults(self):
+        self.five_exits(marked=False)
+        self.f.actions = [self.capture_panel]
+        self.call('EL:FixedStatPick')
+        circuits = self.get('circuits', self.seen[0])
+        self.assertEqual([self.get('circuit-number', c) for c in circuits], [f'ZE{i}' for i in range(1, 6)])
+        self.assertEqual([self.get('number-source', c) for c in circuits], [Symbol('AUTO')] * 5)
+        self.assertEqual(len(self.get('number-inputs', self.seen[0])), 5)
+        self.assertEqual(self.f.writes, [])
+
+    def test_elupdate_rereads_current_plane_number_before_opening_panel(self):
+        self.five_exits()
+        old = self.call('EL:PreparedResult', self.call('EL:RecognizeFixed', self.f.cfg, 'panel'),
+                        [pair('diagram-id', 'd1')])
+        record = [pair('diagram-id', 'd1'), pair('source-panel-handle', 'panel'),
+                  pair('panel-output-handle', 'systembox'), pair('engine', Symbol('FIXED')),
+                  pair('config', self.f.cfg), pair('rows', self.get('circuits', old))]
+        store = self.call('EL:StorePutDiagram', record, self.call('EL:StoreInitial'))
+        self.f.entities['systembox'] = [Pair(0, 'INSERT'), Pair(5, 'systembox'), Pair(410, 'Model')]
+        tag = [Pair(1000, self.get('drawing-uuid', store)), Pair(1000, 'd1'), Pair(1000, 'panel'),
+               Pair(1000, 'panel'), Pair(1000, 'systembox')]
+        stale = []  # Cancellation tracking is separate from current-number extraction.
+        self.h.builtins.update({'EL:PICKENTITY': lambda *args: ['systembox', [0., 0., 0.]],
+                               'EL:DIAGRAMTAG': lambda entity: tag if entity == 'systembox' else None,
+                               'EL:STOREREAD': lambda: store,
+                               'EL:MARKSTALE': lambda *args: stale.append(args)})
+        self.f.entities['w1'][-1] = [-3, ['linenum', Pair(1000, 'ALE-ZE99')]]
+        self.f.actions = [self.capture_panel]
+        self.h.run('(c:ELUPDATE)')
+        current = self.get('circuits', self.seen[0])
+        original = {tuple(self.get('seed-key', c)): self.get('circuit-uid', c) for c in self.get('circuits', old)}
+        self.assertEqual({tuple(self.get('seed-key', c)): self.get('circuit-uid', c) for c in current}, original)
+        changed = next(c for c in current if self.get('sources', self.get('number-scope', c)) == ['w1'])
+        self.assertEqual(self.get('circuit-number', changed), 'ALE-ZE99')
+        self.assertEqual(self.f.writes, [])
+        self.assertEqual(stale, [('panel', Symbol('REVIEW-CANCELLED'))])
+
+    def test_number_change_during_native_placement_aborts_and_rolls_back(self):
+        f = command_fixture.PanelCommandTests()
+        f.setUp()
+        f.h.builtins.pop('EL:FRESHRESULT')
+        f.h.load_definitions(ROOT / 'src/simple.lsp')
+        f.entities['H1'] = [Pair(0, 'LINE'), Pair(5, 'H1'), Pair(410, 'Model'),
+                            [-3, ['linenum', Pair(1000, 'WL7')]]]
+        f.h.run('''(setq cfg (EL:Put 'drawing "fixture" cfg)
+          snapshot (EL:CircuitSnapshot '((drawing . "fixture") (wires)) "source"))
+          (setq result (EL:Put 'snapshot snapshot (EL:Put 'drawing "fixture"
+            (EL:Put 'rules (EL:RecognitionRules cfg) (EL:Put 'engine 'fixed result)))))
+          (setq c (car (EL:Get 'circuits result)))
+          (setq result (EL:Put 'circuits (list (EL:Put 'ground-source 'manual
+            (EL:Put 'number-scope '((status . ready) (sources "H1")) c))) result))
+          (setq result (EL:PreparedResult result record))''')
+        f.h.builtins['EL:FIXEDFRESHSNAPSHOT'] = lambda *args: f.h.lookup('SNAPSHOT')
+        self.assertTrue(truth(f.call('EL:FreshResult', f.h.lookup('RESULT'), f.h.lookup('CFG'))))
+        original = f.h.builtins['COMMAND']
+        events = []
+        f.h.builtins['EL:LOGEVENT'] = lambda name, data: events.append((name, data))
+        plane = copy.deepcopy(f.entities['H1'])
+        def command(*args):
+            original(*args)
+            f.entities['H1'][-1] = [-3, ['linenum', Pair(1000, 'WL8')]]
+        f.h.builtins['COMMAND'] = command
+        self.assertFalse(truth(f.invoke()))
+        self.assertEqual(len(f.commands), 1)  # Stop after the box placement, before circuit output.
+        self.assertFalse(any(e.startswith('native-') for e in f.entities))
+        self.assertEqual(f.entities['H1'], plane)
+        self.assertFalse(truth(f.h.lookup('*EL:TRANSACTIONOPEN*')))
+        self.assertTrue(any(name == 'SOURCE_NUMBER_CHANGED' for name, _ in events))
+
+    def test_diagnostics_and_counters_are_bounded_to_first_segment_sources(self):
+        self.five_exits()
+        events = []
+        self.h.builtins['EL:LOGEVENT'] = lambda name, data: events.append((name, data))
+        self.call('EL:PerfStart', 'NUMBER_CHECK')
+        result = self.call('EL:PreparedResult', self.call('EL:RecognizeFixed', self.f.cfg, 'panel'),
+                           [pair('diagram-id', 'd1')])
+        metrics = self.h.lookup('*EL:PERFMETRICS*')
+        self.assertEqual(self.call('EL:Get', 'number-scopes', metrics), 5)
+        self.assertEqual(self.call('EL:Get', 'number-source-handles', metrics), 5)
+        self.assertEqual(self.call('EL:Get', 'number-source-read-attempts', metrics), 5)
+        self.assertEqual(self.call('EL:Get', 'number-problems', metrics), 0)
+        numbered = [(name, data) for name, data in events if name.startswith('CIRCUIT_NUMBER_')]
+        self.assertEqual(len(numbered), 15)
+        self.assertTrue(all(len(update.db.dump(data)) < 1000 for _, data in numbered))
+        self.assertEqual(self.get('status', self.get('number-scope', self.get('circuits', result)[0])), Symbol('READY'))
 
 if __name__ == '__main__':
     unittest.main()

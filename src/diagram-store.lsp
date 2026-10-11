@@ -958,4 +958,6 @@
       (vla-Regen doc 1)
       ;; Date: 2026-10-10. The placement click accepts the diagram.
       (EL:Require (EL:FreshResult result (EL:Get 'config record)) "SOURCE_CHANGED：预览后源图变化。")))
+  ;; Date: 2026-10-11. Also cover creation without an interactive preview.
+  (EL:Require (EL:NumberInputsCurrent result) "SOURCE_NUMBER_CHANGED：生成期间平面编号变化，已停止本次生成。")
   (EL:StoreWrite (EL:StorePutDiagram record store)) record)

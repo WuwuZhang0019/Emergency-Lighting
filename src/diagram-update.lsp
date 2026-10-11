@@ -300,6 +300,8 @@
   (setq record (EL:SyncCCKKLabels plan record store structural))
   (setq record (EL:Put 'plan plan record))
   (EL:VerifyUpdate result template plan record store structural changes)
+  ;; Date: 2026-10-11. Native property writes can run source-editing callbacks.
+  (EL:Require (EL:NumberInputsCurrent result) "SOURCE_NUMBER_CHANGED：更新期间平面编号变化，已停止本次更新。")
   (if (or (EL:Get 'operations changes) (EL:Get 'record-changed changes))
     (EL:StoreWrite (EL:StorePutDiagram record store))) record)
 (defun EL:MarkStale (panel reason / store record)

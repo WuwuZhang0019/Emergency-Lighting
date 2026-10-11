@@ -1,4 +1,4 @@
-"""Post-statistics setup and explicit selection gates. Date: 2026-10-10.
+"""Post-statistics setup and explicit selection gates. Date: 2026-10-11.
 
 Runs actual command/dialog functions with finite CAD/DCL adapters.
 """
@@ -27,6 +27,19 @@ class PostStatWorkflowTests(unittest.TestCase):
         record = self.call('EL:NewRecord', 'panel', self.call('EL:StoreInitial'))
         self.result = self.call('EL:PreparedResult', self.result, record)
         self.powers = self.h.run("'((\"LAMP\" . 5))")
+        # Generation workflow fixture has a registered non-ground lamp.
+        # Empty/unknown-library generation is covered separately in device recognition checks.
+        catalog=self.call('EL:DLCatalogInitial','LIB-WORKFLOW')
+        entry=self.call('EL:DLEntryNew',catalog,'LAMP')
+        values={'display':'Lamp','watts':5,'ground-confirmed':True,'active':True,'status':Symbol('READY'),
+                'asset-revision':1,'block-file':'assets/ELDEV1/1/block.dwg',
+                'legend-file':'assets/ELDEV1/1/legend.sld','legend-size':[800,600],'legend-checksum':'sld-123-31'}
+        for key,value in values.items():entry=self.call('EL:Put',Symbol(key.upper()),value,entry)
+        catalog=self.call('EL:DLUpsert',catalog,entry)
+        snapshot=self.h.run("'((root . \"library-fixture/\") (present))")
+        snapshot=self.call('EL:Put',Symbol('CATALOG'),catalog,self.call('EL:Put',Symbol('INDEX'),self.call('EL:DLIndex',catalog),snapshot))
+        self.h.builtins['EL:DLSNAPSHOT']=lambda:snapshot
+        self.h.builtins['EL:DLREMEMBERINPUTS']=lambda *args:True
 
     def done(self, status):
         self.closed = status
@@ -95,6 +108,25 @@ class PostStatWorkflowTests(unittest.TestCase):
         self.assertEqual(self.get('capacity',edited),Symbol('CAP300'))
         self.assertEqual(self.get('capacity-source',self.get('result',edited)),Symbol('DEFAULT'))
         self.assertTrue(truth(self.get('generate',edited)))
+
+    def test_library_navigation_preserves_current_circuit_and_does_not_generate(self):
+        def action():
+            self.h.set('*EL:PANELINDEX*',1)
+            self.done(11)
+        self.actions=[action]
+        context=self.get('library-panel',self.dialog())
+        self.assertEqual(self.get('index',self.get('position',context)),1)
+        self.assertEqual(self.get('powers',context),self.powers)
+        self.assertFalse(truth(self.get('generate',context)))
+        self.assertEqual(self.writes,[])
+        self.h.set('*EL:DLPANELPOSITION*',self.get('position',context))
+        def resumed():
+            self.assertEqual(self.h.lookup('*EL:PANELINDEX*'),1)
+            self.done(0)
+        self.actions=[resumed]
+        self.dialog()
+        self.assertFalse(truth(self.h.lookup('*EL:DLPANELPOSITION*')))
+        self.assertEqual(self.writes,[])
 
     def test_generate_callback_intent_survives_generic_accept_return(self):
         self.h.builtins['EL:TEMPLATEREADY'] = lambda *args: True

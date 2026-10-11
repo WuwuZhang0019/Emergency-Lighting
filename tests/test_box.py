@@ -1,4 +1,4 @@
-"""Whole-box incremental regressions. Date: 2026-10-08. No real CAD acceptance."""
+"""Whole-box incremental regressions. Date: 2026-10-11. No real CAD acceptance."""
 import unittest
 from autolisp_host import Symbol, Pair, truth
 import test_cad_adapter as adapter
@@ -256,7 +256,7 @@ class BoxTests(unittest.TestCase):
         self.assertEqual(len(self.get('wires', snap)), 2)
 
     def test_source_change_during_role_review_saves_nothing(self):
-        for module in ('statistics', 'main'):
+        for module in ('statistics', 'main', 'diagram-update'):
             self.h.load_definitions(ROOT / 'src' / f'{module}.lsp')
         self.block('BOX', 'P', 'panel', [0., 0., 0.])
         self.block('LAMP', 'D', 'lamp', [12., 0., 0.])

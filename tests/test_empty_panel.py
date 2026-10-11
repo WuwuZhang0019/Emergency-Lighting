@@ -68,6 +68,8 @@ class EmptyPanelTests(unittest.TestCase):
                 self.assertEqual(self.modes['h_open'], 1)
                 self.assertEqual(self.modes['accept'], 1)
                 self.assertEqual(self.modes['p_generate'], 1)
+                self.assertEqual(self.modes['b_library'], 1)
+                self.assertEqual(self.modes['b_apply_library'], 1)
                 self.assertEqual(self.modes['p_pick'], 0)
                 self.assertEqual(self.modes['p_trunk'], 0)
                 self.assertEqual(self.writes, [])

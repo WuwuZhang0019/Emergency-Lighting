@@ -251,6 +251,7 @@ class NumberAllocationTests(unittest.TestCase):
 
     def test_saved_order_and_uid_are_restored_before_allocation(self):
         self.h.load_definitions(ROOT / 'src/panel.lsp')
+        self.h.load_definitions(ROOT / 'src/device-recognition.lsp')
         self.h.load_definitions(ROOT / 'src/diagram-update.lsp')
         rows = self.circuits(['ZE3', None])
         saved = [[pair('seed-key', self.get('key', self.get('seed', rows[0]))), pair('circuit-uid', 'old-u1'), pair('output-order', 2)],

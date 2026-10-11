@@ -53,12 +53,23 @@ class PanelTests(unittest.TestCase):
             steps.append('panel'); prompts.append(prompt); return next(picks)
         def number(prompt): steps.append('number'); return None
         self.h.builtins['NENTSEL']=number
+        catalog=self.call('EL:DLCatalogInitial','LIB-PANEL')
+        entry=self.call('EL:DLEntryNew',catalog,'LAMP')
+        values={'display':'Lamp','watts':5,'ground-confirmed':True,'active':True,'status':Symbol('READY'),
+                'asset-revision':1,'block-file':'assets/ELDEV1/1/block.dwg',
+                'legend-file':'assets/ELDEV1/1/legend.sld','legend-size':[800,600],'legend-checksum':'sld-123-31'}
+        for key,value in values.items(): entry=self.call('EL:Put',Symbol(key.upper()),value,entry)
+        catalog=self.call('EL:DLUpsert',catalog,entry)
+        snapshot=self.call('EL:Put',Symbol('ROOT'),'library-fixture/',
+          self.call('EL:Put',Symbol('CATALOG'),catalog,
+            self.call('EL:Put',Symbol('INDEX'),self.call('EL:DLIndex',catalog),None)))
         self.h.builtins.update({'EL:ENSUREROOT':lambda:True,'EL:PICKMODEL':pick,
           'EL:LOADCONFIG':lambda:self.cfg,'HANDENT':lambda e:e if e in self.entities else None,
+          'EL:DLSNAPSHOT':lambda:snapshot,
           'EL:SIMPLELOADPOWERS':lambda:self.call('EL:Put',Symbol('VERSION'),1,self.call('EL:Put',Symbol('POWERS'),self.call('EL:Put','LAMP',5,None),None)),
           'GETVAR':lambda key:{'FINGERPRINTGUID':'guid','CDATE':20261009.12,'MILLISECS':100}.get(key),
           'EL:REVIEWFIXEDEXITS':lambda result,record:result,
-          'EL:PANELDIALOG':lambda result,cfg,powers,cap:panels.append(result) and None,
+          'EL:PANELDIALOG':lambda result,cfg,powers,cap:panels.append(self.call('EL:PanelCompute',result,powers,cfg)) and None,
           'EL:CLEARPICKHIGHLIGHTS':lambda:None})
         self.h.run('(EL:FixedStatPick)')
         self.assertEqual(steps,['panel','number'])

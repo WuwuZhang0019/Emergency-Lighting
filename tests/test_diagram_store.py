@@ -31,7 +31,7 @@ def install_bounded_read(host, limit=256):
 class StoreTests(unittest.TestCase):
     def setUp(self):
         self.h=Host()
-        for name in ('common','circuit-number','store-compact','diagram-store','diagram-update'):
+        for name in ('common','config','device-library','device-recognition','device-inputs','circuit-number','store-compact','diagram-store','diagram-update'):
             self.h.load_definitions(ROOT/'src'/f'{name}.lsp')
         self.entities={}; self.dictionary={}; self.xrecord_id=0
         def create(data):

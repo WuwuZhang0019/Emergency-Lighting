@@ -1,4 +1,4 @@
-"""Fixed entry, real panel fill and missing system-variable regressions. Date: 2026-10-10.
+"""Fixed entry, real panel fill and missing system-variable regressions. Date: 2026-10-11.
 
 Finite CAD/DCL adapters only; native AutoCAD acceptance remains pending.
 """
@@ -24,6 +24,8 @@ class FixedDiagnosticTests(unittest.TestCase):
         for name in ('generation', 'fixed', 'diagram-update', 'diagram-commands', 'insert-circuit'):
             self.h.load_definitions(adapter.ROOT / 'src' / f'{name}.lsp')
         self.plan()
+        self.h.builtins['EL:DLSNAPSHOT'] = lambda: self.h.run(
+            "'((root . \"library-fixture/\") (catalog (schema . EL_DEVICE_LIBRARY_V1) (library-id . \"LIB-FIXTURE\") (revision . 0) (next-id . 1) (devices)) (index) (present))")
         self.tiles, self.dialogs, self.writes, self.variables = {}, [], [], []
         picks = iter([['panel', [0., 0., 0.]], ['w1', [1., 0., 0.]]])
 

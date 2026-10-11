@@ -161,55 +161,80 @@ el_panel : dialog {
         : text { label = "排除"; width = 4; fixed_width = true; }
       }
       : boxed_row { fixed_height = true;
-        : image_button { key = "f_image0"; width = 18; height = 2.6; fixed_width = true; fixed_height = true; color = 0; }
+        : column { fixed_height = true;
+          : text { key = "b_label0"; width = 18; fixed_width = true; height = 1; fixed_height = true; }
+          : image_button { key = "f_image0"; width = 18; height = 1.6; fixed_width = true; fixed_height = true; color = 0; }
+        }
         : edit_box { key = "b_watts0"; width = 12; fixed_width = true; edit_width = 7; allow_accept = false; }
         : toggle { key = "b_ground0"; label = "是"; width = 7; fixed_width = true; }
         : button { key = "b_remove0"; label = "×"; width = 4; fixed_width = true; }
       }
       : boxed_row { fixed_height = true;
-        : image_button { key = "f_image1"; width = 18; height = 2.6; fixed_width = true; fixed_height = true; color = 0; }
+        : column { fixed_height = true;
+          : text { key = "b_label1"; width = 18; fixed_width = true; height = 1; fixed_height = true; }
+          : image_button { key = "f_image1"; width = 18; height = 1.6; fixed_width = true; fixed_height = true; color = 0; }
+        }
         : edit_box { key = "b_watts1"; width = 12; fixed_width = true; edit_width = 7; allow_accept = false; }
         : toggle { key = "b_ground1"; label = "是"; width = 7; fixed_width = true; }
         : button { key = "b_remove1"; label = "×"; width = 4; fixed_width = true; }
       }
       : boxed_row { fixed_height = true;
-        : image_button { key = "f_image2"; width = 18; height = 2.6; fixed_width = true; fixed_height = true; color = 0; }
+        : column { fixed_height = true;
+          : text { key = "b_label2"; width = 18; fixed_width = true; height = 1; fixed_height = true; }
+          : image_button { key = "f_image2"; width = 18; height = 1.6; fixed_width = true; fixed_height = true; color = 0; }
+        }
         : edit_box { key = "b_watts2"; width = 12; fixed_width = true; edit_width = 7; allow_accept = false; }
         : toggle { key = "b_ground2"; label = "是"; width = 7; fixed_width = true; }
         : button { key = "b_remove2"; label = "×"; width = 4; fixed_width = true; }
       }
       : boxed_row { fixed_height = true;
-        : image_button { key = "f_image3"; width = 18; height = 2.6; fixed_width = true; fixed_height = true; color = 0; }
+        : column { fixed_height = true;
+          : text { key = "b_label3"; width = 18; fixed_width = true; height = 1; fixed_height = true; }
+          : image_button { key = "f_image3"; width = 18; height = 1.6; fixed_width = true; fixed_height = true; color = 0; }
+        }
         : edit_box { key = "b_watts3"; width = 12; fixed_width = true; edit_width = 7; allow_accept = false; }
         : toggle { key = "b_ground3"; label = "是"; width = 7; fixed_width = true; }
         : button { key = "b_remove3"; label = "×"; width = 4; fixed_width = true; }
       }
       : boxed_row { fixed_height = true;
-        : image_button { key = "f_image4"; width = 18; height = 2.6; fixed_width = true; fixed_height = true; color = 0; }
+        : column { fixed_height = true;
+          : text { key = "b_label4"; width = 18; fixed_width = true; height = 1; fixed_height = true; }
+          : image_button { key = "f_image4"; width = 18; height = 1.6; fixed_width = true; fixed_height = true; color = 0; }
+        }
         : edit_box { key = "b_watts4"; width = 12; fixed_width = true; edit_width = 7; allow_accept = false; }
         : toggle { key = "b_ground4"; label = "是"; width = 7; fixed_width = true; }
         : button { key = "b_remove4"; label = "×"; width = 4; fixed_width = true; }
       }
       : boxed_row { fixed_height = true;
-        : image_button { key = "f_image5"; width = 18; height = 2.6; fixed_width = true; fixed_height = true; color = 0; }
+        : column { fixed_height = true;
+          : text { key = "b_label5"; width = 18; fixed_width = true; height = 1; fixed_height = true; }
+          : image_button { key = "f_image5"; width = 18; height = 1.6; fixed_width = true; fixed_height = true; color = 0; }
+        }
         : edit_box { key = "b_watts5"; width = 12; fixed_width = true; edit_width = 7; allow_accept = false; }
         : toggle { key = "b_ground5"; label = "是"; width = 7; fixed_width = true; }
         : button { key = "b_remove5"; label = "×"; width = 4; fixed_width = true; }
       }
       : boxed_row { fixed_height = true;
-        : image_button { key = "f_image6"; width = 18; height = 2.6; fixed_width = true; fixed_height = true; color = 0; }
+        : column { fixed_height = true;
+          : text { key = "b_label6"; width = 18; fixed_width = true; height = 1; fixed_height = true; }
+          : image_button { key = "f_image6"; width = 18; height = 1.6; fixed_width = true; fixed_height = true; color = 0; }
+        }
         : edit_box { key = "b_watts6"; width = 12; fixed_width = true; edit_width = 7; allow_accept = false; }
         : toggle { key = "b_ground6"; label = "是"; width = 7; fixed_width = true; }
         : button { key = "b_remove6"; label = "×"; width = 4; fixed_width = true; }
       }
       : boxed_row { fixed_height = true;
-        : image_button { key = "f_image7"; width = 18; height = 2.6; fixed_width = true; fixed_height = true; color = 0; }
+        : column { fixed_height = true;
+          : text { key = "b_label7"; width = 18; fixed_width = true; height = 1; fixed_height = true; }
+          : image_button { key = "f_image7"; width = 18; height = 1.6; fixed_width = true; fixed_height = true; color = 0; }
+        }
         : edit_box { key = "b_watts7"; width = 12; fixed_width = true; edit_width = 7; allow_accept = false; }
         : toggle { key = "b_ground7"; label = "是"; width = 7; fixed_width = true; }
         : button { key = "b_remove7"; label = "×"; width = 4; fixed_width = true; }
       }
       : row { fixed_height = true; : button { key = "f_prev"; label = "上一页"; } : text { key = "f_page"; width = 10; } : button { key = "f_next"; label = "下一页"; } }
-      : text { label = "点击图块查看；按 Tab 记住功率。"; }
+      : row { : button { key = "b_library"; label = "独立设备库"; } : button { key = "b_apply_library"; label = "应用当前库值"; } }
+      : text { label = "修改功率和地面只作用于本箱。"; }
       : text { label = "× 排除本箱同类图块，不计数量和功率。"; }
       : row { fixed_height = true; : text { key = "b_excluded"; width = 24; } : button { key = "b_restore"; label = "恢复排除"; } }
       }

@@ -71,7 +71,19 @@ class IncrementalTests(unittest.TestCase):
     def new_plan(self, capacity='cap300'):
         self.h.run(f"(setq plan (EL:FixedPlan result template '{capacity} '(0.0 0.0 0.0) 0.0 1.0))")
 
+    def prime_current_record(self):
+        # Date: 2026-10-11. Stable no-op checks begin after the first legacy migration.
+        # The real panel prepares number evidence before submitting its result.
+        self.h.run("(setq result (EL:PreparedResult result record) cs (EL:Get 'circuits result))")
+        self.new_plan()
+        self.assertTrue(truth(self.sync()))
+        self.h.run('''(setq record (EL:DiagramForPanel "source" (EL:StoreRead))
+          result (EL:PreparedResult result record) cs (EL:Get 'circuits result))''')
+        self.new_plan()
+        self.native.clear(); self.master.clear(); self.fixture.undo.clear(); self.fixture.writes.clear()
+
     def test_no_change_has_no_native_write_or_transaction(self):
+        self.prime_current_record()
         before = copy.deepcopy((self.fixture.entities, self.fixture.dictionary, self.fixture.dynamic))
         self.assertTrue(truth(self.sync()))
         self.assertEqual(self.native, [])
@@ -156,6 +168,7 @@ class IncrementalTests(unittest.TestCase):
         self.assertEqual(len(self.master), 1)
 
     def test_stale_global_operation_list_is_not_reused_by_direct_update(self):
+        self.prime_current_record()
         self.assertTrue(truth(self.h.run('(EL:DiagramUnchanged record result plan store)')))
         self.h.builtins['VLA-PUT-TEXTSTRING']('t0', 'manual')
         self.native.clear()
@@ -190,6 +203,7 @@ class IncrementalTests(unittest.TestCase):
                 self.assertEqual(self.fixture.entities[entity], before[0][entity])
 
     def test_identical_update_metrics_report_zero_operations_and_native_writes(self):
+        self.prime_current_record()
         self.fixture.call('EL:PerfStart', 'ELUPDATE')
         self.assertTrue(truth(self.sync()))
         metrics = self.h.lookup('*EL:PERFMETRICS*')

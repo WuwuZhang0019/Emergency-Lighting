@@ -103,7 +103,7 @@
     (progn
       (setq tick (vl-catch-all-apply 'getvar (list "MILLISECS")))
       (setq *EL:PerfActive* T *EL:PerfCommand* commandname *EL:PerfStarted* (if (numberp tick) tick 0)
-        *EL:PerfMetrics* nil *EL:PerfStages* nil *EL:PerfPending* nil *EL:PerfMarks* nil *EL:StoreReadCache* nil *EL:NetworkMemo* nil
+        *EL:PerfMetrics* nil *EL:PerfStages* nil *EL:PerfPending* nil *EL:PerfMarks* nil *EL:StoreReadCache* nil *EL:NetworkMemo* nil *EL:DLCache* nil *EL:DLSessionSnapshot* nil
         *EL:PerfWaitMS* 0 *EL:PerfWaitDepth* 0 *EL:PerfSerial* 0 *EL:PerfOutcome* nil
         *EL:StoreReadScope* (1+ (cond (*EL:StoreReadScope*) (T 0))))
       (setq stamp (vl-catch-all-apply 'getvar (list "CDATE")))
@@ -118,7 +118,9 @@
           "source-wire-record-reads" "device-contour-reads" "device-template-reuses"
           "network-build-calls" "network-verified-reuses" "network-geometry-checks"
           "number-scopes" "number-source-handles" "number-problems"
-          "number-source-read-attempts" "number-source-read-failures" "number-freshness-checks")
+          "number-source-read-attempts" "number-source-read-failures" "number-freshness-checks"
+          "device-library-loads" "device-library-writes" "device-library-matches" "device-library-unknown"
+          "device-legend-loads" "device-legend-builds")
         (EL:PerfSet key 0)) T)))
 (defun EL:PerfBegin (stage / token wait parent)
   (if *EL:PerfActive*
@@ -166,7 +168,7 @@
         "SIMPLE_COLLECT" "SIMPLE_NETWORK" "NETWORK_VERIFY_GEOMETRY" "NETWORK_BUILD" "SPLIT_NETWORK" "CIRCUIT_NUMBER_SCOPE"
         "COMPARE_SOURCE_NUMBER" "PRE_GENERATE_FRESH" "FRESH_SOURCE_SCAN"
         "CCKK2" "TX_WRITE" "STORE_READ" "STORE_DECODE" "STORE_CACHE_CHECK" "STORE_SERIALIZE"
-        "STORE_PARSE" "STORE_READBACK" "DIAGRAM_VIEW" "DIAGNOSTIC_EXPORT"))
+        "STORE_PARSE" "STORE_READBACK" "DIAGRAM_VIEW" "DIAGNOSTIC_EXPORT" "DEVICE_LIBRARY_LOAD" "DEVICE_LEGEND"))
       (and *EL:PerfDetail* (member stage
         '("STORE_SCHEMA" "STORE_REPLACE_PAYLOAD" "CCKK2_INSERT_BLOCK" "CCKK_POWER_TEXT"
           "TAG_ENTITY" "UNDO_BEGIN" "UNDO_END" "COMPARE_SOURCE" "SNAPSHOT_SIGNATURE" "CIRCUIT_TRACE")))))
@@ -237,7 +239,7 @@
       (setq *EL:PerfLastSummary* summary *EL:PerfActive* nil *EL:PerfPending* nil
         *EL:PerfMetrics* nil *EL:PerfStages* nil *EL:PerfMarks* nil *EL:PerfLogOwner* nil *EL:StoreReadCache* nil)
       (vl-catch-all-apply 'EL:PerfReport (list summary))))
-  (setq *EL:StoreReadCache* nil *EL:NetworkMemo* nil) nil)
+  (setq *EL:StoreReadCache* nil *EL:NetworkMemo* nil *EL:DLCache* nil *EL:DLSessionSnapshot* nil) nil)
 (defun c:ELPERF (/ option)
   (if *EL:PerfActive* (princ "\n请结束当前统计或生成后再调整性能采样。")
     (progn

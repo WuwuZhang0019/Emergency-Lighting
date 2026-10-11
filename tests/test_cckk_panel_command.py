@@ -331,6 +331,8 @@ class PanelCommandTests(unittest.TestCase):
             'INITGET':lambda *args:None,'GETKWORD':lambda *args:self.fail('generate must not ask Yes/No'),
             'COMMAND-S':lambda *args:self.fail('recovery must preserve user edits'),
             'EL:PANELDIALOG':lambda *args:edited,'EL:FIXEDPOWERS':lambda *args:None,
+            'EL:DLSNAPSHOT':lambda:self.call('EL:Put',Symbol('ROOT'),'library-fixture/',
+                self.call('EL:Put',Symbol('CATALOG'),self.call('EL:DLCatalogInitial','LIB-CCKK'),None)),
             'EL:REMEMBERPANELPOWERS':lambda *args:True,'EL:SAVENAMEPOWERS':lambda *args:True,
             'EL:TEMPLATEREADY':lambda *args:True,'EL:CLEARPICKHIGHLIGHTS':lambda:None,
             'EL:LOGEVENT':lambda name,data:events.append(name),

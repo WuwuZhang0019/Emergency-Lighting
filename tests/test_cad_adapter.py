@@ -14,7 +14,8 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 class CadAdapterTests(unittest.TestCase):
     def setUp(self):
         self.h = Host()
-        for name in ('common', 'config', 'geometry', 'topology', 'circuit-number', 'store-compact', 'diagram-store'):
+        for name in ('common', 'config', 'geometry', 'topology', 'device-library', 'device-assets',
+                     'device-ui', 'device-recognition', 'device-inputs', 'circuit-number', 'store-compact', 'diagram-store'):
             self.h.load_definitions(ROOT / 'src' / f'{name}.lsp')
         self.entities = {}
         self.bounds = {}

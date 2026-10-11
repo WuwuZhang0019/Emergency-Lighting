@@ -25,6 +25,7 @@ class CadAdapterTests(unittest.TestCase):
         self.h.builtins.update({
             'EL:ENTITYBOUNDS': lambda entity: self.bounds.get(entity),
             'ENTGET': lambda entity,*apps: self.entities[entity],
+            'HANDENT': lambda handle: handle if handle in self.entities else None,
             'TBLSEARCH': lambda table, name: self.blocks.get(name) if table == 'BLOCK' else [Pair(2, name)],
             'ENTNEXT': lambda entity: self.next_entity.get(entity),
             'TRANS': lambda point, *args: point,

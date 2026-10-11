@@ -370,7 +370,8 @@
     (setq result (EL:Put 'capacity-source
       (cond ((if (EL:Get 'draft-circuits record) (EL:Get 'draft-capacity-source record) (EL:Get 'capacity-source record)))
         (T 'default)) result)))
-  (EL:Put 'identity-ambiguous (EL:Get 'ambiguous matched) (EL:Put 'circuits (reverse rows) result)))
+  (EL:ResolveCircuitNumbers
+    (EL:Put 'identity-ambiguous (EL:Get 'ambiguous matched) (EL:Put 'circuits (reverse rows) result))))
 (defun EL:ConfirmRemoved (result record / old c)
   (princ "\n出线种子身份发生变化。旧回路：")
   (foreach old (EL:ActualRows record)

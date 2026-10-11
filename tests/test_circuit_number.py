@@ -154,5 +154,93 @@ class NumberScopeTests(unittest.TestCase):
         first = self.call('EL:NumberFirstDevice', wide, 0., 10., [[pair('id', 'device')]], self.f.cfg)
         self.assertAlmostEqual(first[0], 4., places=5)
 
+class NumberAllocationTests(unittest.TestCase):
+    call = NumberReadTests.call
+    get = NumberReadTests.get
+
+    def setUp(self):
+        NumberReadTests.setUp(self)
+        self.h.load_definitions(ROOT / 'src/geometry.lsp')
+        self.data = {}
+        self.reads = []
+        def reader(handle):
+            self.reads.append(handle)
+            return self.call('EL:Put', Symbol('HANDLE'), handle,
+                             self.call('EL:ParseWireNumberData', self.data[handle]))
+        self.h.builtins['EL:READWIRENUMBERDATA'] = reader
+
+    def circuits(self, numbers):
+        rows = []
+        for i, value in enumerate(numbers, 1):
+            values = value if isinstance(value, list) else [value] if value is not None else []
+            self.data[f'H{i}'] = [[-3, ['linenum', *[Pair(1000, v) for v in values]]]] if values else []
+            rows.append([pair('id', f'R{i}'), pair('circuit-uid', f'u{i}'), pair('watts', 10),
+                         pair('output-order', i), pair('seed', [pair('key', [f'H{i}', Symbol('OUTLET')])]),
+                         pair('number-scope', [pair('status', Symbol('READY')), pair('sources', [f'H{i}'])])])
+        return rows
+
+    def resolve(self, numbers):
+        return self.call('EL:ResolveCircuitNumbers', [pair('circuits', self.circuits(numbers))])
+
+    def test_default_mixed_prefix_and_reserved_later_plane_numbers(self):
+        for source, expected in (([None, None, None], ['ZE1', 'ZE2', 'ZE3']),
+                                 (['ZE3', None, 'ZE1'], ['ZE3', 'ZE2', 'ZE1']),
+                                 (['ZE2', None], ['ZE2', 'ZE3']),
+                                 ([None, 'ZE1'], ['ZE2', 'ZE1']),
+                                 (['WL1', None], ['WL1', 'ZE2']),
+                                 (['ZE01', None], ['ZE01', 'ZE2'])):
+            with self.subTest(source=source):
+                result = self.resolve(source)
+                self.assertEqual([self.get('circuit-number', c) for c in self.get('circuits', result)], expected)
+                self.assertTrue(truth(self.call('EL:CircuitNumbersReady', result)))
+
+    def test_conflict_keeps_native_number_and_blocks_ready_state(self):
+        for numbers in (['ZE1', 'ze1'], [['ZE1', 'ZE2'], None]):
+            result = self.resolve(numbers)
+            self.assertFalse(truth(self.call('EL:CircuitNumbersReady', result)))
+            self.assertEqual(self.get('number-status', self.get('circuits', result)[0]), Symbol('CONFLICT'))
+            self.assertIn('编号冲突', self.call('EL:NumberProblemText', result))
+        result = self.resolve(['ZE1', 'ZE1'])
+        self.assertEqual([self.get('circuit-number', c) for c in self.get('circuits', result)], ['ZE1', 'ZE1'])
+
+    def test_missing_is_auto_but_invalid_scope_or_metadata_is_not(self):
+        rows = self.circuits([7, None, None])
+        rows[1] = self.call('EL:Put', Symbol('NUMBER-SCOPE'), [pair('status', Symbol('PATH-AMBIGUOUS'))], rows[1])
+        result = self.call('EL:ResolveCircuitNumbers', [pair('circuits', rows)])
+        cs = self.get('circuits', result)
+        self.assertEqual([self.get('number-status', c) for c in cs],
+                         [Symbol('INVALID'), Symbol('PATH-AMBIGUOUS'), Symbol('READY')])
+        self.assertIsNone(self.get('circuit-number', cs[0]))
+        self.assertIsNone(self.get('circuit-number', cs[1]))
+        self.assertEqual(self.get('circuit-number', cs[2]), 'ZE3')
+
+    def test_shared_original_source_is_ambiguous_and_read_once(self):
+        rows = self.circuits(['ZE1', None])
+        rows[1] = self.call('EL:Put', Symbol('NUMBER-SCOPE'), self.get('number-scope', rows[0]), rows[1])
+        result = self.call('EL:ResolveCircuitNumbers', [pair('circuits', rows)])
+        self.assertEqual(self.reads, ['H1'])
+        self.assertTrue(all(self.get('number-status', c) == Symbol('PATH-AMBIGUOUS') for c in self.get('circuits', result)))
+
+    def test_saved_order_and_uid_are_restored_before_allocation(self):
+        self.h.load_definitions(ROOT / 'src/panel.lsp')
+        self.h.load_definitions(ROOT / 'src/diagram-update.lsp')
+        rows = self.circuits(['ZE3', None])
+        saved = [[pair('seed-key', self.get('key', self.get('seed', rows[0]))), pair('circuit-uid', 'old-u1'), pair('output-order', 2)],
+                 [pair('seed-key', self.get('key', self.get('seed', rows[1]))), pair('circuit-uid', 'old-u2'), pair('output-order', 1)]]
+        prepared = self.call('EL:PreparedResult', [pair('circuits', rows)], [pair('diagram-id', 'diagram'), pair('rows', saved)])
+        cs = self.get('circuits', prepared)
+        self.assertEqual([self.get('circuit-uid', c) for c in cs], ['old-u2', 'old-u1'])
+        self.assertEqual([self.get('circuit-number', c) for c in cs], ['ZE1', 'ZE3'])
+        self.assertEqual([self.get('watts', c) for c in cs], [10, 10])
+
+    def test_legacy_rows_and_independent_panels_keep_defaults(self):
+        for _ in range(2):
+            result = self.resolve(['ZE1'])
+            self.assertTrue(truth(self.call('EL:CircuitNumbersReady', result)))
+        result = self.call('EL:ResolveCircuitNumbers', [pair('circuits', [[pair('id', 'old')]])])
+        c = self.get('circuits', result)[0]
+        self.assertEqual(self.get('number-source', c), Symbol('LEGACY'))
+        self.assertEqual(self.get('circuit-number', c), 'ZE1')
+
 if __name__ == '__main__':
     unittest.main()

@@ -119,5 +119,14 @@ class DeviceUITests(unittest.TestCase):
         self.assertFalse(truth(self.get('active',row)))
         self.assertEqual(self.get('block-file',row),'assets/ELDEV1/1/block.dwg')
 
+    def test_invalid_directory_never_changes_active_library_or_drafts(self):
+        self.state();self.call('EL:DLUISetDraft',self.put('watts-text','7',self.entry()))
+        before=self.h.lookup('*EL:DLUISTATE*')
+        self.h.builtins.update({'VL-FILENAME-DIRECTORY':lambda _: '/other',
+            'EL:DLSNAPSHOTLOAD':lambda _:None,
+            'EL:DLROOTSET':lambda *_:self.fail('invalid target must not publish the preference')})
+        self.assertFalse(truth(self.call('EL:DLUISwitchRoot','/other/catalog.eld')))
+        self.assertEqual(self.h.lookup('*EL:DLUISTATE*'),before)
+
 
 if __name__=='__main__':unittest.main()

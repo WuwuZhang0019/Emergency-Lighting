@@ -140,7 +140,7 @@ class DeviceRecognitionTests(unittest.TestCase):
 
     def test_legacy_box_cache_is_manual_and_current_window_values_win(self):
         result,powers,snapshot=self.model(names=('Lamp',))
-        raw=self.h.run("'((panel . \"P1\"))")
+        raw=self.h.run("'((engine . fixed) (panel . \"P1\"))")
         record=self.h.run("'((source-panel-handle . \"P1\") (powers (\"LAMP\" . 5)) (block-ground (\"LAMP\")))")
         self.h.builtins['EL:DLLOADINPUTS']=lambda _:None
         self.h.builtins['EL:DlLegacyInputs'.upper()]=lambda _: self.h.run("'((version . 1) (powers (\"LAMP\" . 0)))")
@@ -217,6 +217,13 @@ class DeviceRecognitionTests(unittest.TestCase):
             data=self.call('EL:DLLegacyInputs','P1')
             self.assertEqual(self.call('EL:Get','LAMP',self.get('powers',data)),7)
             self.assertEqual(source.read_bytes(),original)
+
+    def test_advanced_identity_power_records_keep_original_shape_and_skip_name_caches(self):
+        result=self.h.run("'((panel . \"P1\") (circuits))")
+        record=self.h.run("'((powers ((identity \"Lamp\" nil \"identity-v2\") (category . lighting) (watts . 5))))")
+        self.h.builtins['EL:DLLOADINPUTS']=lambda *_:self.fail('advanced flow must use its original identity values')
+        self.assertEqual(self.call('EL:DLRestoreRecord',result,record),result)
+        self.assertFalse(truth(self.get('device-overrides',result)))
 
 
 if __name__=='__main__':unittest.main()

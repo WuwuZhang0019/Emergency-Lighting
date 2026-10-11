@@ -1,10 +1,10 @@
 {
   "date": "2026-10-11",
   "status": "automated_passed",
-  "package": 96,
+  "package": 97,
   "native_cad_status": "pending_user_validation",
   "scope": "device catalog, immutable assets, CRUD, legacy drafts, name matching and manual values; dependent save/update, source freshness and network reuse regressions",
-  "test_count": 281,
+  "test_count": 313,
   "failure_count": 0,
   "error_count": 0,
   "tests": [
@@ -141,6 +141,10 @@
       "status": "passed"
     },
     {
+      "test": "test_device_assets.DeviceAssetsTests.test_capture_restores_command_settings_after_success_and_slide_failure",
+      "status": "passed"
+    },
+    {
       "test": "test_device_assets.DeviceAssetsTests.test_cleanup_refuses_to_close_document_not_owned_by_job",
       "status": "passed"
     },
@@ -257,6 +261,10 @@
       "status": "passed"
     },
     {
+      "test": "test_device_recognition.DeviceRecognitionTests.test_advanced_identity_power_records_keep_original_shape_and_skip_name_caches",
+      "status": "passed"
+    },
+    {
       "test": "test_device_recognition.DeviceRecognitionTests.test_aliases_merge_device_id_and_count_actual_ids_without_changing_source",
       "status": "passed"
     },
@@ -338,6 +346,10 @@
     },
     {
       "test": "test_device_ui.DeviceUITests.test_incomplete_device_remains_draft_and_disabled",
+      "status": "passed"
+    },
+    {
+      "test": "test_device_ui.DeviceUITests.test_invalid_directory_never_changes_active_library_or_drafts",
       "status": "passed"
     },
     {
@@ -625,6 +637,38 @@
       "status": "passed"
     },
     {
+      "test": "test_empty_panel.EmptyPanelTests.test_cancel_logs_initialization_and_status_with_no_error",
+      "status": "passed"
+    },
+    {
+      "test": "test_empty_panel.EmptyPanelTests.test_dialog_load_or_creation_failure_gives_feedback",
+      "status": "passed"
+    },
+    {
+      "test": "test_empty_panel.EmptyPanelTests.test_empty_history_callbacks_never_close_dialog_or_lookup_handle",
+      "status": "passed"
+    },
+    {
+      "test": "test_empty_panel.EmptyPanelTests.test_empty_selection_does_not_open_first_existing_record",
+      "status": "passed"
+    },
+    {
+      "test": "test_empty_panel.EmptyPanelTests.test_existing_valid_store_with_zero_records_keeps_empty_panel",
+      "status": "passed"
+    },
+    {
+      "test": "test_empty_panel.EmptyPanelTests.test_initialization_error_reports_stage_and_releases_dialog",
+      "status": "passed"
+    },
+    {
+      "test": "test_empty_panel.EmptyPanelTests.test_pick_buttons_return_after_initial_dialog_is_unloaded",
+      "status": "passed"
+    },
+    {
+      "test": "test_empty_panel.EmptyPanelTests.test_unsaved_and_saved_empty_drawings_reach_interaction_without_writes",
+      "status": "passed"
+    },
+    {
       "test": "test_exit_devices.ExitDeviceTests.test_actual_command_shows_exit_and_power_in_one_dialog",
       "status": "passed"
     },
@@ -838,6 +882,30 @@
     },
     {
       "test": "test_network_reuse.ScanGenerationIntegrationTests.test_new_power_update_and_noop_keep_verified_store_and_uid",
+      "status": "passed"
+    },
+    {
+      "test": "test_panel_repairs.PanelRepairTests.test_circuit_text_is_not_a_button_value_and_reserve_stays_open",
+      "status": "passed"
+    },
+    {
+      "test": "test_panel_repairs.PanelRepairTests.test_compact_status_wraps_chinese_and_clears_old_lines",
+      "status": "passed"
+    },
+    {
+      "test": "test_panel_repairs.PanelRepairTests.test_edit_event_remembers_last_value_reloads_over_old_dwg_draft",
+      "status": "passed"
+    },
+    {
+      "test": "test_panel_repairs.PanelRepairTests.test_failed_power_write_is_visible_and_draft_remains",
+      "status": "passed"
+    },
+    {
+      "test": "test_panel_repairs.PanelRepairTests.test_screenshot_counts_total_85_even_when_connection_is_pending",
+      "status": "passed"
+    },
+    {
+      "test": "test_panel_repairs.PanelRepairTests.test_status_wrap_preserves_gb2312_pairs_in_cad2020",
       "status": "passed"
     },
     {
@@ -1113,6 +1181,66 @@
       "status": "passed"
     },
     {
+      "test": "test_saved_records.SavedRecordsTests.test_changed_source_never_saves_current",
+      "status": "passed"
+    },
+    {
+      "test": "test_saved_records.SavedRecordsTests.test_click_current_record_does_not_reload_or_save",
+      "status": "passed"
+    },
+    {
+      "test": "test_saved_records.SavedRecordsTests.test_click_does_not_leave_panel_for_invalid_power_or_missing_target",
+      "status": "passed"
+    },
+    {
+      "test": "test_saved_records.SavedRecordsTests.test_failed_save_does_not_return_switch",
+      "status": "passed"
+    },
+    {
+      "test": "test_saved_records.SavedRecordsTests.test_failed_switch_returns_same_dialog_and_keeps_input",
+      "status": "passed"
+    },
+    {
+      "test": "test_saved_records.SavedRecordsTests.test_first_open_can_open_record_without_saving_empty_draft",
+      "status": "passed"
+    },
+    {
+      "test": "test_saved_records.SavedRecordsTests.test_first_open_lists_records_without_pick_or_write",
+      "status": "passed"
+    },
+    {
+      "test": "test_saved_records.SavedRecordsTests.test_first_open_recognition_error_returns_to_records",
+      "status": "passed"
+    },
+    {
+      "test": "test_saved_records.SavedRecordsTests.test_missing_target_never_saves_current",
+      "status": "passed"
+    },
+    {
+      "test": "test_saved_records.SavedRecordsTests.test_navigation_loop_uses_target_config",
+      "status": "passed"
+    },
+    {
+      "test": "test_saved_records.SavedRecordsTests.test_select_is_read_only_and_missing_target_disabled",
+      "status": "passed"
+    },
+    {
+      "test": "test_saved_records.SavedRecordsTests.test_single_click_from_panel_keeps_edited_power_before_switch",
+      "status": "passed"
+    },
+    {
+      "test": "test_saved_records.SavedRecordsTests.test_single_click_in_initial_list_opens_target",
+      "status": "passed"
+    },
+    {
+      "test": "test_saved_records.SavedRecordsTests.test_switch_saves_current_as_stale_and_returns_target",
+      "status": "passed"
+    },
+    {
+      "test": "test_saved_records.SavedRecordsTests.test_ten_records_are_listed_and_current_is_selected",
+      "status": "passed"
+    },
+    {
       "test": "test_source_contracts.SourceContracts.test_atomic_config_write_restores_previous_file_on_failure",
       "status": "passed"
     },
@@ -1137,13 +1265,13 @@
     "src/batch-number.lsp": "9e3af40e1e52b0aa083097a453d120bc21a5ee282403410b91a8e7a1dc088fb5",
     "src/common.lsp": "c36f2f143b86b38c6ba8f0331c1296edf06b4fe5643fdbd37216fab035ca111b",
     "src/config.lsp": "c17abb45675a0a75f9e53ee56b465462d2ab973138ac03552d0ac988d6a6045d",
-    "src/device-assets.lsp": "bd2b3be2925ef6cdb0f331e4fdb024b239b900b8ce83ef207cf6def039f98354",
+    "src/device-assets.lsp": "47963b63c946a38551260f8216af373395b9533585f7094ec1590012da634f51",
     "src/device-inputs.lsp": "064a1f3fb07872aa384ab740b454c5c1951069e796c851790979cd15e3ed3f9e",
     "src/device-library.lsp": "ff96c1bf2c84a6028f24a54b77ab2945c674599e7ca25a972e3c54cf15132945",
     "src/device-migration.lsp": "009bd4fea62c27f73bbd2831da236c92d7b33a7bd59d0f381248b974c2b0c730",
-    "src/device-recognition.lsp": "eaa33823df3b7a533ccacc3615d13fe48f26f56a471ccfab8c60918e21b4eba2",
-    "src/device-ui.lsp": "89236c333286a3b71fc08c9dfa76cc80e004910a318dbaed65272966f56807be",
-    "src/diagram-commands.lsp": "5bd3e84e166214d75ac5c0343b415a53850fb0bf943253928950e9c6c8592e22",
+    "src/device-recognition.lsp": "5be7f233c09154686d7e1eb0d0cef94cd17823c9dc38cd0b2b68889ceac49241",
+    "src/device-ui.lsp": "a7f4443c9d824b0e992544571c65f7039d0fcc7de310902e76535d6c7646f4ef",
+    "src/diagram-commands.lsp": "049d776d903bd7f11ce599d35fb32932c5a52f23a1793e5bea45812e81b95432",
     "src/diagram-store.lsp": "1a5865577a09225ea823179677eb7f0323e84c816fed24b30f238329ead68d62",
     "src/diagram-update.lsp": "49e29827a2a0584e8117742bcfd1439eaddca8d95d9dd1aa1c68cf8f875ad698",
     "src/fixed.lsp": "dcfce113d9e332ec1544439ea999219d5ede67a9571af0b2c69d4148b7b52f83",
@@ -1152,37 +1280,40 @@
     "src/insert-circuit.lsp": "e7a9306c8f79849f51b26499ac5c1b0232e18fc54f911597c4334e06b66ae2cd",
     "src/load.lsp": "d4aa95d09b4b646e29997300089f8c83d16284d9cbfe858b1bfa3d16197a9bf4",
     "src/main.lsp": "5a229c0b3081eca2a5e171e60a4e812321fcb85adb28ea32f60fb25d3ab65d6a",
-    "src/panel.lsp": "166ff75cfbcfe5d59b99fc76530fdb5261fd8a76bf69ebb8950fb58c2487352c",
+    "src/panel.lsp": "afa0e062b2bbbedc23101d9e627ee566f0997e6ce1d5a267ffdc768c244ced6f",
     "src/simple.lsp": "f6ad7f944dc5faca8a1a9e9da8fc5c158e780ac45ef17be4642ef84333f21b59",
     "src/startup.lsp": "6c3179b5f882c81415734dc149aad5db37c3692c454ed601db1ef155c309a605",
     "src/statistics.lsp": "45e713b3653d0c204e58cd3feef7cc11de890cc765f6dba36d4da3f85b05ddb7",
     "src/store-compact.lsp": "afbe4fb946d16c5e2346c0472828edf80758c93ee370a32d29e8be739a72efba",
     "src/topology.lsp": "136f648ad54d3535cc60449a2c630a4a29be694621276fd4b036869bed3d092b",
     "tests/autolisp_host.py": "24c741135fef5f07f574f9c54545cb93e076eab76359644d237a5cf24fe6265d",
-    "tests/check_device_library_package.py": "8629145b0a894d693544e2a1762caa5c0f9cec6172c044e481c27985687e3e2a",
+    "tests/check_device_library_package.py": "1bfbe560e6c27c4074159ac23904ecc4894e6441c856a21adacd94374ff1302f",
     "tests/run_checks.py": "ed0b2beb972c67c9b5e8e9a1c505707aadf4624380f353803c8f1d935c8a3204",
-    "tests/run_device_library_checks.py": "fcbd05849f80c8caa0f65b8bebaca5eee7002f3f23f4cfab0034d796fec0a6c7",
+    "tests/run_device_library_checks.py": "45eb7049ec2bd1fd974a811d27d047fd5a8bcbe871c407cfdb2d7b7eec6e031b",
     "tests/test_block_table.py": "11acfb22a1b34c252942dc30cf41276aac95b53b76e1dc0a6ff6776d1909df32",
     "tests/test_box.py": "b957798d41992770ee8a981807d448dc22965deca779e96de2b6d04d7af8e3af",
     "tests/test_cad_adapter.py": "e66cae836044242b67c43b4d9d762eb65f49863d08b5a12c1cf80445d7055cdc",
-    "tests/test_device_assets.py": "4f1d68e0771b9006573b5ee7116dd3821a0f899ada195407a3e6803b80d104d5",
+    "tests/test_device_assets.py": "7c3e16c9a2839677e792fbb409c8769753e7f6275679765944cda822bc35e7d3",
     "tests/test_device_library.py": "0011da06bdfc9947e0f2be74a8221cd163bfc0761b5bf6fdc45f01292bc16ba2",
     "tests/test_device_migration.py": "a0c0101a6f509715b0a68dc42325b25a559b77b689c8281b45b30f119ff28cf7",
-    "tests/test_device_recognition.py": "dbaed1180dcefdf552015913ad742c108d62a2e31f231068ea28eb69d1eee43e",
-    "tests/test_device_ui.py": "e8d421e7b3616db2be16dcc81bcb342a602d1f5f610a9e0b20c324dff8291fa8",
+    "tests/test_device_recognition.py": "bdb6f07a79752bd92904123bea8484e5d11d096773fa6bb7b1729f3832d0ea24",
+    "tests/test_device_ui.py": "10f61c328976fa4baabbfdf14ef588ebbbdd7e495e5fb84a0287c496155a7e5f",
     "tests/test_diagram_store.py": "97e48b976d6a45281f7ad588785a0c52f71b7c50a84fdba97c17b59ffb71a672",
     "tests/test_diagram_update.py": "6add964042a15465cf47bea4cf8208a8de8dea3f99155b6982251d9c8c9005bd",
+    "tests/test_empty_panel.py": "b44dfc277b4d256707822890ea2843c5804154b988e0de9751b1ea42f537eaa2",
     "tests/test_exit_devices.py": "b2ca7a120d36ef86318f9ab51f916e922d3dc706778c33adf8f40fd671156149",
     "tests/test_fixed_diagnostics.py": "bf0c566d47d835e2a513d744ef33afd33f141216e31df8df246ce481cf1ac613",
     "tests/test_freshness_reuse.py": "b907591f27a783b8658520c8c3d156769172e23937c2ec1015914fdacc6df32c",
     "tests/test_generation_boundaries.py": "f010299ba66ed844f98d9b70c101409f80996ae7612a4debcc03912c08e9da50",
     "tests/test_incremental_updates.py": "a5d5835556cb4a31b38378494ecbd07e3927656779f672b1a0eb5be5bb5e361f",
     "tests/test_network_reuse.py": "0071edd636c88da4e14cf8e63afaf0f4512f6f6bea3e1f3e00c05aac074d15db",
+    "tests/test_panel_repairs.py": "5291242812be50480d06dbe1b2168aad21d50fe621a29f6ffe50a61b60b7b805",
     "tests/test_performance.py": "27c65c087f06eac9315740edc23ebd8004784e1aa6b253072fbe78b85fb64185",
     "tests/test_post_stat_workflow.py": "dda95c784ba5225adfe14a31892a812ab8eb53647b08c6bbb467924a1c5f8e97",
     "tests/test_root_init.py": "1135acbb3dc6cf1a5da1f393be0ec7cba4c281e16edb7e841645ad0a541be85b",
+    "tests/test_saved_records.py": "26dbcea1ea19dc250d7ae1d93714d7cf0c36fe88af33aab48b6c9a5eeb79daff",
     "tests/test_source_contracts.py": "10513c1d7df4e8031deea405831d90bd81666a83c35c60eaeb7e119d99232ce8",
-    "tools/build_cad2020.py": "fb13c8a329461601b56d4b1d669b9ccb10214aed03a9aeaa8e31eba85b29ea2f",
+    "tools/build_cad2020.py": "485ee1a67ec77c705120f8c72864651bec181e025aa9d63858dc1907ccfd336a",
     "ui/device-library.dcl": "d9567e3b8290faa1ec79e72acd5c0823d2ca9424e1c15cfc5e2c0dd585b26473",
     "ui/power.dcl": "f739e9daa0e0a8bb039407f8c6603eb3d28ca25b031a861a62ff86f034f01027"
   },

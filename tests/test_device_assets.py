@@ -99,6 +99,33 @@ class DeviceAssetsTests(unittest.TestCase):
         self.assertFalse(truth(self.call('EL:DLCaptureResume','old-job')))
         self.assertIsNotNone(self.h.lookup('*EL:DLCAPTUREJOB*'))
 
+    def test_capture_restores_command_settings_after_success_and_slide_failure(self):
+        job = [Pair(Symbol('SLIDE'), 'C:/owned/legend.sld'), Pair(Symbol('MARKER'), 'C:/owned/complete.txt')]
+        forms = parse(self.call('EL:DLCaptureScript', job))[0][1:]
+        prefix = []
+        for form in forms:
+            if form[:2] == [Symbol('SETQ'), Symbol('EL_DL_FILE')]: break
+            prefix.append(form)
+        self.h.builtins.update({
+            'VL-LOAD-COM': lambda: None, 'VLAX-GET-ACAD-OBJECT': lambda: 'app',
+            'VLA-GET-ACTIVEDOCUMENT': lambda _: 'temporary',
+            'VLA-ZOOMEXTENTS': lambda _: None, 'VLA-REGEN': lambda *_: None,
+        })
+        for failed in (False, True):
+            with self.subTest(slide_failed=failed):
+                values = {'FILEDIA': 1, 'CMDECHO': 1, 'TILEMODE': 0, 'UCSFOLLOW': 1}
+                commands = []
+                self.h.builtins['GETVAR'] = lambda key: values[key]
+                self.h.builtins['SETVAR'] = lambda key, value: values.__setitem__(key, value) or value
+                def command(*args):
+                    commands.append(args)
+                    if args[0] == '_.MSLIDE' and failed: raise RuntimeError('native slide failed')
+                self.h.builtins['COMMAND-S'] = command
+                self.h.body(prefix)
+                self.assertEqual((values['FILEDIA'], values['CMDECHO']), (1, 1))
+                self.assertIn(('_.ZOOM', '0.8x'), commands)
+                self.assertEqual(truth(self.h.call('VL-CATCH-ALL-ERROR-P', [self.h.lookup('EL_DL_OUTCOME')])), failed)
+
     def test_cleanup_refuses_to_close_document_not_owned_by_job(self):
         self.h.builtins['VLA-GET-FULLNAME'] = lambda _: 'C:/user.dwg'
         self.h.builtins['VL-STRING-TRANSLATE'] = lambda old,new,v:v.replace(old,new)

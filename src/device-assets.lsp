@@ -76,11 +76,13 @@
   (setq slide (vl-prin1-to-string (EL:Get 'slide job)) marker (vl-prin1-to-string (EL:Get 'marker job))
     source (vl-prin1-to-string (EL:Get 'source-name job)) fullname (vl-prin1-to-string (cond ((EL:Get 'source-fullname job)) (T "")))
     token (vl-prin1-to-string (EL:Get 'token job)))
-  (strcat "(progn (vl-load-com) (setq el_dl_outcome (vl-catch-all-apply '(lambda () "
+  (strcat "(progn (vl-load-com) (setq el_dl_filedia (getvar \"FILEDIA\") el_dl_cmdecho (getvar \"CMDECHO\")) "
+    "(setq el_dl_outcome (vl-catch-all-apply '(lambda () "
     "(setvar \"FILEDIA\" 0) (setvar \"CMDECHO\" 0) (setvar \"TILEMODE\" 1) (setvar \"UCSFOLLOW\" 0) "
     "(command-s \"_.UCS\" \"_World\") (command-s \"_.PLAN\" \"_World\") "
-    "(vla-ZoomExtents (vlax-get-acad-object)) (command-s \"_.ZOOM\" \"_0.8x\") "
+    "(vla-ZoomExtents (vlax-get-acad-object)) (command-s \"_.ZOOM\" \"0.8x\") "
     "(vla-Regen (vla-get-ActiveDocument (vlax-get-acad-object)) 1) (command-s \"_.MSLIDE\" " slide ") T) nil)) "
+    "(setvar \"FILEDIA\" el_dl_filedia) (setvar \"CMDECHO\" el_dl_cmdecho) "
     "(setq el_dl_file (open " marker " \"w\")) (if el_dl_file (progn "
     "(write-line (if (vl-catch-all-error-p el_dl_outcome) \"FAILED\" \"DONE\") el_dl_file) (close el_dl_file))) "
     "(setq el_dl_source nil) (vlax-for el_dl_document (vla-get-Documents (vlax-get-acad-object)) "

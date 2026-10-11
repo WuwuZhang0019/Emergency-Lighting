@@ -514,7 +514,8 @@
         (if (or (equal value "") (numberp watts))
           (progn
             (foreach name (cond ((EL:Get 'keys row)) (T (list (EL:Get 'key row))))
-              (if (and (assoc 'device-library draft) (not (equal watts (EL:Get name pending))))
+              (if (and (assoc 'device-library draft)
+                  (or (not (equal watts (EL:Get name pending))) (member name *EL:DLExplicitPowerKeys*)))
                 (setq draft (EL:DLSetOverride draft name 'watts watts) draft (EL:DLSetOverride draft name 'watts-set T)))
               (setq pending (EL:Put name watts pending))))
           (if (not bad) (setq bad (strcat "b_watts" (itoa i)))))))
@@ -558,7 +559,7 @@
       ) T)))
 (defun EL:PanelGenerateBody ()
   (EL:LogEvent "PANEL_ACTION" 'generate)
-  (if (EL:PanelStoreSelections)
+  (if (and (EL:PanelStoreSelections) (EL:DLPanelSubmissionReady))
     (cond
       ((not (EL:Get 'circuits *EL:PanelDraft*)) (EL:PanelText "p_error" "请至少保留一条实际出线。"))
       ((> (length (EL:Get 'circuits *EL:PanelDraft*)) 8) (EL:PanelText "p_error" "本图块最多容纳8条实际回路，请拆箱后统计；不会截断回路。"))
@@ -610,6 +611,10 @@
       (setq saved (vl-catch-all-apply 'EL:RememberPanelPowers (list *EL:PanelDraft* *EL:PanelPowers*)))
       (EL:PanelText "p_error" (if (and (not (vl-catch-all-error-p saved)) saved)
         "功率已记住；回路草稿请点保存。" "功率未写入文件，请点保存重试；当前窗口草稿仍保留。")))))
+(defun EL:PanelBlockPowerChanged (index / row *EL:DLExplicitPowerKeys*)
+  (setq row (nth (+ *EL:ThumbPage* index) (EL:PanelBlockRows))
+    *EL:DLExplicitPowerKeys* (cond ((EL:Get 'keys row)) ((EL:Get 'key row) (list (EL:Get 'key row)))))
+  (EL:PanelPowerChanged))
 (defun EL:PanelKnownTotal (/ ids circuit rows row total missing overflow watts)
   (foreach circuit (EL:Get 'circuits *EL:PanelDraft*)
     (setq ids (append ids (EL:Get 'devices circuit))))
@@ -648,7 +653,7 @@
       ((equal *EL:PanelCapacity* 'cap1000) "p_1000") (T "p_300")))))
 (defun EL:PanelAccept ()
   (EL:LogEvent "PANEL_ACTION" 'save)
-  (if (EL:PanelStoreSelections)
+  (if (and (EL:PanelStoreSelections) (EL:DLPanelSubmissionReady))
     (if (EL:Get 'circuits *EL:PanelDraft*) (progn (setq *EL:PanelAction* 'save) (done_dialog 1))
       (EL:PanelText "p_error" "请至少保留一条实际出线。"))))
 ;; Date: 2026-10-11. List clicks open records; list initialization stays read-only.
@@ -728,6 +733,15 @@
     (setq *EL:PanelDraft* (EL:Put 'capacity-source 'default *EL:PanelDraft*)))
   (if (assoc 'block-ground *EL:PanelDraft*) (EL:PanelBlockGroundApply))
   (EL:ThumbPrepare result)
+  (if *EL:DLPanelPosition*
+    (progn
+      (setq *EL:PanelIndex* (max 0 (min (EL:Get 'index *EL:DLPanelPosition*)
+        (1- (EL:FixedOutputCount (length (EL:Get 'circuits *EL:PanelDraft*))))))
+        *EL:PanelPage* (max 0 (min (EL:Get 'page *EL:DLPanelPosition*)
+          (* 8 (fix (/ (max 0 (1- (EL:FixedOutputCount (length (EL:Get 'circuits *EL:PanelDraft*))))) 8)))))
+        *EL:PanelDevice* (EL:Get 'device *EL:DLPanelPosition*)
+        *EL:ThumbPage* (max 0 (min (EL:Get 'thumb *EL:DLPanelPosition*)
+          (* 8 (fix (/ (max 0 (1- (length (EL:PanelBlockRows)))) 8))))) *EL:DLPanelPosition* nil)))
   (while (and (> dialog 0) (= status 3))
     (if (new_dialog "el_panel" dialog)
       (progn
@@ -749,7 +763,7 @@
         (repeat 8
           (setq key (itoa i))
           (action_tile (strcat "f_image" key) (strcat "(EL:ThumbRequest " key ")"))
-          (action_tile (strcat "b_watts" key) "(EL:PanelPowerChanged)")
+          (action_tile (strcat "b_watts" key) (strcat "(EL:PanelBlockPowerChanged " key ")"))
           (action_tile (strcat "b_ground" key) (strcat "(EL:PanelBlockGround " key " $value)"))
           (action_tile (strcat "b_remove" key) (strcat "(EL:PanelBlockExclude " key ")"))
           (setq i (1+ i)))
@@ -789,7 +803,9 @@
   (EL:ThumbCleanup)
   (if (> dialog 0) (unload_dialog dialog)) (setq *EL:DialogID* nil)
   (if (= status 11) (list (cons 'library-panel (list (cons 'result *EL:PanelDraft*) (cons 'powers *EL:PanelPowers*)
-    (cons 'config *EL:PanelConfig*) (cons 'capacity *EL:PanelCapacity*))))
+    (cons 'config *EL:PanelConfig*) (cons 'capacity *EL:PanelCapacity*)
+    (cons 'position (list (cons 'index *EL:PanelIndex*) (cons 'page *EL:PanelPage*)
+      (cons 'device *EL:PanelDevice*) (cons 'thumb *EL:ThumbPage*))))))
   (if (member status '(9 10)) (list (cons 'pick-panel (if (= status 10) 'trunk T)))
     (if switched switched
     (if (member status '(1 2)) (list (cons 'result *EL:PanelDraft*) (cons 'powers *EL:PanelPowers*)

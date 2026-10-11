@@ -71,7 +71,7 @@ def build():
     (DEST / marker).write_text(f"Emergency-Lighting {PACKAGE_NO}\n", encoding="ascii")
     # Keep an existing valid data root; initialize it for a standalone update.
     # All modules are included; readiness requires a complete package directory.
-    modules = ('common', 'config', 'geometry', 'topology', 'statistics', 'device-library', 'device-assets', 'device-ui', 'device-recognition', 'device-inputs', 'generation', 'main', 'simple', 'fixed', 'panel', 'store-compact', 'diagram-store', 'diagram-update', 'diagram-commands', 'insert-circuit', 'startup')
+    modules = ('common', 'config', 'geometry', 'topology', 'statistics', 'device-library', 'device-assets', 'device-ui', 'device-recognition', 'device-inputs', 'device-migration', 'generation', 'main', 'simple', 'fixed', 'panel', 'store-compact', 'diagram-store', 'diagram-update', 'diagram-commands', 'insert-circuit', 'startup')
     update = (';; Date: 2026-10-10. Validate or initialize the plugin data root.\n'
               '(vl-load-com)\n' + '\n'.join(
                   (DEST / 'src' / f'{module}.lsp').read_bytes().decode('gb2312') for module in modules) +
@@ -137,6 +137,8 @@ def build():
     for source in sorted((ROOT / 'tests/evidence').glob('2026-10-11-performance-*.md')):
         shutil.copy2(source, DEST / 'tests/evidence' / source.name)
     for source in sorted((ROOT / 'tests/evidence').glob('2026-10-11-source-scan-*.*')):
+        shutil.copy2(source, DEST / 'tests/evidence' / source.name)
+    for source in sorted((ROOT / 'tests/evidence').glob('2026-10-11-device-library-*.json')):
         shutil.copy2(source, DEST / 'tests/evidence' / source.name)
     readme = guide
     (DEST / '使用说明.md').write_text(readme, encoding='utf-8')

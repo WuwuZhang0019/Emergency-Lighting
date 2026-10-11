@@ -37,7 +37,7 @@ class DeviceLibraryTests(unittest.TestCase):
             id_ = self.get('device-id', row)
             values.update({'active': True, 'status': Symbol('READY'), 'asset-revision': 1,
                            'block-file': f'assets/{id_}/1/block.dwg', 'legend-file': f'assets/{id_}/1/legend.sld',
-                           'legend-size': [800, 600]})
+                           'legend-size': [800, 600], 'legend-checksum': 'sld-123-31'})
         for key, value in values.items():
             row = self.put(key, value, row)
         return row

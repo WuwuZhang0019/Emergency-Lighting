@@ -236,7 +236,7 @@
       (setq *EL:PerfLastSummary* summary *EL:PerfActive* nil *EL:PerfPending* nil
         *EL:PerfMetrics* nil *EL:PerfStages* nil *EL:PerfMarks* nil *EL:PerfLogOwner* nil *EL:StoreReadCache* nil)
       (vl-catch-all-apply 'EL:PerfReport (list summary))))
-  (setq *EL:StoreReadCache* nil *EL:NetworkMemo* nil *EL:DLCache* nil) nil)
+  (setq *EL:StoreReadCache* nil *EL:NetworkMemo* nil *EL:DLCache* nil *EL:DLSessionSnapshot* nil) nil)
 (defun c:ELPERF (/ option)
   (if *EL:PerfActive* (princ "\n请结束当前统计或生成后再调整性能采样。")
     (progn

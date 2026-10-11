@@ -60,7 +60,7 @@ class DeviceUITests(unittest.TestCase):
 
     def test_store_preserves_empty_and_invalid_raw_fields_when_switching(self):
         self.state(); self.call('EL:DLUISetDraft',self.entry())
-        tiles={'dl_block':'Lamp','dl_display':'待定设备','dl_aliases':'别名A;B','dl_watts':'1.5','dl_ground':'1','dl_zero':'0','dl_active':'1'}
+        tiles={'dl_block':'Lamp','dl_display':'待定设备','dl_aliases':'别名A;B','dl_watts':'1.5','dl_ground':'1','dl_zero':'0','dl_active':'1','dl_keep_old':'1'}
         self.h.builtins['GET_TILE']=tiles.__getitem__
         self.call('EL:DLUIStore')
         row=self.call('EL:DLUIEntry')
@@ -73,7 +73,8 @@ class DeviceUITests(unittest.TestCase):
             root=self.fs(d); snap=self.call('EL:DLSnapshotLoad',root)
             self.state(); self.h.set('*EL:DLUISTATE*',self.put('snapshot',snap,self.h.lookup('*EL:DLUISTATE*')))
             messages=[]
-            self.h.builtins.update({'EL:DLUISTORE':lambda:True,'EL:DLUIFILL':lambda:None,'EL:DLUISTATUS':messages.append})
+            self.h.builtins.update({'EL:DLUISTORE':lambda:True,'EL:DLUIFILL':lambda:None,'EL:DLUISTATUS':messages.append,
+                'EL:DLUIASSETREADY':lambda *args:True})
             self.call('EL:DLUISetDraft',self.entry()); self.call('EL:DLUISaveWork')
             self.assertEqual(self.get('revision',self.get('catalog',self.call('EL:DLSnapshotLoad',root))),1)
             self.call('EL:DLUIChangeStatus',True)
@@ -97,6 +98,26 @@ class DeviceUITests(unittest.TestCase):
                     if isinstance(form,list) and form[0] == Symbol('ACTION_TILE'): self.assertTrue(parse(form[2]))
         self.assertEqual(ui.count('{'),ui.count('}'))
         self.assertIn('(EL:DLUIStore) (done_dialog 0)',code)
+
+    def test_rename_keeps_old_name_by_default_and_can_be_disabled(self):
+        self.cat=self.call('EL:DLUpsert',self.cat,self.entry('Old Lamp'))
+        self.state()
+        draft=self.put('block-name','New Lamp',self.get('devices',self.cat)[0])
+        entry=self.call('EL:DLUIToEntry',draft)
+        self.assertEqual(self.get('aliases',entry),['Old Lamp'])
+        entry=self.call('EL:DLUIToEntry',self.put('keep-old-name',None,draft))
+        self.assertFalse(truth(self.get('aliases',entry)))
+
+    def test_missing_asset_cannot_publish_ready_or_restore_active(self):
+        self.cat=self.call('EL:DLUpsert',self.cat,self.entry())
+        self.cat=self.call('EL:DLDelete',self.cat,'ELDEV1')
+        self.h.builtins['EL:DLUIASSETREADY']=lambda *args:None
+        snapshot=[Pair(Symbol('CATALOG'),self.cat)]
+        restored=self.call('EL:DLUIRestore',snapshot,'ELDEV1')
+        row=self.get('devices',restored)[0]
+        self.assertEqual(self.get('status',row),Symbol('DRAFT'))
+        self.assertFalse(truth(self.get('active',row)))
+        self.assertEqual(self.get('block-file',row),'assets/ELDEV1/1/block.dwg')
 
 
 if __name__=='__main__':unittest.main()

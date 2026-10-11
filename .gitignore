@@ -25,3 +25,4 @@ config/*.invalid-*
 config/power-input-*.eld
 
 /output/HLPLBH.lsp
+/output/device-library-check/

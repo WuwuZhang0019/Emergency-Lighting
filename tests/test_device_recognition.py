@@ -68,14 +68,15 @@ class DeviceRecognitionTests(unittest.TestCase):
         computed=self.call('EL:PanelCompute',result,powers,None)
         self.assertFalse(truth(self.get('can-generate',computed)))
 
-    def test_saved_library_values_do_not_follow_later_edit_until_explicit_apply(self):
+    def test_marked_defaults_refresh_only_on_recognition_and_manual_values_survive(self):
         result,powers,snap=self.model(('Lamp',))
         old=self.get('devices',self.cat)[0]
         new_cat=self.call('EL:DLUpsert',self.cat,self.put('watts',9,self.put('is-ground',True,old)))
         new_snap=self.put('catalog',new_cat,self.put('index',self.call('EL:DLIndex',new_cat),snap))
         preserved=self.call('EL:DLPrepare',result,powers,new_snap,None)
-        self.assertEqual(self.call('EL:Get','LAMP',self.get('powers',preserved)),5)
-        self.assertFalse(truth(self.get('is-ground',self.get('circuits',self.call('EL:DLGround',self.get('result',preserved)))[0])))
+        self.assertEqual(self.call('EL:Get','LAMP',self.get('powers',preserved)),9)
+        self.assertTrue(truth(self.get('is-ground',self.get('circuits',self.call('EL:DLGround',self.get('result',preserved)))[0])))
+        self.assertEqual(self.call('EL:Get','LAMP',powers),5)  # Previously displayed/saved input is immutable.
         updated=self.call('EL:DLPrepare',result,powers,new_snap,True)
         self.assertEqual(self.call('EL:Get','LAMP',self.get('powers',updated)),9)
         self.assertTrue(truth(self.get('is-ground',self.get('circuits',self.call('EL:DLGround',self.get('result',updated)))[0])))
@@ -136,6 +137,86 @@ class DeviceRecognitionTests(unittest.TestCase):
             self.assertTrue(truth(self.call('EL:DLInputsPublish',path,data)))
             self.assertEqual(self.call('EL:StoreParse',Path(path).read_text(encoding='utf-8')),data)
             self.assertFalse(Path(d,'catalog.eld').exists())
+
+    def test_legacy_box_cache_is_manual_and_current_window_values_win(self):
+        result,powers,snapshot=self.model(names=('Lamp',))
+        raw=self.h.run("'((panel . \"P1\"))")
+        record=self.h.run("'((source-panel-handle . \"P1\") (powers (\"LAMP\" . 5)) (block-ground (\"LAMP\")))")
+        self.h.builtins['EL:DLLOADINPUTS']=lambda _:None
+        self.h.builtins['EL:DlLegacyInputs'.upper()]=lambda _: self.h.run("'((version . 1) (powers (\"LAMP\" . 0)))")
+        restored=self.call('EL:DLRestoreRecord',raw,record)
+        self.assertEqual(self.get('watts',self.call('EL:DLOverride','Lamp',restored)),0)
+        self.assertTrue(truth(self.get('ground-set',self.call('EL:DLOverride','Lamp',restored))))
+        self.assertFalse(truth(self.get('is-ground',self.call('EL:DLOverride','Lamp',restored))))
+        current=self.call('EL:DLSetOverride',restored,'Lamp',Symbol('WATTS'),7)
+        restored=self.call('EL:DLRestoreRecord',current,record)
+        self.assertEqual(self.get('watts',self.call('EL:DLOverride','Lamp',restored)),7)
+
+    def test_external_catalog_change_refreshes_defaults_and_keeps_dialog_open(self):
+        result,powers,snapshot=self.model(names=('Lamp',))
+        newer=self.put('watts',9,self.get('devices',self.cat)[0])
+        newer=self.call('EL:DLUpsert',self.cat,newer)
+        fresh=[Pair(Symbol('ROOT'),'library/'),Pair(Symbol('CATALOG'),newer),Pair(Symbol('INDEX'),self.call('EL:DLIndex',newer))]
+        messages=[]
+        self.h.builtins.update({'EL:DLSNAPSHOTCURRENT':lambda _:None,'EL:DLROOT':lambda:'library/',
+            'EL:DLSNAPSHOTLOAD':lambda _:fresh,'EL:THUMBPREPARE':lambda _:None,'EL:PANELFILL':lambda:None,
+            'EL:PANELTEXT':lambda key,value:messages.append(value),'DONE_DIALOG':lambda *_:self.fail('must stay open')})
+        self.h.set('*EL:PANELDRAFT*',result);self.h.set('*EL:PANELPOWERS*',powers)
+        self.assertFalse(truth(self.call('EL:DLPanelSubmissionReady')))
+        self.assertEqual(self.call('EL:Get','LAMP',self.h.lookup('*EL:PANELPOWERS*')),9)
+        self.assertIn('库默认值已刷新',messages[-1])
+        manual=self.call('EL:DLSetOverride',result,'Lamp',Symbol('WATTS'),0)
+        manual=self.call('EL:DLSetOverride',manual,'Lamp',Symbol('WATTS-SET'),True)
+        self.h.set('*EL:PANELDRAFT*',manual)
+        self.call('EL:DLPanelSubmissionReady')
+        self.assertEqual(self.call('EL:Get','LAMP',self.h.lookup('*EL:PANELPOWERS*')),0)
+
+    def test_explicit_same_watts_entry_becomes_manual_and_survives_later_default_change(self):
+        result,powers,snapshot=self.model(names=('Lamp',))
+        self.h.set('*EL:PANELDRAFT*',result);self.h.set('*EL:PANELPOWERS*',powers);self.h.set('*EL:THUMBPAGE*',0)
+        self.h.builtins.update({'GET_TILE':lambda _: '5','EL:PANELFILL':lambda:None,
+            'EL:REMEMBERPANELPOWERS':lambda *args:True,'EL:PANELTEXT':lambda *args:None})
+        self.call('EL:PanelBlockPowerChanged',0)
+        result=self.h.lookup('*EL:PANELDRAFT*')
+        self.assertTrue(truth(self.get('watts-set',self.call('EL:DLOverride','Lamp',result))))
+        newer=self.call('EL:DLUpsert',self.cat,self.put('watts',9,self.get('devices',self.cat)[0]))
+        snapshot=self.put('index',self.call('EL:DLIndex',newer),self.put('catalog',newer,snapshot))
+        prepared=self.call('EL:DLPrepare',result,powers,snapshot,None)
+        self.assertEqual(self.call('EL:Get','LAMP',self.get('powers',prepared)),5)
+
+    def test_unknown_reference_does_not_change_with_empty_library_identity(self):
+        result,powers,snapshot=self.model(names=('Unknown',))
+        first=self.call('EL:DLPrepare',result,powers,snapshot,None)
+        empty=self.put('catalog',self.call('EL:DLCatalogInitial','EMPTY-OTHER'),self.put('index',None,snapshot))
+        second=self.call('EL:DLPrepare',self.get('result',first),self.get('powers',first),empty,None)
+        self.assertEqual(self.get('device-library',self.get('result',first)),self.get('device-library',self.get('result',second)))
+
+    def test_historical_snapshot_cannot_supply_new_instances_after_switching_library(self):
+        result,powers,snapshot=self.model(names=('Lamp',))
+        newcat=self.call('EL:DLUpsert',self.call('EL:DLCatalogInitial','OTHER-LIB'),self.entry('Lamp',watts=9))
+        snapshot=self.put('index',self.call('EL:DLIndex',newcat),self.put('catalog',newcat,snapshot))
+        old=self.call('EL:DLPrepare',result,powers,snapshot,None)
+        self.assertEqual(self.call('EL:Get','LAMP',self.get('powers',old)),5)
+        blocks=self.get('blocks',self.get('snapshot',result))
+        blocks=blocks+[self.put('id','NEW',blocks[0])]
+        result=self.put('snapshot',self.put('blocks',blocks,self.get('snapshot',result)),result)
+        circuit=self.put('devices',['D0','NEW'],self.get('circuits',result)[0])
+        result=self.put('circuits',[circuit],result)
+        current=self.call('EL:DLPrepare',result,powers,snapshot,None)
+        self.assertEqual(self.call('EL:Get','LAMP',self.get('powers',current)),9)
+
+    def test_legacy_box_cache_is_found_in_previous_runtime_and_never_rewritten(self):
+        with tempfile.TemporaryDirectory() as d:
+            self.fs(d);parent=Path(d,'Emergency-Lighting');old=parent/'runtime-095/config';old.mkdir(parents=True)
+            source=old/'power-input-key.eld';source.write_text('( (version . 1) (powers ("LAMP" . 7)))',encoding='utf-8')
+            original=source.read_bytes()
+            self.h.builtins.update({'EL:POWERINPUTPATH':lambda _:str(parent/'runtime-096/config/power-input-key.eld'),
+                'VL-FILENAME-BASE':lambda p:Path(p).stem,'GETENV':lambda _:d,'VL-REGISTRY-READ':lambda *args:None,
+                'VL-DIRECTORY-FILES':lambda *args:['runtime-095','runtime-096'],'VL-FILE-SIZE':lambda p:Path(p).stat().st_size,
+                'EL:READDATA':lambda p:self.call('EL:StoreParse',Path(p).read_text(encoding='utf-8'))})
+            data=self.call('EL:DLLegacyInputs','P1')
+            self.assertEqual(self.call('EL:Get','LAMP',self.get('powers',data)),7)
+            self.assertEqual(source.read_bytes(),original)
 
 
 if __name__=='__main__':unittest.main()

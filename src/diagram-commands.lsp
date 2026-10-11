@@ -1,4 +1,4 @@
-;; Date: 2026-10-09. Common publication/synchronization entry points.
+;; Date: 2026-10-11. Common publication/synchronization entry points.
 (defun EL:PowerInputPath (panel / drawing)
   (if (and panel *EL:Root* (setq drawing (EL:DrawingID)))
     (strcat *EL:Root* "config/power-input-" (EL:Hash (strcat drawing "/" panel)) ".eld")))
@@ -104,7 +104,8 @@
   (setq cfg (EL:Put 'template template cfg))
   (if (and *EL:DLResume* (equal (EL:Get 'panel (EL:Get 'result *EL:DLResume*)) (EL:Get 'panel result)))
     (setq prepared (EL:Get 'result *EL:DLResume*) powers (EL:Get 'powers *EL:DLResume*)
-      cfg (EL:Get 'config *EL:DLResume*) capacity (EL:Get 'capacity *EL:DLResume*) *EL:DLResume* nil))
+      cfg (EL:Get 'config *EL:DLResume*) capacity (EL:Get 'capacity *EL:DLResume*)
+      *EL:DLPanelPosition* (EL:Get 'position *EL:DLResume*) *EL:DLResume* nil))
   (setq *EL:DLSessionSnapshot* (EL:DLSnapshot) resolved (EL:DLPrepare prepared powers *EL:DLSessionSnapshot* nil)
     prepared (EL:Get 'result resolved) powers (EL:Get 'powers resolved))
   (if (setq edited (EL:LogCall "PANEL_DIALOG" (list (cons 'panel (EL:Get 'panel result)))

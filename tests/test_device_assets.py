@@ -16,7 +16,8 @@ class DeviceAssetsTests(unittest.TestCase):
     fs = backend.DeviceLibraryTests.fs
 
     def binary(self):
-        self.h.builtins['EL:DLBYTES'] = lambda p,n: list(Path(p).read_bytes()[:n])
+        self.h.builtins['EL:DLBYTES'] = lambda p,n: list(Path(p).read_bytes() if n == -1 else Path(p).read_bytes()[:n])
+        self.h.builtins['VL-FILE-SIZE'] = lambda p: Path(p).stat().st_size
         self.h.builtins['EL:DLFILESEQUAL'] = lambda a,b: Path(a).read_bytes() == Path(b).read_bytes()
         self.h.builtins['EL:DLFOLDERCLAIM'] = lambda p: Path(p).mkdir() or True
 
@@ -57,13 +58,15 @@ class DeviceAssetsTests(unittest.TestCase):
 
     def test_normal_legend_reuse_does_not_export_or_regenerate_or_mutate_source(self):
         with tempfile.TemporaryDirectory() as d:
-            root = self.fs(d)
+            root = self.fs(d); self.binary()
             path = Path(d,'assets/ELDEV1/1/legend.sld'); path.parent.mkdir(parents=True); path.write_bytes(self.slide())
             snap = [Pair(Symbol('ROOT'), root)]
-            row = self.entry()
+            row = self.put('legend-checksum', self.call('EL:DLChecksum', str(path)), self.entry())
             for api in ('COMMAND','COMMAND-S','VLA-REGEN','VLA-WBLOCK','VLA-PUT-VISIBLE','ENTMOD'):
                 self.h.builtins[api] = lambda *args: self.fail('cached legend must be read-only')
             self.assertEqual(self.call('EL:DLLegend', row, snap), [str(path).replace('\\','/'), [800,600]])
+            path.write_bytes(self.slide()[:-1] + b'X')
+            self.assertFalse(truth(self.call('EL:DLLegend', row, snap)))
             path.unlink()
             self.assertFalse(truth(self.call('EL:DLLegend', row, snap)))
 
@@ -87,6 +90,7 @@ class DeviceAssetsTests(unittest.TestCase):
         self.assertIn('EL:DLCaptureResume',script)
         self.assertIn('vla-SendCommand',script)
         self.assertIn('MSLIDE',script)
+        self.assertIn('vla-get-FullName',script)
         self.assertNotIn('EL:ThumbIsolate',script)
 
     def test_stale_callback_never_closes_any_document_or_publishes(self):
@@ -101,6 +105,29 @@ class DeviceAssetsTests(unittest.TestCase):
         self.h.builtins['VLA-CLOSE'] = lambda *_: self.fail('must not close user drawing')
         job = [Pair(Symbol('TEMPORARY'),'doc'),Pair(Symbol('DWG'),'C:/owned.dwg')]
         self.assertFalse(truth(self.call('EL:DLCaptureClose',job)))
+
+    def test_close_failure_preserves_job_and_does_not_publish_or_delete_staging(self):
+        job=[Pair(Symbol('TOKEN'),'op-1'),Pair(Symbol('FAILED'),True)]
+        self.h.set('*EL:DLCAPTUREJOB*',job)
+        self.h.builtins['EL:DLCAPTURECLOSE']=lambda *_:None
+        self.h.builtins['EL:DLCAPTURECLEANUP']=lambda *_:self.fail('close failed; files must remain')
+        self.h.builtins['EL:DLDWGVALID']=lambda *_:self.fail('must not publish')
+        self.assertFalse(truth(self.call('EL:DLCaptureResume','op-1')))
+        self.assertEqual(self.h.lookup('*EL:DLCAPTUREJOB*'),job)
+
+    def test_stage_cleanup_only_deletes_owned_known_files(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=self.fs(d)
+            stage=Path(d,'.staging/op-1');stage.mkdir(parents=True)
+            for filename in ('block.dwg','legend.sld','complete.txt','keep.txt'): (stage/filename).write_text('sample')
+            job=[Pair(Symbol('TOKEN'),'op-1'),Pair(Symbol('SNAPSHOT'),[Pair(Symbol('ROOT'),root)]),
+                 Pair(Symbol('DWG'),str(stage/'block.dwg').replace('\\','/'))]
+            self.call('EL:DLCaptureCleanup',job)
+            self.assertEqual([p.name for p in stage.iterdir()],['keep.txt'])
+            (stage/'block.dwg').write_text('sample')
+            job=self.put('token','../other',job)
+            self.call('EL:DLCaptureCleanup',job)
+            self.assertTrue((stage/'block.dwg').exists())
 
 
 if __name__ == '__main__': unittest.main()

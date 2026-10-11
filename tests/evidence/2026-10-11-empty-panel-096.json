@@ -1,0 +1,528 @@
+{
+  "date": "2026-10-11",
+  "package": 96,
+  "scope": "actual ELSTAT/DCL functions with empty-DWG and finite CAD adapters",
+  "passed": true,
+  "test_count": 120,
+  "failure_count": 0,
+  "error_count": 0,
+  "tests": [
+    {
+      "test": "test_empty_panel.EmptyPanelTests.test_cancel_logs_initialization_and_status_with_no_error",
+      "status": "passed"
+    },
+    {
+      "test": "test_empty_panel.EmptyPanelTests.test_dialog_load_or_creation_failure_gives_feedback",
+      "status": "passed"
+    },
+    {
+      "test": "test_empty_panel.EmptyPanelTests.test_empty_history_callbacks_never_close_dialog_or_lookup_handle",
+      "status": "passed"
+    },
+    {
+      "test": "test_empty_panel.EmptyPanelTests.test_empty_selection_does_not_open_first_existing_record",
+      "status": "passed"
+    },
+    {
+      "test": "test_empty_panel.EmptyPanelTests.test_existing_valid_store_with_zero_records_keeps_empty_panel",
+      "status": "passed"
+    },
+    {
+      "test": "test_empty_panel.EmptyPanelTests.test_initialization_error_reports_stage_and_releases_dialog",
+      "status": "passed"
+    },
+    {
+      "test": "test_empty_panel.EmptyPanelTests.test_pick_buttons_return_after_initial_dialog_is_unloaded",
+      "status": "passed"
+    },
+    {
+      "test": "test_empty_panel.EmptyPanelTests.test_unsaved_and_saved_empty_drawings_reach_interaction_without_writes",
+      "status": "passed"
+    },
+    {
+      "test": "test_saved_records.SavedRecordsTests.test_changed_source_never_saves_current",
+      "status": "passed"
+    },
+    {
+      "test": "test_saved_records.SavedRecordsTests.test_click_current_record_does_not_reload_or_save",
+      "status": "passed"
+    },
+    {
+      "test": "test_saved_records.SavedRecordsTests.test_click_does_not_leave_panel_for_invalid_power_or_missing_target",
+      "status": "passed"
+    },
+    {
+      "test": "test_saved_records.SavedRecordsTests.test_failed_save_does_not_return_switch",
+      "status": "passed"
+    },
+    {
+      "test": "test_saved_records.SavedRecordsTests.test_failed_switch_returns_same_dialog_and_keeps_input",
+      "status": "passed"
+    },
+    {
+      "test": "test_saved_records.SavedRecordsTests.test_first_open_can_open_record_without_saving_empty_draft",
+      "status": "passed"
+    },
+    {
+      "test": "test_saved_records.SavedRecordsTests.test_first_open_lists_records_without_pick_or_write",
+      "status": "passed"
+    },
+    {
+      "test": "test_saved_records.SavedRecordsTests.test_first_open_recognition_error_returns_to_records",
+      "status": "passed"
+    },
+    {
+      "test": "test_saved_records.SavedRecordsTests.test_missing_target_never_saves_current",
+      "status": "passed"
+    },
+    {
+      "test": "test_saved_records.SavedRecordsTests.test_navigation_loop_uses_target_config",
+      "status": "passed"
+    },
+    {
+      "test": "test_saved_records.SavedRecordsTests.test_select_is_read_only_and_missing_target_disabled",
+      "status": "passed"
+    },
+    {
+      "test": "test_saved_records.SavedRecordsTests.test_single_click_from_panel_keeps_edited_power_before_switch",
+      "status": "passed"
+    },
+    {
+      "test": "test_saved_records.SavedRecordsTests.test_single_click_in_initial_list_opens_target",
+      "status": "passed"
+    },
+    {
+      "test": "test_saved_records.SavedRecordsTests.test_switch_saves_current_as_stale_and_returns_target",
+      "status": "passed"
+    },
+    {
+      "test": "test_saved_records.SavedRecordsTests.test_ten_records_are_listed_and_current_is_selected",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_cancelled_review_preserves_old_choices_and_marks_output_unupdated",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_cancelled_setup_returns_to_same_draft_without_saving",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_capacity_and_manual_no_restore_from_saved_draft",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_captured_config_reaches_sync_with_confirmed_choices",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_default_capacity_generates_without_extra_confirmation",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_drawing_template_cache_is_reused_for_other_box",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_elstat_opens_panel_without_any_model_pick",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_elstat_pick_action_reaches_recognized_panel",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_escape_during_setup_returns_to_panel_and_preserves_draft",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_existing_panel_returns_repick_request_without_saving",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_generate_callback_error_keeps_dialog_and_explains_failure",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_generate_callback_intent_survives_generic_accept_return",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_legacy_generation_retains_capacity_fallback_without_fixed_review",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_pick_button_closes_initial_panel_before_model_pick",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_prepared_record_template_is_reused_for_same_box",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_save_capacity_then_recognize_same_panel",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_save_complete_statistics_without_template_still_saves_draft",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_save_records_all_pages_without_changing_checkbox_values",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_shared_sync_rejects_unconfirmed_fixed_result",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_statistics_without_template_open_panel_without_setup_or_publication",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_successful_setup_returns_new_config_for_generation_without_repick",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_valid_template_is_reused_without_setup",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.SelectionStoreTests.test_draft_confirmation_and_shared_template_roundtrip_through_xrecord",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.SelectionStoreTests.test_missing_capacity_defaults_but_unconfirmed_types_remain_stale",
+      "status": "passed"
+    },
+    {
+      "test": "test_panel.PanelTests.test_free_terminal_without_candidates_does_not_block_generation",
+      "status": "passed"
+    },
+    {
+      "test": "test_panel.PanelTests.test_invalid_power_blocks_ground_toggle_and_preserves_input",
+      "status": "passed"
+    },
+    {
+      "test": "test_panel.PanelTests.test_missing_power_overlimit_and_zero",
+      "status": "passed"
+    },
+    {
+      "test": "test_panel.PanelTests.test_pick_phase_reuses_detected_wire_and_opens_real_circuit_panel",
+      "status": "passed"
+    },
+    {
+      "test": "test_panel.PanelTests.test_rejected_and_ambiguous_gap_evidence_still_blocks",
+      "status": "passed"
+    },
+    {
+      "test": "test_panel.PanelTests.test_saved_incoming_exclusion_and_candidate_change_are_explicit",
+      "status": "passed"
+    },
+    {
+      "test": "test_panel.PanelTests.test_two_pick_network_is_split_without_sharing_panel",
+      "status": "passed"
+    },
+    {
+      "test": "test_panel.PanelTests.test_uid_order_and_manual_no_survive_renumbering",
+      "status": "passed"
+    },
+    {
+      "test": "test_panel_repairs.PanelRepairTests.test_circuit_text_is_not_a_button_value_and_reserve_stays_open",
+      "status": "passed"
+    },
+    {
+      "test": "test_panel_repairs.PanelRepairTests.test_compact_status_wraps_chinese_and_clears_old_lines",
+      "status": "passed"
+    },
+    {
+      "test": "test_panel_repairs.PanelRepairTests.test_edit_event_remembers_last_value_reloads_over_old_dwg_draft",
+      "status": "passed"
+    },
+    {
+      "test": "test_panel_repairs.PanelRepairTests.test_failed_power_write_is_visible_and_draft_remains",
+      "status": "passed"
+    },
+    {
+      "test": "test_panel_repairs.PanelRepairTests.test_screenshot_counts_total_85_even_when_connection_is_pending",
+      "status": "passed"
+    },
+    {
+      "test": "test_panel_repairs.PanelRepairTests.test_status_wrap_preserves_gb2312_pairs_in_cad2020",
+      "status": "passed"
+    },
+    {
+      "test": "test_fixed_diagnostics.FixedDiagnosticTests.test_empty_device_rows_do_not_call_native_sort",
+      "status": "passed"
+    },
+    {
+      "test": "test_fixed_diagnostics.FixedDiagnosticTests.test_first_use_unknown_handseed_reaches_real_panel_without_writes",
+      "status": "passed"
+    },
+    {
+      "test": "test_fixed_diagnostics.FixedDiagnosticTests.test_missing_drawing_identity_opens_panel_with_stable_fallback",
+      "status": "passed"
+    },
+    {
+      "test": "test_fixed_diagnostics.FixedDiagnosticTests.test_new_record_avoids_existing_ids_and_retains_existing_record",
+      "status": "passed"
+    },
+    {
+      "test": "test_fixed_diagnostics.FixedDiagnosticTests.test_panel_fill_failure_reports_stage_and_original_error",
+      "status": "passed"
+    },
+    {
+      "test": "test_fixed_diagnostics.FixedDiagnosticTests.test_power_reopen_preserves_legacy_record_identity_and_appends_session",
+      "status": "passed"
+    },
+    {
+      "test": "test_fixed_diagnostics.FixedDiagnosticTests.test_recognition_failure_uses_outer_error_handler",
+      "status": "passed"
+    },
+    {
+      "test": "test_fixed_diagnostics.FixedDiagnosticTests.test_single_wire_without_devices_returns_feedback_and_logs",
+      "status": "passed"
+    },
+    {
+      "test": "test_fixed_diagnostics.FixedDiagnosticTests.test_unwritable_log_still_reports_panel_failure_on_command_line",
+      "status": "passed"
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_atomic_config_write_restores_previous_file_on_failure",
+      "status": "passed"
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_dcl_keys_and_callback_syntax",
+      "status": "passed"
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_forms_arities_and_local_assignments",
+      "status": "passed"
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_geometry_and_topology_do_not_mutate_drawing",
+      "status": "passed"
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_rollback_only_deletes_created_objects_even_if_one_delete_fails",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_elroot_switches_to_selected_complete_package_and_cancel_keeps_root",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_missing_registry_reuses_remembered_output_root_without_prompt",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_old_ui_directory_requires_complete_new_package",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_package_encoding_layout_and_update_forms",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_packaged_setup_uses_fixed_mm_and_numeric_choices_with_real_data_io",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_standalone_update_initializes_root_then_setup_reaches_actual_pick",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_startup_appload_folder_needs_no_file_selection_and_can_start",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_startup_embedded_resources_without_registry_or_search_path",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_startup_embedded_write_failure_does_not_report_ready_or_prompt",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_startup_from_src_folder_and_old_root_selects_new_package",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_startup_incomplete_package_requires_repair",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_startup_registry_full_filename_needs_no_selection",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_startup_search_path_works_when_registry_unavailable",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_startup_src_search_path_without_visible_marker",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_startup_wrong_version_does_not_silently_reuse_old_root",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_update_cancel_reports_not_ready_and_command_can_retry_once",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_update_preserves_old_root_and_config_then_stat_reaches_panel_pick",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootFixture.test_old_ui_directory_requires_complete_new_package",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_cancelled_save_does_not_write_config_or_report_success",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_cancelled_setup_config_does_not_build_invalid_backup_path",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_cancelled_setup_does_not_reprompt_backup_or_create_config",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_config_path_rejects_nil_or_non_string_root_and_drawing_id",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_empty_wrong_type_and_deleted_roots_request_relocation",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_invalid_config_backup_still_preserves_previous_data",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_missing_post_stat_ui_marker_rejects_old_dialog",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_missing_root_is_initialized_before_config_path_is_used",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_old_ui_directory_requires_complete_new_package",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_save_initializes_missing_root_and_can_read_back_the_config",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_unsaved_drawing_stops_before_directory_selection",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_valid_root_with_or_without_trailing_separator_keeps_saved_config",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_wrong_file_and_incomplete_package_are_not_accepted",
+      "status": "passed"
+    },
+    {
+      "test": "test_performance.PerformanceFlowTests.test_caught_native_cancel_stops_interaction_and_preserves_rollback",
+      "status": "passed"
+    },
+    {
+      "test": "test_performance.PerformanceFlowTests.test_no_change_update_is_measured_with_zero_entity_and_master_writes",
+      "status": "passed"
+    },
+    {
+      "test": "test_performance.PerformanceFlowTests.test_real_managed_placement_marks_then_reads_and_counts_writes",
+      "status": "passed"
+    },
+    {
+      "test": "test_performance.PerformanceTests.test_caught_cancel_unwinds_wait_before_following_work",
+      "status": "passed"
+    },
+    {
+      "test": "test_performance.PerformanceTests.test_detail_only_enables_selected_fine_stages",
+      "status": "passed"
+    },
+    {
+      "test": "test_performance.PerformanceTests.test_log_scope_does_not_reset_or_finish_its_top_command",
+      "status": "passed"
+    },
+    {
+      "test": "test_performance.PerformanceTests.test_logs_off_still_emits_one_independent_readable_record",
+      "status": "passed"
+    },
+    {
+      "test": "test_performance.PerformanceTests.test_marks_report_after_submit_and_after_placement",
+      "status": "passed"
+    },
+    {
+      "test": "test_performance.PerformanceTests.test_native_values_nil_and_exceptions_are_preserved",
+      "status": "passed"
+    },
+    {
+      "test": "test_performance.PerformanceTests.test_nested_waits_are_a_union_and_stages_remain_inclusive",
+      "status": "passed"
+    },
+    {
+      "test": "test_performance.PerformanceTests.test_reporting_errors_do_not_replace_the_business_result",
+      "status": "passed"
+    },
+    {
+      "test": "test_performance.PerformanceTests.test_signed_tick_rollover_is_not_reported_as_zero",
+      "status": "passed"
+    },
+    {
+      "test": "test_log_volume.LogVolumeTests.test_default_filters_geometry_details_but_retains_key_events_and_verbose",
+      "status": "passed"
+    },
+    {
+      "test": "test_log_volume.LogVolumeTests.test_filtered_call_failure_still_reports_original_entity_and_stack",
+      "status": "passed"
+    }
+  ],
+  "sha256": {
+    "src/batch-number.lsp": "35cbca8234afd4577a930494e3b55f8d2d3f62b38498f8b8b85125109de0d282",
+    "src/common.lsp": "8e6a1ce98c8a40aac440fd5ddbb6f8bcee0a0680718c4bbbcb7c9051b551851b",
+    "src/config.lsp": "77b0df1d6cea432debb9a35874135c4379a7e86d88b08353993ae23b490f0f7b",
+    "src/diagram-commands.lsp": "c3801a726791397c889f91e7a9c4c152e9af2cb2859917d25f2227e0d59cbe22",
+    "src/diagram-store.lsp": "1a5865577a09225ea823179677eb7f0323e84c816fed24b30f238329ead68d62",
+    "src/diagram-update.lsp": "911aa09e685aacf7055bf53849b7f748539427a0367b6e4d3bfe3a0552cabbbd",
+    "src/fixed.lsp": "dcfce113d9e332ec1544439ea999219d5ede67a9571af0b2c69d4148b7b52f83",
+    "src/generation.lsp": "99e1b9fef2af875637393cc4ebee9b001e1959fe54d5318a2c55fad8e0dcd93f",
+    "src/geometry.lsp": "2db8452439c3939e2bf9b7423d9c6f5a15e24960a296fef1123e52193aea3134",
+    "src/insert-circuit.lsp": "e7a9306c8f79849f51b26499ac5c1b0232e18fc54f911597c4334e06b66ae2cd",
+    "src/load.lsp": "8e784de552be150fd3bc96cb736e52f28a9d97a0042b391147ddb97d19a7c713",
+    "src/main.lsp": "5a229c0b3081eca2a5e171e60a4e812321fcb85adb28ea32f60fb25d3ab65d6a",
+    "src/panel.lsp": "1c00730bf96b122a13e5e57e4df8e214c620b5500a03e90bf9caaae055a5481f",
+    "src/simple.lsp": "f6ad7f944dc5faca8a1a9e9da8fc5c158e780ac45ef17be4642ef84333f21b59",
+    "src/startup.lsp": "557207ee99beb8b8777315491ff884e2b19f21225a0eb34b5e93dc67e39db4a0",
+    "src/statistics.lsp": "45e713b3653d0c204e58cd3feef7cc11de890cc765f6dba36d4da3f85b05ddb7",
+    "src/store-compact.lsp": "e0cbddc4da1bcc9b3d069ffae7c2c8295fd0df8256a01ffaa6c1ba31a901dc2c",
+    "src/topology.lsp": "136f648ad54d3535cc60449a2c630a4a29be694621276fd4b036869bed3d092b",
+    "ui/power.dcl": "3d3805d4da869b24e70a0cf743070cdd882f183a738a7eae9ca7d03bf3374ef9",
+    "tests/test_empty_panel.py": "df563377b90f7316c89c856412c20531836784fb569b53acba373934feb6d092",
+    "tests/test_saved_records.py": "26dbcea1ea19dc250d7ae1d93714d7cf0c36fe88af33aab48b6c9a5eeb79daff",
+    "tests/test_post_stat_workflow.py": "a9dcc3e40b242de3436669d6848b66bc48e69b4caa145f266ba334678fdcc910",
+    "tests/test_panel.py": "f784567d61b20c457c03e246f5a70e6395bc2fd1fac55d4aeccba06422449800",
+    "tests/test_panel_repairs.py": "5291242812be50480d06dbe1b2168aad21d50fe621a29f6ffe50a61b60b7b805",
+    "tests/test_fixed_diagnostics.py": "a30c512f186bd1ff30b90468d8d05d763bcd82177b9ae1f2c7c76ec41fa66a2e",
+    "tests/test_source_contracts.py": "10513c1d7df4e8031deea405831d90bd81666a83c35c60eaeb7e119d99232ce8",
+    "tests/test_root_init.py": "2c9ffe5b86c9efa4cd27b092838d7b1532b0c3b89783f992ca0e9a473cb17909",
+    "tests/test_performance.py": "a11988cc0f1699d17a0f79d85d106ac277ac0f28ce88dea4f8f5970a7180d9a1",
+    "tests/test_log_volume.py": "6efc22d8a88ae56ee4ba3c4891ecc529603115f4800c63aab7e2dcb855ef25bf",
+    "tests/autolisp_host.py": "24c741135fef5f07f574f9c54545cb93e076eab76359644d237a5cf24fe6265d",
+    "tests/run_empty_panel_checks.py": "5b58d7daf019243c56c63a14dd44b560729b506026aca2968f3c3c215d7d3ba3",
+    "tests/check_empty_panel_package.py": "47c03623aea7c8de6dafc893cea640b5fb95ebfdeec21877b92fa2ce8b611a1b",
+    "tools/build_cad2020.py": "245a4cadda2e9cc5994ab138e69345511d15e314feb78ca37bb9c5b544681f3d",
+    ".gitignore": "9f60e2eae851cabc32ed88f1705f82883ff5d2eef9b8d58890ccbd3869a007a5"
+  },
+  "cad_status": "pending; invalid empty-list selection was reproduced by a contract adapter, not a native AutoCAD crash; native empty-DWG ELSTAT must be retested"
+}

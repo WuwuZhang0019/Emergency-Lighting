@@ -21,6 +21,9 @@ config/*.invalid-*
 /output/cad2020-source-scan-check/
 /output/应急照明-095/
 /output/应急照明-095.zip
+/output/应急照明-096/
+/output/应急照明-096.zip
+/output/cad2020-empty-panel-check/
 
 config/power-input-*.eld
 

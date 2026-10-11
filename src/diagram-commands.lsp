@@ -292,6 +292,8 @@
 ;; Date: 2026-10-10. ELSTAT opens the panel before requesting model selection.
 (defun EL:FixedStat (/ *error* next perfowner)
   (defun *error* (msg)
+    ;; Date: 2026-10-11. Preserve the initial panel stage before unloading DCL.
+    (EL:LogFailure msg)
     (vl-catch-all-apply 'EL:ReleasePowerUI nil)
     (if msg (princ (strcat "\n面板已停止：" msg))) (EL:PerfFinish 'failed) (princ))
   (setq perfowner (EL:PerfStart "ELSTAT"))

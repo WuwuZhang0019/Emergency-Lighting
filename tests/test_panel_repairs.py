@@ -1,4 +1,4 @@
-"""Reported native panel failures. Date: 2026-10-10."""
+"""Reported native panel failures. Date: 2026-10-11."""
 import unittest
 from pathlib import Path
 from autolisp_host import Symbol
@@ -38,6 +38,29 @@ class PanelRepairTests(unittest.TestCase):
         self.call('EL:PanelText', 'p_total', '已保存')
         self.assertEqual(self.tiles['p_total'], '已保存')
         self.assertTrue(all(self.tiles['p_total' + str(i)] == '' for i in range(1, 4)))
+
+    def test_status_wrap_preserves_gb2312_pairs_in_cad2020(self):
+        # Model the legacy byte-indexed primitives, including split byte slices.
+        encode = lambda s: s.encode('gb2312', errors='surrogateescape')
+        def substr(s, start, count):
+            return encode(s)[start - 1:start - 1 + count].decode('gb2312', errors='surrogateescape')
+        self.h.builtins.update({'STRLEN': lambda s: len(encode(s)),
+                               'SUBSTR': substr, 'ASCII': lambda s: encode(s)[0]})
+        values = [
+            ('p_capacity_status', '默认 0.3kW；可按需要调整为 0.6kW 或 1kW。', 2),
+            ('p_total', '已识别设备合计：170 W；连接仍待核对；实际回路 5；输出 7；已完整核对回路 80 W', 4),
+            ('p_error', 'A' * 43 + '中文提示', 3),
+        ]
+        for key, value, count in values:
+            with self.subTest(key=key):
+                self.call('EL:PanelText', key, value)
+                lines = [self.tiles[key + (str(i) if i else '')] for i in range(count)]
+                self.assertEqual(''.join(lines), value)
+                for line in lines:
+                    self.assertEqual(encode(line).decode('gb2312'), line)
+                    self.assertLessEqual(len(encode(line)), 44)
+        self.call('EL:PanelText', 'p_total', '')
+        self.assertTrue(all(self.tiles['p_total' + (str(i) if i else '')] == '' for i in range(4)))
 
     def test_screenshot_counts_total_85_even_when_connection_is_pending(self):
         self.h.run('''(setq *EL:PanelPowers* '(("A" . 5) ("B" . 1) ("C" . 1) ("D" . 1)))''')

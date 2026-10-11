@@ -1,11 +1,14 @@
-;; Date: 2026-10-10. Wrap Chinese/ASCII status text in the compact left column.
-(defun EL:PanelText (key value / lines line units char cost index limit)
+;; Date: 2026-10-11. Keep GB2312 byte pairs intact in the legacy CAD2020 engine.
+(defun EL:PanelText (key value / lines line units char cost index limit legacy step)
   (setq line "" units 0 index 1 limit (cond ((equal key "p_total") 4) ((equal key "p_error") 3) (T 2)))
-  (repeat (strlen value)
+  (setq legacy (= (strlen "中") 2))
+  (while (<= index (strlen value))
     (setq char (substr value index 1) cost (if (> (ascii char) 127) 2 1))
+    (setq step (if (and legacy (= cost 2)) 2 1)
+      char (substr value index step))
     (if (> (+ units cost) 44)
       (setq lines (append lines (list line)) line "" units 0))
-    (setq line (strcat line char) units (+ units cost) index (1+ index)))
+    (setq line (strcat line char) units (+ units cost) index (+ index step)))
   (setq lines (append lines (list line)) index 0)
   (repeat limit
     (set_tile (if (= index 0) key (strcat key (itoa index))) (cond ((nth index lines)) (T "")))

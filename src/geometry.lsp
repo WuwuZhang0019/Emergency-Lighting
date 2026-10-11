@@ -207,7 +207,7 @@
     (setq profiles (EL:WireWidthProfiles d pts bs)))
   (list (cons 'id id) (cons 'layer (cdr (assoc 8 d))) (cons 'type typ)
         (cons 'width-profiles profiles) (cons 'contact-strips (EL:WireContactStrips segments profiles))
-        (cons 'segments segments) (cons 'bounds bounds) (cons 'ends ends) (cons 'issues issues) (cons 'raw (EL:Signature d))))
+        (cons 'segments segments) (cons 'bounds bounds) (cons 'ends ends) (cons 'issues issues) (cons 'raw (EL:Signature (EL:CanonicalVisibilityDXF d)))))
 (defun EL:TransformSegments (segments matrix)
   (mapcar '(lambda (segment) (list (EL:AffinePoint (car segment) matrix)
     (EL:AffinePoint (cadr segment) matrix))) segments))
@@ -853,3 +853,7 @@
 (defun EL:By (key value records / result rec)
   (foreach rec records (if (equal (EL:Get key rec) value) (setq result rec))) result)
 (princ)
+
+;; Date: 2026-10-11. Absent DXF 60 and explicit zero both mean visible.
+(defun EL:CanonicalVisibilityDXF (data)
+  (vl-remove-if '(lambda (pair) (and (= (car pair) 60) (= (cdr pair) 0))) data))

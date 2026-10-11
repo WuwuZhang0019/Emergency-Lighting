@@ -42,3 +42,35 @@ class PanelNumberTests(unittest.TestCase):
         self.h.run('(EL:SyncCCKKLabels plan record store nil)')
         self.assertIn(('caption-panel-label', '二层-ALE'), self.writes)
         self.assertEqual(self.deleted, [])
+
+    def test_history_previews_current_number_without_changing_saved_records(self):
+        self.h.run("(setq current '((source-panel-handle . \"source\") (panel-number . \"暂无编号\")))")
+        self.h.run("(setq other '((source-panel-handle . \"other\") (panel-number . \"其他箱\")))")
+        self.h.run("(setq history-store (list (cons 'diagrams (list current other))))")
+        self.h.run("(setq *EL:PanelDraft* '((panel . \"source\") (panel-number . \"ZZ-B1ALE(JZ)\")))")
+        labels=[]; tiles={}
+        self.h.builtins.update({'EL:STOREREAD':lambda:self.h.lookup('HISTORY-STORE'),
+            'START_LIST':lambda *args:None, 'END_LIST':lambda:None, 'ADD_LIST':labels.append,
+            'SET_TILE':lambda k,v:tiles.__setitem__(k,v), 'MODE_TILE':lambda *args:None})
+        self.call('EL:HistoryFill')
+        self.assertIn('ZZ-B1ALE(JZ)',labels[0])
+        self.assertIn('编号待保存',labels[0])
+        self.assertIn('ZZ-B1ALE(JZ)',tiles['h_detail'])
+        self.assertIn('其他箱',labels[1])
+        self.assertNotIn('编号待保存',labels[1])
+        self.assertEqual(self.h.run('(EL:PanelNumber current)'), '暂无编号')
+        self.h.run('(setq *EL:PanelDraft* nil)')
+        labels.clear(); self.call('EL:HistoryFill')
+        self.assertIn('暂无编号',labels[0])
+        self.assertNotIn('编号待保存',labels[0])
+
+    def test_saved_number_clears_pending_and_reopens_consistently(self):
+        self.install_transaction()
+        self.h.builtins['EL:TEMPLATEREADY']=lambda *args: None
+        self.h.run('(setq result (EL:Put \'panel-number "ZZ-B1ALE(JZ)" result) *EL:PanelDraft* result)')
+        self.assertTrue(truth(self.h.run("(EL:SaveDraft result nil nil 'cap300)")))
+        self.h.run('(setq reopened (EL:DiagramForPanel "source" (EL:StoreRead)))')
+        self.assertEqual(self.h.run('(EL:HistoryNumber reopened)'), 'ZZ-B1ALE(JZ)')
+        self.assertEqual(self.h.run('(EL:HistoryNumberNote reopened)'), '')
+        self.h.run('(setq *EL:PanelDraft* nil)')
+        self.assertEqual(self.h.run('(EL:HistoryNumber reopened)'), 'ZZ-B1ALE(JZ)')

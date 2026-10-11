@@ -47,7 +47,7 @@ class SavedRecordsTests(unittest.TestCase):
         self.actions = [lambda: self.done(0)]
         self.h.run('(c:ELSTAT)')
         self.assertEqual(len(labels), 2)
-        self.assertIn('other', labels[0])
+        self.assertIn('暂无编号', labels[0])
         self.assertEqual(self.saved, [])
         self.assertEqual(self.writes, [])
 
@@ -145,7 +145,7 @@ class SavedRecordsTests(unittest.TestCase):
         self.call('EL:HistorySelect', '0')
         self.assertEqual(modes[-1], ('h_open', 1))
         self.assertEqual(self.saved, [])
-        self.assertIn('other', self.tiles['h_detail'])
+        self.assertIn('暂无编号', self.tiles['h_detail'])
 
     def test_navigation_loop_uses_target_config(self):
         calls = []

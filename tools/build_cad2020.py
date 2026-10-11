@@ -4,7 +4,7 @@ import shutil
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGE_NO = 91
+PACKAGE_NO = 92
 NAME = f'应急照明-{PACKAGE_NO:03d}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 DEST = ROOT / 'output' / NAME
@@ -132,7 +132,9 @@ def build():
         target = DEST / source.relative_to(ROOT)
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, target)
-    for source in sorted((ROOT / 'tests/evidence').glob('2026-10-11-performance-p0-091.*')):
+    for source in sorted((ROOT / 'tests/evidence').glob('2026-10-11-performance-*.json')):
+        shutil.copy2(source, DEST / 'tests/evidence' / source.name)
+    for source in sorted((ROOT / 'tests/evidence').glob('2026-10-11-performance-*.md')):
         shutil.copy2(source, DEST / 'tests/evidence' / source.name)
     readme = guide
     (DEST / '使用说明.md').write_text(readme, encoding='utf-8')

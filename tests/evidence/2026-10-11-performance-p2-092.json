@@ -1,0 +1,570 @@
+{
+  "date": "2026-10-11",
+  "status": "passed",
+  "phase": "P2-first-step",
+  "package": 92,
+  "modules": [
+    "test_store_performance",
+    "test_diagram_store",
+    "test_diagram_update",
+    "test_performance",
+    "test_root_init",
+    "test_source_contracts",
+    "test_fixed_source_signature",
+    "test_source_difference"
+  ],
+  "test_count": 126,
+  "failure_count": 0,
+  "error_count": 0,
+  "tests": [
+    {
+      "test": "test_store_performance.StorePerformanceTests.test_entity_readback_difference_cannot_hide_behind_correct_dictionary",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_performance.StorePerformanceTests.test_join_empty_single_odd_chunks_and_order",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_performance.StorePerformanceTests.test_large_native_signature_has_bounded_copy_work_and_exact_contents",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_performance.StorePerformanceTests.test_malformed_native_string_is_still_rejected",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_performance.StorePerformanceTests.test_save_decodes_audited_entry_without_another_dictionary_read",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_74_legacy_fields_are_replaced_even_when_entmod_would_retain_them",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_chunked_xrecord_roundtrip_and_reopen",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_corrupt_store_and_serialization_mismatch_never_modify_dwg",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_dictionary_only_extra_field_is_distinguished_from_entity_data",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_difference_reports_field_path_and_late_string_offset_without_long_values",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_fallback_identity_persists_across_store_reload",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_foreign_or_copied_handle_is_not_owned",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_gb2312_byte_engine_never_splits_multibyte_strings_in_xrecord",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_large_list_of_short_atoms_roundtrips_without_tail_recursion",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_large_signature_save_reopen_and_rewrite_with_bounded_read",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_legacy_large_v1_xrecord_reopens_without_format_migration",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_legacy_record_migrates_atomically_in_place_and_preserves_metadata",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_native_doubles_preserve_low_digits_tiny_values_and_signed_coordinates",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_native_field_mutation_is_logged_before_decoder_exit",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_native_strings_bypass_printer_reader_escapes_and_keep_case",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_parser_preserves_numbers_nil_symbols_and_improper_lists",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_parser_rejects_truncation_bad_pairs_and_trailing_data",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_schema_and_parse_errors_are_separate_and_diagnostics_are_bounded",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_string_escape_sequences_across_parser_boundaries",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_typed_decoder_rejects_missing_end_wrong_types_and_unknown_version",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_typed_values_keep_empty_nil_boolean_integer_and_improper_lists",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_caption_requirements_do_not_depend_on_v52_plan_marker",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_cckk_create_uses_actual_85w_and_tracks_all_captions",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_cckk_missing_caption_repaired_and_foreign_caption_rejected",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_cckk_old_plan_migrates_power_alignment_and_adds_captions",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_commit_failure_rolls_back_and_keeps_original_error",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_common_sync_noop_and_invalid_result_never_reports_saved",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_confirmed_fixed_update_uses_new_template_and_persists_sources",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_corrupt_xrecord_readback_rolls_back_existing_store_and_graphics",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_dirty_marker_free_residue_recovers_without_prompt_or_undo",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_disabled_or_unclosed_undo_is_not_a_truthy_message",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_draft_requires_store_readback_not_only_success_flag",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_draft_then_sync_keep_low_real_digits_and_default_capacity",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_dynamic_failure_rolls_back_prior_capacity_change",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_empty_memory_residue_saves_without_prompt_or_undo",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_existing_undo_group_saves_capacity_and_powers_with_real_transaction",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_failed_commit_and_rollback_without_marker_can_recover_on_retry",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_failed_write_rolls_back_modified_deleted_created_and_dictionary",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_ground_change_updates_state_and_not_power",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_identical_update_is_noop_and_manual_text_content_is_repaired",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_inline_recovery_bad_marker_does_not_start_transaction",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_large_template_draft_recovers_saves_and_reopens_with_bounded_read",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_layout_conflict_and_locked_layer_preflight",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_memory_recovery_cannot_clear_blocker_if_undo_group_stays_open",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_missing_text_only_is_recreated",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_native_readback_value_mismatch_reports_field_and_rolls_back",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_new_row_appends_before_existing_reserve_handles",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_nil_rollback_without_closing_state_does_not_report_cleanup_success",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_nil_writer_rolls_back_without_using_exit_as_an_exception",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_power_update_keeps_handles_manual_position_and_no_reserve_text",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_recovery_archives_marker_without_changing_graphics_or_store",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_recovery_command_automatically_archives_marker",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_recovery_failed_rename_keeps_blocker",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_recovery_preserves_entities_without_asking_yes",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_recovery_rejects_unrecognized_marker",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_reentrant_write_and_rollback_remain_guarded",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_remove_retains_reserve_identity_and_cleans_owned_row",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_rollback_failure_is_reported_without_erasing_original_error",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_running_transaction_cannot_be_recovered_or_nested",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_save_recovers_inline_and_continues_without_separate_command",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_silent_undo_noop_keeps_transaction_blocker",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_start_failure_is_caught_without_writing_or_undoing_user_work",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_successful_single_undo_restores_both_graphics_and_record",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_sync_rejects_prompt_string_and_does_not_export_or_report_success",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_v53_caption_upgrade_keeps_manual_offset_and_repairs_native_text",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_whole_rotation_scale_is_adopted_but_panel_only_move_is_rejected",
+      "status": "passed"
+    },
+    {
+      "test": "test_performance.PerformanceFlowTests.test_caught_native_cancel_stops_interaction_and_preserves_rollback",
+      "status": "passed"
+    },
+    {
+      "test": "test_performance.PerformanceFlowTests.test_no_change_update_is_measured_with_zero_entity_and_master_writes",
+      "status": "passed"
+    },
+    {
+      "test": "test_performance.PerformanceFlowTests.test_real_managed_placement_marks_then_reads_and_counts_writes",
+      "status": "passed"
+    },
+    {
+      "test": "test_performance.PerformanceTests.test_caught_cancel_unwinds_wait_before_following_work",
+      "status": "passed"
+    },
+    {
+      "test": "test_performance.PerformanceTests.test_detail_only_enables_selected_fine_stages",
+      "status": "passed"
+    },
+    {
+      "test": "test_performance.PerformanceTests.test_log_scope_does_not_reset_or_finish_its_top_command",
+      "status": "passed"
+    },
+    {
+      "test": "test_performance.PerformanceTests.test_logs_off_still_emits_one_independent_readable_record",
+      "status": "passed"
+    },
+    {
+      "test": "test_performance.PerformanceTests.test_marks_report_after_submit_and_after_placement",
+      "status": "passed"
+    },
+    {
+      "test": "test_performance.PerformanceTests.test_native_values_nil_and_exceptions_are_preserved",
+      "status": "passed"
+    },
+    {
+      "test": "test_performance.PerformanceTests.test_nested_waits_are_a_union_and_stages_remain_inclusive",
+      "status": "passed"
+    },
+    {
+      "test": "test_performance.PerformanceTests.test_reporting_errors_do_not_replace_the_business_result",
+      "status": "passed"
+    },
+    {
+      "test": "test_performance.PerformanceTests.test_signed_tick_rollover_is_not_reported_as_zero",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_elroot_switches_to_selected_complete_package_and_cancel_keeps_root",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_missing_registry_reuses_remembered_output_root_without_prompt",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_old_ui_directory_requires_complete_new_package",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_package_encoding_layout_and_update_forms",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_packaged_setup_uses_fixed_mm_and_numeric_choices_with_real_data_io",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_standalone_update_initializes_root_then_setup_reaches_actual_pick",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_startup_appload_folder_needs_no_file_selection_and_can_start",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_startup_embedded_resources_without_registry_or_search_path",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_startup_embedded_write_failure_does_not_report_ready_or_prompt",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_startup_from_src_folder_and_old_root_selects_new_package",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_startup_incomplete_package_requires_repair",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_startup_registry_full_filename_needs_no_selection",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_startup_search_path_works_when_registry_unavailable",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_startup_src_search_path_without_visible_marker",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_startup_wrong_version_does_not_silently_reuse_old_root",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_update_cancel_reports_not_ready_and_command_can_retry_once",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.PackagedUpdateTests.test_update_preserves_old_root_and_config_then_stat_reaches_panel_pick",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootFixture.test_old_ui_directory_requires_complete_new_package",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_cancelled_save_does_not_write_config_or_report_success",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_cancelled_setup_config_does_not_build_invalid_backup_path",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_cancelled_setup_does_not_reprompt_backup_or_create_config",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_config_path_rejects_nil_or_non_string_root_and_drawing_id",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_empty_wrong_type_and_deleted_roots_request_relocation",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_invalid_config_backup_still_preserves_previous_data",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_missing_post_stat_ui_marker_rejects_old_dialog",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_missing_root_is_initialized_before_config_path_is_used",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_old_ui_directory_requires_complete_new_package",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_save_initializes_missing_root_and_can_read_back_the_config",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_unsaved_drawing_stops_before_directory_selection",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_valid_root_with_or_without_trailing_separator_keeps_saved_config",
+      "status": "passed"
+    },
+    {
+      "test": "test_root_init.RootInitTests.test_wrong_file_and_incomplete_package_are_not_accepted",
+      "status": "passed"
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_atomic_config_write_restores_previous_file_on_failure",
+      "status": "passed"
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_dcl_keys_and_callback_syntax",
+      "status": "passed"
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_forms_arities_and_local_assignments",
+      "status": "passed"
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_geometry_and_topology_do_not_mutate_drawing",
+      "status": "passed"
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_rollback_only_deletes_created_objects_even_if_one_delete_fails",
+      "status": "passed"
+    },
+    {
+      "test": "test_fixed_source_signature.FixedSourceMigrationTests.test_old_record_upgrades_then_noop_keeps_output_handles",
+      "status": "passed"
+    },
+    {
+      "test": "test_fixed_source_signature.FixedSourceSignatureTests.test_exact_changes_still_fail_and_log_bounded_leaf_evidence",
+      "status": "passed"
+    },
+    {
+      "test": "test_fixed_source_signature.FixedSourceSignatureTests.test_native_dxf_roundtrip_preserves_typed_signature",
+      "status": "passed"
+    },
+    {
+      "test": "test_fixed_source_signature.FixedSourceSignatureTests.test_no_large_printer_call_and_repeated_freshness_passes",
+      "status": "passed"
+    },
+    {
+      "test": "test_fixed_source_signature.RejectionAlertTimingTests.test_actual_command_alerts_count_as_user_wait",
+      "status": "passed"
+    },
+    {
+      "test": "test_source_difference.SourceDifferenceTests.test_exact_field_and_values_are_logged",
+      "status": "passed"
+    },
+    {
+      "test": "test_source_difference.SourceDifferenceTests.test_matching_snapshots_do_not_emit_mismatch",
+      "status": "passed"
+    }
+  ],
+  "source_unchanged_during_run": true,
+  "sha256_before": {
+    "src/common.lsp": "e5db3ce2026a66bdbcc635095a45058d306a29adf4cb1f357394490ec346a562",
+    "src/config.lsp": "c6e0ccc700b61a0a339dccd88344b2e11bf58057791ce135ae0605788b6a6444",
+    "src/diagram-commands.lsp": "93ecf80838ea923fe37a21954ad2e5b95e2ae5842b5ef6e30558037d8cbadeac",
+    "src/diagram-store.lsp": "c16c30df2d6de11519d1178fdc86cd950167013f2bd8b279d9193208fc7ad5c4",
+    "src/diagram-update.lsp": "31942f59e5fc274ab2e25bdfdbfcd6f2b0d77f79ca97753771148c2344ac967b",
+    "src/fixed.lsp": "4110cbefb14ab0249f8875c92fbc2f639a5107a0ed94581160ae8e7fa110293f",
+    "src/generation.lsp": "99e1b9fef2af875637393cc4ebee9b001e1959fe54d5318a2c55fad8e0dcd93f",
+    "src/geometry.lsp": "2db8452439c3939e2bf9b7423d9c6f5a15e24960a296fef1123e52193aea3134",
+    "src/insert-circuit.lsp": "e7a9306c8f79849f51b26499ac5c1b0232e18fc54f911597c4334e06b66ae2cd",
+    "src/load.lsp": "8fefa51a9e638768a34635348fe869a26bdd88ebf672993eec33c9eba9a59d45",
+    "src/main.lsp": "5a229c0b3081eca2a5e171e60a4e812321fcb85adb28ea32f60fb25d3ab65d6a",
+    "src/panel.lsp": "e63c15a0a5281d35ec466cd1e95781f3b228028cdcd3041c057ad8447cd0e03c",
+    "src/simple.lsp": "3f7f1af0dd948aab97cc04d3f406d77d8a46a28d667ffec5613539c1b53adf14",
+    "src/startup.lsp": "557207ee99beb8b8777315491ff884e2b19f21225a0eb34b5e93dc67e39db4a0",
+    "src/statistics.lsp": "45e713b3653d0c204e58cd3feef7cc11de890cc765f6dba36d4da3f85b05ddb7",
+    "src/topology.lsp": "136f648ad54d3535cc60449a2c630a4a29be694621276fd4b036869bed3d092b",
+    "tools/build_cad2020.py": "0e65f7e0ebfc84c795749784cee4e326885d6d79b553ade2d2403ff0d665d228"
+  },
+  "sha256": {
+    "src/common.lsp": "e5db3ce2026a66bdbcc635095a45058d306a29adf4cb1f357394490ec346a562",
+    "src/config.lsp": "c6e0ccc700b61a0a339dccd88344b2e11bf58057791ce135ae0605788b6a6444",
+    "src/diagram-commands.lsp": "93ecf80838ea923fe37a21954ad2e5b95e2ae5842b5ef6e30558037d8cbadeac",
+    "src/diagram-store.lsp": "c16c30df2d6de11519d1178fdc86cd950167013f2bd8b279d9193208fc7ad5c4",
+    "src/diagram-update.lsp": "31942f59e5fc274ab2e25bdfdbfcd6f2b0d77f79ca97753771148c2344ac967b",
+    "src/fixed.lsp": "4110cbefb14ab0249f8875c92fbc2f639a5107a0ed94581160ae8e7fa110293f",
+    "src/generation.lsp": "99e1b9fef2af875637393cc4ebee9b001e1959fe54d5318a2c55fad8e0dcd93f",
+    "src/geometry.lsp": "2db8452439c3939e2bf9b7423d9c6f5a15e24960a296fef1123e52193aea3134",
+    "src/insert-circuit.lsp": "e7a9306c8f79849f51b26499ac5c1b0232e18fc54f911597c4334e06b66ae2cd",
+    "src/load.lsp": "8fefa51a9e638768a34635348fe869a26bdd88ebf672993eec33c9eba9a59d45",
+    "src/main.lsp": "5a229c0b3081eca2a5e171e60a4e812321fcb85adb28ea32f60fb25d3ab65d6a",
+    "src/panel.lsp": "e63c15a0a5281d35ec466cd1e95781f3b228028cdcd3041c057ad8447cd0e03c",
+    "src/simple.lsp": "3f7f1af0dd948aab97cc04d3f406d77d8a46a28d667ffec5613539c1b53adf14",
+    "src/startup.lsp": "557207ee99beb8b8777315491ff884e2b19f21225a0eb34b5e93dc67e39db4a0",
+    "src/statistics.lsp": "45e713b3653d0c204e58cd3feef7cc11de890cc765f6dba36d4da3f85b05ddb7",
+    "src/topology.lsp": "136f648ad54d3535cc60449a2c630a4a29be694621276fd4b036869bed3d092b",
+    "tools/build_cad2020.py": "0e65f7e0ebfc84c795749784cee4e326885d6d79b553ade2d2403ff0d665d228"
+  },
+  "cad_status": "pending; adapter correctness checks, not measured native CAD acceleration",
+  "validation_note": "Initial diagnostic-order regression corrected preserving original business-field diagnostics. UTF-8 mode and repository-local tempdir fix environment failures. Prior 119 checks passed but common.lsp changed during that run; this complete rerun also includes the final source-signature and difference tests.",
+  "input_logs": {
+    "ELPERF.log": "fe35ab114e36f02fa5c434bb07663c0436c02b671881ac34784d5a68c3c5a643",
+    "ELTRACE-debug (19).log": "11b8fda5ece04b41a71cf00b21c539e06ef16802406713b5557a28907386358f"
+  }
+}

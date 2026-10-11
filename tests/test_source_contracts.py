@@ -1,4 +1,4 @@
-"""Source and adapter contracts. These checks do not run AutoCAD or DCL."""
+"""Source and adapter contracts. Date: 2026-10-11. No AutoCAD or DCL execution."""
 import pathlib
 import re
 import tempfile
@@ -34,6 +34,12 @@ class SourceContracts(unittest.TestCase):
                     self.defs[str(form[1])] = form
 
     def test_forms_arities_and_local_assignments(self):
+        # HLBN:Check reports into a deliberately caller-bound error slot.
+        # Verify every production entry declares it, instead of treating this
+        # one known dynamic binding as an accidental global assignment.
+        dynamic_bindings = {'HLBN:CHECK': {Symbol('HLBN-FAILURE')}}
+        for caller in ('HLBN:EXECUTE', 'C:HLPLBH', 'C:HLPLBHRECOVER'):
+            self.assertIn(Symbol('HLBN-FAILURE'), seq(self.defs[caller][2]))
         for name, form in self.defs.items():
             locals_ = set(seq(form[2]))
             for body in form[3:]:
@@ -46,7 +52,8 @@ class SourceContracts(unittest.TestCase):
                             self.assertEqual(len(expr)%2,1)
                             for var in expr[1::2]:
                                 self.assertIsInstance(var,Symbol)
-                                self.assertTrue(var in locals_ or str(var).startswith('*'),var)
+                                self.assertTrue(var in locals_ or str(var).startswith('*')
+                                    or var in dynamic_bindings.get(name, set()),var)
                         if op == 'IF': self.assertIn(len(expr),[3,4])
                         if op in self.defs:
                             params = seq(self.defs[op][2])

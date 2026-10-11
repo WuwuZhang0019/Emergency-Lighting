@@ -1,10 +1,12 @@
 # 天正 HLBH 批量编号使用与 CAD 验收
 日期：2026-10-11
-状态：独立功能已实现，自动检查通过；真实 AutoCAD/天正验收待完成
+状态：已修复用户日志中的提示误判，自动检查通过；修复后真实 AutoCAD/天正验收待完成
 
 ## 加载与使用
 
 只加载本工具：`APPLOAD` 选择 `output/HLPLBH.lsp`。该文件已严格转换为 GB2312，可供简体中文 Windows AutoCAD 2020 加载。仓库内 `src/batch-number.lsp` 是 UTF-8 源码，不作为 CAD2020 的加载文件。
+
+当前独立文件修订为 `2026.10.11.2`。使用旧版后仍停在天正选线提示时，先按 Esc 结束命令，再重新 APPLOAD 上述文件；命令行应显示此修订号。若提示存在待恢复批次，先在原图运行 `HLPLBHRECOVER` 核对恢复，再开始新批次。
 
 1. 在已经加载天正电气的 CAD 中运行 `HLPLBH`。
 2. 输入 `ZE1`，或者直接回车采用默认编号。以后回车保留上次成功批次的起始编号。
@@ -27,7 +29,9 @@
 
 ## 兼容性失败和日志
 
-日志为 CAD 临时目录中的 `HLPLBH-debug.log`，具体绝对路径会在命令行打印。日志包括排序计划、每条导线的连接点和文字点、天正实际提示、新增实体类型、编号接口及回读结果。
+日志为 CAD 临时目录中的 `HLPLBH-debug.log`，具体绝对路径会在命令行打印。日志包括工具修订号、排序计划、每条导线的连接点和文字点、`CMDACTIVE`、`CMDNAMES`、前后 `LASTPROMPT` 文本、新增实体类型、编号接口及回读结果，以及原生命令退出和取消状态。
+
+用户实测说明 `LASTPROMPT` 有时仍是 UNDO 的历史输出。因此，工具不会仅因该文本没有出现“导线”就中断；没有刷新或只追加输入的提示作为诊断保留，以活动状态、两步输入和实际生成结果继续核对。出现新且不兼容的提示时仍停止。`COMPLETE` 只能记录完整的非空编号列表，空返回或不足所选数量的结果均作为失败处理。
 
 以下情况会停止，不会自动替换成普通文字与线条：
 
@@ -37,13 +41,13 @@
 - 写入编号后回读不一致、命令退出后编号变化，或原生文字对象类型发生变化。
 - 选中导线连接点重合、编号序列超出整数范围，或导线与文字点不在当前 UCS 的同一平面。
 
-这些失败说明当前天正版本需要适配。自动检查不证明天正私有对象开放了 `TextString`；遇到失败，请保留完整命令行及日志，尤其是 `PROMPT`、`CREATED`、`TEXT_INTERFACE_UNAVAILABLE`、`FAILED` 和 `ROLLBACK` 记录。
+这些失败说明当前天正版本需要适配。自动检查不证明天正私有对象开放了 `TextString`；遇到失败，请保留完整命令行及日志，尤其是 `BEGIN`、`PROMPT`、`CREATED`、`TEXT_INTERFACE_UNAVAILABLE`、`FAILED`、`CANCEL_AFTER` 和 `ROLLBACK` 记录。
 
 ## 真实 CAD 验收清单
 
-当前环境未运行真实 AutoCAD/天正，以下项目尚未验收：
+已收到用户 AutoCAD 2020 的失败截图和日志，确认旧版中断于提示判断且留下活动 HLBH。当前执行环境未运行真实 AutoCAD/天正，修复后以下项目尚未验收：
 
-1. 原图中用 `ZE1` 框选五条独立出线，仅点一次空白处；核对 `ZE1` 至 `ZE5` 自上而下、一线一组、文字对齐、引线落在对应导线上。
+1. 在副本图中用 `ZE1` 框选五条独立出线，仅点一次空白处；应自动传入每条导线和文字点，不再要求用户逐条选线，最后正常退出 HLBH。核对 `ZE1` 至 `ZE5` 自上而下、一线一组、文字对齐、引线落在对应导线上。
 2. 天正浮动窗口设置成其他编号，例如 `wl12`，本工具输入 `ZE1`；核对程序能否在原生标注上改号并读回。接口不支持时应报告原因并撤销本批次，不得显示成功。
 3. 双击或通过天正编辑新标注，核对原生对象、文字样式、斜线、引线和导线关联是否保留；保存 DWG、关闭并重开后再次核对编号和关联。
 4. 在副本图中验证旋转 UCS、左侧放置、密集出线、文字/图块混选和锁层；核对跳过数量、排序和字高间距。
@@ -64,6 +68,8 @@ python -X utf8 tools/export_batch_number.py
 
 - [AutoCAD command：逐项传入命令输入及 entsel 对象/点列表](https://help.autodesk.com/cloudhelp/2022/ENU/AutoCAD-AutoLISP-Reference/files/GUID-1C989B35-2C5A-47EC-A0C9-71998EDFB157.htm)
 - [AutoCAD command-s：错误处理中执行完整命令及撤销限制](https://help.autodesk.com/cloudhelp/2022/ENU/AutoCAD-AutoLISP-Reference/files/GUID-5C9DC003-3DD2-4770-95E7-7E19A4EE19A1.htm)
+- [AutoCAD LASTPROMPT：最后回显文本，包括用户输入](https://help.autodesk.com/cloudhelp/2025/ESP/AutoCAD-LT/files/GUID-6C63005A-A87C-416C-B9FC-D11F609143A9.htm)
+- [AutoCAD CMDACTIVE：普通命令及 ObjectARX 命令活动位](https://help.autodesk.com/cloudhelp/2019/ENU/AutoCAD-Core/files/GUID-18B2E090-6C94-4C24-A70A-F2D6BDD5569C.htm)
 - [AutoCAD TextString：文字接口及格式代码](https://help.autodesk.com/cloudhelp/2026/DEU/AutoCAD-ActiveX-Reference/files/GUID-E54B1951-5BF5-4524-97E6-DFB4E4A20109.htm)
 
 这些资料说明通用 AutoCAD 接口，不说明用户安装的天正版本已经兼容。

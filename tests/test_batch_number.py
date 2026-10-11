@@ -17,6 +17,10 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / 'src/batch-number.lsp'
 
 
+class NativeAbort(RuntimeError):
+    """Model EXIT leaving the native runner instead of producing a result."""
+
+
 def field(data, code):
     return next((pair.cdr for pair in data if isinstance(pair, Pair) and pair.car == code), None)
 
@@ -45,6 +49,12 @@ class BatchFixture(unittest.TestCase):
         self.input_calls = []
         self.labels = []
         self.mode = None
+        self.native_active = 1
+        self.native_names = 'HLPLBH HLBH'
+        self.frozen_prompt = None
+        self.omit_prompt = False
+        self.append_start_to_prompt = False
+        self.abort_returns_nil = False
         self.palette_number = 12
         self.missing_command = False
         self.incorrect_prompt = False
@@ -62,6 +72,7 @@ class BatchFixture(unittest.TestCase):
         self.corrupt_after_exit = False
         self.change_type_after_exit = False
         self.refuse_cancel = False
+        self.cancel_refusals = 0
         self.undo_calls = 0
         self.undo_snapshot = None
         self.selection = []
@@ -94,6 +105,7 @@ class BatchFixture(unittest.TestCase):
             'VLA-UPDATE': lambda entity: None,
             'COMMAND': self.command,
             'COMMAND-S': self.command_s,
+            'VL-CATCH-ALL-APPLY': self.catch,
             'PRINC': lambda *args: self.messages.extend(args),
             'HLBN:LOG': lambda stage, data: self.logs.append((stage, copy.deepcopy(data))) or 'C:/Temp/HLPLBH-debug.log',
             'EXIT': lambda: self.abort(),
@@ -101,9 +113,16 @@ class BatchFixture(unittest.TestCase):
             'GETDIST': lambda *args: getattr(self, 'gap_input', None),
         })
 
-    @staticmethod
-    def abort():
-        raise RuntimeError('quit / exit abort')
+    def abort(self):
+        raise NativeAbort('quit / exit abort')
+
+    def catch(self, function, args):
+        if self.abort_returns_nil and function == 'HLBN:NATIVERUN':
+            try:
+                return self.h.call(function, args)
+            except NativeAbort:
+                return None
+        return self.h.catch(function, args)
 
     def call(self, name, *values):
         return self.h.call(Symbol(name.upper()), list(values))
@@ -178,18 +197,25 @@ class BatchFixture(unittest.TestCase):
 
     def set_mode(self, mode):
         self.mode = mode
-        self.variables['CMDACTIVE'] = 1 if mode else 0
-        self.variables['CMDNAMES'] = 'HLPLBH HLBH' if mode else ''
+        self.variables['CMDACTIVE'] = self.native_active if mode else 0
+        self.variables['CMDNAMES'] = self.native_names if mode else ''
         self.variables['LASTPROMPT'] = {'wire': '请选择要标注的导线 <退出>:',
                                         'landing': '请给出文字装落点<退出>:'}.get(mode, '命令:')
+        if mode and self.frozen_prompt is not None:
+            self.variables['LASTPROMPT'] = self.frozen_prompt
+        if mode and self.omit_prompt:
+            self.variables['LASTPROMPT'] = None
 
     def command(self, *args):
         self.commands.append(args)
         if not args:
-            if not self.refuse_cancel:
+            if self.cancel_refusals > 0:
+                self.cancel_refusals -= 1
+            elif not self.refuse_cancel:
                 self.set_mode(None)
             return
         if args == ('HLBH',):
+            before = self.variables['LASTPROMPT']
             if self.missing_command:
                 self.set_mode(None)
                 self.variables['LASTPROMPT'] = '未知命令 HLBH'
@@ -197,6 +223,9 @@ class BatchFixture(unittest.TestCase):
                 self.set_mode('wire')
                 if self.incorrect_prompt:
                     self.variables['LASTPROMPT'] = '该版本的其他设置提示'
+                if self.append_start_to_prompt:
+                    self.frozen_prompt = before + ' HLBH'
+                    self.variables['LASTPROMPT'] = self.frozen_prompt
             return
         if args == ('',):
             self.assertEqual(self.mode, 'wire')
@@ -216,6 +245,8 @@ class BatchFixture(unittest.TestCase):
             self.selected = entity
             self.selected_point = list(point)
             if self.select_mismatch:
+                if self.frozen_prompt is None:
+                    self.variables['LASTPROMPT'] = '选择无效，重新选择! 请选取要标注的导线 <退出>:'
                 return
             self.set_mode('landing')
             return
@@ -250,10 +281,12 @@ class BatchFixture(unittest.TestCase):
 
     def command_s(self, *args):
         self.commands.append(args)
+        self.assertIsNone(self.mode, 'never execute UNDO while the vendor still waits for input')
         self.assertEqual(self.variables['CMDACTIVE'], 0, 'never execute UNDO over active native command')
         if args == ('_.UNDO', '_Begin'):
             self.undo_snapshot = copy.deepcopy((self.entities, self.interfaces, self.order))
             self.variables['UNDOCTL'] |= 8
+            self.variables['LASTPROMPT'] = '输入要放弃的操作数目或 [自动(A)/控制(C)/开始(BE)/结束(E)/标记(M)/后退(B)] <1>: _Begin'
         elif args == ('_.UNDO', '_End'):
             self.assertTrue(self.variables['UNDOCTL'] & 8)
             self.variables['UNDOCTL'] &= ~8
@@ -487,6 +520,7 @@ class NativeProtocolTests(BatchFixture):
         self.assertTrue(truth(self.h.lookup('*HLBN:PENDING*')))
         self.document = 'drawing-A'
         self.refuse_cancel = False
+        self.set_mode(None)  # User presses Esc before invoking the recovery command.
         self.call('C:HLPLBHRECOVER')
         self.assertIsNone(self.h.lookup('*HLBN:PENDING*'))
         self.assertEqual(self.undo_calls, 1)
@@ -531,6 +565,144 @@ class NativeProtocolTests(BatchFixture):
         self.selection = [self.wire('wire', 100.)]
         self.call('C:HLPLBH')
         self.assertEqual(self.interfaces['label-1']['TEXTSTRING']['value'], 'ZE1')
+
+
+class NativePromptRegressionTests(BatchFixture):
+    def test_user_log_cached_undo_prompt_completes_five_rows_without_more_user_input(self):
+        self.frozen_prompt = '输入要放弃的操作数目或 [自动(A)/控制(C)/开始(BE)/结束(E)/标记(M)/后退(B)] <1>: _Begin HLBH'
+        self.selection = [self.wire(f'wire-{i}', 1000.-i*100) for i in range(5)]
+        self.call('C:HLPLBH')
+        self.assertEqual([kind for kind, _ in self.input_calls], ['number', 'selection', 'anchor'])
+        self.assertEqual([self.interfaces[row['label']]['TEXTSTRING']['value'] for row in self.labels],
+                         [f'ZE{i}' for i in range(1, 6)])
+        self.assertIsNone(self.mode)
+        self.assertIsNone(self.h.lookup('*HLBN:PENDING*'))
+        self.assertIn('COMPLETE', [stage for stage, _ in self.logs])
+        self.assert_vars_restored()
+
+    def test_cached_prompt_with_echoed_command_suffix_is_not_a_new_native_prompt(self):
+        self.append_start_to_prompt = True
+        result = self.call('HLBN:Execute', self.plan([self.wire('wire', 100.)]))
+        self.assertTrue(truth(result))
+        self.assertIn('_Begin HLBH', self.frozen_prompt)
+        self.assertIsNone(self.mode)
+
+    def test_arx_activity_and_internal_command_names_are_supported(self):
+        for activity, names in ((64, 'VENDOR_CIRCUIT_NUMBER'), (65, 'HLBH'),
+                                (0, 'HLBH'), (64, '')):
+            with self.subTest(activity=activity, names=names):
+                self.setUp()
+                self.native_active, self.native_names = activity, names
+                result = self.call('HLBN:Execute', self.plan([self.wire('wire', 100.)]))
+                self.assertTrue(truth(result))
+                self.assertEqual(self.interfaces['label-1']['TEXTSTRING']['value'], 'ZE1')
+                self.assertIsNone(self.mode)
+                self.assert_vars_restored()
+
+    def test_nil_return_after_prompt_abort_is_failure_and_exits_native_first(self):
+        self.abort_returns_nil = True
+        self.incorrect_prompt = True
+        names = [self.wire('wire', 100.)]
+        before = copy.deepcopy(self.entities)
+        result = self.call('HLBN:Execute', self.plan(names))
+        self.assertIsNone(result)
+        self.assertEqual(self.entities, before)
+        self.assertIsNone(self.mode)
+        self.assertNotIn('COMPLETE', [stage for stage, _ in self.logs])
+        self.assertIn('FAILED', [stage for stage, _ in self.logs])
+        self.assertEqual(self.undo_calls, 0)
+        self.assertIsNone(self.h.lookup('*HLBN:PENDING*'))
+        self.assert_vars_restored()
+
+    def test_nil_return_after_partial_native_generation_rolls_back(self):
+        self.abort_returns_nil = True
+        self.readonly_text = True
+        names = [self.wire('a', 100.), self.wire('b', 90.)]
+        before = copy.deepcopy(self.entities)
+        result = self.call('HLBN:Execute', self.plan(names))
+        self.assertIsNone(result)
+        self.assertEqual(self.entities, before)
+        self.assertEqual(self.undo_calls, 1)
+        self.assertIsNone(self.mode)
+        self.assertNotIn('COMPLETE', [stage for stage, _ in self.logs])
+        self.assert_vars_restored()
+
+    def test_fresh_opposite_prompt_stops_before_sending_the_landing_point(self):
+        self.select_mismatch = True
+        self.native_active = 64
+        self.call('HLBN:Execute', self.plan([self.wire('wire', 100.)]))
+        self.assertFalse(any(command and command[0] == '_non' for command in self.commands))
+        self.assertIsNone(self.mode)
+        self.assertEqual(self.undo_calls, 0)
+        self.assertIsNone(self.h.lookup('*HLBN:PENDING*'))
+
+    def test_selection_rejected_with_a_cached_prompt_never_counts_as_complete(self):
+        self.frozen_prompt = 'UNDO: _Begin HLBH'
+        self.select_mismatch = True
+        names = [self.wire('wire', 100.)]
+        before = copy.deepcopy(self.entities)
+        self.assertIsNone(self.call('HLBN:Execute', self.plan(names)))
+        self.assertEqual(self.entities, before)
+        self.assertIsNone(self.mode)
+        self.assertEqual(self.undo_calls, 0)
+        self.assertNotIn('COMPLETE', [stage for stage, _ in self.logs])
+
+    def test_two_cancels_are_allowed_before_undo_and_both_stop_at_vendor_exit(self):
+        self.native_active = 64
+        self.native_names = 'VENDOR_CIRCUIT_NUMBER'
+        self.unknown_text = True
+        self.cancel_refusals = 1
+        names = [self.wire('wire', 100.)]
+        before = copy.deepcopy(self.entities)
+        self.assertIsNone(self.call('HLBN:Execute', self.plan(names)))
+        self.assertEqual(self.entities, before)
+        self.assertEqual(self.commands.count(()), 2)
+        self.assertEqual(self.undo_calls, 1)
+        self.assertIsNone(self.mode)
+        self.assert_vars_restored()
+
+    def test_arx_that_refuses_cancel_blocks_undo_until_user_esc_then_recovery(self):
+        self.native_active = 64
+        self.unknown_text = True
+        self.refuse_cancel = True
+        self.assertIsNone(self.call('HLBN:Execute', self.plan([self.wire('wire', 100.)])))
+        self.assertTrue(truth(self.h.lookup('*HLBN:PENDING*')))
+        self.assertNotIn(('_.UNDO', '_End'), self.commands)
+        self.assertEqual(self.undo_calls, 0)
+        before_commands = list(self.commands)
+        self.call('C:HLPLBHRECOVER')
+        self.assertEqual(self.commands, before_commands)
+        self.refuse_cancel = False
+        self.set_mode(None)
+        self.call('C:HLPLBHRECOVER')
+        self.assertIsNone(self.h.lookup('*HLBN:PENDING*'))
+        self.assertEqual(self.undo_calls, 1)
+        self.assert_vars_restored()
+
+    def test_active_arx_or_dialog_blocks_new_batch_before_requesting_user_input(self):
+        for activity in (64, 65, 8):
+            with self.subTest(activity=activity):
+                self.setUp()
+                self.variables['CMDACTIVE'] = activity
+                self.call('C:HLPLBH')
+                self.assertEqual(self.input_calls, [])
+                self.assertEqual(self.commands, [])
+
+    def test_short_result_is_not_a_complete_batch(self):
+        names = [self.wire('a', 100.), self.wire('b', 90.)]
+        self.h.builtins['HLBN:NATIVERUN'] = lambda plan: [['label', 'ZE1', 'TCH_TEXT']]
+        self.assertIsNone(self.call('HLBN:Execute', self.plan(names)))
+        self.assertNotIn('COMPLETE', [stage for stage, _ in self.logs])
+        self.assertEqual(self.undo_calls, 0)
+
+    def test_unavailable_lastprompt_does_not_abort_a_verified_arx_batch(self):
+        self.omit_prompt = True
+        self.native_active = 64
+        names = [self.wire('a', 100.), self.wire('b', 90.)]
+        result = self.call('HLBN:Execute', self.plan(names))
+        self.assertEqual([row[1] for row in result], ['ZE1', 'ZE2'])
+        self.assertIsNone(self.mode)
+        self.assert_vars_restored()
 
 
 class SourceTests(unittest.TestCase):

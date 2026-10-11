@@ -1,4 +1,4 @@
-;; Date: 2026-10-11. Standalone native HLBH batch numbering for Windows CAD.
+;; Date: 2026-10-11. Revision: 2026.10.11.2. Standalone native HLBH batch numbering.
 ;; Source: UTF-8. Load only the separately exported GB2312 file in CAD2020.
 (vl-load-com)
 
@@ -124,15 +124,45 @@
     (if (not (equal (cadr row) (entget (car row) '("*")))) (setq same nil))) same)
 (defun HLBN:NativeActive (/ names)
   (setq names (getvar "CMDNAMES"))
-  (and (> (logand 1 (getvar "CMDACTIVE")) 0) names
-       (vl-string-search "HLBH" (strcase names))))
-(defun HLBN:PromptIs (stage / prompt)
+  ;; Queried only inside our managed HLBH call. ARX commands can use bit 64
+  ;; and an internal command name. Some native input loops expose only CMDNAMES.
+  (or (> (logand 65 (getvar "CMDACTIVE")) 0)
+      (and (equal (type names) 'STR) (vl-string-search "HLBH" (strcase names)))))
+(defun HLBN:CommandBusy ()
+  ;; Include transparent commands and dialogs before issuing any UNDO tokens.
+  (or (> (logand 75 (getvar "CMDACTIVE")) 0) (HLBN:NativeActive)))
+(defun HLBN:CommandState ()
+  (list (getvar "CMDACTIVE") (getvar "CMDNAMES") (getvar "LASTPROMPT")))
+(defun HLBN:PromptKind (prompt / upper)
+  (if (equal (type prompt) 'STR)
+    (progn
+      (setq upper (strcase prompt))
+      (cond
+        ((or (vl-string-search "UNDO" upper) (vl-string-search "_BEGIN" upper)
+             (vl-string-search "_END" upper)) 'history)
+        ((and (vl-string-search "导线" prompt) (vl-string-search "选" prompt)) 'wire)
+        ((and (vl-string-search "文字" prompt) (vl-string-search "点" prompt)) 'landing)))))
+(defun HLBN:PromptIs (stage before / prompt kind stale ok)
   (setq prompt (getvar "LASTPROMPT"))
-  (HLBN:Log "PROMPT" (list stage (getvar "CMDNAMES") prompt))
-  (and (HLBN:NativeActive) (equal (type prompt) 'STR)
-    (if (equal stage 'wire)
-      (and (vl-string-search "导线" prompt) (vl-string-search "选" prompt))
-      (and (vl-string-search "文字" prompt) (vl-string-search "点" prompt)))))
+  (setq kind (HLBN:PromptKind prompt)
+    stale (or (not (equal (type prompt) 'STR)) (equal prompt "") (equal prompt before)
+      (and (equal (type before) 'STR) (> (strlen before) 0)
+           (equal 0 (vl-string-search before prompt)))))
+  ;; LASTPROMPT is echoed history, not a native-input stage API. A fresh,
+  ;; incompatible prompt still blocks input; cached history is diagnostic only.
+  (setq ok (and (HLBN:NativeActive) (= 0 (logand 10 (getvar "CMDACTIVE")))
+    (or (equal kind stage) stale (equal kind 'history))))
+  (HLBN:Log "PROMPT" (list stage (HLBN:CommandState) before kind stale ok))
+  (if (and ok (not (equal kind stage))) (HLBN:Log "PROMPT_CACHED" (list stage prompt)))
+  ok)
+(defun HLBN:StopNative (/ attempts result)
+  (setq attempts 0)
+  (while (and (< attempts 2) (HLBN:NativeActive))
+    (HLBN:Log "CANCEL_BEFORE" (HLBN:CommandState))
+    (setq result (vl-catch-all-apply 'command nil) attempts (1+ attempts))
+    (HLBN:Log "CANCEL_AFTER" (list (HLBN:CommandState)
+      (if (vl-catch-all-error-p result) (vl-catch-all-error-message result) nil))))
+  (not (HLBN:CommandBusy)))
 
 (defun HLBN:TextInfo (entity / object text)
   (setq object (vlax-ename->vla-object entity))
@@ -178,13 +208,14 @@
         (setq value (vl-catch-all-apply 'vlax-get-property (list object property)))
         (if (and (numberp value) (> value height)) (setq height value)))))
   (max fallback (* 2.5 height)))
-(defun HLBN:NativeRun (plan / row tail created verified entity gap previous landing current)
+(defun HLBN:NativeRun (plan / row tail created verified entity gap previous landing current before)
   (setq gap (HLBN:Get 'min-gap (car plan)))
+  (setq before (getvar "LASTPROMPT"))
   (command "HLBH")
-  (HLBN:Check (HLBN:PromptIs 'wire)
+  (HLBN:Check (HLBN:PromptIs 'wire before)
     "HLBH 未进入预期的选导线提示，请确认已加载天正，并保留日志中的实际提示。")
   (foreach row plan
-    (HLBN:Check (HLBN:PromptIs 'wire) "HLBH 选线提示与截图流程不同，停止传入下一条导线。")
+    (HLBN:Check (HLBN:PromptIs 'wire before) "HLBH 选线提示与截图流程不同，停止传入下一条导线。")
     (setq tail (HLBN:Tail))
     (setq current (HLBN:Get 'pick row) landing (HLBN:Get 'landing row))
     (if previous
@@ -193,22 +224,27 @@
     (HLBN:Log "ROW_BEGIN" (list (HLBN:Get 'handle row) (HLBN:Get 'label row)
       (HLBN:Get 'pick row) landing))
     ;; entsel-compatible list identifies this exact entity and its actual point.
+    (setq before (getvar "LASTPROMPT"))
     (command (list (HLBN:Get 'entity row) (HLBN:Get 'pick row)))
-    (HLBN:Check (and (not (HLBN:After tail)) (HLBN:PromptIs 'landing))
+    (HLBN:Check (and (not (HLBN:After tail)) (HLBN:PromptIs 'landing before))
       "HLBH 未进入预期的文字落点提示，停止自动放置并撤销本批次。")
+    (setq before (getvar "LASTPROMPT"))
     (command "_non" landing)
     (setq created (HLBN:After tail))
     (HLBN:Log "CREATED" (mapcar '(lambda (e) (list (cdr (assoc 5 (entget e)))
       (cdr (assoc 0 (entget e))))) created))
     (HLBN:Check created "HLBH 未生成标注，停止处理下一条导线。")
+    (HLBN:Check (HLBN:PromptIs 'wire before)
+      "HLBH 生成标注后未返回选线流程，本批次未确认完成。")
     (setq entity (HLBN:SetLabel created (HLBN:Get 'label row)))
     (setq verified (cons (list entity (HLBN:Get 'label row) (cdr (assoc 0 (entget entity)))) verified)
       gap (HLBN:LabelGap entity gap) previous (list current (cadr landing)))
     (HLBN:Check (> (logand 8 (getvar "UNDOCTL")) 0)
       "天正命令改变了当前撤销分组，请保留日志并检查撤销状态。"))
-  (HLBN:Check (HLBN:PromptIs 'wire) "HLBH 最后一条标注后的提示异常，本批次未确认完成。")
+  (HLBN:Check (HLBN:PromptIs 'wire before) "HLBH 最后一条标注后的提示异常，本批次未确认完成。")
   (command "")
-  (HLBN:Check (not (HLBN:NativeActive)) "HLBH 没有正常退出，请保留实际命令行提示。")
+  (HLBN:Log "NATIVE_EXIT" (HLBN:CommandState))
+  (HLBN:Check (not (HLBN:CommandBusy)) "HLBH 没有正常退出，请保留实际命令行提示。")
   ;; Re-read all rows after HLBH exits; native auto-increment must not change them.
   (foreach row verified
     (HLBN:Check (and (equal (cadr row) (HLBN:Get 'text (HLBN:TextInfo (car row))))
@@ -229,10 +265,10 @@
 (defun HLBN:Rollback (context in-error / tail snapshot changed result)
   (setq tail (HLBN:Get 'tail context) snapshot (HLBN:Get 'snapshot context))
   ;; command-s UNDO must never run over an active native command.
-  (if (and (HLBN:SameDocument context) (HLBN:NativeActive) (not in-error)) (command))
+  (if (and (HLBN:SameDocument context) (HLBN:NativeActive) (not in-error)) (HLBN:StopNative))
   (cond
     ((not (HLBN:SameDocument context)) nil)
-    ((> (logand 1 (getvar "CMDACTIVE")) 0) nil)
+    ((HLBN:CommandBusy) nil)
     ((not (HLBN:Get 'group context))
       (and (not (HLBN:After tail)) (HLBN:SameSources snapshot)))
     ((and (assoc 'failed-state context)
@@ -258,7 +294,7 @@
       (setq same (vl-catch-all-apply 'HLBN:SameDocument (list *HLBN:Pending*)))
       (if (and same (not (vl-catch-all-error-p same)))
         (HLBN:RestoreVars (HLBN:Get 'vars *HLBN:Pending*)))
-      (HLBN:Log "ROLLBACK" (list ok hlbn-failure))
+      (HLBN:Log "ROLLBACK" (list ok hlbn-failure (HLBN:CommandState)))
       (if ok (setq *HLBN:Pending* nil)
         (progn
           (if (and same (not (vl-catch-all-error-p same))
@@ -270,7 +306,8 @@
       ok)))
 (defun c:HLPLBHRECOVER (/ hlbn-failure)
   (if *HLBN:Pending*
-    (if (HLBN:Cleanup nil) (princ "\n本工具未完成的批次已撤销。"))
+    ;; Recovery must not cancel a different command started after our failure.
+    (if (HLBN:Cleanup T) (princ "\n本工具未完成的批次已撤销。"))
     (princ "\n本工具没有待恢复的批次。"))
   (princ))
 
@@ -283,15 +320,21 @@
   (setq context (list (cons 'tail (HLBN:Tail)) (cons 'snapshot (HLBN:Snapshot plan))
     (cons 'document (vla-get-ActiveDocument (vlax-get-acad-object))) (cons 'vars vars)))
   (setq *HLBN:Pending* context)
+  (HLBN:Log "BEGIN" (list "2026.10.11.2" (HLBN:CommandState) (length plan)))
   (setvar "CMDECHO" 1)
   (foreach item '("OSMODE" "ORTHOMODE" "SNAPMODE" "DYNMODE") (setvar item 0))
   (command-s "_.UNDO" "_Begin")
   (setq *HLBN:Pending* (cons (cons 'group T) context))
   (setq result (vl-catch-all-apply 'HLBN:NativeRun (list plan)))
-  (if (vl-catch-all-error-p result)
+  ;; EXIT/QUIT may leave vl-catch-all-apply with NIL rather than an error object.
+  ;; A successful return must contain every verified row and an idle CAD state.
+  (if (or (vl-catch-all-error-p result) (not result) (not (listp result))
+          (/= (length result) (length plan)) hlbn-failure (HLBN:CommandBusy))
     (progn
-      (if (not hlbn-failure) (setq hlbn-failure (vl-catch-all-error-message result)))
-      (HLBN:Log "FAILED" hlbn-failure)
+      (if (not hlbn-failure)
+        (setq hlbn-failure (if (vl-catch-all-error-p result) (vl-catch-all-error-message result)
+          "HLBH 未返回完整的已核对标注，不能确认本批次完成。")))
+      (HLBN:Log "FAILED" (list hlbn-failure (HLBN:CommandState)))
       (princ (strcat "\n批量编号未完成：" hlbn-failure))
       (if (HLBN:Cleanup nil) (princ "\n已撤销本批次，原导线恢复。")) nil)
     (progn
@@ -308,7 +351,7 @@
     (princ))
   (cond
     (*HLBN:Pending* (princ "\n请先在原图运行 HLPLBHRECOVER，恢复上次未完成的批次。"))
-    ((> (logand 1 (getvar "CMDACTIVE")) 0) (princ "\n请先结束当前绘图命令，再运行 HLPLBH。"))
+    ((HLBN:CommandBusy) (princ "\n请先结束当前绘图命令，再运行 HLPLBH。"))
     (T
       (setq start (getstring T (strcat "\n起始回路编号 <"
         (if *HLBN:LastStart* *HLBN:LastStart* "ZE1") ">: ")))
@@ -344,5 +387,5 @@
   (princ (strcat "\n最小编号行间距：" (rtos (HLBN:DefaultGap) 2 2)))
   (princ))
 
-(princ "\n批量回路编号已加载：HLPLBH；间距设置：HLPLBHSET；异常恢复：HLPLBHRECOVER。")
+(princ "\n批量回路编号已加载（2026.10.11.2）：HLPLBH；间距设置：HLPLBHSET；异常恢复：HLPLBHRECOVER。")
 (princ)

@@ -1,25 +1,55 @@
 {
   "date": "2026-10-11",
-  "status": "automated checks passed; native AutoCAD/Tianzheng acceptance pending",
+  "revision": "2026.10.11.2",
+  "status": "user-reported prompt/empty-result defects corrected; automated checks passed; updated native acceptance pending",
   "checks": {
     "unittest": {
       "command": "python -X utf8 -m unittest discover -s tests -p test_batch_number.py -v",
-      "passed": 28
+      "passed": 40
     },
     "gb2312_strict_decode": true,
     "source_content_equality": true,
     "lisp_parse_equality": true,
-    "lisp_forms": 32
+    "lisp_forms": 36
+  },
+  "regression_evidence": {
+    "date": "2026-10-11",
+    "previous_source_reproductions": [
+      "user cached UNDO prompt aborts before any native label",
+      "nil return attempts UNDO End while the vendor still waits for input",
+      "ARX-only activity is missed during native checks and cancellation"
+    ],
+    "updated_checks": [
+      "cached prompt completes five native rows with only number, selection and anchor user inputs",
+      "ObjectARX flags, internal command names and unavailable LASTPROMPT",
+      "nil and short results cannot emit COMPLETE",
+      "fresh opposite prompts stop before sending landing input",
+      "failed selection with stale prompt cannot emit COMPLETE",
+      "cancel native before UNDO; refused cancellation blocks UNDO",
+      "recovery requires user to end active commands and retains later-work protection"
+    ]
   },
   "output": {
     "file": "output/HLPLBH.lsp",
-    "bytes": 18494,
-    "sha256": "9bfa0acc3b6644417d1342578164401c872810dee5430a80e9599ad9c5c79b3b",
+    "bytes": 21103,
+    "sha256": "bdbf4b96ed6b69a0ad36ae5e992e1f20b7cc2f8fdab31420f44c17574c5bbd6e",
     "packaged": false
   },
   "native_acceptance": {
     "executed": false,
+    "scope": "updated revision 2026.10.11.2",
+    "user_reported_previous_revision": {
+      "executed": true,
+      "cad": "AutoCAD 2020 with Tianzheng",
+      "result": "failed after selecting five wires and one landing point; HLBH remained active",
+      "reported_log": [
+        "20261011.143148 PROMPT (WIRE \"HLBH\" \"输入要放弃的操作数目或 [自动(A)/控制(C)/开始(BE)/结束(E)/标记(M)/后退(B)] <1>: _Begin HLBH\")",
+        "20261011.143148 COMPLETE nil"
+      ],
+      "cmdactive_value": "not captured by the previous revision"
+    },
     "pending": [
+      "reload updated revision; five-wire workflow completes without further manual wire picks and HLBH exits",
       "HLBH accepts exact entity/pick list and automatic landing point",
       "vendor native annotation exposes readable/writable TextString",
       "ZE1-ZE5 alignment and native Tianzheng editability",

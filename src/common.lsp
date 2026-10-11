@@ -357,12 +357,19 @@
       (list (cons 'offset index) (cons 'before-length (strlen before)) (cons 'after-length (strlen after))
         (cons 'before (substr before start 240)) (cons 'after (substr after start 240))))
     (list (cons 'before-type (type before)) (cons 'after-type (type after)))))
-(defun EL:LogSnapshotDifference (before after / key a b keys)
+(defun EL:LogSnapshotDifference (before after / key a b keys typed)
+  (setq typed (or
+    (and (listp (EL:Get 'signature before)) (equal (car (EL:Get 'signature before)) 'EL_FIXED_SOURCE_V1))
+    (and (listp (EL:Get 'signature after)) (equal (car (EL:Get 'signature after)) 'EL_FIXED_SOURCE_V1))))
   (setq keys (EL:Unique (append (mapcar 'car before) (mapcar 'car after))))
   (foreach key keys
     (setq a (EL:Get key before) b (EL:Get key after))
     (if (not (equal a b))
       (EL:LogEvent "SOURCE_FIELD_DIFFERENCE" (list (cons 'field key)
-        (cons 'difference (EL:StringDifference
-          (if (equal (type a) 'STR) a (EL:Signature a))
-          (if (equal (type b) 'STR) b (EL:Signature b)))))))))
+        (cons 'difference
+          (if typed
+            ;; Reuse bounded typed readback diagnostics; never reprint the failing snapshot.
+            (EL:StoreDifference a b (list key))
+            (EL:StringDifference
+              (if (equal (type a) 'STR) a (EL:Signature a))
+              (if (equal (type b) 'STR) b (EL:Signature b))))))))))

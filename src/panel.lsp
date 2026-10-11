@@ -129,11 +129,15 @@
   (setq checked (vl-catch-all-apply 'EL:ThumbLocateWait nil))
   (EL:ClearGapPreview) (EL:ClearPickHighlights)
   (if (vl-catch-all-error-p checked) (princ "\n已停止设备预览，返回面板，功率保留。")))
+;; Date: 2026-10-11. Compare exact typed source data; never print a whole large snapshot.
+;; The version tag distinguishes old serialized signatures and triggers one normal update.
+(defun EL:FixedSourceSignature (snapshot)
+  (list 'EL_FIXED_SOURCE_V1 (EL:StableData snapshot)))
 (defun EL:CircuitSnapshot (snapshot panel / blocks b)
   (foreach b (EL:Get 'blocks snapshot)
     (setq blocks (cons (EL:Put 'identity (list (EL:Get 'name b) nil "block-name-v1")
       (EL:Put 'role (if (equal (EL:Get 'id b) panel) 'panel 'device) b)) blocks)))
-  (EL:Put 'signature (EL:LogCall "SNAPSHOT_SIGNATURE" nil 'EL:Signature (list snapshot)) (EL:Put 'blocks (reverse blocks) snapshot)))
+  (EL:Put 'signature (EL:LogCall "SNAPSHOT_SIGNATURE" nil 'EL:FixedSourceSignature (list snapshot)) (EL:Put 'blocks (reverse blocks) snapshot)))
 (defun EL:SplitNetwork (network cfg / snapshot panel edges seeds wire block i circuits result)
   (setq snapshot (EL:CircuitSnapshot (EL:Get 'snapshot network) (EL:Get 'panel network))
         panel (EL:Get 'panel network) block (EL:By 'id panel (EL:Get 'blocks snapshot)) i 0)

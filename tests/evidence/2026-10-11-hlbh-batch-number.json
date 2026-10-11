@@ -1,44 +1,61 @@
 {
   "date": "2026-10-11",
-  "revision": "2026.10.11.2",
-  "status": "user-reported prompt/empty-result defects corrected; automated checks passed; updated native acceptance pending",
+  "revision": "2026.10.11.3",
+  "status": "two plain coordinate inputs per wire and confirmed fixed offset implemented; automated checks passed; updated native acceptance pending",
+  "interaction": {
+    "user_inputs": ["start number", "wire selection"],
+    "per_wire_native_inputs": ["actual curve midpoint in current UCS", "midpoint plus fixed UCS offset"],
+    "default_offset_ucs": [500.0, 500.0, 0.0],
+    "order": "complete both points and verify this native annotation before selecting the next wire"
+  },
   "checks": {
     "unittest": {
       "command": "python -X utf8 -m unittest discover -s tests -p test_batch_number.py -v",
-      "passed": 40
+      "passed": 46
     },
     "gb2312_strict_decode": true,
     "source_content_equality": true,
     "lisp_parse_equality": true,
-    "lisp_forms": 36
+    "lisp_forms": 35
   },
   "regression_evidence": {
     "date": "2026-10-11",
-    "previous_source_reproductions": [
+    "initial_revision_reproductions": [
       "user cached UNDO prompt aborts before any native label",
       "nil return attempts UNDO End while the vendor still waits for input",
       "ARX-only activity is missed during native checks and cancellation"
     ],
+    "revision_2_reproductions": [
+      "strict point input rejects entity/pick list at the first wire",
+      "native runner cannot complete the midpoint then landing coordinate sequence",
+      "vendor that ignores programmatic Escape is left active by the old cancellation path"
+    ],
     "updated_checks": [
-      "cached prompt completes five native rows with only number, selection and anchor user inputs",
+      "cached prompt completes five native rows with only number and selection user inputs",
+      "ten plain coordinates are passed in wire/landing pairs, followed by per-row verification",
+      "non-straight polyline point is at half actual curve length rather than endpoint average",
+      "first-point native mark is included in the same completed annotation",
+      "fixed offset and signed custom offsets remain exact, including rotated UCS",
+      "failed second point stops before the next wire",
       "ObjectARX flags, internal command names and unavailable LASTPROMPT",
       "nil and short results cannot emit COMPLETE",
       "fresh opposite prompts stop before sending landing input",
       "failed selection with stale prompt cannot emit COMPLETE",
-      "cancel native before UNDO; refused cancellation blocks UNDO",
+      "empty native input cancels landing then exits wire loop before UNDO; refused exit blocks UNDO",
       "recovery requires user to end active commands and retains later-work protection"
     ]
   },
   "output": {
     "file": "output/HLPLBH.lsp",
-    "bytes": 21103,
-    "sha256": "bdbf4b96ed6b69a0ad36ae5e992e1f20b7cc2f8fdab31420f44c17574c5bbd6e",
+    "bytes": 20914,
+    "sha256": "1ea45d451d23aba0d8392b2df7bc286c9af1e0ef8d7b426c280e46a3aba5bbc7",
     "packaged": false
   },
   "native_acceptance": {
     "executed": false,
-    "scope": "updated revision 2026.10.11.2",
+    "scope": "updated revision 2026.10.11.3",
     "user_reported_previous_revision": {
+      "revision": "initial revision",
       "executed": true,
       "cad": "AutoCAD 2020 with Tianzheng",
       "result": "failed after selecting five wires and one landing point; HLBH remained active",
@@ -48,13 +65,24 @@
       ],
       "cmdactive_value": "not captured by the previous revision"
     },
+    "user_reported_revision_2": {
+      "executed": true,
+      "revision": "2026.10.11.2",
+      "cad": "AutoCAD 2020 with Tianzheng",
+      "source": "user-attached HLPLBH-debug.log and screenshot",
+      "result": "failed on first wire coordinate input before any CREATED record; native HLBH remained active",
+      "cmdactive": 1,
+      "cmdnames": "HLBH",
+      "lastprompt": "点无效。",
+      "rollback_verified": false
+    },
     "pending": [
-      "reload updated revision; five-wire workflow completes without further manual wire picks and HLBH exits",
-      "HLBH accepts exact entity/pick list and automatic landing point",
+      "reload updated revision; five-wire workflow completes without further manual wire picks or a blank-point prompt and HLBH exits",
+      "HLBH accepts pure midpoint coordinate and then the fixed-offset landing coordinate",
       "vendor native annotation exposes readable/writable TextString",
-      "ZE1-ZE5 alignment and native Tianzheng editability",
+      "ZE1-ZE5 order, exact per-wire (500,500) offset and native Tianzheng editability",
       "save/reopen wire association",
-      "UCS, dense spacing, cancellation and single UNDO"
+      "UCS, signed fixed offsets, cancellation and single UNDO"
     ]
   }
 }

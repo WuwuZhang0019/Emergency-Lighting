@@ -48,6 +48,8 @@ class BatchFixture(unittest.TestCase):
         self.commands = []
         self.input_calls = []
         self.labels = []
+        self.native_points = []
+        self.offset_inputs = []
         self.mode = None
         self.native_active = 1
         self.native_names = 'HLPLBH HLBH'
@@ -66,18 +68,20 @@ class BatchFixture(unittest.TestCase):
         self.ignore_write = False
         self.format_text = False
         self.native_height = None
+        self.create_mark_on_pick = False
         self.fail_row = None
         self.mutate_source_only = False
         self.close_undo_group = False
         self.corrupt_after_exit = False
         self.change_type_after_exit = False
         self.refuse_cancel = False
+        self.ignore_escape = False
+        self.reject_landing = False
         self.cancel_refusals = 0
         self.undo_calls = 0
         self.undo_snapshot = None
         self.selection = []
         self.start_input = 'ZE1'
-        self.anchor_input = [500., 800., 0.]
         self.h.builtins.update({
             'GETVAR': lambda name: self.variables[name],
             'SETVAR': lambda name, value: self.variables.__setitem__(name, value),
@@ -88,7 +92,7 @@ class BatchFixture(unittest.TestCase):
             'SSLENGTH': len,
             'SSNAME': lambda selection, index: selection[index],
             'GETSTRING': self.getstring,
-            'GETPOINT': self.getpoint,
+            'GETREAL': self.getreal,
             'VLAX-CURVE-ISCLOSED': lambda entity: self.curves[entity].get('closed', False),
             'VLAX-CURVE-GETSTARTPOINT': lambda entity: self.curves[entity]['start'],
             'VLAX-CURVE-GETENDPOINT': lambda entity: self.curves[entity]['end'],
@@ -109,8 +113,6 @@ class BatchFixture(unittest.TestCase):
             'PRINC': lambda *args: self.messages.extend(args),
             'HLBN:LOG': lambda stage, data: self.logs.append((stage, copy.deepcopy(data))) or 'C:/Temp/HLPLBH-debug.log',
             'EXIT': lambda: self.abort(),
-            'INITGET': lambda mask: self.input_calls.append(('initget', mask)),
-            'GETDIST': lambda *args: getattr(self, 'gap_input', None),
         })
 
     def abort(self):
@@ -165,12 +167,19 @@ class BatchFixture(unittest.TestCase):
 
     def curve_length(self, entity):
         curve = self.curves[entity]
-        return math.dist(curve['start'], curve['end'])
+        points = curve.get('points', [curve['start'], curve['end']])
+        return sum(math.dist(a, b) for a, b in zip(points, points[1:]))
 
     def curve_point(self, entity, distance):
         curve = self.curves[entity]
-        fraction = distance / self.curve_length(entity)
-        return [a + (b-a)*fraction for a, b in zip(curve['start'], curve['end'])]
+        points = curve.get('points', [curve['start'], curve['end']])
+        for start, end in zip(points, points[1:]):
+            length = math.dist(start, end)
+            if distance <= length:
+                fraction = distance / length
+                return [a + (b-a)*fraction for a, b in zip(start, end)]
+            distance -= length
+        return list(points[-1])
 
     def ssget(self, mode):
         self.input_calls.append(('selection', mode))
@@ -180,9 +189,16 @@ class BatchFixture(unittest.TestCase):
         self.input_calls.append(('number', args))
         return self.start_input
 
-    def getpoint(self, *args):
-        self.input_calls.append(('anchor', args))
-        return self.anchor_input
+    def getreal(self, *args):
+        self.input_calls.append(('offset', args))
+        return self.offset_inputs.pop(0) if self.offset_inputs else None
+
+    def point_argument(self, args):
+        if (len(args) != 1 or not isinstance(args[0], list) or len(args[0]) != 3
+                or not all(isinstance(value, (int, float)) for value in args[0])):
+            self.variables['LASTPROMPT'] = '点无效。'
+            raise NativeAbort('point rejected: HLBH needs one coordinate, not an entity/pick list')
+        return list(args[0])
 
     def available(self, entity, prop, writable=None):
         info = self.interfaces.get(entity, {}).get(str(prop))
@@ -211,7 +227,7 @@ class BatchFixture(unittest.TestCase):
         if not args:
             if self.cancel_refusals > 0:
                 self.cancel_refusals -= 1
-            elif not self.refuse_cancel:
+            elif not self.refuse_cancel and not self.ignore_escape:
                 self.set_mode(None)
             return
         if args == ('HLBH',):
@@ -228,7 +244,15 @@ class BatchFixture(unittest.TestCase):
                     self.variables['LASTPROMPT'] = self.frozen_prompt
             return
         if args == ('',):
-            self.assertEqual(self.mode, 'wire')
+            self.assertIn(self.mode, ('wire', 'landing'))
+            if self.cancel_refusals > 0:
+                self.cancel_refusals -= 1
+                return
+            if self.refuse_cancel:
+                return
+            if self.mode == 'landing':
+                self.set_mode('wire')
+                return
             self.set_mode(None)
             if self.corrupt_after_exit:
                 self.put_property(self.labels[0]['label'], Symbol('TEXTSTRING'), 'wrong1')
@@ -237,22 +261,30 @@ class BatchFixture(unittest.TestCase):
                 self.entities[label] = [Pair(0, 'TEXT') if p.car == 0 else p for p in self.entities[label]]
             return
         if self.mode == 'wire':
-            self.assertEqual(len(args), 1)
-            entity, point = args[0]
-            expected = self.trans(self.curve_point(entity, self.curve_length(entity)/2), 0, 1)
-            for actual, wanted in zip(point, expected):
-                self.assertAlmostEqual(actual, wanted)
+            point = self.point_argument(args)
+            candidates = [name for name in self.curves
+                          if math.dist(point, self.trans(self.curve_point(name, self.curve_length(name)/2), 0, 1)) < 1e-6]
+            if len(candidates) != 1:
+                self.variables['LASTPROMPT'] = '选择无效，重新选择! 请选取要标注的导线 <退出>:'
+                raise NativeAbort('point does not identify one selected wire midpoint')
+            entity = candidates[0]
             self.selected = entity
             self.selected_point = list(point)
+            self.native_points.append(('wire', entity, list(point)))
             if self.select_mismatch:
                 if self.frozen_prompt is None:
                     self.variables['LASTPROMPT'] = '选择无效，重新选择! 请选取要标注的导线 <退出>:'
                 return
+            if self.create_mark_on_pick:
+                self.add_entity(f'pick-mark-{len(self.labels)+1}', 'LINE')
             self.set_mode('landing')
             return
         self.assertEqual(self.mode, 'landing')
-        self.assertEqual(args[0], '_non')
-        self.assertEqual(len(args), 2)
+        point = self.point_argument(args)
+        self.native_points.append(('landing', self.selected, list(point)))
+        if self.reject_landing:
+            self.variables['LASTPROMPT'] = '点无效。'
+            raise NativeAbort('native landing point rejected')
         index = len(self.labels) + 1
         if self.mutate_source_only:
             self.entities[self.selected].append(Pair(1, 'native source change'))
@@ -271,7 +303,7 @@ class BatchFixture(unittest.TestCase):
             extra = self.add_entity(f'extra-{index}', 'TCH_TEXT', text='ZE99')
             self.interfaces[extra] = {'TEXTSTRING': {'value': 'ZE99', 'writable': True}}
         self.labels.append({'label': label, 'wire': self.selected,
-                            'pick': self.selected_point, 'landing': list(args[1])})
+                            'pick': self.selected_point, 'landing': point})
         self.palette_number += 1
         self.set_mode('wire')
         if self.close_undo_group:
@@ -296,11 +328,11 @@ class BatchFixture(unittest.TestCase):
         else:
             self.fail(f'unexpected batch command {args}')
 
-    def plan(self, names, start='ZE1', anchor=None, gap=6.25):
+    def plan(self, names, start='ZE1', offset=None):
         rows, skipped = self.call('HLBN:Rows', names)
         self.assertEqual(skipped, 0)
         return self.call('HLBN:Plan', rows, self.call('HLBN:NumberParts', start),
-                         anchor or self.anchor_input, gap)
+                         offset if offset is not None else [500., 500., 0.])
 
     def values(self, records, key):
         return [self.call('HLBN:Get', Symbol(key.upper()), record) for record in records]
@@ -332,15 +364,15 @@ class NumberAndLayoutTests(BatchFixture):
         plan = self.plan([names[3], names[0], names[4], names[1], names[2]])
         self.assertEqual(self.values(plan, 'entity'), names)
         self.assertEqual(self.values(plan, 'label'), [f'ZE{i}' for i in range(1, 6)])
-        self.assertEqual(self.values(plan, 'landing'), [[500., 800.-100*i, 0.] for i in range(5)])
+        self.assertEqual(self.values(plan, 'landing'), [[600., 1500.-100*i, 0.] for i in range(5)])
 
-    def test_same_height_uses_left_to_right_and_minimum_spacing(self):
+    def test_same_height_uses_left_to_right_and_preserves_exact_per_wire_offset(self):
         right = self.wire('right', 10., 200.)
         left = self.wire('left', 10., 100.)
         below = self.wire('below', 9., 100.)
         plan = self.plan([below, right, left])
         self.assertEqual(self.values(plan, 'entity'), [left, right, below])
-        self.assertEqual([p[1] for p in self.values(plan, 'landing')], [800., 793.75, 787.5])
+        self.assertEqual(self.values(plan, 'landing'), [[600., 510., 0.], [700., 510., 0.], [600., 509., 0.]])
 
     def test_rotated_translated_ucs_is_used_for_selection_order_and_points(self):
         self.angle = math.pi/2
@@ -351,7 +383,7 @@ class NumberAndLayoutTests(BatchFixture):
         self.call('HLBN:Execute', plan)
         for label in self.labels:
             self.assertAlmostEqual(label['pick'][0], 100.)
-        self.assertEqual(self.labels[0]['landing'], self.anchor_input)
+        self.assertEqual(self.labels[0]['landing'], [600., 1500., 0.])
         self.assert_vars_restored()
 
     def test_skip_text_blocks_closed_unsupported_and_3d_polylines(self):
@@ -373,11 +405,17 @@ class NumberAndLayoutTests(BatchFixture):
             self.plan(names)
         self.assertEqual(self.commands, [])
 
-    def test_cross_elevation_and_horizontal_coincidence_rejected(self):
+    def test_cross_elevation_and_invalid_offsets_rejected_before_native_write(self):
         wire = self.wire('wire', 100.)
-        for anchor in ([500., 800., 1.], [100., 800., 0.]):
-            with self.subTest(anchor=anchor), self.assertRaises(RuntimeError):
-                self.plan([wire], anchor=anchor)
+        for offset in ([0., 0., 0.], [500., 500., 1.], [500., 500.]):
+            with self.subTest(offset=offset), self.assertRaises(RuntimeError):
+                self.plan([wire], offset=offset)
+        sloped = self.add_entity('sloped', 'LINE', [0., 0., 0.], [100., 0., 1.])
+        with self.assertRaises(RuntimeError):
+            self.plan([sloped])
+        higher = self.add_entity('higher', 'LINE', [0., 0., 1.], [100., 0., 1.])
+        with self.assertRaises(RuntimeError):
+            self.plan([wire, higher])
         self.assertEqual(self.commands, [])
 
     def test_sequence_overflow_rejected_before_native_write(self):
@@ -386,22 +424,24 @@ class NumberAndLayoutTests(BatchFixture):
             self.plan(names, start='ZE2147483647')
         self.assertEqual(self.commands, [])
 
-    def test_optional_gap_setting_can_be_reset_without_affecting_main_input_count(self):
-        self.gap_input = 200.
+    def test_offset_setting_accepts_negative_values_and_enter_preserves_values(self):
+        self.offset_inputs = [-200., 300.]
         self.call('C:HLPLBHSET')
-        self.assertEqual(self.call('HLBN:DefaultGap'), 200.)
-        self.gap_input = 0.
+        self.assertEqual(self.call('HLBN:DefaultOffset'), [-200., 300., 0.])
         self.call('C:HLPLBHSET')
-        self.assertEqual(self.call('HLBN:DefaultGap'), 6.25)
+        self.assertEqual(self.call('HLBN:DefaultOffset'), [-200., 300., 0.])
+        self.offset_inputs = [0., 0.]
+        self.call('C:HLPLBHSET')
+        self.assertEqual(self.call('HLBN:DefaultOffset'), [-200., 300., 0.])
 
 
 class NativeProtocolTests(BatchFixture):
-    def test_full_three_input_workflow_native_types_and_two_points_per_row(self):
+    def test_full_two_input_workflow_native_types_and_two_points_per_row(self):
         names = [self.wire(f'wire-{i}', 1000.-100*i) for i in range(5)]
         original_sources = copy.deepcopy(self.entities)
         self.selection = [names[4], names[1], names[3], names[0], names[2]]
         self.call('C:HLPLBH')
-        self.assertEqual([kind for kind, _ in self.input_calls], ['number', 'selection', 'anchor'])
+        self.assertEqual([kind for kind, _ in self.input_calls], ['number', 'selection'])
         self.assertEqual([item['wire'] for item in self.labels], names)
         self.assertEqual([self.interfaces[item['label']]['TEXTSTRING']['value'] for item in self.labels],
                          [f'ZE{i}' for i in range(1, 6)])
@@ -409,7 +449,7 @@ class NativeProtocolTests(BatchFixture):
             self.assertEqual(self.entities[name], data)
         self.assertTrue(all(field(self.entities[item['label']], 0) == 'TCH_TEXT' for item in self.labels))
         self.assertEqual(sum(command == ('HLBH',) for command in self.commands), 1)
-        self.assertEqual(sum(command and command[0] == '_non' for command in self.commands), 5)
+        self.assertEqual(len(self.native_points), 10)
         self.assertEqual(self.variables['CMDACTIVE'], 0)
         self.assertEqual(self.variables['UNDOCTL'], 1)
         self.assertIsNone(self.h.lookup('*HLBN:PENDING*'))
@@ -487,13 +527,13 @@ class NativeProtocolTests(BatchFixture):
         self.assertEqual(self.entities, before)
         self.assertEqual(self.undo_calls, 1)
 
-    def test_native_height_expands_spacing_for_dense_wires(self):
+    def test_native_height_does_not_change_the_user_confirmed_fixed_offset(self):
         names = [self.wire(f'wire-{i}', 100.-i) for i in range(5)]
         self.native_height = 20.
         result = self.call('HLBN:Execute', self.plan(names))
         self.assertTrue(truth(result))
-        self.assertEqual([label['landing'][0] for label in self.labels], [500.]*5)
-        self.assertEqual([label['landing'][1] for label in self.labels], [800.-50*i for i in range(5)])
+        self.assertEqual([label['landing'][0] for label in self.labels], [600.]*5)
+        self.assertEqual([label['landing'][1] for label in self.labels], [600.-i for i in range(5)])
 
     def test_undo_disabled_one_step_or_existing_group_blocks_before_write(self):
         plan = self.plan([self.wire('wire', 100.)])
@@ -550,14 +590,14 @@ class NativeProtocolTests(BatchFixture):
         self.assertEqual(self.undo_calls, 0)
         self.assertTrue(truth(self.h.lookup('*HLBN:PENDING*')))
 
-    def test_empty_selection_and_no_anchor_make_no_native_changes(self):
+    def test_empty_or_unsupported_selection_makes_no_native_changes(self):
         self.call('C:HLPLBH')
         self.assertEqual(self.commands, [])
         self.assertEqual([kind for kind, _ in self.input_calls], ['number', 'selection'])
         self.input_calls = []
-        self.selection = [self.wire('wire', 100.)]
-        self.anchor_input = None
-        self.call('C:HLPLBH')
+        self.selection = [self.add_entity('text', 'TEXT')]
+        with self.assertRaises(RuntimeError):
+            self.call('C:HLPLBH')
         self.assertEqual(self.commands, [])
 
     def test_enter_uses_default_start_number(self):
@@ -572,7 +612,7 @@ class NativePromptRegressionTests(BatchFixture):
         self.frozen_prompt = '输入要放弃的操作数目或 [自动(A)/控制(C)/开始(BE)/结束(E)/标记(M)/后退(B)] <1>: _Begin HLBH'
         self.selection = [self.wire(f'wire-{i}', 1000.-i*100) for i in range(5)]
         self.call('C:HLPLBH')
-        self.assertEqual([kind for kind, _ in self.input_calls], ['number', 'selection', 'anchor'])
+        self.assertEqual([kind for kind, _ in self.input_calls], ['number', 'selection'])
         self.assertEqual([self.interfaces[row['label']]['TEXTSTRING']['value'] for row in self.labels],
                          [f'ZE{i}' for i in range(1, 6)])
         self.assertIsNone(self.mode)
@@ -631,7 +671,7 @@ class NativePromptRegressionTests(BatchFixture):
         self.select_mismatch = True
         self.native_active = 64
         self.call('HLBN:Execute', self.plan([self.wire('wire', 100.)]))
-        self.assertFalse(any(command and command[0] == '_non' for command in self.commands))
+        self.assertEqual([stage for stage, _, _ in self.native_points], ['wire'])
         self.assertIsNone(self.mode)
         self.assertEqual(self.undo_calls, 0)
         self.assertIsNone(self.h.lookup('*HLBN:PENDING*'))
@@ -647,7 +687,7 @@ class NativePromptRegressionTests(BatchFixture):
         self.assertEqual(self.undo_calls, 0)
         self.assertNotIn('COMPLETE', [stage for stage, _ in self.logs])
 
-    def test_two_cancels_are_allowed_before_undo_and_both_stop_at_vendor_exit(self):
+    def test_two_empty_exits_are_allowed_before_undo_and_stop_at_vendor_exit(self):
         self.native_active = 64
         self.native_names = 'VENDOR_CIRCUIT_NUMBER'
         self.unknown_text = True
@@ -656,7 +696,7 @@ class NativePromptRegressionTests(BatchFixture):
         before = copy.deepcopy(self.entities)
         self.assertIsNone(self.call('HLBN:Execute', self.plan(names)))
         self.assertEqual(self.entities, before)
-        self.assertEqual(self.commands.count(()), 2)
+        self.assertEqual(self.commands.count(('',)), 2)
         self.assertEqual(self.undo_calls, 1)
         self.assertIsNone(self.mode)
         self.assert_vars_restored()
@@ -702,6 +742,76 @@ class NativePromptRegressionTests(BatchFixture):
         result = self.call('HLBN:Execute', self.plan(names))
         self.assertEqual([row[1] for row in result], ['ZE1', 'ZE2'])
         self.assertIsNone(self.mode)
+        self.assert_vars_restored()
+
+
+class NativeCoordinateTests(BatchFixture):
+    def test_each_wire_receives_exactly_two_plain_coordinate_points_before_next_wire(self):
+        names = [self.wire(f'wire-{i}', 1000.-100*i, x=100.+20*i) for i in range(5)]
+        plan = self.plan(list(reversed(names)))
+        result = self.call('HLBN:Execute', plan)
+        self.assertTrue(truth(result))
+        expected = []
+        for row in plan:
+            entity = self.call('HLBN:Get', Symbol('ENTITY'), row)
+            expected.extend([('wire', entity, self.call('HLBN:Get', Symbol('PICK'), row)),
+                             ('landing', entity, self.call('HLBN:Get', Symbol('LANDING'), row))])
+        self.assertEqual(self.native_points, expected)
+        self.assertEqual([stage for stage, _ in self.logs if stage in ('ROW_BEGIN', 'ROW_COMPLETE')],
+                         ['ROW_BEGIN', 'ROW_COMPLETE']*5)
+        self.assertEqual([row[1] for row in result], [f'ZE{i}' for i in range(1, 6)])
+        self.assertIsNone(self.mode)
+        self.assert_vars_restored()
+
+    def test_polyline_pick_is_on_the_curve_at_half_length(self):
+        poly = self.add_entity('poly', 'LWPOLYLINE', [0., 0., 0.], [100., 300., 0.])
+        self.curves[poly]['points'] = [[0., 0., 0.], [100., 0., 0.], [100., 300., 0.]]
+        result = self.call('HLBN:Execute', self.plan([poly]))
+        self.assertTrue(truth(result))
+        self.assertEqual(self.native_points, [('wire', poly, [100., 100., 0.]),
+                                              ('landing', poly, [600., 600., 0.])])
+
+    def test_failed_second_point_stops_before_the_next_wire_and_exits_both_stages(self):
+        self.reject_landing = True
+        self.abort_returns_nil = True
+        names = [self.wire('top', 100.), self.wire('bottom', 90.)]
+        before = copy.deepcopy(self.entities)
+        self.assertIsNone(self.call('HLBN:Execute', self.plan(names)))
+        self.assertEqual([stage for stage, _, _ in self.native_points], ['wire', 'landing'])
+        self.assertEqual(self.entities, before)
+        self.assertIsNone(self.mode)
+        self.assertIsNone(self.h.lookup('*HLBN:PENDING*'))
+        self.assertEqual(self.undo_calls, 0)
+
+    def test_vendor_that_ignores_escape_can_exit_with_empty_input_before_undo(self):
+        self.ignore_escape = True
+        self.unknown_text = True
+        names = [self.wire('wire', 100.)]
+        before = copy.deepcopy(self.entities)
+        self.assertIsNone(self.call('HLBN:Execute', self.plan(names)))
+        self.assertEqual(self.entities, before)
+        self.assertIsNone(self.mode)
+        self.assertEqual(self.undo_calls, 1)
+        self.assertIsNone(self.h.lookup('*HLBN:PENDING*'))
+
+    def test_mark_created_at_first_point_is_kept_with_the_same_native_annotation(self):
+        self.create_mark_on_pick = True
+        names = [self.wire('wire', 100.)]
+        result = self.call('HLBN:Execute', self.plan(names))
+        self.assertTrue(truth(result))
+        self.assertIn('pick-mark-1', self.entities)
+        self.assertEqual(self.interfaces['label-1']['TEXTSTRING']['value'], 'ZE1')
+        self.assertEqual([stage for stage, _, _ in self.native_points], ['wire', 'landing'])
+        self.assertIsNone(self.mode)
+
+    def test_main_command_reuses_custom_offset_without_asking_for_a_blank_point(self):
+        self.offset_inputs = [-500., -250.]
+        self.call('C:HLPLBHSET')
+        self.input_calls.clear()
+        self.selection = [self.wire('wire', 100.)]
+        self.call('C:HLPLBH')
+        self.assertEqual([kind for kind, _ in self.input_calls], ['number', 'selection'])
+        self.assertEqual(self.labels[0]['landing'], [-400., -150., 0.])
         self.assert_vars_restored()
 
 

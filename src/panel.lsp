@@ -138,7 +138,8 @@
     (setq blocks (cons (EL:Put 'identity (list (EL:Get 'name b) nil "block-name-v1")
       (EL:Put 'role (if (equal (EL:Get 'id b) panel) 'panel 'device) b)) blocks)))
   (EL:Put 'signature (EL:LogCall "SNAPSHOT_SIGNATURE" nil 'EL:FixedSourceSignature (list snapshot)) (EL:Put 'blocks (reverse blocks) snapshot)))
-(defun EL:SplitNetwork (network cfg / snapshot panel edges seeds wire block i circuits result)
+(defun EL:SplitNetwork (network cfg / snapshot panel edges seeds wire block i circuits result circuit
+    *EL:DeviceContactCache* *EL:DeviceTemplateCache* *EL:DeviceTemplateEnabled*)
   (setq snapshot (EL:CircuitSnapshot (EL:Get 'snapshot network) (EL:Get 'panel network))
         panel (EL:Get 'panel network) block (EL:By 'id panel (EL:Get 'blocks snapshot)) i 0)
   (foreach wire (vl-sort (EL:Get 'wires snapshot) '(lambda (a b) (< (EL:Get 'id a) (EL:Get 'id b))))
@@ -148,9 +149,12 @@
         (setq seeds (cons (list (cons 'id (strcat "R" (itoa i))) (cons 'wire (EL:Get 'id wire))
           (cons 'key (list (EL:Get 'id wire) 'outlet))) seeds)))))
   (setq edges (vl-remove-if '(lambda (e) (member panel e)) (EL:Get 'edges network)))
+  (setq *EL:DeviceTemplateEnabled* T)
   (foreach wire (reverse seeds)
-    (setq circuits (cons (EL:PerfCall "CIRCUIT_TRACE" 'EL:TraceCircuit
-      (list wire snapshot edges (EL:Get 'gap-issues network))) circuits)))
+    (setq circuit (EL:PerfCall "CIRCUIT_TRACE" 'EL:TraceCircuit
+      (list wire snapshot edges (EL:Get 'gap-issues network))))
+    (setq circuit (EL:Put 'number-scope (EL:PerfCall "CIRCUIT_NUMBER_SCOPE" 'EL:ExitNumberScope
+      (list wire network cfg)) circuit) circuits (cons circuit circuits)))
   (foreach wire (reverse circuits)
     (EL:LogEvent "CIRCUIT_TRACE_RESULT" (list (cons 'id (EL:Get 'id wire))
       (cons 'wires (EL:Get 'wires wire)) (cons 'devices (EL:Get 'devices wire))

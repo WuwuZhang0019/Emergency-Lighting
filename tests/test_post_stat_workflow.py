@@ -59,6 +59,57 @@ class PostStatWorkflowTests(unittest.TestCase):
     def dialog(self):
         return self.call('EL:PanelDialog', self.result, self.cfg, self.powers, None)
 
+    def test_inline_legend_selection_preserves_box_values_and_navigation(self):
+        snapshot=self.h.builtins['EL:DLSNAPSHOT']()
+        self.h.set('*EL:DLSESSIONSNAPSHOT*',snapshot)
+        callbacks={}
+        self.h.builtins['ACTION_TILE']=lambda k,v:callbacks.__setitem__(k,v)
+        self.h.builtins['EL:DLLegend'.upper()]=lambda *args:None
+        def action():
+            self.tiles['b_watts0']='7'
+            self.h.run(callbacks['f_image0'])
+            self.assertIsNone(self.closed)
+            self.assertEqual(self.tiles['dl_block'],'LAMP')
+            self.assertEqual(self.tiles['dl_watts'],'5')
+            self.assertEqual(self.tiles['b_watts0'],'7')
+            self.tiles['dl_display']='库名称输入'
+            self.h.run(callbacks['b_library'])
+            self.assertEqual(self.closed,11)
+            self.assertEqual(self.get('display',self.call('EL:DLUIEntry')),'库名称输入')
+        self.actions=[action]
+        result=self.dialog()
+        self.assertTrue(self.get('library-panel',result))
+        self.assertEqual(self.writes,[])
+
+    def test_inline_saved_default_refresh_preserves_manual_box_watts(self):
+        snapshot=self.h.builtins['EL:DLSNAPSHOT']()
+        self.h.set('*EL:DLSESSIONSNAPSHOT*',snapshot)
+        prepared=self.call('EL:DLPrepare',self.result,self.powers,snapshot,None)
+        self.result=self.get('result',prepared); self.powers=self.get('powers',prepared)
+        callbacks={}
+        self.h.builtins['ACTION_TILE']=lambda k,v:callbacks.__setitem__(k,v)
+        self.h.builtins['EL:DLLegend'.upper()]=lambda *args:None
+        def saved():
+            catalog=self.get('catalog',snapshot)
+            entry=self.get('devices',catalog)[0]
+            entry=self.call('EL:Put',Symbol('WATTS'),9,entry)
+            catalog=self.call('EL:DLUpsert',catalog,entry)
+            current=self.call('EL:Put',Symbol('CATALOG'),catalog,snapshot)
+            current=self.call('EL:Put',Symbol('INDEX'),self.call('EL:DLIndex',catalog),current)
+            self.h.set('*EL:DLUISTATE*',self.call('EL:Put',Symbol('SNAPSHOT'),current,self.h.lookup('*EL:DLUISTATE*')))
+        self.h.builtins['EL:DLUISAVEWORK']=saved
+        def action():
+            self.tiles['b_watts0']='7'
+            self.h.run(callbacks['f_image0'])
+            self.h.run(callbacks['dl_save'])
+            self.assertEqual(self.tiles['b_watts0'],'7')
+            draft=self.h.lookup('*EL:PANELDRAFT*')
+            self.assertEqual(self.get('watts',self.call('EL:DLOverride','LAMP',draft)),7)
+            self.assertEqual(self.get('watts',self.get('entry',self.call('EL:DLReference','LAMP',draft))),9)
+            self.done(0)
+        self.actions=[action]
+        self.dialog()
+
     def test_statistics_without_template_open_panel_without_setup_or_publication(self):
         self.h.builtins['EL:CAPTUREFIXEDTEMPLATE'] = lambda cfg: self.fail('setup before generation')
         self.h.builtins['EL:PUBLISHDIAGRAM'] = lambda *args: self.fail('must not publish before review')

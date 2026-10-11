@@ -1,12 +1,13 @@
 ;; Date: 2026-10-11. Keep GB2312 byte pairs intact in the legacy CAD2020 engine.
-(defun EL:PanelText (key value / lines line units char cost index limit legacy step)
-  (setq line "" units 0 index 1 limit (cond ((equal key "p_total") 4) ((equal key "p_error") 3) (T 2)))
+(defun EL:PanelText (key value / lines line units char cost index limit legacy step width)
+  (setq width (if (member key '("dl_asset" "dl_status")) 34 44))
+  (setq line "" units 0 index 1 limit (cond ((equal key "p_total") 4) ((member key '("p_error" "dl_status")) 3) (T 2)))
   (setq legacy (= (strlen "中") 2))
   (while (<= index (strlen value))
     (setq char (substr value index 1) cost (if (> (ascii char) 127) 2 1))
     (setq step (if (and legacy (= cost 2)) 2 1)
       char (substr value index step))
-    (if (> (+ units cost) 44)
+    (if (> (+ units cost) width)
       (setq lines (append lines (list line)) line "" units 0))
     (setq line (strcat line char) units (+ units cost) index (+ index step)))
   (setq lines (append lines (list line)) index 0)
@@ -532,6 +533,7 @@
       (EL:Put 'ground-source 'manual (EL:Put 'is-ground (if hits T nil) c)))) cs)))
   (setq *EL:PanelDraft* (EL:Put 'circuits (reverse cs) *EL:PanelDraft*)))))
 (defun EL:PanelStore (/ rows row value watts i bad pending updates name draft)
+  (if (and *EL:DLUIEmbedded* *EL:DLSessionSnapshot*) (EL:DLUIStore))
   (setq rows (EL:PanelBlockRows) i 0 pending *EL:PanelPowers* draft *EL:PanelDraft*)
   (repeat 8
     (setq row (nth (+ *EL:ThumbPage* i) rows))
@@ -768,11 +770,11 @@
   (list (cons 'switch-result result) (cons 'switch-config cfg)))
 ;; Date: 2026-10-10. All picked circuits enter the panel without exit selection.
 (defun EL:PanelDialog (result cfg powers capacity / dialog status i key row captured switched *EL:PanelAction*
-    *EL:HistoryRecords* *EL:HistoryIndex*
+    *EL:HistoryRecords* *EL:HistoryIndex* *EL:DLUIEmbedded* *EL:DLPanelRow*
     *EL:PanelDraft* *EL:PanelPowers* *EL:PanelCapacity* *EL:PanelConfig*
     *EL:PanelIndex* *EL:PanelPage* *EL:PanelDevice* *EL:PanelTemplateReady*
     *EL:FixedExitResult* *EL:FixedExitSelection* *EL:ExitSnapshot* *EL:ThumbRows* *EL:ThumbPage* *EL:ThumbCache* *EL:ThumbLocate*)
-  (setq *EL:FixedExitResult* result *EL:ExitSnapshot* (EL:Get 'snapshot result)
+  (setq *EL:DLUIEmbedded* T *EL:FixedExitResult* result *EL:ExitSnapshot* (EL:Get 'snapshot result)
     *EL:FixedExitSelection* "" *EL:ThumbPage* 0 i 0)
   (foreach row (EL:Get 'circuits result)
     (setq *EL:FixedExitSelection* (strcat *EL:FixedExitSelection* (itoa i) " "))
@@ -800,6 +802,7 @@
         (EL:LogCall "PANEL_FILL" (list (cons 'panel (EL:Get 'panel result))
           (cons 'circuits (length (EL:Get 'circuits *EL:PanelDraft*)))) 'EL:PanelFill nil) (setq i 0)
         (EL:HistoryFill)
+        (EL:DLPanelEditorInit)
         (set_tile "p_number" (strcat "配电箱编号：" (EL:PanelNumber *EL:PanelDraft*)))
         (EL:TrunkButtonDraw)
         (action_tile "p_pick" "(if (EL:PanelStore) (done_dialog 9))")
@@ -814,7 +817,7 @@
         (action_tile "b_apply_library" "(EL:DLPanelApply)")
         (repeat 8
           (setq key (itoa i))
-          (action_tile (strcat "f_image" key) (strcat "(EL:ThumbRequest " key ")"))
+          (action_tile (strcat "f_image" key) (strcat "(EL:DLPanelSelect " key ")"))
           (action_tile (strcat "b_watts" key) (strcat "(EL:PanelBlockPowerChanged " key ")"))
           (action_tile (strcat "b_ground" key) (strcat "(EL:PanelBlockGround " key " $value)"))
           (action_tile (strcat "b_remove" key) (strcat "(EL:PanelBlockExclude " key ")"))
@@ -824,7 +827,7 @@
         (action_tile "p_capacity" "(EL:PanelCapacity $value)")
         (action_tile "accept" "(EL:PanelAccept)")
         (action_tile "p_generate" "(EL:PanelGenerate)")
-        (action_tile "cancel" "(done_dialog 0)")
+        (action_tile "cancel" "(EL:DLPanelCancel)")
         (setq *EL:PanelAction* nil status (EL:PerfInput 'start_dialog nil))
         (EL:LogEvent "PANEL_DIALOG_RETURN" (list (cons 'status status) (cons 'action *EL:PanelAction*)))
         (if (= status 8)
@@ -866,6 +869,7 @@
 
 ;; Date: 2026-10-11. An empty drawing keeps only model picks and cancel active.
 (defun EL:PanelStartInit (/ i key)
+  (foreach key '("dl_block" "dl_display" "dl_watts" "dl_aliases" "dl_zero" "dl_ground" "dl_active" "dl_keep_old" "dl_save" "dl_pick" "dl_repair" "dl_delete" "dl_restore" "dl_locate") (mode_tile key 1))
   (EL:PanelText "p_error" "请拾取配电箱或配电箱的集中引出线，开始统计。")
   (EL:LogCall "PANEL_START_BUTTONS" nil 'EL:TrunkButtonDraw nil)
   (foreach key '("p_pick" "p_trunk") (mode_tile key 0))

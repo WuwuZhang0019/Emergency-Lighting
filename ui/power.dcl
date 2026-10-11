@@ -143,15 +143,15 @@ el_panel : dialog {
   }
     }
   : boxed_column { label = "保存记录（本图）";
-    : list_box { key = "h_records"; width = 40; fixed_width = true; height = 38; multiple_select = false; }
-    : text { key = "h_detail"; width = 40; fixed_width = true; }
+    : list_box { key = "h_records"; width = 30; fixed_width = true; height = 38; multiple_select = false; }
+    : text { key = "h_detail"; width = 30; fixed_width = true; }
     // Date: 2026-10-11. A single click opens the selected record.
-    : text { label = "单击记录打开回路；[当前] 为已打开箱。"; }
-    : text { label = "切换会保存当前草稿，不更新系统图。"; }
+    : text { label = "单击打开；[当前] 为已打开箱。"; }
+    : text { label = "切换保存草稿，不更新系统图。"; }
     : text { label = "关闭图纸前请保存 DWG。"; }
     : button { key = "h_open"; label = "保存当前并打开"; }
   }
-    : boxed_column { label = "图例表（本箱全部图块）";
+    : boxed_column { label = "图例表（点击图形编辑设备库）";
       // Date: 2026-10-10. Fixed-height table prevents stretched row gaps.
       : column { fixed_height = true; alignment = top;
       : boxed_row { fixed_height = true;
@@ -233,10 +233,44 @@ el_panel : dialog {
         : button { key = "b_remove7"; label = "×"; width = 4; fixed_width = true; }
       }
       : row { fixed_height = true; : button { key = "f_prev"; label = "上一页"; } : text { key = "f_page"; width = 10; } : button { key = "f_next"; label = "下一页"; } }
-      : row { : button { key = "b_library"; label = "独立设备库"; } : button { key = "b_apply_library"; label = "应用当前库值"; } }
+      : row { : button { key = "b_library"; label = "完整设备库"; } : button { key = "b_apply_library"; label = "应用当前库值"; } }
       : text { label = "修改功率和地面只作用于本箱。"; }
       : text { label = "× 排除本箱同类图块，不计数量和功率。"; }
       : row { fixed_height = true; : text { key = "b_excluded"; width = 24; } : button { key = "b_restore"; label = "恢复排除"; } }
+      }
+      : spacer { height = 0; }
+    }
+    // Date: 2026-10-11. Shared library drafts beside the legend table.
+    : boxed_column { label = "设备库资料"; fixed_width = true; width = 36;
+      : column { fixed_height = true; alignment = top;
+        : text { label = "点击左侧图例，编辑对应库资料。"; }
+        : image { key = "dl_image"; width = 34; height = 6; fixed_width = true; fixed_height = true; color = 0; }
+        : text { key = "dl_asset"; width = 36; fixed_width = true; }
+        : text { key = "dl_asset1"; width = 36; fixed_width = true; }
+        : text { label = "图块名"; }
+        : edit_box { key = "dl_block"; edit_width = 34; fixed_width = true; allow_accept = false; }
+        : text { label = "设备名"; }
+        : edit_box { key = "dl_display"; edit_width = 34; fixed_width = true; allow_accept = false; }
+        : text { label = "别名（用分号分隔）"; }
+        : edit_box { key = "dl_aliases"; edit_width = 34; fixed_width = true; allow_accept = false; }
+        : toggle { key = "dl_keep_old"; label = "改名保留原图块名为别名"; value = "1"; }
+        : edit_box { key = "dl_watts"; label = "库默认功率 W"; edit_width = 8; allow_accept = false; }
+        : toggle { key = "dl_zero"; label = "明确确认此设备为 0W"; }
+        : popup_list { key = "dl_ground"; label = "是否地面"; }
+        : toggle { key = "dl_active"; label = "启用名称匹配"; }
+        : button { key = "dl_save"; label = "保存到设备库"; }
+        : row {
+          : button { key = "dl_delete"; label = "删除库设备"; }
+          : button { key = "dl_restore"; label = "恢复库设备"; }
+        }
+        : button { key = "dl_locate"; label = "在图中查看选中设备"; }
+        : button { key = "dl_pick"; label = "打开设备库拾取 / 更换图形"; }
+        : button { key = "dl_repair"; label = "打开设备库修复图例"; }
+        : text { key = "dl_status"; width = 36; fixed_width = true; }
+        : text { key = "dl_status1"; width = 36; fixed_width = true; }
+        : text { key = "dl_status2"; width = 36; fixed_width = true; }
+        : text { label = "缺资料可保存为草稿，补齐后启用。"; }
+        : text { label = "本箱手填值保留；应用库值可覆盖。"; }
       }
       : spacer { height = 0; }
     }

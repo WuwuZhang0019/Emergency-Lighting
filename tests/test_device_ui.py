@@ -70,6 +70,95 @@ class DeviceUITests(unittest.TestCase):
             [Symbol('DRAFTS')], [Symbol('SELECTED')]]
         self.h.set('*EL:DLUISTATE*',state)
 
+    def embedded(self):
+        self.state()
+        self.h.set('*EL:DLUIEMBEDDED*', True)
+        self.h.set('*EL:DLSESSIONSNAPSHOT*', self.get('snapshot', self.h.lookup('*EL:DLUISTATE*')))
+        self.h.set('*EL:THUMBPAGE*', 0)
+        self.h.set('*EL:THUMBROWS*', self.h.run("'(((name . \"A\")) ((name . \"B\")))"))
+        tiles, modes = {}, {}
+        self.h.builtins.update({'SET_TILE': lambda k,v:tiles.__setitem__(k,v),
+            'GET_TILE': lambda k:tiles.get(k,''), 'MODE_TILE': lambda k,v:modes.__setitem__(k,v),
+            'EL:THUMBDRAW':lambda *args: None, 'EL:PANELSTORE':lambda:True,
+            'EL:DLLegend'.upper():lambda *args:None, 'PRINC':lambda *args:None})
+        return tiles, modes
+
+    def test_embedded_switch_preserves_invalid_input_rename_and_separate_drafts(self):
+        tiles, _ = self.embedded()
+        self.h.builtins['EL:DLCOMMIT'] = lambda *args:self.fail('selection must not publish')
+        self.call('EL:DLPanelSelect',0)
+        first = self.get('device-id',self.call('EL:DLUIEntry'))
+        tiles.update(dl_block='Renamed', dl_watts='1.5', dl_display='未保存设备')
+        self.call('EL:DLPanelSelect',1)
+        second = self.get('device-id',self.call('EL:DLUIEntry'))
+        self.assertNotEqual(first,second)
+        self.call('EL:DLPanelSelect',0)
+        self.assertEqual(self.get('device-id',self.call('EL:DLUIEntry')),first)
+        self.assertEqual(tiles['dl_block'],'Renamed')
+        self.assertEqual(tiles['dl_watts'],'1.5')
+        self.assertEqual(tiles['dl_display'],'未保存设备')
+        self.assertFalse(truth(self.get('watts', self.call('EL:DLUIEntry'))))
+
+    def test_embedded_cancel_retains_raw_input_without_publishing(self):
+        tiles, _ = self.embedded()
+        self.call('EL:DLPanelSelect',0)
+        tiles.update(dl_watts='invalid',dl_display='关闭前输入')
+        closed=[]
+        self.h.builtins['DONE_DIALOG']=closed.append
+        self.h.builtins['EL:DLCOMMIT']=lambda *args:self.fail('cancel must not save catalog')
+        self.call('EL:DLPanelCancel')
+        self.assertEqual(closed,[0])
+        self.assertEqual(self.get('watts-text',self.call('EL:DLUIEntry')),'invalid')
+        self.assertEqual(self.get('display',self.call('EL:DLUIEntry')),'关闭前输入')
+
+    def test_unavailable_library_selection_keeps_location_available_and_reports_reason(self):
+        tiles, modes = self.embedded()
+        self.h.set('*EL:DLSESSIONSNAPSHOT*',None)
+        self.call('EL:DLPanelSelect',0)
+        self.assertEqual(modes['dl_locate'],0)
+        self.assertEqual(self.get('name',self.h.lookup('*EL:DLPANELROW*')),'A')
+        self.assertIn('库暂不可用',tiles['dl_status'])
+        self.assertIsNone(self.call('EL:DLUIEntry'))
+
+    def test_embedded_current_device_wins_over_same_name_deleted_history(self):
+        tiles, _ = self.embedded()
+        active=self.entry('A')
+        deleted=self.put('status',Symbol('DELETED'),self.put('active',None,self.put('device-id','ELDEV2',active)))
+        catalog=self.put('devices',[active,deleted],self.cat)
+        snapshot=self.put('catalog',catalog,self.get('snapshot',self.h.lookup('*EL:DLUISTATE*')))
+        self.h.set('*EL:DLUISTATE*',self.put('snapshot',snapshot,self.h.lookup('*EL:DLUISTATE*')))
+        self.call('EL:DLPanelSelect',0)
+        self.assertEqual(self.get('device-id',self.call('EL:DLUIEntry')),self.get('device-id',active))
+        self.assertNotEqual(self.get('status',self.call('EL:DLUIEntry')),Symbol('DELETED'))
+
+    def test_embedded_save_uses_real_catalog_and_retains_incomplete_graphics_as_draft(self):
+        with tempfile.TemporaryDirectory() as folder:
+            tiles, _ = self.embedded()
+            root=self.fs(folder); snapshot=self.call('EL:DLSnapshotLoad',root)
+            self.h.set('*EL:DLUISTATE*',self.put('snapshot',snapshot,self.h.lookup('*EL:DLUISTATE*')))
+            self.h.set('*EL:DLSESSIONSNAPSHOT*',snapshot)
+            self.call('EL:DLPanelSelect',0)
+            tiles.update(dl_watts='7',dl_ground='1',dl_display='应急灯')
+            self.call('EL:DLUISaveWork')
+            saved=self.call('EL:DLSnapshotLoad',root)
+            entry=self.get('devices',self.get('catalog',saved))[0]
+            self.assertEqual(self.get('watts',entry),7)
+            self.assertEqual(self.get('display',entry),'应急灯')
+            self.assertEqual(self.get('status',entry),Symbol('DRAFT'))
+            self.assertFalse(truth(self.get('active',entry)))
+            self.assertIsNone(self.get('panel-name',entry))
+            self.assertTrue(truth(self.call('EL:DLCatalogValid',self.get('catalog',saved))))
+
+    def test_embedded_preview_reuses_source_slide_without_capture_or_catalog_write(self):
+        tiles, _ = self.embedded()
+        self.h.set('*EL:THUMBCACHE*',self.h.run("'((\"A\" . (\"cached.sld\" (800 600))))"))
+        draws=[]
+        self.h.builtins['EL:THUMBDRAW']=lambda *args:draws.append(args)
+        self.h.builtins['EL:THUMBCAPTURE']=lambda *args:self.fail('capture inside modal')
+        self.call('EL:DLPanelSelect',0)
+        self.assertIn(('dl_image',['cached.sld',[800,600]]),draws)
+        self.assertIn('未登记图形',tiles['dl_asset'])
+
     def test_invalid_watts_text_is_retained_without_replacing_catalog(self):
         self.state()
         row = self.put('watts-text','错误值',self.entry())
@@ -155,13 +244,15 @@ class DeviceUITests(unittest.TestCase):
         root=Path(__file__).resolve().parents[1]
         code=(root/'src/device-ui.lsp').read_text(encoding='utf-8')
         ui=(root/'ui/device-library.dcl').read_text(encoding='utf-8')
-        keys=set(re.findall(r'key\s*=\s*"([^"]+)"',ui))
+        keys=set(re.findall(r'key\s*=\s*"([^"]+)"',ui + (root/'ui/power.dcl').read_text(encoding='utf-8')))
         used=set(re.findall(r'\((?:action_tile|set_tile|get_tile|start_list|mode_tile)\s+"([^"]+)"',code))
         self.assertTrue(used <= keys,used-keys)
-        for line in code.splitlines():
-            if '(action_tile' in line:
-                for form in parse(line):
-                    if isinstance(form,list) and form[0] == Symbol('ACTION_TILE'): self.assertTrue(parse(form[2]))
+        def check_callbacks(form):
+            if isinstance(form,list) and form:
+                if form[0] == Symbol('ACTION_TILE') and isinstance(form[2],str):
+                    self.assertTrue(parse(form[2]))
+                for child in form: check_callbacks(child)
+        for form in parse(code): check_callbacks(form)
         self.assertEqual(ui.count('{'),ui.count('}'))
         self.assertIn('(EL:DLUIStore) (done_dialog 0)',code)
 

@@ -1,4 +1,4 @@
-;; Date: 2026-10-10. Resolve the current package without changing CAD security.
+;; Date: 2026-10-11. Resolve the current package without changing CAD security.
 (defun EL:StartupCandidate (directory marker / root)
   ;; MainDialog may contain the selected filename, not only its directory.
   (if (and (equal (type directory) 'STR) (findfile directory)
@@ -58,8 +58,7 @@
       (setq root (EL:StartupCandidate path marker))))
   (if (not root)
     (setq root (EL:StartupCandidate (getenv (strcat "EL_PACKAGE_ROOT_" marker)) marker)))
-  (if (not root)
-    (setq root (EL:StartupSelectRoot marker)))
+  ;; Never prompt during startup. Manual relocation belongs to c:ELROOT only.
   (if root (EL:StartupRememberRoot root marker))
   (if (not root)
     (progn

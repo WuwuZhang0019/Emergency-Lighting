@@ -224,7 +224,9 @@ class PerformanceFlowTests(unittest.TestCase):
         mark = self.call('EL:Get', 'placement-confirmed', self.h.lookup('*EL:PERFMARKS*'))
         self.assertEqual(mark[0], 100)
         metrics = self.h.lookup('*EL:PERFMETRICS*')
-        self.assertGreater(self.call('EL:Get', 'store-read-calls', metrics), 1)
+        # Date: 2026-10-11. P2 confirms the committed actual readback directly.
+        self.assertEqual(self.call('EL:Get', 'store-read-calls', metrics), 1)
+        self.assertGreater(self.call('EL:Get', 'store-context-reuses', metrics), 0)
         self.assertEqual(self.call('EL:Get', 'master-write-attempts', metrics), 1)
         self.assertGreater(self.call('EL:Get', 'entity-write-attempts', metrics), 1)
         self.call('EL:PerfFinish', Symbol('COMMAND-FINISHED'))

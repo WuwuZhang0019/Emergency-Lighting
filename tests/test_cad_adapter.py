@@ -1,4 +1,4 @@
-"""CAD record boundary checks with entget-shaped data. Date: 2026-10-08.
+"""CAD record boundary checks with entget-shaped data. Date: 2026-10-11.
 
 Runs source geometry and topology, with database calls replaced by fixtures.
 These checks are not real AutoCAD acceptance.
@@ -14,7 +14,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 class CadAdapterTests(unittest.TestCase):
     def setUp(self):
         self.h = Host()
-        for name in ('common', 'config', 'geometry', 'topology', 'diagram-store'):
+        for name in ('common', 'config', 'geometry', 'topology', 'store-compact', 'diagram-store'):
             self.h.load_definitions(ROOT / 'src' / f'{name}.lsp')
         self.entities = {}
         self.bounds = {}
@@ -90,7 +90,8 @@ class CadAdapterTests(unittest.TestCase):
         self.assertIsInstance(self.call('EL:Signature', data), str)
 
     def test_advanced_trace_then_power_still_reaches_legacy_dialog(self):
-        for name in ('statistics', 'main', 'diagram-commands'):
+        # Date: 2026-10-11. The shared power cleanup is provided by panel.
+        for name in ('statistics', 'panel', 'main', 'diagram-commands'):
             self.h.load_definitions(ROOT / 'src' / f'{name}.lsp')
         panel = self.block('BOX', 'P', 'panel', [0.0, 0.0, 0.0])
         lamp = self.block('LAMP', 'D', 'lamp', [12.0, 0.0, 0.0])

@@ -1,4 +1,4 @@
-"""Root/config and packaged-update regressions. Date: 2026-10-09.
+"""Root/config and packaged-update regressions. Date: 2026-10-11.
 
 Executes actual LISP with file/input adapters; does not start AutoCAD.
 """
@@ -17,7 +17,7 @@ from autolisp_host import Host, Pair, Symbol, parse, quoted, truth
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 CHECK_ROOT = ROOT / 'output' / 'cad2020-root-check'
-MODULES = ('common', 'config', 'geometry', 'topology', 'statistics', 'generation', 'main', 'simple', 'fixed', 'panel', 'diagram-store', 'diagram-update', 'diagram-commands')
+MODULES = ('common', 'config', 'geometry', 'topology', 'statistics', 'generation', 'main', 'simple', 'fixed', 'panel', 'store-compact', 'diagram-store', 'diagram-update', 'diagram-commands')
 
 
 def lisp_data(value):

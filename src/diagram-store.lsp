@@ -138,11 +138,31 @@
         (progn (setq *EL:StoreTokens* (cons '(2 . "D") *EL:StoreTokens*)) (EL:StoreEncodeValue tail)))
       (setq *EL:StoreTokens* (cons '(2 . "E") *EL:StoreTokens*)))
     (T (EL:StoreParseRequire nil))))
-(defun EL:StoreEncode (value / *EL:StoreTokens*)
-  ;; The data schema and dictionary identity remain V1. Only its wire encoding
-  ;; changes: group 40 keeps native doubles, 90 integers, 1 raw string chunks.
-  (setq *EL:StoreTokens* '((300 . "EL_TYPED_V1")))
+(defun EL:StoreEncodeNative (value marker / *EL:StoreTokens*)
+  ;; Date: 2026-10-11. Native codec is shared by both wire versions. It keeps
+  ;; group 40 doubles, group 90 integers and the unchanged raw string chunks.
+  (setq *EL:StoreTokens* (list (cons 300 marker)))
   (EL:StoreEncodeValue value) (reverse *EL:StoreTokens*))
+(defun EL:StoreEncodeLegacy (value / tokens)
+  (setq tokens (EL:StoreEncodeNative value "EL_TYPED_V1"))
+  (EL:PerfSet "store-wire-version" 1)
+  (EL:PerfSet "store-template-pool-count" 0)
+  (EL:PerfSet "store-atom-pool-count" 0)
+  (EL:PerfSet "store-body-token-count" 0) tokens)
+(defun EL:StoreEncode (value / packed tokens valid)
+  ;; Preserve the public native-value codec contract for non-store callers.
+  ;; StoreWrite separately refuses invalid/future business stores outright.
+  (setq valid (vl-catch-all-apply 'EL:StoreSchemaValid (list value)))
+  (if (and (not (vl-catch-all-error-p valid)) valid)
+    (progn
+      (setq packed (EL:StoreCompact value)
+        tokens (EL:StoreEncodeNative packed "EL_COMPACT_TYPED_V2"))
+      (EL:PerfSet "store-wire-version" 2)
+      (EL:PerfSet "store-compact-fields" (length tokens))
+      (EL:PerfSet "store-template-pool-count" (length (EL:Get 'templates packed)))
+      (EL:PerfSet "store-atom-pool-count" (length (EL:Get 'atoms packed)))
+      (EL:PerfSet "store-body-token-count" (length (EL:Get 'body packed))) tokens)
+    (EL:StoreEncodeLegacy value)))
 (defun EL:StoreTake (/ pair)
   (EL:StoreParseRequire *EL:StoreTokensLeft*)
   (setq pair (car *EL:StoreTokensLeft*) *EL:StoreTokensLeft* (cdr *EL:StoreTokensLeft*)
@@ -177,11 +197,18 @@
         (setq value (reverse rows)))
       (EL:StoreParseRequire (equal (EL:StoreTake) '(2 . "E"))) value)
     (T (EL:StoreParseRequire nil))))
-(defun EL:StoreDecode (tokens / *EL:StoreTokensLeft* *EL:StoreTokenIndex* *EL:StoreLastToken* value)
+(defun EL:StoreDecodeNative (tokens marker / *EL:StoreTokensLeft* *EL:StoreTokenIndex* *EL:StoreLastToken* value)
   (setq *EL:StoreTokensLeft* tokens *EL:StoreTokenIndex* 0)
-  (EL:StoreParseRequire (equal (EL:StoreTake) '(300 . "EL_TYPED_V1")))
+  (EL:StoreParseRequire (equal (EL:StoreTake) (cons 300 marker)))
   (setq value (EL:StoreDecodeValue))
   (EL:StoreParseRequire (not *EL:StoreTokensLeft*)) value)
+(defun EL:StoreDecode (tokens / marker)
+  ;; Read legacy records without rewriting. Future wire versions are refused.
+  (setq marker (cdr (car tokens)))
+  (cond
+    ((equal marker "EL_TYPED_V1") (EL:StoreDecodeNative tokens marker))
+    ((equal marker "EL_COMPACT_TYPED_V2") (EL:StoreExpand (EL:StoreDecodeNative tokens marker)))
+    (T (EL:StoreParseRequire nil))))
 (defun EL:StorePayload (entry)
   (vl-remove-if-not '(lambda (p) (member (car p) '(1 2 3 40 90 300))) entry))
 (defun EL:StoreSchemaValid (value)
@@ -303,6 +330,66 @@
   (EL:StoreCheck chunks (EL:StorePayload entry) 'dictsearch-readback)
   (EL:StoreCheck chunks (EL:StorePayload native) 'entget-readback)
   value)
+(defun EL:StoreLegacyEntry (entry / marker value)
+  ;; Date: 2026-10-11. A preserved backup must remain an independently valid
+  ;; legacy record. Never use a V2/future/corrupt backup as a historical copy.
+  (EL:Require (and entry (equal (cdr (assoc 0 entry)) "XRECORD")) "旧版记录备份对象无效，未覆盖。")
+  (setq marker (cdr (assoc 300 entry)))
+  (EL:Require (or (not marker) (equal marker "EL_TYPED_V1")) "旧版记录备份格式不符，未覆盖。")
+  (setq value (EL:StoreReadEntry entry))
+  (EL:CompactTemplates value) value)
+(defun EL:StoreLegacyBackupVerify (chunks entity expected / entry native value)
+  (setq entry (dictsearch (namedobjdict) "EL_FIXED_V1_LEGACY") native (entget entity))
+  (EL:Require (and (equal entity (cdr (assoc -1 entry)))
+    (equal (cdr (assoc 0 native)) "XRECORD")) "旧版记录备份关联回读失败。")
+  (EL:StoreCheck chunks (EL:StorePayload entry) 'legacy-dictsearch-readback)
+  (EL:StoreCheck chunks (EL:StorePayload native) 'legacy-entget-readback)
+  (setq value (EL:StoreLegacyEntry entry))
+  (if expected (EL:StoreCheck expected value 'legacy-backup-logical-readback)) value)
+(defun EL:StoreCurrentEntry (entry proposed / entity native chunks value)
+  ;; Date: 2026-10-11. Native callbacks may have replaced the record after an
+  ;; earlier read. Validate actual current data before any backup/replacement.
+  (setq entity (cdr (assoc -1 entry)))
+  (EL:Require (and entity (equal (cdr (assoc 0 entry)) "XRECORD")
+    (setq native (entget entity)) (equal (cdr (assoc -1 native)) entity)
+    (equal (cdr (assoc 0 native)) "XRECORD")) "当前草稿对象或关联已变化，未覆盖。")
+  (setq chunks (EL:StorePayload entry))
+  (EL:StoreCheck chunks (EL:StorePayload native) 'current-native-before-write)
+  (setq value (EL:StoreReadEntry entry))
+  (EL:CompactTemplates value)
+  (EL:Require (equal (EL:Get 'drawing-uuid value) (EL:Get 'drawing-uuid proposed))
+    "当前草稿属于其他图纸，未覆盖。") value)
+(defun EL:StoreLegacyBackup (entry store old / marker native chunks backup entity value flags)
+  ;; Only a write changing an old wire version creates/verifies the backup.
+  ;; Subsequent V2 reads/writes do not repeatedly decode historical geometry.
+  (setq marker (cdr (assoc 300 entry)))
+  (if (and entry (not (equal marker "EL_COMPACT_TYPED_V2")))
+    (progn
+      (EL:Require *EL:TransactionOpen* "旧草稿格式迁移必须在完整事务中执行，未写入。")
+      (setq entity (cdr (assoc -1 entry))
+        native (entget entity) chunks (EL:StorePayload entry))
+      (EL:PerfSet "store-legacy-fields" (length chunks))
+      (EL:Require (and (equal (cdr (assoc 0 native)) "XRECORD")
+        (equal chunks (EL:StorePayload native))
+        (equal (EL:Get 'drawing-uuid old) (EL:Get 'drawing-uuid store)))
+        "旧记录归属或两路回读不一致，未迁移。")
+      (if (setq backup (dictsearch (namedobjdict) "EL_FIXED_V1_LEGACY"))
+        (progn
+          (setq value (EL:StoreLegacyBackupVerify (EL:StorePayload backup)
+            (cdr (assoc -1 backup)) nil))
+          (EL:Require (equal (EL:Get 'drawing-uuid value) (EL:Get 'drawing-uuid old))
+            "旧版记录备份属于其他图纸，未覆盖。"))
+        (progn
+          (setq flags (cdr (assoc 280 entry)))
+          (if (not flags) (setq flags 1))
+          (setq entity (entmakex (append '((0 . "XRECORD") (100 . "AcDbXrecord"))
+            (list (cons 280 flags)) chunks)))
+          (EL:Require (and entity (dictadd (namedobjdict) "EL_FIXED_V1_LEGACY" entity))
+            "无法建立旧版记录备份，未迁移。")
+          (EL:StoreLegacyBackupVerify chunks entity old)
+          (EL:PerfCount "legacy-backup-created" 1)
+          (EL:LogEvent "STORE_LEGACY_BACKUP" (list (cons 'fields (length chunks))
+            (cons 'format (cond (marker) (T 'legacy-text))))))))) T)
 (defun EL:StoreReplacePayload (entity chunks / codes values pair)
   ;; Date: 2026-10-09. ENTMOD may retain omitted XRecord fields in AutoCAD.
   ;; SetXRecordData replaces the complete payload, including legacy strings.
@@ -357,19 +444,28 @@
   (if (and (not (vl-catch-all-error-p valid)) valid)
     (progn (EL:PerfCount "store-context-reuses" 1) (EL:Get 'verified-store context))
     (EL:StoreRead)))
-(defun EL:StoreWrite (store / chunks entry entity value *EL:StorePhase*)
+(defun EL:StoreWrite (store / chunks entry entity value current *EL:StorePhase*)
+  (EL:FreshBoundary)
   ;; Every write invalidates the prior candidate, including a failed second
   ;; write in one transaction. Direct writes never publish a reusable cache.
   (if *EL:StoreContextActive*
     (setq *EL:StoreContextCandidate* nil *EL:StoreContextCommitted* nil))
   (EL:PerfCount "store-write-calls" 1)
   (setq *EL:StorePhase* 'pre-write)
-  (setq chunks (EL:LogCall "STORE_SERIALIZE" '((format . native-dxf)) 'EL:StoreEncode (list store)))
+  (if (not (EL:StoreSchemaValid store))
+    (progn
+      (EL:LogEvent "STORE_SCHEMA_ERROR" (list (cons 'value-type (type store)) '(phase . pre-write)))
+      (princ "\n待保存草稿字段或版本无效，未写入。") (exit)))
+  (EL:CompactTemplates store)
+  (setq chunks (EL:LogCall "STORE_SERIALIZE" '((format . native-dxf))
+    (if *EL:StoreLegacyWrite* 'EL:StoreEncodeLegacy 'EL:StoreEncode) (list store)))
   (EL:PerfSet "store-payload-fields" (length chunks))
   ;; Both checks remain exact: no numeric tolerance, truncation or dropped fields.
   (EL:StoreCheck store (EL:LogCall "STORE_PARSE" (list '(format . native-dxf) (cons 'tokens (length chunks)))
     'EL:StoreDecode (list chunks)) 'pre-write)
   (setq entry (dictsearch (namedobjdict) "EL_FIXED_V1") entity (cdr (assoc -1 entry)))
+  (if entry (setq current (EL:StoreCurrentEntry entry store)))
+  (if (not *EL:StoreLegacyWrite*) (EL:StoreLegacyBackup entry store current))
   (EL:PerfCount "master-write-attempts" 1)
   (if entity
     (EL:LogCall "STORE_REPLACE_PAYLOAD" (list (cons 'handle (cdr (assoc 5 entry))))
@@ -380,7 +476,42 @@
   (setq value (EL:LogCall "STORE_READBACK" nil 'EL:StoreReadback (list chunks entity store)))
   (if *EL:StoreContextActive*
     (setq *EL:StoreContextCandidate* (list (cons 'owner (namedobjdict))
-      (cons 'entity entity) (cons 'payload chunks) (cons 'verified-store value)))) T)
+      (cons 'entity entity) (cons 'payload chunks) (cons 'verified-store value))))
+  (EL:FreshBoundary) T)
+(defun EL:StoreWriteLegacy (store / *EL:StoreLegacyWrite*)
+  ;; Only the explicit downgrade transaction selects the legacy encoder.
+  (EL:Require *EL:TransactionOpen* "旧格式转换必须在完整事务中执行。")
+  (setq *EL:StoreLegacyWrite* T)
+  (EL:StoreWrite store))
+(defun EL:StoreDowngradeWrite (/ store)
+  ;; Read after StartUndoMark: a native callback may have edited the record.
+  (if (setq store (EL:StoreRead))
+    (progn (setq *EL:StoreDowngradeExpected* store) (EL:StoreWriteLegacy store))))
+(defun EL:StoreDowngrade (/ context value entry outcome *EL:StoreDowngradeExpected*)
+  (if (dictsearch (namedobjdict) "EL_FIXED_V1")
+    (progn
+      (setq context (EL:TransactionVerifiedStore 'EL:StoreDowngradeWrite nil)
+        outcome (EL:Get 'outcome context))
+      (if outcome
+        (progn
+          (setq value (EL:TransactionVerifiedRead context)
+            entry (dictsearch (namedobjdict) "EL_FIXED_V1"))
+          (EL:Require (EL:Get 'committed context) "转换提交后记录已变化，未确认旧版兼容。")
+          (EL:StoreCheck *EL:StoreDowngradeExpected* value 'legacy-post-commit-logical)
+          ;; Audit both native routes again, including their actual wire tag.
+          (EL:StoreCheck *EL:StoreDowngradeExpected*
+            (EL:StoreCurrentEntry entry *EL:StoreDowngradeExpected*) 'legacy-final-native)
+          (EL:Require (equal (cdr (assoc 300 entry)) "EL_TYPED_V1") "当前记录不是旧格式，未确认旧版兼容。")
+          (princ "\n当前完整草稿已转换为旧版兼容格式；请保存 DWG 后加载旧版插件。")))
+      outcome)
+    (progn (princ "\n当前图纸没有系统图草稿，无需转换。") nil)))
+(defun c:ELSTORELEGACY (/ outcome)
+  (setq outcome (vl-catch-all-apply 'EL:StoreDowngrade nil))
+  (if (vl-catch-all-error-p outcome)
+    (progn
+      (EL:LogEvent "STORE_LEGACY_ERROR" (list (cons 'message (vl-catch-all-error-message outcome))))
+      (princ (strcat "\n旧格式转换未完成：" (vl-catch-all-error-message outcome)))))
+  (princ))
 (defun EL:DiagramForPanel (panel store / found rows)
   (setq rows (vl-remove-if-not '(lambda (r) (equal panel (EL:Get 'source-panel-handle r))) (EL:Get 'diagrams store)))
   (if (> (length rows) 1) (progn (princ "\n来源箱体存在重复系统图关联，需修复。") (exit)))

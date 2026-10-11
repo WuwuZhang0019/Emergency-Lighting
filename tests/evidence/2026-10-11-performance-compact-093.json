@@ -1,0 +1,18 @@
+{
+  "date": "2026-10-11",
+  "input": "diagram-521504707 (4).eld",
+  "input_sha256": "c56dc57cafed973156f016b6acc0cd59cf2026f10f565f32e16feb1c90a01138",
+  "input_bytes": 407931,
+  "logical_exact": true,
+  "old_fields": 64418,
+  "compact_fields": 42232,
+  "field_reduction_percent": 34.44,
+  "old_payload_value_bytes_estimate": 608236,
+  "compact_payload_value_bytes_estimate": 435295,
+  "template_copies_before": 3,
+  "templates_after": 1,
+  "atom_pool_entries": 595,
+  "body_tokens": 35620,
+  "native_marker": "EL_COMPACT_TYPED_V2",
+  "native_exact": true
+}

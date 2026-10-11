@@ -1,4 +1,4 @@
-"""DWG record adapter checks; no native CAD acceptance. Date: 2026-10-10."""
+"""DWG record adapter checks; no native CAD acceptance. Date: 2026-10-11."""
 import pathlib
 import copy
 import math
@@ -31,7 +31,7 @@ def install_bounded_read(host, limit=256):
 class StoreTests(unittest.TestCase):
     def setUp(self):
         self.h=Host()
-        for name in ('common','diagram-store'):
+        for name in ('common','store-compact','diagram-store','diagram-update'):
             self.h.load_definitions(ROOT/'src'/f'{name}.lsp')
         self.entities={}; self.dictionary={}; self.xrecord_id=0
         def create(data):
@@ -65,6 +65,25 @@ class StoreTests(unittest.TestCase):
           'VLA-SETXRECORDDATA':replace,
           'HANDENT':lambda e:e if e in self.entities else None,
           'GETVAR':lambda name:'drawing-guid' if name=='FINGERPRINTGUID' else None})
+
+    def install_transaction(self):
+        undo=[]
+        getvar=self.h.builtins['GETVAR']
+        def rollback(*args):
+            self.assertEqual(args,('_.UNDO','1'))
+            entities,dictionary=undo.pop()
+            self.entities.clear(); self.entities.update(entities)
+            self.dictionary.clear(); self.dictionary.update(dictionary)
+        self.h.builtins.update({
+            'VLAX-GET-ACAD-OBJECT':lambda:'acad',
+            'VLA-GET-ACTIVEDOCUMENT':lambda _:'doc',
+            'VLA-STARTUNDOMARK':lambda _:undo.append(copy.deepcopy((self.entities,self.dictionary))),
+            'VLA-ENDUNDOMARK':lambda _:None,
+            'COMMAND-S':rollback,'REDRAW':lambda:None,
+            'DICTREMOVE':lambda _,key:self.dictionary.pop(key,None),
+            'ENTDEL':lambda e:self.entities.pop(e,None) and e,
+            'GETVAR':lambda name:1 if name=='UNDOCTL' else getvar(name),
+            'EXIT':lambda:(_ for _ in ()).throw(RuntimeError('LISP exit'))})
 
     def test_chunked_xrecord_roundtrip_and_reopen(self):
         self.h.run('(setq store (EL:StoreInitial))')
@@ -212,7 +231,7 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(self.h.run("(EL:Get 'coordinates (EL:StoreRead))"),reals)
         entry=self.entities[self.dictionary['EL_FIXED_V1']]
         self.assertEqual([p.cdr for p in entry if p.car==40],reals)
-        self.assertEqual(next(p.cdr for p in entry if p.car==300),'EL_TYPED_V1')
+        self.assertEqual(next(p.cdr for p in entry if p.car==300),'EL_COMPACT_TYPED_V2')
 
     def test_native_strings_bypass_printer_reader_escapes_and_keep_case(self):
         value='前缀 C:\\项目\\mixedCase\\图纸 "普通"\\U+4E2D\n\t\r'*3000
@@ -240,6 +259,7 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(self.h.run("(EL:Get 'notes (EL:StoreRead))"),value)
 
     def test_legacy_record_migrates_atomically_in_place_and_preserves_metadata(self):
+        self.install_transaction()
         store=self.h.run('(EL:StoreInitial)')+[Pair(Symbol('NOTES'),'历史草稿 MixedCase')]
         text=dump(store)
         entity=self.h.builtins['ENTMAKEX']([Pair(0,'XRECORD'),Pair(100,'AcDbXrecord'),Pair(280,1),
@@ -247,13 +267,14 @@ class StoreTests(unittest.TestCase):
         self.dictionary['EL_FIXED_V1']=entity
         self.assertEqual(self.h.run('(EL:StoreRead)'),store)
         self.h.frames[0]['STORE']=store
-        self.assertTrue(truth(self.h.run('(EL:StoreWrite store)')))
+        self.assertTrue(truth(self.h.run("(EL:Transaction 'EL:StoreWrite (list store))")))
         self.assertEqual(self.dictionary['EL_FIXED_V1'],entity)
         self.assertEqual(self.h.run('(EL:StoreRead)'),store)
         self.assertIn(Pair(330,'NOD'),self.entities[entity])
         self.assertIn(Pair(280,1),self.entities[entity])
 
     def test_74_legacy_fields_are_replaced_even_when_entmod_would_retain_them(self):
+        self.install_transaction()
         store=self.h.run('(EL:StoreInitial)')+[Pair(Symbol('NOTES'),'')]
         store[-1]=Pair(Symbol('NOTES'),'x'*(7400-len(dump(store))))
         text=dump(store)
@@ -268,7 +289,7 @@ class StoreTests(unittest.TestCase):
             return data
         self.h.builtins['ENTMOD']=retaining_entmod
         self.h.frames[0]['STORE']=store
-        self.assertTrue(truth(self.h.run('(EL:StoreWrite store)')))
+        self.assertTrue(truth(self.h.run("(EL:Transaction 'EL:StoreWrite (list store))")))
         self.assertEqual(calls,[])
         self.assertEqual(self.h.run('(EL:StorePayload (dictsearch (namedobjdict) "EL_FIXED_V1"))'),
                          self.h.run('(EL:StoreEncode store)'))
@@ -306,7 +327,9 @@ class StoreTests(unittest.TestCase):
 
     def test_typed_values_keep_empty_nil_boolean_integer_and_improper_lists(self):
         value=self.h.run("'((zero . 0) (real . 0.0) (true . T) (empty) (text . \"\") (tail a b . c))")
-        tokens=self.h.call(Symbol('EL:STOREENCODE'),[value])
+        # Generic native values retain the original wire contract; the public
+        # V2 encoder handles business stores tested in StoreCompactTests.
+        tokens=self.h.call(Symbol('EL:STOREENCODENATIVE'),[value,'EL_TYPED_V1'])
         self.assertEqual(self.h.call(Symbol('EL:STOREDECODE'),[tokens]),value)
         self.assertIn(Pair(90,0),tokens)
         self.assertIn(Pair(40,0.0),tokens)

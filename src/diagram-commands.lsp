@@ -304,3 +304,67 @@
           (if (equal (EL:Get 'pick-panel next) 'trunk)
             (EL:FixedTrunkPick) (EL:FixedStatPick)))))))
   (if perfowner (EL:PerfFinish 'command-finished)) (princ))
+
+;; Date: 2026-10-11. Explicit, read-only export of the verified DWG record.
+(defun EL:DiagnosticRecord (store / record pick tag handle)
+  (if *EL:Result*
+    (setq record (EL:DiagramForPanel (EL:Get 'panel *EL:Result*) store)))
+  (if (not record)
+    (if (setq pick (EL:PickEntity "\n选择要导出的受管系统图箱体、回路或文字（Enter 取消）："))
+      (progn
+        (setq handle (cdr (assoc 5 (entget (car pick)))) tag (EL:DiagramTag (car pick))
+          record (EL:By 'diagram-id (cdr (nth 1 tag)) (EL:Get 'diagrams store)))
+        (EL:Require (and record (equal (cdr (car tag)) (EL:Get 'drawing-uuid store))
+          (equal (cdr (nth 4 tag)) handle)
+          (EL:OwnedEntity handle store record (cdr (nth 2 tag)) (cdr (nth 3 tag)))
+          (member (list handle (cdr (nth 2 tag)) (cdr (nth 3 tag))) (EL:DiagramOutputRefs record)))
+          "不是本图原始受管成员；复制或外来对象不能导出关联记录。")))) record)
+(defun EL:DiagnosticRecordValid (record store / ref entity)
+  (EL:Require (and (equal (type (EL:Get 'diagram-id record)) 'STR)
+    (/= (EL:Get 'diagram-id record) "")
+    (equal (type (EL:Get 'source-panel-handle record)) 'STR)
+    (/= (EL:Get 'source-panel-handle record) "")
+    (equal (type (EL:Get 'panel-output-handle record)) 'STR)
+    (/= (EL:Get 'panel-output-handle record) "")
+    (equal (type (EL:Get 'drawing-uuid store)) 'STR)
+    (/= (EL:Get 'drawing-uuid store) "")
+    (EL:UniqueDiagram store record)) "系统图身份不完整或有复制关联，未导出诊断副本。")
+  (foreach ref (EL:DiagramOutputRefs record)
+    (setq entity (EL:OwnedEntity (car ref) store record (cadr ref) (caddr ref)))
+    ;; Exporting is read-only, so a locked layer does not prevent diagnostics.
+    (EL:Require (and entity (equal (cdr (assoc 410 (entget entity))) "Model"))
+      "系统图成员缺失或归属失配，未导出诊断副本。")) T)
+(defun EL:DiagnosticExport (/ store record path exported)
+  (if (EL:EnsureRoot)
+    (progn
+      (EL:LogAttach)
+      (setq store (EL:StoreRead))
+      (EL:Require store "本图没有可导出的 DWG 系统图主记录。")
+      (if (setq record (EL:DiagnosticRecord store))
+        (progn
+          (EL:DiagnosticRecordValid record store)
+          (setq path (strcat *EL:Root* "output/diagram-" (EL:Hash (EL:Get 'diagram-id record)) ".eld")
+            exported (EL:PerfCall "DIAGNOSTIC_EXPORT" 'EL:WriteData (list path record)))
+          (if exported
+            (progn
+              (EL:LogEvent "DIAGNOSTIC_EXPORTED" (list (cons 'diagram-id (EL:Get 'diagram-id record)) (cons 'path path)))
+              (princ (strcat "\n系统图诊断副本已导出：" path)))
+            (progn
+              (EL:LogEvent "DIAGNOSTIC_EXPORT_FAILED" (list (cons 'diagram-id (EL:Get 'diagram-id record)) (cons 'path path)))
+              (princ (strcat "\n诊断副本导出失败，请检查目录写入权限：" path)))) exported)
+        (progn (princ "\n未选择系统图，诊断导出已取消。") nil)))))
+(defun c:ELDIAG (/ *error* perfowner outcome checkpoint failed)
+  (defun *error* (message)
+    (EL:PerfUnwind checkpoint) (EL:ClearPickHighlights)
+    (EL:LogFailure message) (if perfowner (EL:PerfFinish 'failed)) (princ))
+  (setq perfowner (EL:PerfStart "ELDIAG") checkpoint *EL:PerfPending*)
+  (EL:LogStart)
+  (setq outcome (vl-catch-all-apply 'EL:LogCall
+    (list "DIAGNOSTIC_COMMAND" nil 'EL:DiagnosticExport nil)))
+  (if (vl-catch-all-error-p outcome)
+    (progn
+      (setq failed T) (EL:PerfUnwind checkpoint)
+      (EL:LogFailure (vl-catch-all-error-message outcome)))
+    (EL:LogFinish (if outcome 'diagnostic-exported 'diagnostic-not-exported)))
+  (EL:ClearPickHighlights)
+  (if perfowner (EL:PerfFinish (if failed 'failed (if outcome 'diagnostic-exported 'diagnostic-not-exported)))) (princ))

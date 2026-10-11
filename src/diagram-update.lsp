@@ -68,6 +68,8 @@
     (cdr (assoc 10 (entget e)))))
   (if (not (equal current point 1.0e-6))
     (EL:PerfWrite 'vla-Move (list obj (vlax-3d-point current) (vlax-3d-point point)))))
+;; Date: 2026-10-11. Read actual owned output before forming the write set.
+;; Stable UIDs select members; record positions remain the manual-layout baseline.
 (defun EL:UpdateEntity (handle store record kind uid required / e owned)
   (setq e (if (equal (type handle) 'STR) (handent handle))
     owned (EL:OwnedEntity handle store record kind uid))
@@ -558,9 +560,8 @@
           (EL:Get 'panel-output-handle outcome)
           (equal outcome (EL:DiagramForPanel (EL:Get 'panel result) (EL:TransactionVerifiedRead context))))
         (progn
-          (if (not (EL:PerfCall "DIAGNOSTIC_EXPORT" 'EL:WriteData
-              (list (strcat *EL:Root* "output/diagram-" (EL:Hash (EL:Get 'diagram-id record)) ".eld") outcome)))
-            (princ "\nDWG 主记录已保存；外部诊断副本导出失败。"))
+          ;; Date: 2026-10-11. Full diagnostic copies are exported by ELDIAG.
+          ;; Successful generation/update finishes after the verified DWG save.
           (princ (strcat "\n系统图已同步：" (itoa (length (EL:Get 'circuits result))) " 条实际回路，"
             (itoa (- (length (EL:Get 'rows plan)) (length (EL:Get 'circuits result)))) " 条预留，无预留功率文字。"))
           (if (and generate interactive) (EL:ShowDiagram outcome store)) T)

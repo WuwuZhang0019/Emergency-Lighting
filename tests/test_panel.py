@@ -85,3 +85,20 @@ class PanelTests(unittest.TestCase):
         self.h.run('(EL:PanelGround 0 "1")')
         self.assertEqual(tiles['b_watts0'],'12x');self.assertEqual(tiles['p_ground0'],'0')
         self.assertFalse(truth(self.h.run("(EL:Get 'is-ground (car (EL:Get 'circuits *EL:PanelDraft*)))")))
+
+    def test_free_terminal_without_candidates_does_not_block_generation(self):
+        self.plan()
+        self.line('w1',[1.,0.,0.],[15.,0.,0.],'W')
+        self.selected.remove('wr')
+        self.selected.remove('remote')
+        network=simple.SimpleFlowTests.network(self)
+        result=self.call('EL:SplitNetwork',network,self.cfg)
+        powers=self.h.run("'((\"LAMP\" . 5))")
+        result=self.call('EL:PanelCompute',result,powers,self.cfg)
+        self.assertTrue(truth(self.get('can-generate',result)))
+        self.assertEqual(self.get('box-watts',result),10)
+
+    def test_rejected_and_ambiguous_gap_evidence_still_blocks(self):
+        issues=self.h.run("(list (EL:Issue 'NO_CANDIDATE \"21FC\" '((candidates) (rejected))) (EL:Issue 'NO_CANDIDATE \"bad\" '((rejected ((reason . BLOCKED_BY_DEVICE_OR_PATH))))) (EL:Issue 'AMBIGUOUS_CANDIDATES \"amb\" nil))")
+        kept=self.call('EL:SimpleBlockingGapIssues',issues)
+        self.assertEqual([self.get('object',x) for x in kept],['bad','amb'])

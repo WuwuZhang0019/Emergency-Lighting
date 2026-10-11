@@ -410,7 +410,7 @@
     (cons 'devices (vl-remove-if-not '(lambda (b) (and (not (equal (EL:Get 'id b) panel)) (member (EL:Get 'id b) component))) blocks))
     (cons 'wire-ids (vl-remove-if-not '(lambda (id) (member id component)) (mapcar '(lambda (w) (EL:Get 'id w)) wires)))
     (cons 'gap-pairs (vl-remove-if-not '(lambda (p) (member (car (EL:Get 'a p)) component)) (EL:Get 'pairs pairs)))
-    (cons 'gap-issues (EL:Get 'issues pairs))))
+    (cons 'gap-issues (EL:SimpleBlockingGapIssues (EL:Get 'issues pairs)))))
 
 (defun EL:SimplePowersValid (data / ok seen row)
   (setq ok (and (EL:OnlyKeys data '(version powers)) (equal (EL:Get 'version data) 1) (listp (EL:Get 'powers data))))
@@ -549,3 +549,10 @@
         (princ "\n未找到与该配电箱连通的设备，请检查所选导线图层和箱口接线。"))))
   (EL:ClearPickHighlights) (EL:LogFinish (if *EL:DeviceResult* 'device-table 'no-devices)) (princ))
 (princ)
+
+;; Date: 2026-10-11. An isolated free end is not evidence of a broken connection.
+(defun EL:SimpleBlockingGapIssues (issues)
+  (vl-remove-if '(lambda (issue)
+    (and (equal (EL:Get 'code issue) 'NO_CANDIDATE)
+      (not (EL:Get 'candidates (EL:Get 'detail issue)))
+      (not (EL:Get 'rejected (EL:Get 'detail issue))))) issues))

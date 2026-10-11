@@ -645,13 +645,15 @@
     "来源配电箱不存在或记录类型不支持，未切换。")
   (setq result (EL:RecognizeFixed cfg panel))
   (EL:Require (EL:Get 'circuits result) "目标配电箱未识别到有效回路，未切换。")
-  (EL:Require (EL:FreshResult *EL:PanelDraft* *EL:PanelConfig*)
-    "当前平面已变化，请先重新统计；未切换。")
-  (EL:Require (EL:RememberPanelPowers *EL:PanelDraft* *EL:PanelPowers*)
-    "当前功率缓存写入失败，请检查目录权限；未切换。")
-  (EL:Require (EL:SaveDraft (EL:Put 'can-generate nil *EL:PanelDraft*)
-    *EL:PanelConfig* *EL:PanelPowers* *EL:PanelCapacity*) "当前草稿保存失败，未切换。")
-  (princ "\n当前草稿已保存到本图；系统图需生成或更新，关闭前请保存 DWG。")
+  (if *EL:PanelDraft*
+    (progn
+      (EL:Require (EL:FreshResult *EL:PanelDraft* *EL:PanelConfig*)
+        "当前平面已变化，请先重新统计；未切换。")
+      (EL:Require (EL:RememberPanelPowers *EL:PanelDraft* *EL:PanelPowers*)
+        "当前功率缓存写入失败，请检查目录权限；未切换。")
+      (EL:Require (EL:SaveDraft (EL:Put 'can-generate nil *EL:PanelDraft*)
+        *EL:PanelConfig* *EL:PanelPowers* *EL:PanelCapacity*) "当前草稿保存失败，未切换。")
+      (princ "\n当前草稿已保存到本图；系统图需生成或更新，关闭前请保存 DWG。")))
   (list (cons 'switch-result result) (cons 'switch-config cfg)))
 ;; Date: 2026-10-10. All picked circuits enter the panel without exit selection.
 (defun EL:PanelDialog (result cfg powers capacity / dialog status i key row captured switched *EL:PanelAction*
@@ -735,10 +737,10 @@
       (cons 'config *EL:PanelConfig*) (cons 'capacity *EL:PanelCapacity*)
       (cons 'generate (or (equal *EL:PanelAction* 'generate) (= status 2))))))))
 
-;; Date: 2026-10-10. Empty state uses the same main panel and disables model actions.
-(defun EL:PanelStartDialog (/ dialog status i key *EL:PanelDraft* *EL:HistoryRecords* *EL:HistoryIndex*)
-  (setq status 0 dialog (load_dialog (strcat *EL:Root* "ui/power.dcl")) *EL:DialogID* dialog)
-  (if (and (> dialog 0) (new_dialog "el_panel" dialog))
+;; Date: 2026-10-11. Initial panel reads saved records before any model pick.
+(defun EL:PanelStartDialog (/ dialog status i key switched *EL:PanelDraft* *EL:HistoryRecords* *EL:HistoryIndex*)
+  (setq status 3 dialog (load_dialog (strcat *EL:Root* "ui/power.dcl")) *EL:DialogID* dialog)
+  (while (and (= status 3) (> dialog 0) (new_dialog "el_panel" dialog))
     (progn
       (EL:PanelText "p_error" "请拾取配电箱或配电箱的集中引出线，开始统计。")
       (EL:TrunkButtonDraw)
@@ -749,12 +751,23 @@
         (foreach key '("f_image" "b_watts" "b_ground" "b_remove")
           (mode_tile (strcat key (itoa i)) 1))
         (setq i (1+ i)))
+      (EL:HistoryFill)
+      (set_tile "h_open" "打开记录")
+      (action_tile "h_records" "(EL:HistorySelect $value)")
+      (action_tile "h_open" "(done_dialog 8)")
       (action_tile "p_pick" "(done_dialog 9)")
       (action_tile "p_trunk" "(done_dialog 10)")
       (action_tile "cancel" "(done_dialog 0)")
-      (setq status (start_dialog))))
+      (setq status (start_dialog))
+      (if (= status 8)
+        (progn
+          (setq switched (vl-catch-all-apply 'EL:HistoryOpen nil))
+          (if (vl-catch-all-error-p switched)
+            (progn (alert (strcat "打开记录未完成：" (vl-catch-all-error-message switched)))
+              (setq switched nil status 3)))))))
   (if (> dialog 0) (unload_dialog dialog)) (setq *EL:DialogID* nil)
-  (if (member status '(9 10)) (list (cons 'pick-panel (if (= status 10) 'trunk T)))))
+  (if switched switched
+    (if (member status '(9 10)) (list (cons 'pick-panel (if (= status 10) 'trunk T))))))
 
 ;; Date: 2026-10-10. Green image button with embedded Chinese label; no runtime font/file dependency.
 ;; Label: 拾取配电箱的集中引出线. Raster source: Windows SimSun, 12 px.

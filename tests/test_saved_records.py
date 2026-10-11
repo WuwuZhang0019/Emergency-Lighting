@@ -1,4 +1,4 @@
-"""Saved-record navigation with finite CAD adapters. Date: 2026-10-10."""
+"""Saved-record navigation with finite CAD adapters. Date: 2026-10-11."""
 import unittest
 import test_post_stat_workflow as workflow
 from autolisp_host import Symbol
@@ -33,6 +33,43 @@ class SavedRecordsTests(unittest.TestCase):
             'EL:REMEMBERPANELPOWERS': lambda *args: True,
             'EL:SAVEDRAFT': lambda *args: self.saved.append(args) or True,
         })
+
+    def initial_store(self):
+        labels = []
+        store = self.call('EL:Put', Symbol('DIAGRAMS'), self.records * 2, None)
+        self.h.builtins['EL:STOREREAD'] = lambda: store
+        self.h.builtins['ADD_LIST'] = labels.append
+        return labels
+
+    def test_first_open_lists_records_without_pick_or_write(self):
+        labels = self.initial_store()
+        self.h.builtins['EL:PICKMODEL'] = lambda *args: self.fail('unexpected pick')
+        self.actions = [lambda: self.done(0)]
+        self.h.run('(c:ELSTAT)')
+        self.assertEqual(len(labels), 2)
+        self.assertIn('other', labels[0])
+        self.assertEqual(self.saved, [])
+        self.assertEqual(self.writes, [])
+
+    def test_first_open_can_open_record_without_saving_empty_draft(self):
+        self.initial_store()
+        opened = []
+        self.h.builtins['EL:EDITPANEL'] = lambda result, cfg: opened.append((result, cfg))
+        self.h.builtins['EL:FRESHRESULT'] = lambda *args: self.fail('empty draft checked')
+        self.actions = [lambda: self.done(8)]
+        self.h.run('(c:ELSTAT)')
+        self.assertEqual(len(opened), 1)
+        self.assertEqual(self.get('name', opened[0][1]), 'other')
+        self.assertEqual(self.saved, [])
+        self.assertEqual(self.writes, [])
+
+    def test_first_open_recognition_error_returns_to_records(self):
+        labels = self.initial_store()
+        self.h.builtins['EL:RECOGNIZEFIXED'] = lambda *args: (_ for _ in ()).throw(RuntimeError('failed'))
+        self.actions = [lambda: self.done(8), lambda: self.done(0)]
+        self.h.run('(c:ELSTAT)')
+        self.assertEqual(len(labels), 4)
+        self.assertEqual(self.saved, [])
 
     def test_switch_saves_current_as_stale_and_returns_target(self):
         edited = self.call('EL:HistoryOpen')

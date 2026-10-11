@@ -285,7 +285,9 @@
   (if (EL:EnsureRoot)
     (progn
       (setq next (EL:PanelStartDialog))
-      (while (EL:Get 'pick-panel next)
-        (setq next (if (equal (EL:Get 'pick-panel next) 'trunk)
-          (EL:FixedTrunkPick) (EL:FixedStatPick))))))
+      (while (or (EL:Get 'pick-panel next) (EL:Get 'switch-result next))
+        (setq next (if (EL:Get 'switch-result next)
+          (EL:EditPanel (EL:Get 'switch-result next) (EL:Get 'switch-config next))
+          (if (equal (EL:Get 'pick-panel next) 'trunk)
+            (EL:FixedTrunkPick) (EL:FixedStatPick)))))))
   (princ))

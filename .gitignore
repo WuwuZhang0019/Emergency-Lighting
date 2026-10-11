@@ -17,6 +17,7 @@ config/*.invalid-*
 /output/*-check.log
 /output/*-final.log
 /output/startup-no-prompt-validation/
+/output/source-signature-validation/
 
 config/power-input-*.eld
 

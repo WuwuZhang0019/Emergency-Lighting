@@ -1,0 +1,30 @@
+{
+  "date": "2026-10-11",
+  "status": "automated checks passed; native AutoCAD/Tianzheng acceptance pending",
+  "checks": {
+    "unittest": {
+      "command": "python -X utf8 -m unittest discover -s tests -p test_batch_number.py -v",
+      "passed": 28
+    },
+    "gb2312_strict_decode": true,
+    "source_content_equality": true,
+    "lisp_parse_equality": true,
+    "lisp_forms": 32
+  },
+  "output": {
+    "file": "output/HLPLBH.lsp",
+    "bytes": 18494,
+    "sha256": "9bfa0acc3b6644417d1342578164401c872810dee5430a80e9599ad9c5c79b3b",
+    "packaged": false
+  },
+  "native_acceptance": {
+    "executed": false,
+    "pending": [
+      "HLBH accepts exact entity/pick list and automatic landing point",
+      "vendor native annotation exposes readable/writable TextString",
+      "ZE1-ZE5 alignment and native Tianzheng editability",
+      "save/reopen wire association",
+      "UCS, dense spacing, cancellation and single UNDO"
+    ]
+  }
+}

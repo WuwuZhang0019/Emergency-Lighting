@@ -19,3 +19,5 @@ config/*.invalid-*
 /output/startup-no-prompt-validation/
 
 config/power-input-*.eld
+
+/output/HLPLBH.lsp

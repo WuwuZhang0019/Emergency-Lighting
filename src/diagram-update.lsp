@@ -91,7 +91,6 @@
   (list (cond ((EL:Get 'parent-uid label)) (T "panel"))))
 (defun EL:UpdateBusinessUnchanged (record result template plan / good row old circuit key)
   (setq good (and (equal template (EL:Get 'template record))
-          (equal cfg (EL:Get 'config record)) (equal powers (EL:Get 'powers record))
     (equal (EL:Get 'excluded-devices record) (EL:Get 'excluded-devices result))
     (equal (EL:Get 'block-ground record) (EL:Get 'block-ground result))
     (equal (EL:Get 'candidate-keys record) (EL:Get 'candidate-keys result))

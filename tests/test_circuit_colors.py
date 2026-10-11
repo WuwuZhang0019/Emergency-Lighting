@@ -1,6 +1,6 @@
-"""Temporary circuit display copies and recovery. Date: 2026-10-10."""
+"""Temporary circuit display copies and source-color avoidance. Date: 2026-10-11."""
 import unittest
-from autolisp_host import Symbol
+from autolisp_host import Symbol, Pair
 from test_fixed_exit_preview import FixedExitPreviewTests
 
 
@@ -65,7 +65,7 @@ class CircuitColorTests(unittest.TestCase):
         def pause(*args):
             paused.append(True)
             copies = [self.objects[k] for k in self.created if k in self.objects]
-            self.assertEqual([o['color'] for o in copies], [1, 1, 1, 1, 3])
+            self.assertEqual([o['color'] for o in copies], [4, 4, 4, 4, 6])
             self.assertTrue(all(self.objects[k]['visible'] == 0 for k in ('w1', 'w2', 'a', 'b')))
             self.assertTrue(all(self.objects[k]['color'] == 256 for k in ('w1', 'w2', 'a', 'b')))
             return ''
@@ -107,6 +107,42 @@ class CircuitColorTests(unittest.TestCase):
 
     def test_palette_is_distinct(self):
         self.assertEqual(len({self.call('EL:CircuitColor', i) for i in range(24)}), 24)
+
+    def test_palette_avoids_red_even_on_unrecognized_wires(self):
+        self.entities['unrecognized'] = [Pair(0, 'LINE'), Pair(5, 'unrecognized'), Pair(62, 1)]
+        result = self.h.run("'((snapshot (wires ((id . \"unrecognized\")))) (circuits ((wires \"w1\"))))")
+        palette = self.call('EL:PreviewPalette', result)
+        self.assertGreaterEqual(len(palette), 8)
+        for color in palette:
+            rgb = self.call('EL:ACIColorRGB', color)
+            self.assertGreaterEqual(sum((a-b)**2 for a,b in zip(rgb,[255,0,0])),10000)
+
+    def test_bylayer_and_true_color_sources_are_resolved(self):
+        self.entities['w1'] += [Pair(62, 256)]
+        self.h.builtins['TBLSEARCH'] = lambda *args: [Pair(62, 1)]
+        self.assertEqual(self.call('EL:PreviewEntityRGB', 'w1'), [255, 0, 0])
+        self.entities['w2'] += [Pair(420, 0x00FFFF)]
+        self.assertEqual(self.call('EL:PreviewEntityRGB', 'w2'), [0, 255, 255])
+        palette = self.call('EL:PreviewPalette', self.result)
+        self.assertNotIn(4, palette)
+        self.assertNotIn(1, palette)
+        self.assertNotIn(10, palette)
+
+    def test_top_level_byblock_is_white(self):
+        self.entities['w1'] += [Pair(62, 0)]
+        self.h.builtins['TBLSEARCH'] = lambda *args: [Pair(62, 1)]
+        self.assertEqual(self.call('EL:PreviewEntityRGB', 'w1'), [255, 255, 255])
+
+    def test_avoiding_source_colors_keeps_originals_after_preview(self):
+        self.entities['w1'] += [Pair(62, 1)]
+        def pause(*args):
+            visible = [self.objects[k]['color'] for k in self.created if k in self.objects]
+            self.assertNotIn(1, visible)
+            self.assertEqual(visible[:4], [4] * 4)
+            return ''
+        self.h.builtins['GETSTRING'] = pause
+        self.call('EL:AllCircuitColorPreview', self.result)
+        self.assert_clean()
 
     def test_virtual_trunk_piece_uses_only_split_geometry_and_restores_source(self):
         lines = []

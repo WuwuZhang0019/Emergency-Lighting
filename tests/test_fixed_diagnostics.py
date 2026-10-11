@@ -49,6 +49,9 @@ class FixedDiagnosticTests(unittest.TestCase):
             'STRCAT': strcat, 'FINDFILE': lambda path: path if Path(path).exists() else None,
             'EL:PICKMODEL': lambda *args: next(picks),
             'EL:LOADCONFIG': lambda: self.cfg,
+            # Date: 2026-10-12. Explicit fixture preset avoids machine registry.
+            'EL:PRESETLOAD': lambda: self.cfg,
+            'CHR': chr,
             'HANDENT': lambda e: e if e in self.entities else None,
             'EL:REVIEWFIXEDEXITS': lambda result, record: result,
             'EL:CLEARPICKHIGHLIGHTS': lambda: None,

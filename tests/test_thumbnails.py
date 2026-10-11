@@ -159,7 +159,8 @@ class ThumbnailTests(unittest.TestCase):
         visible = {'target': -1, 'wire': -1, 'hidden': 0}
         self.h.builtins.update({
             'HANDENT': lambda handle: handle,
-            'ENTGET': lambda entity: self.h.run("'((410 . \"Model\"))"),
+            'ENTGET': lambda entity: self.h.run("'((410 . \"Model\") (8 . \"D\"))"),
+            'TBLSEARCH': lambda *args: self.h.run("'((70 . 0))"),
             'SSGET': lambda *args: ['target', 'wire', 'hidden'],
             'SSLENGTH': len,
             'SSNAME': lambda selection, index: selection[index],

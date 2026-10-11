@@ -95,12 +95,13 @@
   (if shape
     (progn
       (setq shape (EL:PrepareContactBlock shape)
-        ss (ssget "_X" '((410 . "Model") (0 . "LINE,LWPOLYLINE"))) i 0)
+        ss (EL:PresetSelection cfg "LINE,LWPOLYLINE" '(wire-layers)) i 0)
       (if ss
         (repeat (sslength ss)
           (setq e (ssname ss i) d (entget e) i (1+ i))
           (if (and (member (cdr (assoc 0 d)) '("LINE" "LWPOLYLINE"))
-                   (not (equal (cdr (assoc 60 d)) 1)) (not (EL:ManagedEntity e)))
+                   (not (equal (cdr (assoc 60 d)) 1)) (not (EL:ManagedEntity e))
+                   (or (not (EL:Get 'preset-scoped cfg)) (EL:PresetMember (cdr (assoc 8 d)) (EL:Get 'wire-layers cfg))))
             (progn
               (setq wire (EL:WireRecord e cfg))
               (if (and (not (EL:Get 'issues wire)) (EL:Get 'ends wire)
@@ -108,6 +109,7 @@
                 (setq rows (cons (list (cons 'entity e) (cons 'style (EL:WireStyle d))) rows)))))))))
   (list (cons 'shape shape) (cons 'candidates (reverse rows))))
 (defun EL:PanelWireConfig (panel cfg / found rows styles row pick chosen d wire valid)
+  (EL:PresetReady panel cfg)
   (princ "\n正在从配电箱接线自动识别导线...")
   (setq found (EL:PanelWireCandidates panel cfg) rows (EL:Get 'candidates found))
   (foreach row rows (setq styles (cons (EL:Get 'style row) styles)))
@@ -120,7 +122,7 @@
         "\n未能明确识别箱口导线，请补选本系统导线；不会按最近距离猜测。"))
       (while (and (not chosen) (setq pick (EL:PickModel 'wire "\n补选一条导线，Enter 取消：")))
         (setq d (entget (car pick)) wire (EL:WireRecord (car pick) cfg)
-          valid (and (not (EL:ManagedEntity (car pick))) (not (EL:Get 'issues wire))
+          valid (and (or (not (EL:Get 'preset-scoped cfg)) (EL:PresetMember (cdr (assoc 8 d)) (EL:Get 'wire-layers cfg))) (not (EL:ManagedEntity (car pick))) (not (EL:Get 'issues wire))
             (not (equal (cdr (assoc 60 d)) 1))))
         (if (and valid (or (not styles) (member (EL:WireStyle d) styles)))
           (setq chosen (EL:WireStyle d))
@@ -148,7 +150,7 @@
 (defun EL:SimpleCollect (cfg / ss i e d bounds items tree wires ends blocks candidates wire candidate id issues block queue current shape perf)
   ;; Date: 2026-10-10. Filter wires by inferred style; only the selected panel
   ;; uses its contour. Device geometry is checked lazily during network tracing.
-  (setq ss (ssget "_X" '((410 . "Model") (0 . "INSERT,LINE,LWPOLYLINE"))) i 0)
+  (setq ss (EL:PresetSelection cfg "INSERT,LINE,LWPOLYLINE" '(wire-layers panel-layers device-layers)) i 0)
   (EL:PerfCount "source-collect-calls" 1)
   (EL:PerfCount "source-selection-entities" (if ss (sslength ss) 0))
   (setq perf (EL:PerfBegin "COLLECT_ENTITY_READ"))
@@ -158,12 +160,13 @@
             *EL:SimpleEntity* (list id (cdr (assoc 0 d)) (cdr (assoc 8 d))))
       (cond
         ((EL:ManagedEntity e) nil)
-        ((equal (cdr (assoc 0 d)) "INSERT")
+        ((and (equal (cdr (assoc 0 d)) "INSERT") (EL:PresetBlockAllowed e d cfg))
           (EL:PerfCount "source-block-bounds-reads" 1)
           (if (setq bounds (EL:EntityBounds e))
             (setq items (cons (list (cons 'key id) (cons 'entity e) (cons 'layer (cdr (assoc 8 d)))
               (cons 'bounds bounds) (cons 'point (EL:V* 0.5 (EL:V+ (car bounds) (cadr bounds))))) items))
             (setq issues (cons (EL:Issue 'MISSING_BLOCK_BOUNDS id nil) issues))))
+        ((equal (cdr (assoc 0 d)) "INSERT") nil)
         ((EL:WireStyleAllowed d cfg)
           (EL:PerfCount "source-wire-record-reads" 1)
           (setq wire (EL:WireRecord e cfg) wires (cons wire wires)
@@ -598,7 +601,7 @@
   (if (and (EL:EnsureRoot)
            (setq panel (EL:PickModel 'panel "\n拾取配电箱："))
            (setq cfg (EL:PanelWireConfig (car panel)
-             (EL:Put 'params (EL:GapParams (EL:SuggestedParams)) (EL:DefaultConfig (EL:DrawingID))))))
+             (EL:Put 'params (EL:GapParams (EL:SuggestedParams)) (EL:PresetConfig (EL:DefaultConfig (EL:DrawingID)))))))
     (progn
       (setq pd (entget (car panel)))
       (EL:LogEvent "SIMPLE_PICKS" (list (EL:LogEntity (car panel))))

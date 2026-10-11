@@ -201,7 +201,7 @@
       (EL:Require (not (EL:ManagedEntity (car panel))) "请选择平面图配电箱，不能统计系统图输出。")
       (setq number (EL:PickPanelNumber))
       (setq cfg (EL:Put 'template (EL:Get 'template (EL:LoadConfig))
-        (EL:Put 'params (EL:GapParams (EL:SuggestedParams)) (EL:DefaultConfig (EL:DrawingID)))))
+        (EL:Put 'params (EL:GapParams (EL:SuggestedParams)) (EL:PresetConfig (EL:DefaultConfig (EL:DrawingID))))))
       (if (setq cfg (EL:PanelWireConfig (car panel) cfg))
         (progn
           (EL:LogEvent "PICKS" (list (cons 'panel (EL:LogEntity (car panel)))))
@@ -251,8 +251,11 @@
             (not (EL:ManagedEntity (handent panel)))) "来源配电箱无效或为系统图输出。")
           (setq number (EL:PickPanelNumber))
           (setq cfg (EL:Put 'template (EL:Get 'template (EL:LoadConfig))
-            (EL:Put 'params (EL:GapParams (EL:SuggestedParams)) (EL:DefaultConfig (EL:DrawingID))))
-            cfg (EL:Put 'concentrated-trunk id (EL:Put 'auto-panel panel
+            (EL:Put 'params (EL:GapParams (EL:SuggestedParams)) (EL:PresetConfig (EL:DefaultConfig (EL:DrawingID)))))
+            cfg (EL:PresetReady (handent panel) cfg))
+          (EL:Require (EL:PresetMember (cdr (assoc 8 data)) (EL:Get 'wire-layers cfg))
+            "集中干线不在预设导线图层，请运行 ELPRESET 核对。")
+          (setq cfg (EL:Put 'concentrated-trunk id (EL:Put 'auto-panel panel
               (EL:Put 'wire-styles (list (EL:WireStyle data))
                 (EL:Put 'wire-layers (list (cdr (assoc 8 data))) cfg))))
             result (EL:LogCall "RECOGNIZE_TRUNK" (list panel id) 'EL:RecognizeFixed (list cfg panel))

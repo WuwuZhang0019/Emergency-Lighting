@@ -14,7 +14,7 @@
         (progn
           (foreach el-file '("common" "config" "geometry" "topology" "statistics" "device-library" "device-assets" "device-ui" "device-recognition" "device-inputs" "device-migration" "generation" "main" "simple" "circuit-number" "fixed" "panel" "store-compact" "diagram-store" "diagram-update" "diagram-commands" "insert-circuit")
             (load (strcat *EL:Root* "src/" el-file ".lsp")))
-          (princ "\n已加载：ELSETUP / ELDEVLIB / ELGAPTEST / ELSTAT / ELPOWER / ELTEMPLATE / ELGEN / ELUPDATE / ELSTORELEGACY / CCKK。"))))
+          (princ "\n已加载：ELSETUP / ELPRESET / ELDEVPICK / ELDEVLIB / ELGAPTEST / ELSTAT / ELPOWER / ELTEMPLATE / ELGEN / ELUPDATE / ELSTORELEGACY / CCKK。"))))
     (princ "\n需要 AutoCAD 2021+ Windows、LISPSYS=1/2（更改后重启）及完整插件目录。")))
 (EL:LoadModules)
 (princ)

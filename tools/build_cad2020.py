@@ -4,7 +4,7 @@ import shutil
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGE_NO = 90
+PACKAGE_NO = 91
 NAME = f'应急照明-{PACKAGE_NO:03d}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 DEST = ROOT / 'output' / NAME
@@ -58,6 +58,7 @@ def build():
                 text = replace_once(text, '(open tmp "w" "utf8")', '(open tmp "w")')
             if source.name == 'common.lsp':
                 text = replace_once(text, '(open *EL:LogPath* "a" "utf8")', '(open *EL:LogPath* "a")')
+                text = replace_once(text, '(open path "a" "utf8")', '(open path "a")')
                 text = replace_once(text, 'AutoCAD 2021+, LISPSYS=1/2.', 'AutoCAD 2020 trial, GB2312 source and system-codepage data.')
             data = text.encode('gb2312', errors='strict')
             assert data.decode('gb2312') == text
@@ -122,21 +123,17 @@ def build():
     shutil.copy2(ROOT / 'tests/evidence/2026-10-10-circuit-colors-065.md', DEST / 'tests/evidence/2026-10-10-circuit-colors-065.md')
     shutil.copy2(ROOT / 'tests/evidence/2026-10-10-contact-exclusion-068.md', DEST / 'tests/evidence/2026-10-10-contact-exclusion-068.md')
     shutil.copy2(ROOT / 'tests/evidence/2026-10-10-concentrated-trunk-071.md', DEST / 'tests/evidence/2026-10-10-concentrated-trunk-071.md')
-    shutil.copy2(ROOT / 'docs/2026-10-10-解析圆与圆弧识别-074.md', DEST / 'docs/2026-10-10-解析圆与圆弧识别-074.md')
     shutil.copy2(ROOT / 'tests/evidence/2026-10-10-empty-pick-076.md', DEST / 'tests/evidence/2026-10-10-empty-pick-076.md')
-    shutil.copy2(ROOT / "docs/2026-10-10-独立图例预览-078.md", DEST / "docs/2026-10-10-独立图例预览-078.md")
-    shutil.copy2(ROOT / 'docs/2026-10-10-回路漏识别与生成诊断-079.md', DEST / 'docs/2026-10-10-回路漏识别与生成诊断-079.md')
-    shutil.copy2(ROOT / 'docs/2026-10-11-宽导线接触与预览避色-080.md', DEST / 'docs/2026-10-11-宽导线接触与预览避色-080.md')
-    shutil.copy2(ROOT / 'docs/2026-10-11-首次打开保存记录-081.md', DEST / 'docs/2026-10-11-首次打开保存记录-081.md')
-    shutil.copy2(ROOT / 'docs/2026-10-11-面板中文换行乱码-082.md', DEST / 'docs/2026-10-11-面板中文换行乱码-082.md')
-    shutil.copy2(ROOT / 'docs/2026-10-11-单击保存记录打开回路-083.md', DEST / 'docs/2026-10-11-单击保存记录打开回路-083.md')
-    shutil.copy2(ROOT / 'docs/2026-10-11-拾取配电箱编号-084.md', DEST / 'docs/2026-10-11-拾取配电箱编号-084.md')
-    shutil.copy2(ROOT / 'docs/2026-10-11-拾取配电箱编号-085.md', DEST / 'docs/2026-10-11-拾取配电箱编号-085.md')
-    shutil.copy2(ROOT / 'docs/2026-10-11-记录编号同步-086.md', DEST / 'docs/2026-10-11-记录编号同步-086.md')
-    shutil.copy2(ROOT / 'docs/2026-10-11-生成未通过原因-087.md', DEST / 'docs/2026-10-11-生成未通过原因-087.md')
-    shutil.copy2(ROOT / 'docs/2026-10-11-正常末端生成拦截-088.md', DEST / 'docs/2026-10-11-正常末端生成拦截-088.md')
-    shutil.copy2(ROOT / 'docs/2026-10-11-预览后源图复核-089.md', DEST / 'docs/2026-10-11-预览后源图复核-089.md')
-    shutil.copy2(ROOT / 'docs/2026-10-11-源图快照差异诊断-090.md', DEST / 'docs/2026-10-11-源图快照差异诊断-090.md')
+    # Date: 2026-10-11. Keep the documentation tree after update notes moved.
+    # The compatibility-specific loading guide above remains the package's guide.
+    for source in sorted((ROOT / 'docs').rglob('*.md')):
+        if source.name == '03_加载使用与验收说明.md':
+            continue
+        target = DEST / source.relative_to(ROOT)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, target)
+    for source in sorted((ROOT / 'tests/evidence').glob('2026-10-11-performance-p0-091.*')):
+        shutil.copy2(source, DEST / 'tests/evidence' / source.name)
     readme = guide
     (DEST / '使用说明.md').write_text(readme, encoding='utf-8')
     for filename in ('cad-plan.dxf', 'cad-plan.expected.json'):

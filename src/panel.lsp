@@ -124,7 +124,7 @@
     (if (or (not *EL:PanelDraft*) (EL:PanelStore)) (done_dialog 6))))
 (defun EL:ThumbLocateWait ()
   (EL:SimpleLocate (list (cons 'devices (EL:Get 'blocks *EL:ExitSnapshot*))) *EL:ThumbLocate*)
-  (getstring "\n按 Enter 返回功率面板："))
+  (EL:PerfInput 'getstring (list "\n按 Enter 返回功率面板：")))
 (defun EL:ThumbLocatePreview (/ checked)
   (setq checked (vl-catch-all-apply 'EL:ThumbLocateWait nil))
   (EL:ClearGapPreview) (EL:ClearPickHighlights)
@@ -145,7 +145,8 @@
           (cons 'key (list (EL:Get 'id wire) 'outlet))) seeds)))))
   (setq edges (vl-remove-if '(lambda (e) (member panel e)) (EL:Get 'edges network)))
   (foreach wire (reverse seeds)
-    (setq circuits (cons (EL:TraceCircuit wire snapshot edges (EL:Get 'gap-issues network)) circuits)))
+    (setq circuits (cons (EL:PerfCall "CIRCUIT_TRACE" 'EL:TraceCircuit
+      (list wire snapshot edges (EL:Get 'gap-issues network))) circuits)))
   (foreach wire (reverse circuits)
     (EL:LogEvent "CIRCUIT_TRACE_RESULT" (list (cons 'id (EL:Get 'id wire))
       (cons 'wires (EL:Get 'wires wire)) (cons 'devices (EL:Get 'devices wire))
@@ -325,7 +326,7 @@
     (princ (strcat "\n回路 " (itoa (1+ index)) "：预览颜色 " (itoa color)))
     (setq index (1+ index)))
   (redraw)
-  (getstring "\n已识别路径已改为区别于原导线的颜色；保留原色的部分未纳入回路。按 Enter 或 Esc 返回："))
+  (EL:PerfInput 'getstring (list "\n已识别路径已改为区别于原导线的颜色；保留原色的部分未纳入回路。按 Enter 或 Esc 返回：")))
 (defun EL:AllCircuitColorPreview (result / checked document clean ended)
   ;; One undo group prevents stepping through a half-restored preview.
   (setq document (vla-get-ActiveDocument (vlax-get-acad-object)))
@@ -342,7 +343,7 @@
   (princ (if (EL:ColorPreviewCleanup) "\n回路分色预览已清理。" "\n仍有对象未能恢复，请检查图层锁定状态后重试。")) (princ))
 (defun EL:FixedExitPreviewWait (result value)
   (EL:FixedExitHighlight result value)
-  (getstring "\n按 Enter 返回出线核对："))
+  (EL:PerfInput 'getstring (list "\n按 Enter 返回出线核对：")))
 (defun EL:FixedExitPreview (result value / checked)
   ;; ESC must clear both transient paths and entity highlights before unwinding.
   (setq checked (vl-catch-all-apply 'EL:FixedExitPreviewWait (list result value)))
@@ -374,7 +375,7 @@
             (action_tile "f_exits" "(setq *EL:FixedExitSelection* $value) (EL:FixedExitDevices)")
             (action_tile "f_preview" "(done_dialog 2)")
             (action_tile "accept" "(done_dialog 1)") (action_tile "cancel" "(done_dialog 0)")
-            (setq status (start_dialog))
+            (setq status (EL:PerfInput 'start_dialog nil))
             (if (= status 6) (progn (EL:ThumbLocatePreview) (setq status 2))
               (if (= status 2) (EL:FixedExitPreview result *EL:FixedExitSelection*))))
           (setq status 0)))
@@ -722,7 +723,7 @@
         (action_tile "accept" "(EL:PanelAccept)")
         (action_tile "p_generate" "(EL:PanelGenerate)")
         (action_tile "cancel" "(done_dialog 0)")
-        (setq *EL:PanelAction* nil status (start_dialog))
+        (setq *EL:PanelAction* nil status (EL:PerfInput 'start_dialog nil))
         (EL:LogEvent "PANEL_DIALOG_RETURN" (list (cons 'status status) (cons 'action *EL:PanelAction*)))
         (if (= status 8)
           (progn
@@ -744,7 +745,7 @@
           (progn
             (setq row (nth *EL:PanelDevice* (EL:PanelDevices)))
             (if row (EL:SimpleLocate (list (cons 'devices (EL:Get 'blocks (EL:Get 'snapshot result)))) row))
-            (getstring "\n按 Enter 返回主面板：") (EL:ClearGapPreview)))
+            (EL:PerfInput 'getstring (list "\n按 Enter 返回主面板：")) (EL:ClearGapPreview)))
         (if (= status 5)
           (progn (EL:AllCircuitColorPreview *EL:PanelDraft*) (setq status 3)))
         (if (member status '(4 7)) (setq status 3)))
@@ -778,7 +779,7 @@
       (action_tile "p_pick" "(done_dialog 9)")
       (action_tile "p_trunk" "(done_dialog 10)")
       (action_tile "cancel" "(done_dialog 0)")
-      (setq status (start_dialog))
+      (setq status (EL:PerfInput 'start_dialog nil))
       (if (= status 8)
         (progn
           (setq switched (vl-catch-all-apply 'EL:HistoryOpen nil))
@@ -853,7 +854,7 @@
 ;; Date: 2026-10-11. Number selection is the next step of both model-pick flows.
 (defun EL:PickPanelNumber (/ picked data value outcome item done)
   (while (not done)
-    (setq outcome (nentsel "\n拾取配电箱编号文字（Enter 使用暂无编号）："))
+    (setq outcome (EL:PerfInput 'nentsel (list "\n拾取配电箱编号文字（Enter 使用暂无编号）：")))
     (if (not outcome) (setq value "暂无编号" done T)
       (progn
         (setq picked (car outcome) data (entget picked))

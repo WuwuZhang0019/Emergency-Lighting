@@ -35,7 +35,7 @@
     (progn
       (setq *EL:Root* nil)
       (princ "\n尚未设置有效插件目录，请选择完整包内的 src/load.lsp。")
-      (setq selected (getfiled "请选择本包内的 src/load.lsp" "" "lsp" 0))
+      (setq selected (EL:PerfInput 'getfiled (list "请选择本包内的 src/load.lsp" "" "lsp" 0)))
       (cond
         ((not selected) (princ "\n未选择插件目录，本次操作已停止。") nil)
         ((setq root (EL:RootFromLoad selected))
@@ -196,7 +196,7 @@
   (setq *EL:PickHighlights* nil)
   (princ))
 (defun EL:PickEntity (prompt / pick data)
-  (if (setq pick (entsel prompt))
+  (if (setq pick (EL:PerfInput 'entsel (list prompt)))
     (progn
       (EL:HighlightPick (car pick))
       (setq data (entget (car pick)))

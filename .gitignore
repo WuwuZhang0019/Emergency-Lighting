@@ -4,6 +4,7 @@ config/drawing-*.eld
 config/device-library.eld
 output/*.eld
 /output/*-debug.log
+/output/ELPERF.log
 *.tmp
 config/*.bak
 config/*.invalid-*

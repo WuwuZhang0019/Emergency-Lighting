@@ -85,16 +85,168 @@
   (if (numberp value) value 0))
 (defun EL:Elapsed (start) (max 0 (- (EL:Tick) start)))
 
+;; Date: 2026-10-11. Command-scoped P0 counters, independent of business logs.
+;; Inclusive stages overlap; user intervals are a union and are never summed twice.
+(defun EL:PerfDelta (start stop)
+  (if (< stop start) (+ (- stop start) 4294967296.0) (- stop start)))
+(defun EL:PerfSet (key value)
+  (if *EL:PerfActive* (setq *EL:PerfMetrics* (EL:Put key value *EL:PerfMetrics*))) nil)
+(defun EL:PerfCount (key amount)
+  (if *EL:PerfActive*
+    (EL:PerfSet key (+ (cond ((EL:Get key *EL:PerfMetrics*)) (T 0)) amount))) nil)
+(defun EL:PerfWaiting (/ elapsed)
+  (setq elapsed *EL:PerfWaitMS*)
+  (if (> *EL:PerfWaitDepth* 0)
+    (setq elapsed (+ elapsed (EL:PerfDelta *EL:PerfWaitStart* (EL:Tick))))) elapsed)
+(defun EL:PerfStart (commandname / stamp tick key)
+  (if (not *EL:PerfActive*)
+    (progn
+      (setq tick (vl-catch-all-apply 'getvar (list "MILLISECS")))
+      (setq *EL:PerfActive* T *EL:PerfCommand* commandname *EL:PerfStarted* (if (numberp tick) tick 0)
+        *EL:PerfMetrics* nil *EL:PerfStages* nil *EL:PerfPending* nil *EL:PerfMarks* nil
+        *EL:PerfWaitMS* 0 *EL:PerfWaitDepth* 0 *EL:PerfSerial* 0 *EL:PerfOutcome* nil)
+      (setq stamp (vl-catch-all-apply 'getvar (list "CDATE")))
+      (EL:PerfSet "date" (if (numberp stamp) stamp "unavailable"))
+      (EL:PerfSet "clock-available" (if (numberp tick) T nil))
+      (foreach key '("recognize-fixed-calls" "store-read-calls" "store-write-calls"
+          "entity-write-attempts" "entity-write-returned" "master-write-attempts"
+          "block-create-attempts" "text-create-attempts" "transaction-starts"
+          "transaction-failures" "log-open-attempts" "log-write-attempts" "log-close-attempts" "panel-submits")
+        (EL:PerfSet key 0)) T)))
+(defun EL:PerfBegin (stage / token wait parent)
+  (if *EL:PerfActive*
+    (progn
+      (setq wait (member stage '("USER_INPUT" "PLACEMENT_INPUT"))
+        parent (if *EL:PerfPending* (EL:Get 'stage (car *EL:PerfPending*)))
+        *EL:PerfSerial* (1+ *EL:PerfSerial*)
+        token (list (cons 'id *EL:PerfSerial*) (cons 'stage stage) (cons 'start (EL:Tick))
+          (cons 'wait-before (EL:PerfWaiting)) (cons 'interactive (if wait T nil)) (cons 'parent parent)))
+      (if wait
+        (progn
+          (if (= *EL:PerfWaitDepth* 0) (setq *EL:PerfWaitStart* (EL:Get 'start token)))
+          (setq *EL:PerfWaitDepth* (1+ *EL:PerfWaitDepth*))))
+      (setq *EL:PerfPending* (cons token *EL:PerfPending*)) token)))
+(defun EL:PerfEnd (token status / stage row elapsed waited key parents)
+  (if (and *EL:PerfActive* token (member token *EL:PerfPending*))
+    (progn
+      (if (EL:Get 'interactive token)
+        (progn
+          (setq *EL:PerfWaitDepth* (1- *EL:PerfWaitDepth*))
+          (if (= *EL:PerfWaitDepth* 0)
+            (setq *EL:PerfWaitMS* (+ *EL:PerfWaitMS* (EL:PerfDelta *EL:PerfWaitStart* (EL:Tick)))))))
+      (setq stage (EL:Get 'stage token) row (EL:Get stage *EL:PerfStages*)
+        elapsed (EL:PerfDelta (EL:Get 'start token) (EL:Tick))
+        waited (max 0 (- (EL:PerfWaiting) (EL:Get 'wait-before token))))
+      (foreach key (list (cons 'calls 1) (cons 'inclusive-ms elapsed)
+          (cons 'program-ms (max 0 (- elapsed waited))) (cons 'interrupted (if (equal status 'returned) 0 1)))
+        (setq row (EL:Put (car key) (+ (cond ((EL:Get (car key) row)) (T 0)) (cdr key)) row)))
+      (setq parents (EL:Get 'parents row))
+      (if (and (EL:Get 'parent token) (not (member (EL:Get 'parent token) parents)))
+        (setq row (EL:Put 'parents (cons (EL:Get 'parent token) parents) row)))
+      (setq *EL:PerfStages* (EL:Put stage row *EL:PerfStages*)
+        *EL:PerfPending* (vl-remove token *EL:PerfPending*)))) nil)
+(defun EL:PerfUnwind (checkpoint)
+  (while (and *EL:PerfPending* (not (equal checkpoint *EL:PerfPending*)))
+    (EL:PerfEnd (car *EL:PerfPending*) 'interrupted)) nil)
+(defun EL:PerfCall (stage function arguments / token result)
+  (if (and *EL:PerfActive* (or (member stage
+      '("USER_INPUT" "PLACEMENT_INPUT" "PANEL_DIALOG" "RECOGNIZE_FIXED_RUN"
+        "SIMPLE_COLLECT" "SIMPLE_NETWORK" "SPLIT_NETWORK" "PRE_GENERATE_FRESH"
+        "CCKK2" "TX_WRITE" "STORE_READ" "STORE_DECODE" "STORE_SERIALIZE"
+        "STORE_PARSE" "STORE_READBACK" "DIAGRAM_VIEW" "DIAGNOSTIC_EXPORT"))
+      (and *EL:PerfDetail* (member stage
+        '("STORE_SCHEMA" "STORE_REPLACE_PAYLOAD" "CCKK2_INSERT_BLOCK" "CCKK_POWER_TEXT"
+          "TAG_ENTITY" "UNDO_BEGIN" "UNDO_END" "COMPARE_SOURCE" "SNAPSHOT_SIGNATURE" "CIRCUIT_TRACE")))))
+    (setq token (EL:PerfBegin stage)))
+  ;; Keep native return values and exceptions. Caught transactions unwind their frames.
+  (setq result (apply function arguments))
+  (EL:PerfEnd token 'returned)
+  (if (and result (equal stage "PLACEMENT_INPUT")) (EL:PerfMark "placement-confirmed")) result)
+(defun EL:PerfInput (function arguments)
+  (EL:PerfCall "USER_INPUT" function arguments))
+(defun EL:PerfWrite (function arguments / result)
+  ;; Attempts count the actual interface invocation, including nil/error returns.
+  (EL:PerfCount "entity-write-attempts" 1)
+  (if *EL:PerfDetail* (EL:PerfCount (strcat "write/" (vl-symbol-name function)) 1))
+  (setq result (apply function arguments))
+  (EL:PerfCount "entity-write-returned" 1) result)
+(defun EL:PerfMark (key)
+  (if *EL:PerfActive*
+    (setq *EL:PerfMarks* (EL:Put key (list (EL:Tick) (EL:PerfWaiting)) *EL:PerfMarks*))) nil)
+(defun EL:PerfMarkDuration (key / mark elapsed)
+  (if (setq mark (EL:Get key *EL:PerfMarks*))
+    (progn (setq elapsed (EL:PerfDelta (car mark) (EL:Tick)))
+      (list (cons 'inclusive-ms elapsed)
+        (cons 'program-ms (max 0 (- elapsed (- (EL:PerfWaiting) (cadr mark)))))))))
+(defun EL:PerfAppend (path line / file result closed)
+  (if (setq file (open path "a" "utf8"))
+    (progn
+      (setq result (vl-catch-all-apply 'write-line (list line file))
+        closed (vl-catch-all-apply 'close (list file)))
+      (and (not (vl-catch-all-error-p result)) (not (vl-catch-all-error-p closed))))))
+(defun EL:PerfReport (summary / path line written folder)
+  (setq line (strcat "PERF | " (vl-prin1-to-string summary)))
+  (if (and (equal (type *EL:Root*) 'STR) (/= *EL:Root* ""))
+    (progn
+      (vl-catch-all-apply 'vl-mkdir (list (strcat *EL:Root* "output")))
+      (setq path (strcat *EL:Root* "output/ELPERF.log")
+        written (vl-catch-all-apply 'EL:PerfAppend (list path line)))))
+  (if (or (vl-catch-all-error-p written) (not written))
+    (progn
+      (setq folder (vl-catch-all-apply 'getvar (list "TEMPPREFIX")))
+      (if (and (equal (type folder) 'STR) (/= folder ""))
+        (setq path (strcat folder "ELPERF.log")
+          written (vl-catch-all-apply 'EL:PerfAppend (list path line))))))
+  (princ (strcat "\n性能汇总：总区间 " (itoa (fix (EL:Get 'total-ms summary)))
+    " ms，交互区间 " (itoa (fix (EL:Get 'interaction-ms summary)))
+    " ms，程序区间 " (itoa (fix (EL:Get 'program-ms summary))) " ms。"))
+  (if (and (not (vl-catch-all-error-p written)) written)
+    (princ (strcat "\n性能记录：" path))
+    (princ "\n性能记录写入失败；汇总保留在 *EL:PerfLastSummary*。")) nil)
+(defun EL:PerfFinish (status / elapsed waited summary)
+  (if *EL:PerfActive*
+    (progn
+      (EL:PerfUnwind nil)
+      (setq elapsed (EL:PerfDelta *EL:PerfStarted* (EL:Tick)) waited (EL:PerfWaiting)
+        summary (list '(schema . 1) (cons 'command *EL:PerfCommand*) (cons 'status status)
+          (cons 'last-outcome *EL:PerfOutcome*) (cons 'package *EL:PackageMarker*)
+          (cons 'detail (if *EL:PerfDetail* T nil)) (cons 'business-logs (if *EL:PerfLogsOff* 'off 'on))
+          (cons 'total-ms elapsed) (cons 'interaction-ms waited) (cons 'program-ms (max 0 (- elapsed waited)))
+          (cons 'after-submit (EL:PerfMarkDuration "panel-submit"))
+          (cons 'after-placement (EL:PerfMarkDuration "placement-confirmed"))
+          (cons 'metrics *EL:PerfMetrics*) (cons 'stages *EL:PerfStages*)))
+      ;; Snapshot before reporting: summary I/O is outside all business measurements.
+      (setq *EL:PerfLastSummary* summary *EL:PerfActive* nil *EL:PerfPending* nil
+        *EL:PerfMetrics* nil *EL:PerfStages* nil *EL:PerfMarks* nil *EL:PerfLogOwner* nil)
+      (vl-catch-all-apply 'EL:PerfReport (list summary)))) nil)
+(defun c:ELPERF (/ option)
+  (if *EL:PerfActive* (princ "\n请结束当前统计或生成后再调整性能采样。")
+    (progn
+      (princ (strcat "\n性能采样：" (if *EL:PerfDetail* "细分" "汇总")
+        "；业务日志：" (if *EL:PerfLogsOff* "关闭（仅对照测量）" "开启")))
+      (initget "LogsOn LogsOff Detail Summary")
+      (setq option (getkword "\n[LogsOn开启日志/LogsOff关闭日志对照/Detail细分计量/Summary汇总计量] <保持>："))
+      (cond ((equal option "LogsOn") (setq *EL:PerfLogsOff* nil))
+        ((equal option "LogsOff") (setq *EL:PerfLogsOff* T))
+        ((equal option "Detail") (setq *EL:PerfDetail* T))
+        ((equal option "Summary") (setq *EL:PerfDetail* nil)))
+      (princ "\n仅影响本次加载会话的测量；ELPERF.log 独立保留，日志对照结束后请恢复 LogsOn。"))) (princ))
+
 ;; Date: 2026-10-09. Diagnostics never change recognition or propagate I/O errors.
 (defun EL:LogText (value / textdata)
   (setq textdata (vl-catch-all-apply 'vl-prin1-to-string (list value)))
   (if (vl-catch-all-error-p textdata) "<unprintable>"
     (if (> (strlen textdata) 16000) (strcat (substr textdata 1 16000) " <truncated>") textdata)))
-(defun EL:LogAppend (line / logfile result closed)
+(defun EL:LogAppend (line / logfile result closed started)
+  (EL:PerfCount "log-open-attempts" 1)
+  (if (and *EL:PerfActive* *EL:PerfDetail*) (setq started (EL:Tick)))
   (if (setq logfile (open *EL:LogPath* "a" "utf8"))
     (progn
+      (EL:PerfCount "log-write-attempts" 1)
       (setq result (vl-catch-all-apply 'write-line (list line logfile)))
       (setq closed (vl-catch-all-apply 'close (list logfile)))
+      (EL:PerfCount "log-close-attempts" 1)
+      (if started (EL:PerfCount "log-io-ms" (EL:PerfDelta started (EL:Tick))))
       (and (not (vl-catch-all-error-p result)) (not (vl-catch-all-error-p closed))))))
 ;; Date: 2026-10-10. Retry in TEMP when the runtime output is unavailable.
 (defun EL:LogFallback (line / folder previous result)
@@ -111,25 +263,28 @@
           (if (and (not (vl-catch-all-error-p result)) result)
             (setq result (vl-catch-all-apply 'EL:LogAppend (list line))))
           (and (not (vl-catch-all-error-p result)) result))))))
-(defun EL:LogEvent (stage context / line result)
+(defun EL:LogEvent (stage context / line result started)
   (if *EL:LogActive*
     (progn
       (setq *EL:LogSequence* (1+ *EL:LogSequence*)
             *EL:LogLast* (list stage context))
       ;; Keep current failure context in memory; avoid per-vertex file I/O by default.
-      (if (and *EL:LogPath* (or *EL:LogVerbose* (not (member stage
+      (if (and (not *EL:PerfLogsOff*) *EL:LogPath* (or *EL:LogVerbose* (not (member stage
           '("POLYLINE_DXF_ROW" "POLYLINE_SEGMENT" "POLYLINE_INPUT" "POLYLINE_DATA_RESULT"
             "ENTER POLYLINE_TRANS" "LEAVE POLYLINE_TRANS" "POLYLINE_TRANS_RESULT"
             "ENTER CURVE_TRANS" "LEAVE CURVE_TRANS" "CURVE_TRANS_RESULT"
             "CONTOUR_ENTITY" "CONTOUR_FILTER_INPUT" "CONTOUR_NEXT"
             "ENTER CONTOUR_TRANSFORM" "LEAVE CONTOUR_TRANSFORM" "CONTOUR_TRANSFORM_RESULT")))))
         (progn
-          (setq line (strcat (itoa *EL:LogSequence*) " | " stage " | " (EL:LogText context))
-                result (vl-catch-all-apply 'EL:LogAppend (list line)))
+          (if (and *EL:PerfActive* *EL:PerfDetail*) (setq started (EL:Tick)))
+          (setq line (strcat (itoa *EL:LogSequence*) " | " stage " | " (EL:LogText context)))
+          (if started (EL:PerfCount "log-format-ms" (EL:PerfDelta started (EL:Tick))))
+          (setq result (vl-catch-all-apply 'EL:LogAppend (list line)))
           (if (or (and (not (vl-catch-all-error-p result)) result) (EL:LogFallback line)) (setq *EL:LogWritten* T)
             (setq *EL:LogIOFailed* T *EL:LogPath* nil))))))
   nil)
 (defun EL:LogStart (/ stamp)
+  (setq *EL:PerfLogOwner* (EL:PerfStart "ELSTAT/ELTRACE/ELPOWER"))
   (setq *EL:LogActive* T *EL:LogPath* nil *EL:LogStack* nil *EL:LogLast* nil
         *EL:LogSequence* 0 *EL:LogWritten* nil *EL:LogIOFailed* nil *EL:LogFallbackUsed* nil)
   (EL:LogAttach)
@@ -150,7 +305,7 @@
   (if *EL:LogActive*
     (progn (setq *EL:LogStack* (cons (list stage context) *EL:LogStack*))
       (EL:LogEvent (strcat "ENTER " stage) context)))
-  (setq started (if *EL:LogActive* (EL:Tick)) result (apply function arguments))
+  (setq started (if *EL:LogActive* (EL:Tick)) result (EL:PerfCall stage function arguments))
   (if *EL:LogActive*
     (progn
       (EL:LogEvent (strcat "LEAVE " stage) (list (cons 'elapsed-ms (EL:Elapsed started)) (cons 'result-type (type result))))
@@ -163,14 +318,17 @@
     (cons 'dxf (vl-remove-if-not '(lambda (pair) (member (car pair)
       '(0 2 5 8 10 11 38 40 41 42 43 50 51 60 70 90 210 410))) data))))
 (defun EL:LogFinish (status)
+  (if *EL:PerfActive* (setq *EL:PerfOutcome* status))
   (if *EL:LogActive*
     (progn
       (EL:LogEvent "END" status)
       (cond
+        (*EL:PerfLogsOff* nil)
         (*EL:LogIOFailed* (princ "\n诊断日志写入失败；请保留命令行的失败阶段和上下文。"))
         (*EL:LogWritten* (princ (strcat "\n诊断日志：" *EL:LogPath*)))
         (T (princ "\n未建立日志文件；请保留命令行信息。")))))
-  (setq *EL:LogActive* nil *EL:LogStack* nil))
+  (setq *EL:LogActive* nil *EL:LogStack* nil)
+  (if *EL:PerfLogOwner* (EL:PerfFinish status)))
 (defun EL:LogFailure (message / laststate stack)
   (setq laststate *EL:LogLast* stack *EL:LogStack*)
   (EL:LogEvent "ERROR" (list (cons 'message message) (cons 'stack stack) (cons 'last-event laststate)))

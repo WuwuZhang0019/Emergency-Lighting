@@ -463,7 +463,7 @@
         (vl-prin1-to-string (EL:Get 'position (EL:Get 'plan record))) "。请查看诊断日志。")) nil)))
 (defun EL:SyncDiagram (result cfg powers capacity generate interactive)
   (EL:SyncDiagramScoped result cfg powers capacity generate interactive *EL:FreshScope*))
-(defun EL:SyncDiagramScoped (result cfg powers capacity generate interactive scope / store record template transform plan point structural outcome rotation scale rebuild *EL:NativePreview* *EL:FreshScope* *EL:FreshScopeEnabled* *EL:UpdateOperations* *EL:UpdateScopeActive*)
+(defun EL:SyncDiagramScoped (result cfg powers capacity generate interactive scope / store record template transform plan point structural outcome rotation scale rebuild context *EL:NativePreview* *EL:FreshScope* *EL:FreshScopeEnabled* *EL:UpdateOperations* *EL:UpdateScopeActive*)
   (setq *EL:FreshScope* scope *EL:FreshScopeEnabled* T *EL:UpdateScopeActive* T)
   (setq capacity (EL:CapacityDefault capacity))
   (setq store (cond ((EL:StoreRead)) (T (EL:StoreInitial)))
@@ -544,15 +544,16 @@
             (EL:Put 'draft-capacity-source nil record)))))
       (setq record (EL:Put 'panel-number (EL:PanelNumber result) record))
       (setq store (EL:Put 'fixed-template template store))
-      (setq outcome
-        (cond (rebuild (EL:Transaction 'EL:RebuildDiagram (list result template capacity plan record store rebuild)))
+      (setq context
+        (cond (rebuild (EL:TransactionVerifiedStore 'EL:RebuildDiagram (list result template capacity plan record store rebuild)))
           ((EL:Get 'panel-output-handle record)
-            (EL:Transaction 'EL:ApplyUpdate (list result template plan record store structural)))
-          (T (EL:Transaction (if *EL:CCKK2Request* 'EL:CCKK2CreateDiagram 'EL:CreateDiagram)
-            (list result template capacity plan record store)))))))
+            (EL:TransactionVerifiedStore 'EL:ApplyUpdate (list result template plan record store structural)))
+          (T (EL:TransactionVerifiedStore (if *EL:CCKK2Request* 'EL:CCKK2CreateDiagram 'EL:CreateDiagram)
+            (list result template capacity plan record store))))
+        outcome (EL:Get 'outcome context))))
       (if (and outcome (listp outcome)
           (EL:Get 'panel-output-handle outcome)
-          (equal outcome (EL:DiagramForPanel (EL:Get 'panel result) (EL:StoreRead))))
+          (equal outcome (EL:DiagramForPanel (EL:Get 'panel result) (EL:TransactionVerifiedRead context))))
         (progn
           (if (not (EL:PerfCall "DIAGNOSTIC_EXPORT" 'EL:WriteData
               (list (strcat *EL:Root* "output/diagram-" (EL:Hash (EL:Get 'diagram-id record)) ".eld") outcome)))

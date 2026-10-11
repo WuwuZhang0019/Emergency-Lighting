@@ -312,7 +312,56 @@
   (vlax-safearray-fill values (mapcar '(lambda (pair)
     (vlax-make-variant (cdr pair) (cond ((= (car pair) 40) 5) ((= (car pair) 90) 3) (T 8)))) chunks))
   (vla-SetXRecordData (vlax-ename->vla-object entity) codes values) T)
-(defun EL:StoreWrite (store / chunks entry entity *EL:StorePhase*)
+(defun EL:StoreContextValid (context / entry native entity payload)
+  ;; Date: 2026-10-11. Check the same document, association and both complete
+  ;; native payloads. Reuse avoids decoding, never the actual DWG checks.
+  (if (and context (equal (EL:Get 'owner context) (namedobjdict))
+      (setq entity (EL:Get 'entity context))
+      (setq payload (EL:Get 'payload context))
+      (EL:Get 'verified-store context)
+      (setq entry (dictsearch (namedobjdict) "EL_FIXED_V1"))
+      (equal entity (cdr (assoc -1 entry)))
+      (equal (cdr (assoc 0 entry)) "XRECORD")
+      (setq native (entget entity))
+      (equal (cdr (assoc 0 native)) "XRECORD"))
+    (and (equal payload (EL:StorePayload entry))
+      (equal payload (EL:StorePayload native)))))
+(defun EL:StoreContextCommit (/ valid)
+  ;; EndUndoMark can notify other extensions. Only promote a candidate after
+  ;; confirming that its exact audited representation still exists then.
+  (if (and *EL:StoreContextActive* *EL:StoreContextCandidate*)
+    (progn
+      (EL:PerfCount "store-context-commit-verifies" 1)
+      (setq valid (vl-catch-all-apply '(lambda ()
+        (and (= 0 (logand 8 (getvar "UNDOCTL")))
+          (not *EL:TransactionOpen*)
+          (EL:StoreContextValid *EL:StoreContextCandidate*))) nil))
+      (if (and (not (vl-catch-all-error-p valid)) valid)
+        (setq *EL:StoreContextCommitted* T)
+        (progn
+          (setq *EL:StoreContextCandidate* nil *EL:StoreContextCommitted* nil)
+          (EL:LogEvent "STORE_CONTEXT_DISCARDED" '((reason . post-commit-native-change))))))))
+(defun EL:TransactionVerifiedStore (function args / outcome *EL:StoreContextActive* *EL:StoreContextCandidate* *EL:StoreContextCommitted*)
+  ;; Explicit one-operation output; the candidate has dynamic scope only.
+  ;; Existing Transaction and StoreWrite return values remain unchanged.
+  (setq *EL:StoreContextActive* T)
+  (setq outcome (EL:Transaction function args))
+  (append (list (cons 'outcome outcome) (cons 'committed
+      (and outcome *EL:StoreContextCommitted*)))
+    (if (and outcome *EL:StoreContextCommitted*) *EL:StoreContextCandidate*)))
+(defun EL:TransactionVerifiedRead (context / valid)
+  ;; A caller uses this immediately after the transaction. Still check raw
+  ;; data here: unknown callbacks, document changes or later writes invalidate.
+  (if (and (EL:Get 'outcome context) (EL:Get 'committed context))
+    (setq valid (vl-catch-all-apply 'EL:StoreContextValid (list context))))
+  (if (and (not (vl-catch-all-error-p valid)) valid)
+    (progn (EL:PerfCount "store-context-reuses" 1) (EL:Get 'verified-store context))
+    (EL:StoreRead)))
+(defun EL:StoreWrite (store / chunks entry entity value *EL:StorePhase*)
+  ;; Every write invalidates the prior candidate, including a failed second
+  ;; write in one transaction. Direct writes never publish a reusable cache.
+  (if *EL:StoreContextActive*
+    (setq *EL:StoreContextCandidate* nil *EL:StoreContextCommitted* nil))
   (EL:PerfCount "store-write-calls" 1)
   (setq *EL:StorePhase* 'pre-write)
   (setq chunks (EL:LogCall "STORE_SERIALIZE" '((format . native-dxf)) 'EL:StoreEncode (list store)))
@@ -328,7 +377,10 @@
     (progn
       (setq entity (entmakex (append '((0 . "XRECORD") (100 . "AcDbXrecord") (280 . 1)) chunks)))
       (if (or (not entity) (not (dictadd (namedobjdict) "EL_FIXED_V1" entity))) (exit))))
-  (EL:LogCall "STORE_READBACK" nil 'EL:StoreReadback (list chunks entity store)) T)
+  (setq value (EL:LogCall "STORE_READBACK" nil 'EL:StoreReadback (list chunks entity store)))
+  (if *EL:StoreContextActive*
+    (setq *EL:StoreContextCandidate* (list (cons 'owner (namedobjdict))
+      (cons 'entity entity) (cons 'payload chunks) (cons 'verified-store value)))) T)
 (defun EL:DiagramForPanel (panel store / found rows)
   (setq rows (vl-remove-if-not '(lambda (r) (equal panel (EL:Get 'source-panel-handle r))) (EL:Get 'diagrams store)))
   (if (> (length rows) 1) (progn (princ "\n来源箱体存在重复系统图关联，需修复。") (exit)))
@@ -431,7 +483,8 @@
       (if outcome
         (progn
           (EL:LogCall "UNDO_END" nil 'vla-EndUndoMark (list doc))
-          (setq *EL:TransactionOpen* nil *EL:TransactionDirty* nil *EL:Created* nil)))
+          (setq *EL:TransactionOpen* nil *EL:TransactionDirty* nil *EL:Created* nil)
+          (EL:StoreContextCommit)))
       outcome)))
 (defun EL:ArchiveInterruptedTransaction (/ entry entity name index)
   ;; Date: 2026-10-09. Preserve the record and every existing drawing object.
@@ -497,6 +550,8 @@
   (setq outcome (vl-catch-all-apply 'EL:TransactionRun (list doc function args)))
   (if (or (vl-catch-all-error-p outcome) (and (not outcome) *EL:TransactionOpen*))
     (progn
+      (if *EL:StoreContextActive*
+        (setq *EL:StoreContextCandidate* nil *EL:StoreContextCommitted* nil))
       (EL:PerfUnwind checkpoint) (EL:PerfCount "transaction-failures" 1)
       (EL:LogEvent "TRANSACTION_ERROR" (list (cons 'message
           (if (vl-catch-all-error-p outcome) (vl-catch-all-error-message outcome) "事务写入返回空值，未完成。"))

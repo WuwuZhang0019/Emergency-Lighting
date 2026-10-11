@@ -71,7 +71,7 @@ def build():
     (DEST / marker).write_text(f"Emergency-Lighting {PACKAGE_NO}\n", encoding="ascii")
     # Keep an existing valid data root; initialize it for a standalone update.
     # All modules are included; readiness requires a complete package directory.
-    modules = ('common', 'config', 'geometry', 'topology', 'statistics', 'device-library', 'device-assets', 'generation', 'main', 'simple', 'fixed', 'panel', 'store-compact', 'diagram-store', 'diagram-update', 'diagram-commands', 'insert-circuit', 'startup')
+    modules = ('common', 'config', 'geometry', 'topology', 'statistics', 'device-library', 'device-assets', 'device-ui', 'generation', 'main', 'simple', 'fixed', 'panel', 'store-compact', 'diagram-store', 'diagram-update', 'diagram-commands', 'insert-circuit', 'startup')
     update = (';; Date: 2026-10-10. Validate or initialize the plugin data root.\n'
               '(vl-load-com)\n' + '\n'.join(
                   (DEST / 'src' / f'{module}.lsp').read_bytes().decode('gb2312') for module in modules) +

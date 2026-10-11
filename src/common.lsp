@@ -103,7 +103,7 @@
     (progn
       (setq tick (vl-catch-all-apply 'getvar (list "MILLISECS")))
       (setq *EL:PerfActive* T *EL:PerfCommand* commandname *EL:PerfStarted* (if (numberp tick) tick 0)
-        *EL:PerfMetrics* nil *EL:PerfStages* nil *EL:PerfPending* nil *EL:PerfMarks* nil *EL:StoreReadCache* nil *EL:NetworkMemo* nil *EL:DLCache* nil
+        *EL:PerfMetrics* nil *EL:PerfStages* nil *EL:PerfPending* nil *EL:PerfMarks* nil *EL:StoreReadCache* nil *EL:NetworkMemo* nil *EL:DLCache* nil *EL:DLSessionSnapshot* nil
         *EL:PerfWaitMS* 0 *EL:PerfWaitDepth* 0 *EL:PerfSerial* 0 *EL:PerfOutcome* nil
         *EL:StoreReadScope* (1+ (cond (*EL:StoreReadScope*) (T 0))))
       (setq stamp (vl-catch-all-apply 'getvar (list "CDATE")))

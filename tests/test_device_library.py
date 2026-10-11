@@ -149,6 +149,7 @@ class DeviceLibraryTests(unittest.TestCase):
             'VL-FILE-COPY': lambda a,b: Path(b).write_bytes(Path(a).read_bytes()) or True,
             'VL-FILE-DELETE': lambda p: Path(p).unlink(missing_ok=True) or True,
             'VL-FILENAME-MKTEMP': lambda prefix, folder, ext: str(Path(folder)/(prefix+str(len(list(Path(folder).glob('*'))))+ext)),
+            'VL-FILENAME-DIRECTORY': lambda p:str(Path(p).parent),
             'EL:DLOPERATIONID': lambda: 'op-test',
             'EL:DLLockAcquire'.upper(): lambda p,o: Path(p).write_text(o) or True,
         })

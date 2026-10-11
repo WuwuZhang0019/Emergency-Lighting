@@ -1,7 +1,8 @@
 """Actual circuit-number functions, bounded DWG adapters. Date: 2026-10-11."""
 from pathlib import Path
+import copy
 import unittest
-from autolisp_host import Host, Pair, Symbol, parse, quoted, truth
+from autolisp_host import Host, Pair, Symbol, cons, parse, quoted, truth
 import test_simple_flow as simple
 import test_diagram_update as update
 import test_cckk_panel_command as command_fixture
@@ -9,7 +10,7 @@ import test_cckk_panel_command as command_fixture
 ROOT = Path(__file__).resolve().parents[1]
 
 def pair(key, value):
-    return Pair(Symbol(key.upper()), value)
+    return cons(Symbol(key.upper()), value)
 
 class NumberReadTests(unittest.TestCase):
     def setUp(self):
@@ -305,6 +306,195 @@ class NumberPresentationTests(unittest.TestCase):
         number = next(row for row in f.get('cckk-labels', record) if f.get('kind', row) == Symbol('NUMBER'))
         self.assertEqual(f.get('text', number), 'ALE-ZE9')
         self.assertEqual(f.get('circuit-number', f.get('rows', f.get('plan', record))[0]), 'ALE-ZE9')
+
+class NumberFreshnessTests(unittest.TestCase):
+    call = NumberReadTests.call
+    get = NumberReadTests.get
+
+    def setUp(self):
+        self.f = simple.SimpleFlowTests()
+        self.f.setUp()
+        self.f.plan()
+        self.h = self.f.h
+        self.h.load_definitions(ROOT / 'src/panel.lsp')
+        self.h.builtins['GETVAR'] = lambda key: {'DWGNAME': 'number.dwg', 'DWGPREFIX': 'C:/cad/'}.get(key)
+
+    def stamp(self, handle, number):
+        self.f.entities[handle] = [row for row in self.f.entities[handle]
+                                  if not (isinstance(row, list) and row[0] == -3)]
+        if number is not None:
+            self.f.entities[handle].append([-3, ['linenum', Pair(1000, number)]])
+
+    def extract(self):
+        result = self.call('EL:RecognizeFixed', self.f.cfg, 'panel')
+        return self.call('EL:PreparedResult', result, [pair('diagram-id', 'diagram')])
+
+    def test_missing_to_added_is_detected_without_geometry_change(self):
+        result = self.extract()
+        self.assertTrue(truth(self.call('EL:FreshResult', result, self.f.cfg)))
+        self.stamp('w1', 'ZE9')
+        fresh = self.call('EL:FixedFreshSnapshot', self.f.cfg, 'panel')
+        self.assertEqual(self.get('signature', fresh), self.get('signature', self.get('snapshot', result)))
+        self.assertFalse(truth(self.call('EL:FreshResult', result, self.f.cfg)))
+        self.assertEqual(self.get('circuit-number', self.get('circuits', self.extract())[0]), 'ZE9')
+
+    def test_reprepare_cannot_replace_the_reviewed_baseline(self):
+        self.stamp('w1', 'WL1')
+        result = self.extract()
+        self.stamp('w1', 'WL2')
+        prepared = self.call('EL:PreparedResult', result, [pair('diagram-id', 'diagram')])
+        self.assertEqual(self.get('circuit-number', self.get('circuits', prepared)[0]), 'WL1')
+        self.assertEqual(self.get('number-inputs', prepared), self.get('number-inputs', result))
+        self.assertFalse(truth(self.call('EL:NumberInputsCurrent', prepared)))
+
+    def test_changed_cleared_and_raw_whitespace_changes_are_detected(self):
+        for after in ('WL2', None, ' ZE9 ', ''):
+            with self.subTest(after=after):
+                self.stamp('w1', 'ZE9')
+                result = self.extract()
+                self.stamp('w1', after)
+                self.assertFalse(truth(self.call('EL:NumberInputsCurrent', result)))
+        self.assertEqual(self.get('circuit-number', self.get('circuits', self.extract())[0]), 'ZE1')
+
+    def test_downstream_metadata_is_excluded_and_source_reads_are_bounded(self):
+        self.f.line('w1', [1., 0., 0.], [20., 0., 0.], 'W')
+        self.f.block('LAMP', 'D', 'late', [15., 10., 0.])
+        self.f.line('late-wire', [15., 0., 0.], [15., 9., 0.], 'W')
+        self.f.selected += ['late', 'late-wire']
+        result = self.extract()
+        self.stamp('late-wire', 'ZE99')
+        reads = []
+        original = self.h.builtins['ENTGET']
+        def entget(entity, apps=None):
+            if apps == ['linenum']:
+                reads.append(entity)
+            return original(entity, apps)
+        self.h.builtins['ENTGET'] = entget
+        self.h.frames[0]['*EL:FRESHSCOPEENABLED*'] = True
+        for _ in range(3):
+            self.assertTrue(truth(self.call('EL:FreshResult', result, self.f.cfg)))
+        self.assertEqual(reads, ['w1', 'w2'] * 3)
+        self.assertNotIn('late-wire', reads)
+
+    def test_read_failure_is_not_silent_unmarked_fallback(self):
+        result = self.extract()
+        original = self.h.builtins['ENTGET']
+        def entget(entity, apps=None):
+            if entity == 'w1' and apps == ['linenum']:
+                raise RuntimeError('read failed')
+            return original(entity, apps)
+        self.h.builtins['ENTGET'] = entget
+        self.assertFalse(truth(self.call('EL:NumberInputsCurrent', result)))
+        failed = self.extract()
+        self.assertEqual(self.get('number-status', self.get('circuits', failed)[0]), Symbol('INVALID'))
+        self.assertIsNone(self.get('circuit-number', self.get('circuits', failed)[0]))
+
+    def test_number_change_preserves_manual_gap_pairs_and_geometry_rules(self):
+        self.f.gap_plan()
+        network = self.f.network()
+        pairs = [self.call('EL:Put', Symbol('SOURCE'), Symbol('MANUAL'), p) for p in self.get('gap-pairs', network)]
+        self.f.cfg = self.call('EL:Put', Symbol('GAP-PAIRS'), pairs, self.f.cfg)
+        result = self.extract()
+        before = self.get('signature', self.get('snapshot', result))
+        self.stamp('before', 'ZE7')
+        after = self.extract()
+        self.assertEqual(before, self.get('signature', self.get('snapshot', after)))
+        self.assertEqual(self.get('gap-pairs', self.f.cfg), pairs)
+        self.assertTrue(truth(self.call('EL:FreshResult', after, self.f.cfg)))
+
+
+class NumberPersistenceTests(unittest.TestCase):
+    call = NumberReadTests.call
+    get = NumberReadTests.get
+
+    def setUp(self):
+        self.f = update.UpdateTests()
+        self.f.setUp()
+        self.f.install_sync()
+        self.h = self.f.h
+        self.stamp('H1', 'WL7')
+        self.stamp('H2', 'ZE3')
+        rows = []
+        for c, handle in zip(self.get('circuits', self.h.lookup('RESULT')), ('H1', 'H2')):
+            c = self.call('EL:Put', Symbol('GROUND-SOURCE'), Symbol('MANUAL'), c)
+            rows.append(self.call('EL:Put', Symbol('NUMBER-SCOPE'),
+                                 [pair('status', Symbol('READY')), pair('sources', [handle])], c))
+        self.raw = self.call('EL:Put', Symbol('ENGINE'), Symbol('FIXED'),
+                             self.call('EL:Put', Symbol('CIRCUITS'), rows, self.h.lookup('RESULT')))
+        self.refresh()
+
+    def stamp(self, handle, text):
+        self.f.entities[handle] = [Pair(0, 'LINE'), Pair(5, handle), Pair(410, 'Model'),
+                                  [-3, ['linenum', Pair(1000, text)]]]
+
+    def refresh(self):
+        self.result = self.call('EL:PreparedResult', self.raw, self.h.lookup('RECORD'))
+        self.h.frames[0]['RESULT'] = self.result
+
+    def sync(self):
+        return self.h.run("(EL:SyncDiagram result cfg nil 'cap300 nil T)")
+
+    def saved(self):
+        return self.h.run('(EL:DiagramForPanel "source" (EL:StoreRead))')
+
+    def test_formal_fields_exact_readback_noop_and_plane_is_readonly(self):
+        plane = copy.deepcopy({h: self.f.entities[h] for h in ('H1', 'H2')})
+        self.assertTrue(truth(self.sync()))
+        record = self.saved()
+        actual = self.get('rows', record)[:2]
+        self.assertEqual([self.get('circuit-number', c) for c in actual], ['WL7', 'ZE3'])
+        self.assertEqual([self.get('number-source', c) for c in actual], [Symbol('PLANE')] * 2)
+        self.assertEqual(self.get('number-inputs', record), self.get('number-inputs', self.result))
+        before = copy.deepcopy(self.f.entities)
+        self.assertTrue(truth(self.sync()))
+        self.assertEqual(before, self.f.entities)
+        self.assertEqual(plane, {h: self.f.entities[h] for h in ('H1', 'H2')})
+
+    def test_renumber_preserves_uid_output_handles_and_manual_caption_position(self):
+        self.assertTrue(truth(self.sync()))
+        old = self.saved()
+        self.call('EL:MoveManaged', 'caption-number/u1', [77., 88., 0.])
+        point = self.call('EL:TextPoint', 'caption-number/u1')
+        self.stamp('H1', 'ALE-ZE8')
+        self.refresh()
+        self.assertTrue(truth(self.sync()))
+        new = self.saved()
+        self.assertEqual([self.get('circuit-uid', c) for c in self.get('rows', old)],
+                         [self.get('circuit-uid', c) for c in self.get('rows', new)])
+        self.assertEqual([self.get('block-handle', c) for c in self.get('rows', old)],
+                         [self.get('block-handle', c) for c in self.get('rows', new)])
+        self.assertEqual(point, self.call('EL:TextPoint', 'caption-number/u1'))
+        self.assertEqual(self.get('circuit-number', self.get('rows', new)[0]), 'ALE-ZE8')
+
+    def test_conflicting_draft_is_saved_separately_from_last_formal_inputs(self):
+        self.assertTrue(truth(self.sync()))
+        old = self.saved()
+        old_labels = copy.deepcopy({k: v for k, v in self.f.entities.items() if k.startswith('caption-')})
+        self.stamp('H2', 'WL7')
+        self.refresh()
+        self.h.builtins['EL:TEMPLATEREADY'] = lambda *args: None
+        self.assertTrue(truth(self.h.run("(EL:SaveDraft result cfg nil 'cap300)")))
+        saved = self.saved()
+        self.assertEqual(self.get('status', saved), Symbol('STALE'))
+        self.assertEqual(self.get('number-inputs', saved), self.get('number-inputs', old))
+        self.assertEqual(self.get('draft-number-inputs', saved), self.get('number-inputs', self.result))
+        self.assertEqual(self.get('number-status', self.get('draft-circuits', saved)[0]), Symbol('CONFLICT'))
+        self.assertEqual(old_labels, {k: v for k, v in self.f.entities.items() if k.startswith('caption-')})
+
+    def test_corrupt_number_store_readback_rolls_back_graphics_and_records(self):
+        self.assertTrue(truth(self.sync()))
+        self.stamp('H1', 'ZE8')
+        self.refresh()
+        original = self.h.builtins['VLA-SETXRECORDDATA']
+        before = copy.deepcopy((self.f.entities, self.f.dictionary, self.f.dynamic))
+        target = self.f.dictionary['EL_FIXED_V1']
+        def corrupt(entity, codes, values):
+            original(entity, codes, values)
+            if entity == target:
+                self.f.entities[entity][-1] = Pair(2, 'BROKEN')
+        self.h.builtins['VLA-SETXRECORDDATA'] = corrupt
+        self.assertFalse(truth(self.sync()))
+        self.assertEqual(before, (self.f.entities, self.f.dictionary, self.f.dynamic))
 
 if __name__ == '__main__':
     unittest.main()

@@ -31,6 +31,7 @@
     record (EL:Put 'draft-circuits (EL:Get 'circuits result) (EL:Put 'draft-capacity capacity
       (EL:Put 'powers powers (EL:Put 'config cfg (EL:Put 'engine (EL:Get 'engine result) record))))))
   (setq record (EL:Put 'panel-number (EL:PanelNumber result) record))
+  (setq record (EL:RecordNumberInputs record result T))
   ;; Date: 2026-10-10. Persist block-table ground choices with the draft.
   (if (assoc 'excluded-devices result)
     (setq record (EL:Put 'excluded-devices (EL:Get 'excluded-devices result) record)))
@@ -40,8 +41,8 @@
     (EL:Put 'excluded-seeds (EL:Get 'excluded-seeds result)
       (EL:Put 'draft-capacity-source (EL:Get 'capacity-source result) record))))
   (if (not (EL:Get 'panel-output-handle record))
-    (setq record (EL:Put 'rows (EL:Get 'circuits result)
-      (EL:Put 'capacity-source (EL:Get 'capacity-source result) (EL:Put 'capacity-option capacity record)))))
+    (setq record (EL:RecordNumberInputs (EL:Put 'rows (EL:Get 'circuits result)
+      (EL:Put 'capacity-source (EL:Get 'capacity-source result) (EL:Put 'capacity-option capacity record))) result nil)))
   (if (or (not (EL:Get 'can-generate result)) (not (EL:CircuitNumbersReady result)) (not (EL:SelectionsReady result capacity)))
     (setq record (EL:Put 'status 'stale record)))
   (if (EL:TemplateReady (EL:Get 'template cfg) cfg)

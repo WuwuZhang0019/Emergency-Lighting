@@ -616,6 +616,7 @@
       (cons 'block-handle (EL:Get 'block-handle h)) (cons 'text-handle (EL:Get 'text-handle h))
       (cons 'position (EL:Get 'position row)) (cons 'text-position (EL:Get 'text-position row))
       (cons 'mode (EL:Get 'mode row)) (cons 'value (EL:Get 'value row)) (cons 'watts (EL:Get 'watts row)))
+      (EL:NumberFormalFields c row)
       (mapcar '(lambda (key) (cons key (EL:Get key c)))
         '(seed-key id output-order is-ground ground-source ground-rule ground-evidence))) out))) (reverse out))
 (defun EL:TransactionRollback (/ doc)

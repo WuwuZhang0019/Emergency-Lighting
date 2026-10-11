@@ -71,6 +71,48 @@ class SavedRecordsTests(unittest.TestCase):
         self.assertEqual(len(labels), 4)
         self.assertEqual(self.saved, [])
 
+    def test_single_click_in_initial_list_opens_target(self):
+        self.initial_store()
+        callbacks, opened = {}, []
+        self.h.builtins['ACTION_TILE'] = lambda key, code: callbacks.__setitem__(key, code)
+        self.h.builtins['EL:EDITPANEL'] = lambda result, cfg: opened.append((result, cfg))
+        self.h.builtins['EL:PANELSTORE'] = lambda: self.fail('empty draft must not be stored')
+        self.actions = [lambda: self.h.run(callbacks['h_records'].replace('$value', '"0"'))]
+        self.h.run('(c:ELSTAT)')
+        self.assertEqual(len(opened), 1)
+        self.assertEqual(self.get('name', opened[0][1]), 'other')
+        self.assertEqual(self.saved, [])
+
+    def test_single_click_from_panel_keeps_edited_power_before_switch(self):
+        self.initial_store()
+        callbacks = {}
+        self.h.builtins['ACTION_TILE'] = lambda key, code: callbacks.__setitem__(key, code)
+        def click():
+            self.tiles['b_watts0'] = '7'
+            self.h.run(callbacks['h_records'].replace('$value', '"0"'))
+        self.actions = [click]
+        edited = self.dialog()
+        self.assertTrue(self.get('switch-result', edited))
+        self.assertEqual(len(self.saved), 1)
+        self.assertEqual(self.call('EL:Get', 'LAMP', self.saved[0][2]), 7)
+
+    def test_click_does_not_leave_panel_for_invalid_power_or_missing_target(self):
+        self.h.builtins['EL:PANELSTORE'] = lambda: None
+        self.call('EL:HistoryClick', '0')
+        self.assertIsNone(self.closed)
+        self.h.builtins['HANDENT'] = lambda value: None
+        self.h.builtins['EL:PANELSTORE'] = lambda: self.fail('missing target must not store')
+        self.call('EL:HistoryClick', '0')
+        self.assertIsNone(self.closed)
+        self.assertEqual(self.saved, [])
+
+    def test_click_current_record_does_not_reload_or_save(self):
+        self.h.set(Symbol('*EL:PANELDRAFT*'), self.call('EL:Put', Symbol('PANEL'), 'other', self.result))
+        self.h.builtins['EL:PANELSTORE'] = lambda: self.fail('current record must stay open')
+        self.call('EL:HistoryClick', '0')
+        self.assertIsNone(self.closed)
+        self.assertEqual(self.saved, [])
+
     def test_switch_saves_current_as_stale_and_returns_target(self):
         edited = self.call('EL:HistoryOpen')
         self.assertEqual(self.get('switch-result', edited), self.result)

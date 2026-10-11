@@ -143,7 +143,8 @@ el_panel : dialog {
   : boxed_column { label = "保存记录（本图）";
     : list_box { key = "h_records"; width = 40; fixed_width = true; height = 38; multiple_select = false; }
     : text { key = "h_detail"; width = 40; fixed_width = true; }
-    : text { label = "单击记录查看；当前箱标有 [当前]。"; }
+    // Date: 2026-10-11. A single click opens the selected record.
+    : text { label = "单击记录打开回路；[当前] 为已打开箱。"; }
     : text { label = "切换会保存当前草稿，不更新系统图。"; }
     : text { label = "关闭图纸前请保存 DWG。"; }
     : button { key = "h_open"; label = "保存当前并打开"; }

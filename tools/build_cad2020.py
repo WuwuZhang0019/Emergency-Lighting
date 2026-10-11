@@ -4,7 +4,7 @@ import shutil
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGE_NO = 82
+PACKAGE_NO = 83
 NAME = f'应急照明-{PACKAGE_NO:03d}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 DEST = ROOT / 'output' / NAME
@@ -129,6 +129,7 @@ def build():
     shutil.copy2(ROOT / 'docs/2026-10-11-宽导线接触与预览避色-080.md', DEST / 'docs/2026-10-11-宽导线接触与预览避色-080.md')
     shutil.copy2(ROOT / 'docs/2026-10-11-首次打开保存记录-081.md', DEST / 'docs/2026-10-11-首次打开保存记录-081.md')
     shutil.copy2(ROOT / 'docs/2026-10-11-面板中文换行乱码-082.md', DEST / 'docs/2026-10-11-面板中文换行乱码-082.md')
+    shutil.copy2(ROOT / 'docs/2026-10-11-单击保存记录打开回路-083.md', DEST / 'docs/2026-10-11-单击保存记录打开回路-083.md')
     readme = guide
     (DEST / '使用说明.md').write_text(readme, encoding='utf-8')
     for filename in ('cad-plan.dxf', 'cad-plan.expected.json'):

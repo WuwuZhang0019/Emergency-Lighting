@@ -32,6 +32,9 @@
         (progn
           (setq outcome (vl-catch-all-apply function (cons (vlax-vla-object->ename object) args))
             cleanup (vl-catch-all-apply 'vla-Delete (list object)))
+          ;; Date: 2026-10-11. Do not retain samples created by the probe or
+          ;; its cleanup reactors while the temporary block still existed.
+          (EL:FreshBoundary)
           (EL:Require (not (vl-catch-all-error-p cleanup)) "临时图块清理失败，请撤销本次模板检查后重试。")
           (if (vl-catch-all-error-p outcome)
             (progn (princ "\n图块检查未完成，临时对象已清理。") nil)

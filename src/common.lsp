@@ -153,7 +153,7 @@
   ;; invalidate the current operation's sampled source; never cache a command.
   (setq *EL:FreshEpoch* (1+ (cond (*EL:FreshEpoch*) (T 0)))) nil)
 (defun EL:PerfCall (stage function arguments / token result)
-  (if (member stage '("USER_INPUT" "PLACEMENT_INPUT")) (EL:FreshBoundary))
+  (if (member stage '("USER_INPUT" "PLACEMENT_INPUT" "PANEL_DIALOG")) (EL:FreshBoundary))
   (if (and *EL:PerfActive* (or (member stage
       '("USER_INPUT" "PLACEMENT_INPUT" "PANEL_DIALOG" "RECOGNIZE_FIXED_RUN"
         "SIMPLE_COLLECT" "SIMPLE_NETWORK" "SPLIT_NETWORK" "PRE_GENERATE_FRESH" "FRESH_SOURCE_SCAN"
@@ -165,6 +165,9 @@
     (setq token (EL:PerfBegin stage)))
   ;; Keep native return values and exceptions. Caught transactions unwind their frames.
   (setq result (apply function arguments))
+  ;; A callback may sample the source and then change it during this input.
+  ;; That sample cannot survive the return to the enclosing operation.
+  (if (member stage '("USER_INPUT" "PLACEMENT_INPUT" "PANEL_DIALOG")) (EL:FreshBoundary))
   (EL:PerfEnd token 'returned)
   (if (and result (equal stage "PLACEMENT_INPUT")) (EL:PerfMark "placement-confirmed")) result)
 (defun EL:PerfInput (function arguments)
@@ -175,6 +178,7 @@
   (EL:PerfCount "entity-write-attempts" 1)
   (if *EL:PerfDetail* (EL:PerfCount (strcat "write/" (vl-symbol-name function)) 1))
   (setq result (apply function arguments))
+  (EL:FreshBoundary)
   (EL:PerfCount "entity-write-returned" 1) result)
 (defun EL:PerfMark (key)
   (if *EL:PerfActive*

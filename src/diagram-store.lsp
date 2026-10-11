@@ -740,6 +740,15 @@
     (EL:CreateBlock space (EL:Get 'panel-name plan) (EL:Get 'position plan)
       (EL:Get 'scale plan) (EL:Get 'rotation plan) (EL:Get 'property (EL:Get 'panel template)) (EL:Get 'panel-value plan) layer)))
   (setq record (EL:Put 'panel-output-handle (EL:TagEntity object store record "panel" "panel") record))
+  (if *EL:CCKK2Panel*
+    (progn
+      ;; Date: 2026-10-11. The native mouse placement can run extension
+      ;; callbacks. Tag the panel first so it is excluded from source scans.
+      (EL:FreshBoundary)
+      (EL:Require (EL:TemplateRuntimeValid template (EL:Get 'config record))
+        "TEMPLATE_CHANGED：放置期间模板变化，已停止生成。")
+      (EL:Require (EL:FreshResult result (EL:Get 'config record))
+        "SOURCE_CHANGED：放置期间源图变化，已停止生成。")))
   (foreach row (EL:Get 'rows plan)
     (EL:LogEvent "CCKK_ROW_BEGIN" (list (cons 'uid (EL:Get 'circuit-uid row))
       (cons 'mode (EL:Get 'mode row)) (cons 'watts (EL:Get 'watts row)) (cons 'position (EL:Get 'position row))))

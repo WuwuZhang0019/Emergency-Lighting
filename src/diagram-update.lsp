@@ -441,12 +441,16 @@
 (defun EL:ShowDiagramBody (record store / bounds)
   (if (and (= (getvar "TILEMODE") 1) (> (getvar "CVPORT") 1))
     (progn
+      (EL:FreshBoundary)
       (vla-Regen (vla-get-ActiveDocument (vlax-get-acad-object)) 1)
+      (EL:FreshBoundary)
       (if (setq bounds (EL:DiagramViewBounds record store))
         (progn
           (EL:LogEvent "DIAGRAM_VIEW_BOUNDS" (list (cons 'panel (EL:Get 'panel-output-handle record))
             (cons 'rows (length (EL:Get 'rows record))) (cons 'bounds bounds)))
-          (EL:SimpleZoom (car bounds) (cadr bounds)) T)))))
+          (EL:FreshBoundary)
+          (EL:SimpleZoom (car bounds) (cadr bounds))
+          (EL:FreshBoundary) T)))))
 (defun EL:ShowDiagram (record store / shown checkpoint)
   (setq checkpoint *EL:PerfPending*)
   (setq shown (vl-catch-all-apply 'EL:PerfCall (list "DIAGRAM_VIEW" 'EL:ShowDiagramBody (list record store))))

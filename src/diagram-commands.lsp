@@ -30,6 +30,7 @@
     record (cond ((EL:DiagramForPanel (EL:Get 'panel result) store)) (T (EL:NewRecord (EL:Get 'panel result) store)))
     record (EL:Put 'draft-circuits (EL:Get 'circuits result) (EL:Put 'draft-capacity capacity
       (EL:Put 'powers powers (EL:Put 'config cfg (EL:Put 'engine (EL:Get 'engine result) record))))))
+  (setq record (EL:Put 'panel-number (EL:PanelNumber result) record))
   ;; Date: 2026-10-10. Persist block-table ground choices with the draft.
   (if (assoc 'excluded-devices result)
     (setq record (EL:Put 'excluded-devices (EL:Get 'excluded-devices result) record)))

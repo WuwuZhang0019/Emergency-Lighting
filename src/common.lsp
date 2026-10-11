@@ -178,3 +178,9 @@
     (progn (setq data (entget entity '("EL_FIXED_V1")))
       (cdr (assoc "EL_FIXED_V1" (cdr (assoc -3 data)))))))
 (defun EL:ManagedEntity (entity) (if (EL:DiagramTag entity) T nil))
+
+;; Date: 2026-10-11. Display numbers never replace persistent panel identity.
+(defun EL:PanelNumber (data / value)
+  (setq value (EL:Get 'panel-number data))
+  (if (and (equal (type value) 'STR) (/= (vl-string-trim " \t\r\n" value) ""))
+    value "暂无编号"))

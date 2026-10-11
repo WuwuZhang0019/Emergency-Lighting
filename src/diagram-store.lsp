@@ -485,7 +485,7 @@
 ;; Date: 2026-10-09. CCKK captions share the managed diagram transaction.
 (defun EL:CCKKLabelPlan (kind uid parent origin plan / spec)
   (setq spec (EL:CCKKCaptionDef kind))
-  (list (cons 'uid uid) (cons 'kind kind) (cons 'parent-uid parent) (cons 'text (car spec))
+  (list (cons 'uid uid) (cons 'kind kind) (cons 'parent-uid parent) (cons 'text (if (equal kind 'panel) (EL:PanelNumber plan) (car spec)))
     (cons 'text-position (EL:LocalPoint (list (cadr spec) (caddr spec) 0.0) origin
       (EL:Get 'rotation plan) (EL:Get 'scale plan)))))
 (defun EL:CCKKLabels (plan / labels row index label)
@@ -555,7 +555,8 @@
     (setq old (EL:By 'uid (EL:Get 'uid label) (EL:Get 'cckk-labels record))
       e (if old (EL:CCKKLabelEntity old record store)) keptpoint nil)
     (if (and e (or (not (equal (EL:Get 'cckk-text-version old) 1))
-        (not (EL:CCKKLabelMatches e label plan))))
+        (not (EL:CCKKLabelMatches e (if (equal (EL:Get 'kind label) 'panel)
+          (EL:Put 'text (cdr (assoc 1 (entget e))) label) label) plan))))
       (progn
         (if (not structural) (setq keptpoint (EL:TextPoint e)))
         (EL:Require (entdel e) "旧版箱号或用途文字替换失败。") (setq e nil)))

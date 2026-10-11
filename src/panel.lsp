@@ -623,7 +623,7 @@
 (defun EL:HistorySelect (value / record panel)
   (setq *EL:HistoryIndex* (atoi value) record (nth *EL:HistoryIndex* *EL:HistoryRecords*)
     panel (EL:Get 'source-panel-handle record))
-  (set_tile "h_detail" (if record (strcat "箱体标识：" panel " / " (EL:HistoryState record)) "本图暂无保存记录"))
+  (set_tile "h_detail" (if record (strcat "编号：" (EL:PanelNumber record) " / " (EL:HistoryState record)) "本图暂无保存记录"))
   (mode_tile "h_open" (if (and record (equal (EL:Get 'engine record) 'fixed)
     (handent panel) (not (equal panel (EL:Get 'panel *EL:PanelDraft*)))) 0 1)))
 (defun EL:HistoryClick (value / record panel)
@@ -640,7 +640,7 @@
     (setq panel (EL:Get 'source-panel-handle record))
     (if (equal panel (EL:Get 'panel *EL:PanelDraft*)) (setq selected index))
     (add_list (strcat (if (equal panel (EL:Get 'panel *EL:PanelDraft*)) "[当前] " "")
-      "配电箱 " panel " | "
+      "配电箱 " (EL:PanelNumber record) " | "
       (itoa (length (cond ((EL:Get 'draft-circuits record)) (T (EL:ActualRows record)))))
       " 回路 | " (EL:HistoryState record)))
     (setq index (1+ index)))
@@ -690,6 +690,8 @@
         (EL:LogCall "PANEL_FILL" (list (cons 'panel (EL:Get 'panel result))
           (cons 'circuits (length (EL:Get 'circuits *EL:PanelDraft*)))) 'EL:PanelFill nil) (setq i 0)
         (EL:HistoryFill)
+        (set_tile "p_number" (strcat "配电箱编号：" (EL:PanelNumber *EL:PanelDraft*)))
+        (action_tile "p_pick_number" "(if (EL:PanelStore) (done_dialog 11))")
         (EL:TrunkButtonDraw)
         (action_tile "p_pick" "(if (EL:PanelStore) (done_dialog 9))")
         (action_tile "p_trunk" "(if (EL:PanelStore) (done_dialog 10))")
@@ -714,6 +716,7 @@
         (action_tile "cancel" "(done_dialog 0)")
         (setq *EL:PanelAction* nil status (start_dialog))
         (EL:LogEvent "PANEL_DIALOG_RETURN" (list (cons 'status status) (cons 'action *EL:PanelAction*)))
+        (if (= status 11) (progn (EL:PanelPickNumber) (setq status 7)))
         (if (= status 8)
           (progn
             (setq switched (vl-catch-all-apply 'EL:HistoryOpen nil))
@@ -754,7 +757,7 @@
     (progn
       (EL:PanelText "p_error" "请拾取配电箱或配电箱的集中引出线，开始统计。")
       (EL:TrunkButtonDraw)
-      (foreach key '("p_capacity" "f_preview" "f_prev" "f_next" "b_restore" "accept" "p_generate" "h_open")
+      (foreach key '("p_pick_number" "p_capacity" "f_preview" "f_prev" "f_next" "b_restore" "accept" "p_generate" "h_open")
         (mode_tile key 1))
       (setq i 0)
       (repeat 8
@@ -839,3 +842,21 @@
       (max 1 (- (fix (* (+ (car run) (caddr run)) scale)) (fix (* (car run) scale))))
       (max 1 (- (fix (* (1+ (cadr run)) scale)) (fix (* (cadr run) scale)))) 0)))
   (end_image))
+
+;; Date: 2026-10-11. Pick text or a nested attribute after closing the dialog.
+(defun EL:PanelPickNumber (/ picked data value outcome item)
+  (setq outcome (vl-catch-all-apply 'nentsel (list "\n拾取配电箱编号文字或属性（Enter 保留当前编号）：")))
+  (if (and (not (vl-catch-all-error-p outcome)) outcome)
+    (progn
+      (setq picked (car outcome) data (entget picked))
+      (if (member (cdr (assoc 0 data)) '("TEXT" "MTEXT" "ATTRIB" "ATTDEF"))
+        (progn
+          (setq value "")
+          (foreach item data (if (= (car item) 3) (setq value (strcat value (cdr item)))))
+          (setq value (vl-string-trim " \t\r\n" (strcat value (cdr (assoc 1 data)))))
+          ;; Reject rich formatting instead of putting raw MTEXT codes in a TEXT caption.
+          (if (or (vl-string-search "\\" value) (vl-string-search "{" value) (vl-string-search "}" value))
+            (alert "此多行文字包含格式控制，请选择普通编号文字或属性。")
+            (setq *EL:PanelDraft* (EL:Put 'panel-number
+              (if (= value "") "暂无编号" value) *EL:PanelDraft*))))
+        (alert "请选择编号文字或属性，当前编号已保留。")))))

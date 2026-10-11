@@ -153,7 +153,7 @@
               row (EL:Put 'text (if c (strcat (itoa (EL:Get 'watts c)) "W")) row)
               row (EL:Put 'circuit-uid (if c (EL:Get 'circuit-uid c) (EL:Get 'label row)) row)
               rows (cons row rows) i (1+ i)))
-      (if plan (EL:Put 'cckk-layout T (EL:Put 'rows (reverse rows) plan))))))
+      (if plan (EL:Put 'panel-number (EL:PanelNumber result) (EL:Put 'cckk-layout T (EL:Put 'rows (reverse rows) plan)))))))
 (defun EL:CaptureFixedTemplate (cfg / annotation panel circuit template)
   (if (not (tblsearch "STYLE" "ICDA-STYLE1"))
     (princ "\n缺少箱号文字样式 ICDA-STYLE1，请将使用该样式的文字复制到本图。"))

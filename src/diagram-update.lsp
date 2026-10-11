@@ -157,6 +157,9 @@
     (EL:Get 'snapshot (EL:RecognizeFixed cfg (EL:Get 'panel result))) (EL:CollectEndpointSnapshot cfg)))
   (EL:LogCall "COMPARE_SOURCE" nil 'EL:SourceCurrent (list result cfg fresh)))
 (defun EL:PreparedResult (result record / matched rows c edited key)
+  ;; Date: 2026-10-11. Restore the saved number without overwriting a new pick.
+  (if (not (assoc 'panel-number result))
+    (setq result (EL:Put 'panel-number (EL:PanelNumber record) result)))
   ;; Date: 2026-10-10. Restore explicit per-block ground choices.
   (if (and (not (assoc 'block-ground result)) (assoc 'block-ground record))
     (setq result (EL:Put 'block-ground (EL:Get 'block-ground record) result)))
@@ -356,6 +359,7 @@
         (EL:Put 'excluded-seeds (EL:Get 'excluded-seeds result)
           (EL:Put 'capacity-source (EL:Get 'capacity-source result)
             (EL:Put 'draft-capacity-source nil record)))))
+      (setq record (EL:Put 'panel-number (EL:PanelNumber result) record))
       (setq store (EL:Put 'fixed-template template store))
       (setq outcome
         (cond (rebuild (EL:Transaction 'EL:RebuildDiagram (list result template capacity plan record store rebuild)))

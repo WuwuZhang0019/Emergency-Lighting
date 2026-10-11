@@ -283,7 +283,9 @@ class PanelCommandTests(unittest.TestCase):
         self.assertEqual(self.zoomed,[])
 
     def two_circuits(self):
-        self.h.run("""(setq result (EL:Put 'circuits
+        # Date: 2026-10-11. Numbered-output cases must supply the picked number.
+        self.h.run("""(setq result (EL:Put 'panel-number "CK-B1AL1" result))
+          (setq result (EL:Put 'circuits
           (mapcar '(lambda (c) (EL:Put 'ground-source 'manual c))
             (list (EL:Put 'watts 85 (car cs)) (EL:Put 'watts 20 (cadr cs)))) result))""")
 
@@ -443,6 +445,7 @@ class PanelCommandTests(unittest.TestCase):
 
     def test_panel_calls_real_command_places_native_box_and_85w_circuits(self):
         # The actual c:CCKK2 function runs; native COMMAND calls are recorded.
+        self.h.run('(setq result (EL:Put \'panel-number "CK-B1AL1" result))')
         self.assertTrue(truth(self.invoke()))
         self.assertEqual(len(self.commands),4)
         self.assertEqual(self.commands[0][-1],'pause')
@@ -477,6 +480,7 @@ class PanelCommandTests(unittest.TestCase):
         self.assertEqual(len(self.commands),4)  # existing diagram is updated, never duplicated
 
     def test_missing_v53_captions_repaired_without_reinserting_blocks(self):
+        self.h.run('(setq result (EL:Put \'panel-number "CK-B1AL1" result))')
         self.assertTrue(truth(self.invoke()))
         record=self.h.run('(EL:DiagramForPanel "source" (EL:StoreRead))')
         for label in self.get('cckk-labels',record):

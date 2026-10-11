@@ -163,7 +163,8 @@ class UpdateTests(unittest.TestCase):
     def test_remove_retains_reserve_identity_and_cleans_owned_row(self):
         self.h.run("(setq result (EL:Put 'circuits (cdr cs) result)) (setq plan (EL:FixedPlan result template 'cap600 '(0.0 0.0 0.0) 0.0 1.0))")
         updated=self.update(True)
-        self.assertEqual(set(self.deleted),{'b0','t0','caption-label/u1','caption-number/u1','caption-number/u2','caption-number/reserve-1','caption-number/reserve-2'});self.assertEqual(self.counter,3)
+        # Date: 2026-10-11. Retained native captions are renumbered in place.
+        self.assertEqual(set(self.deleted),{'b0','t0','caption-label/u1','caption-number/u1'});self.assertEqual(self.counter,0)
         self.assertEqual([self.get('block-handle',r) for r in self.get('rows',updated)],['b1','b2','b3'])
         self.assertEqual(self.dynamic['panel'],'CAP600')
 
@@ -218,7 +219,7 @@ class UpdateTests(unittest.TestCase):
         self.h.run("(setq result (EL:Put 'circuits (append cs '(((id . \"R3\") (circuit-uid . \"u3\") (watts . 12) (output-order . 3)))) result)) (setq plan (EL:FixedPlan result template 'cap300 '(0.0 0.0 0.0) 0.0 1.0))")
         updated=self.update(True)
         rows=self.get('rows',updated)
-        self.assertEqual(len(rows),5); self.assertEqual(self.counter,6)
+        self.assertEqual(len(rows),5); self.assertEqual(self.counter,4)
         self.assertEqual([self.get('block-handle',r) for r in rows[-2:]],['b2','b3'])
         self.assertTrue(all(self.get('text-handle',r) is None for r in rows[-2:]))
 

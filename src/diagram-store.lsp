@@ -589,9 +589,11 @@
   (foreach label labels
     (setq old (EL:By 'uid (EL:Get 'uid label) (EL:Get 'cckk-labels record))
       e (if old (EL:CCKKLabelEntity old record store)) keptpoint nil)
+    ;; Date: 2026-10-11. Caption text changes retain valid native formatting.
+    ;; Renumbering a retained UID must write text, not delete and rebuild TEXT.
     (if (and e (or (not (equal (EL:Get 'cckk-text-version old) 1))
-        (not (EL:CCKKLabelMatches e (if (equal (EL:Get 'kind label) 'panel)
-          (EL:Put 'text (cdr (assoc 1 (entget e))) label) label) plan))))
+        (not (EL:CCKKLabelMatches e
+          (EL:Put 'text (cdr (assoc 1 (entget e))) label) plan))))
       (progn
         (if (not structural) (setq keptpoint (EL:TextPoint e)))
         (EL:Require (EL:PerfWrite 'entdel (list e)) "旧版箱号或用途文字替换失败。") (setq e nil)))

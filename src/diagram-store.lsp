@@ -20,7 +20,18 @@
   (while (and (<= *EL:StoreParseIndex* *EL:StoreParseLength*)
       (member (substr *EL:StoreParseText* *EL:StoreParseIndex* 1) '(" " "\t" "\r" "\n")))
     (setq *EL:StoreParseIndex* (1+ *EL:StoreParseIndex*))))
-(defun EL:StoreParseString (/ value start end quote-index slash-index width done)
+(defun EL:StoreJoinStrings (parts / joined)
+  ;; Date: 2026-10-11. Merge adjacent pairs, copying each character at most
+  ;; once per level instead of copying a growing signature for every token.
+  ;; Keep native string contents and field boundaries unchanged.
+  (while (cdr parts)
+    (setq joined nil)
+    (while parts
+      (setq joined (cons (if (cdr parts) (strcat (car parts) (cadr parts)) (car parts)) joined)
+        parts (cddr parts)))
+    (setq parts (reverse joined)))
+  (if parts (car parts) ""))
+(defun EL:StoreParseString (/ value parts start end quote-index slash-index width done)
   ;; Date: 2026-10-09. READ sees only bounded fragments, including long
   ;; signatures. Keep escapes whole; native READ decodes quotes and controls.
   (setq value "" *EL:StoreParseIndex* (1+ *EL:StoreParseIndex*))
@@ -45,8 +56,8 @@
         (setq end (+ slash-index width))
         (EL:StoreParseRequire (<= end (1+ *EL:StoreParseLength*)))))
     (if (> end start)
-      (setq value (strcat value (read (strcat "\"" (substr *EL:StoreParseText* start (- end start)) "\"")))))
-    (setq *EL:StoreParseIndex* (if done (1+ end) end))) value)
+      (setq parts (cons (read (strcat "\"" (substr *EL:StoreParseText* start (- end start)) "\"")) parts)))
+    (setq *EL:StoreParseIndex* (if done (1+ end) end))) (EL:StoreJoinStrings (reverse parts)))
 (defun EL:StoreParseValue (/ ch rows value done tail item start token)
   (EL:StoreParseSpace)
   (EL:StoreParseRequire (<= *EL:StoreParseIndex* *EL:StoreParseLength*))
@@ -152,8 +163,9 @@
       (while (and *EL:StoreTokensLeft* (= (caar *EL:StoreTokensLeft*) 1))
         (setq token (cdr (EL:StoreTake)))
         (EL:StoreParseRequire (and (equal (type token) 'STR) (<= (strlen token) 240)))
-        (setq value (strcat value token) count (1+ count)))
-      (EL:StoreParseRequire (and (> count 0) (equal (EL:StoreTake) '(2 . "E")))) value)
+        (setq rows (cons token rows) count (1+ count)))
+      (EL:StoreParseRequire (and (> count 0) (equal (EL:StoreTake) '(2 . "E"))))
+      (EL:StoreJoinStrings (reverse rows)))
     ((equal pair '(2 . "L"))
       (while (and *EL:StoreTokensLeft* (not (member (car *EL:StoreTokensLeft*) '((2 . "E") (2 . "D")))))
         (setq rows (cons (EL:StoreDecodeValue) rows)))
@@ -175,19 +187,19 @@
 (defun EL:StoreSchemaValid (value)
   (and (listp value) (equal (EL:Get 'schema-version value) 1)
     (equal (type (EL:Get 'drawing-uuid value)) 'STR) (listp (EL:Get 'diagrams value))))
-(defun EL:StoreRead (/ entry textdata pair value valid perf *EL:StorePhase*)
-  (setq perf (EL:PerfBegin "STORE_READ"))
-  (EL:PerfCount "store-read-calls" 1)
+(defun EL:StoreReadEntry (entry / textdata parts pair value valid *EL:StorePhase*)
+  ;; Date: 2026-10-11. One validation path for fresh reads and actual DWG
+  ;; readback. Never pass the proposed in-memory store as an entry.
   (setq *EL:StorePhase* 'dwg-read)
-  (if (setq entry (dictsearch (namedobjdict) "EL_FIXED_V1"))
+  (if entry
     (progn
       (if (assoc 300 entry)
         (setq value (vl-catch-all-apply 'EL:PerfCall
           (list "STORE_DECODE" 'EL:StoreDecode (list (EL:StorePayload entry)))))
         (progn
           ;; Legacy V1 is read without rewriting; migrate only in a validated transaction.
-          (setq textdata "")
-          (foreach pair entry (if (= (car pair) 1) (setq textdata (strcat textdata (cdr pair)))))
+          (foreach pair entry (if (= (car pair) 1) (setq parts (cons (cdr pair) parts))))
+          (setq textdata (EL:StoreJoinStrings (reverse parts)))
           (setq value (vl-catch-all-apply 'EL:PerfCall (list "STORE_DECODE" 'EL:StoreParse (list textdata))))))
       (EL:PerfSet "store-entry-fields" (length entry))
       (if (vl-catch-all-error-p value)
@@ -203,7 +215,11 @@
             (cons 'value-type (type value))
             (cons 'message (if (vl-catch-all-error-p valid) (vl-catch-all-error-message valid) "invalid V1 required fields"))))
           (princ "\nDWG 草稿字段校验失败，详情已记录到诊断日志。") (exit)))
-      value))
+      value)))
+(defun EL:StoreRead (/ value perf)
+  (setq perf (EL:PerfBegin "STORE_READ"))
+  (EL:PerfCount "store-read-calls" 1)
+  (setq value (EL:StoreReadEntry (dictsearch (namedobjdict) "EL_FIXED_V1")))
   (EL:PerfEnd perf 'returned) value)
 (defun EL:StoreInitial (/ uuid)
   ;; Date: 2026-10-09. Document-local fallback survives draft reopen and is
@@ -275,11 +291,18 @@
       (cons 'actual (EL:StoreTokenSummary (car right)))
       (cons 'expected-next (EL:StoreTokenSummary (cadr left)))
       (cons 'actual-next (EL:StoreTokenSummary (cadr right)))))))
-(defun EL:StoreReadback (chunks entity / entry)
+(defun EL:StoreReadback (chunks entity expected / entry native value)
   (setq entry (dictsearch (namedobjdict) "EL_FIXED_V1"))
   (EL:StoreAuditPayload chunks entry 'dictsearch)
-  (EL:StoreAuditPayload chunks (entget entity) 'entget)
-  (EL:StoreRead))
+  (setq native (entget entity))
+  (EL:StoreAuditPayload chunks native 'entget)
+  ;; Decode the actual audited entry once through the same schema checks.
+  (setq value (EL:StoreReadEntry entry))
+  ;; Preserve business-field diagnostics before checking raw representation.
+  (EL:StoreCheck expected value 'readback)
+  (EL:StoreCheck chunks (EL:StorePayload entry) 'dictsearch-readback)
+  (EL:StoreCheck chunks (EL:StorePayload native) 'entget-readback)
+  value)
 (defun EL:StoreReplacePayload (entity chunks / codes values pair)
   ;; Date: 2026-10-09. ENTMOD may retain omitted XRecord fields in AutoCAD.
   ;; SetXRecordData replaces the complete payload, including legacy strings.
@@ -305,7 +328,7 @@
     (progn
       (setq entity (entmakex (append '((0 . "XRECORD") (100 . "AcDbXrecord") (280 . 1)) chunks)))
       (if (or (not entity) (not (dictadd (namedobjdict) "EL_FIXED_V1" entity))) (exit))))
-  (EL:StoreCheck store (EL:LogCall "STORE_READBACK" nil 'EL:StoreReadback (list chunks entity)) 'readback) T)
+  (EL:LogCall "STORE_READBACK" nil 'EL:StoreReadback (list chunks entity store)) T)
 (defun EL:DiagramForPanel (panel store / found rows)
   (setq rows (vl-remove-if-not '(lambda (r) (equal panel (EL:Get 'source-panel-handle r))) (EL:Get 'diagrams store)))
   (if (> (length rows) 1) (progn (princ "\n来源箱体存在重复系统图关联，需修复。") (exit)))

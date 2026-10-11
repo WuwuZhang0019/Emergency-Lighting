@@ -168,6 +168,48 @@ class StoreCompactTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             self.call('EL:StoreExpand', self.put('body', body, packed))
 
+    def test_large_atom_pool_lookup_work_is_bounded_and_contents_stay_exact(self):
+        values = [f'设备-{index:04d}-尾\\"' for index in range(650)] * 4
+        store = self.put('lookup-work-sample', values, self.fixture())
+        packed = self.call('EL:StoreCompact', store)
+        visits = []
+        original = self.h.builtins['NTH']
+
+        def counted(index, rows):
+            # AutoLISP NTH walks linked list cells; the Python host otherwise
+            # uses a list index and cannot measure this algorithmic cost.
+            visits.append(index + 1)
+            return original(index, rows)
+
+        self.h.builtins['NTH'] = counted
+        restored = self.call('EL:StoreExpand', packed)
+        old_visits = sum(-token for token in self.get('body', packed)
+                         if isinstance(token, int) and token < 0)
+        self.assertTrue(equal(store, restored))
+        self.assertLess(sum(visits), old_visits / 5)
+        self.__class__.lookup_work_evidence = {
+            'atom_pool_count': len(self.get('atoms', packed)),
+            'body_tokens': len(self.get('body', packed)),
+            'flat_atom_reference_list_visits': old_visits,
+            'paged_atom_and_template_reference_list_visits': sum(visits),
+            'ratio_to_flat_atom_reference_visits': sum(visits) / old_visits,
+            'logical_equal': True,
+        }
+
+    def test_many_template_versions_cross_page_boundaries_without_identity_loss(self):
+        store = self.fixture()
+        original = self.get('diagrams', store)[0]
+        records = []
+        for index in range(70):
+            template = self.put('revision', index, self.get('template', original))
+            record = self.put('template', template, original)
+            record = self.put('config', self.put('template', template,
+                self.get('config', record)), record)
+            records.append(self.put('diagram-id', f'diagram/{index}', record))
+        store = self.put('diagrams', records, store)
+        packed, _ = self.roundtrip(store)
+        self.assertEqual(len(self.get('templates', packed)), 71)
+
 
 if __name__ == '__main__':
     unittest.main()

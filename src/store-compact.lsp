@@ -81,6 +81,17 @@
   (EL:CompactRequire *EL:CompactRemaining* 'truncated-body)
   (setq value (car *EL:CompactRemaining*) *EL:CompactRemaining* (cdr *EL:CompactRemaining*)
     *EL:CompactRemainingCount* (1- *EL:CompactRemainingCount*)) value)
+(defun EL:CompactPoolPages (values / pages page count)
+  ;; Date: 2026-10-11. Linear construction, then two bounded NTH traversals
+  ;; replace walking a large atom/template pool from its head for every ref.
+  ;; Pure lists preserve symbols, strings and whole template values exactly.
+  (while values
+    (setq page nil count 0)
+    (while (and values (< count 32))
+      (setq page (cons (car values) page) values (cdr values) count (1+ count)))
+    (setq pages (cons (reverse page) pages))) (reverse pages))
+(defun EL:CompactPoolAt (index pages)
+  (nth (fix (rem index 32)) (nth (/ index 32) pages)))
 (defun EL:CompactDecode (/ token index count rows item tail)
   (setq token (EL:CompactTake))
   (cond
@@ -89,7 +100,8 @@
     ((< token 0)
       (setq index (- -1 token))
       (EL:CompactRequire (< index *EL:CompactReadAtomCount*) 'atom-reference)
-      (nth index *EL:CompactReadAtoms*))
+      (if *EL:CompactReadAtomPages* (EL:CompactPoolAt index *EL:CompactReadAtomPages*)
+        (nth index *EL:CompactReadAtoms*)))
     ((= token 0) nil)
     ((= token 1) T)
     ((= token 2)
@@ -103,7 +115,8 @@
       (setq index (EL:CompactTake))
       (EL:CompactRequire (and (equal (type index) 'INT) (>= index 0)
         (< index *EL:CompactReadTemplateCount*)) 'template-reference)
-      (nth index *EL:CompactReadTemplates*))
+      (if *EL:CompactReadTemplatePages* (EL:CompactPoolAt index *EL:CompactReadTemplatePages*)
+        (nth index *EL:CompactReadTemplates*)))
     ((> token 8)
       (setq count (- token 8))
       (EL:CompactRequire (<= count *EL:CompactRemainingCount*) 'list-length)
@@ -111,7 +124,7 @@
     (T (EL:CompactRequire nil 'invalid-tag))))
 (defun EL:StoreExpand (packed / *EL:CompactRemaining* *EL:CompactReadTemplates*
     *EL:CompactReadAtoms* *EL:CompactRemainingCount* *EL:CompactReadAtomCount*
-    *EL:CompactReadTemplateCount* row keys value)
+    *EL:CompactReadTemplateCount* *EL:CompactReadAtomPages* *EL:CompactReadTemplatePages* row keys value)
   (EL:CompactRequire (and (listp packed) (EL:CompactProperList packed) (= (length packed) 5)) 'envelope-shape)
   (foreach row packed
     (EL:CompactRequire (and row (listp row)
@@ -134,6 +147,11 @@
     (EL:CompactRequire (member (type value) '(STR SYM)) 'atom-type))
   (foreach value *EL:CompactReadTemplates*
     (EL:CompactRequire (and value (listp value) (EL:CompactProperList value)) 'template-shape))
+  ;; Small pools already have bounded lookups; do not build an extra index.
+  (if (> *EL:CompactReadAtomCount* 32)
+    (setq *EL:CompactReadAtomPages* (EL:CompactPoolPages *EL:CompactReadAtoms*)))
+  (if (> *EL:CompactReadTemplateCount* 32)
+    (setq *EL:CompactReadTemplatePages* (EL:CompactPoolPages *EL:CompactReadTemplates*)))
   (setq value (EL:CompactDecode))
   (EL:CompactRequire (not *EL:CompactRemaining*) 'trailing-body)
   (EL:CompactRequire (and (listp value) (EL:CompactProperList value)) 'logical-store-shape)

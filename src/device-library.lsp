@@ -236,6 +236,27 @@
       (if (and (not (vl-catch-all-error-p text)) (equal text owner))
         (setq removed (vl-file-delete path)))
       (if (not removed) (EL:LogEvent "DEVICE_LIBRARY_LOCK_RELEASE_FAILED" (list (cons 'path path)))) removed)))
+;; Date: 2026-10-11. Explicit recovery only after the user confirms all other writers stopped.
+;; Archive the marker; never overwrite a catalog or discard unfinished publish evidence.
+(defun EL:DLLockRecover (root / path catalog owner backup)
+  (setq root (EL:NormalizeRoot root) path (strcat root ".write-lock") catalog (strcat root "catalog.eld")
+    *EL:DLError* nil)
+  (cond
+    ((not (findfile path)) T)
+    ((vl-file-directory-p path) (EL:DLFail "占用路径是目录，不能按锁文件恢复；原文件保留。"))
+    ((if (findfile catalog) (not (EL:DLParse (EL:DLReadText catalog)))
+       (or (vl-directory-files root "rollback-*.eld" 1)
+           (and (vl-file-directory-p (strcat root "history")) (vl-directory-files (strcat root "history") "*.eld" 1))
+           (and (vl-file-directory-p (strcat root ".staging")) (vl-directory-files (strcat root ".staging") "*.eld" 1))))
+      (EL:DLFail "索引缺失或损坏，存在未完成保存的可能；请保留整个库目录，先恢复索引。"))
+    ((not (or (= (vl-file-size path) 0)
+        (and (setq owner (EL:DLLockOwner path)) (EL:DLToken owner) (= (substr owner 1 3) "op-"))))
+      (EL:DLFail "占用文件无法识别或读取，未移动；请保留文件用于检查。"))
+    (T
+      (setq backup (strcat root "lock-recovered-" (EL:DLOperationID) ".txt"))
+      (if (and (not (findfile backup)) (equal owner (EL:DLLockOwner path)) (vl-file-rename path backup))
+        (progn (setq *EL:DLCache* nil) (EL:LogEvent "DEVICE_LIBRARY_LOCK_RECOVERED" (list (cons 'backup backup))) T)
+        (EL:DLFail "占用文件仍被使用或目录不可写，未恢复；请结束其他 CAD 中的保存后重试。")))))
 (defun EL:DLCommitLocked (snapshot candidate / root path text current tmp backup history result)
   (setq root (EL:Get 'root snapshot) path (strcat root "catalog.eld")
     current (if (findfile path) (EL:DLReadText path)))

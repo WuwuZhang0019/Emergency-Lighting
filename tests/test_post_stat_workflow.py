@@ -3,6 +3,9 @@
 Runs actual command/dialog functions with finite CAD/DCL adapters.
 """
 import unittest
+import tempfile
+from pathlib import Path
+import test_device_library as library_backend
 import test_fixed_diagnostics as diag
 import test_diagram_store as db
 from autolisp_host import Symbol, truth
@@ -128,7 +131,7 @@ class PostStatWorkflowTests(unittest.TestCase):
         self.assertFalse(truth(self.h.lookup('*EL:DLPANELPOSITION*')))
         self.assertEqual(self.writes,[])
 
-    def test_locked_library_button_keeps_live_dialog_draft_and_preview(self):
+    def test_locked_library_button_reaches_recovery_without_discarding_preview(self):
         captures = []
         self.h.builtins['EL:THUMBCAPTURE'] = lambda block: captures.append(block)
         self.h.builtins['EL:DLROOT'] = lambda: 'library/'
@@ -139,15 +142,97 @@ class PostStatWorkflowTests(unittest.TestCase):
             self.h.set('*EL:PANELINDEX*', 1)
             before = len(captures)
             self.call('EL:DLPanelOpen')
-            self.assertIsNone(self.closed)
+            self.assertEqual(self.closed, 11)
             self.assertEqual(self.h.lookup('*EL:PANELINDEX*'), 1)
             self.assertEqual(len(captures), before)
-            self.assertIn('占用文件', self.tiles['p_error'])
-            self.done(0)
         self.actions = [action]
         self.dialog()
         self.assertEqual(self.dialogs, ['el_panel'])
         self.assertEqual(self.writes, [])
+
+    def test_locked_library_save_persists_local_draft_without_generation(self):
+        persisted = [None]
+        def write(value): persisted[0] = value; return True
+        def unavailable(_): return self.call('EL:DLFail', '设备库存在占用文件')
+        self.h.builtins.update({'EL:DLSNAPSHOT': lambda: None,
+            'EL:DLSNAPSHOTLOAD': unavailable, 'EL:DLROOT': lambda: 'library/',
+            'EL:STOREREAD': lambda: persisted[0], 'EL:STOREWRITE': write,
+            'EL:TRANSACTION': lambda fn,args: self.h.call(fn,args),
+            'EL:FRESHRESULT': lambda *args: True,
+            'EL:SYNCDIAGRAM': lambda *args: self.fail('offline save changed diagram')})
+        def accept():
+            self.tiles['b_watts0'] = '7'
+            self.call('EL:PanelAccept')
+            self.assertEqual(self.closed, 1)
+        self.actions = [accept]
+        self.call('EL:EditPanel', self.result, self.cfg)
+        record = self.call('EL:DiagramForPanel', 'panel', persisted[0])
+        self.assertEqual(self.call('EL:Get', 'LAMP', self.get('powers', record)), 7)
+        self.assertEqual(self.get('status', record), Symbol('STALE'))
+        self.assertTrue(truth(self.get('load-error', self.get('device-library', record))))
+        self.assertFalse(truth(self.get('panel-output-handle', record)))
+
+    def test_locked_library_generation_gives_actionable_message_without_writes(self):
+        alerts = []
+        self.h.builtins.update({'EL:DLSNAPSHOT': lambda: None,
+            'EL:DLSNAPSHOTLOAD': lambda _: self.call('EL:DLFail', '设备库存在占用文件'),
+            'EL:DLROOT': lambda: 'library/', 'ALERT': alerts.append})
+        def generate():
+            self.call('EL:PanelGenerate')
+            self.assertIsNone(self.closed)
+            self.assertIn('独立设备库', alerts[-1])
+            self.assertIn('草稿', alerts[-1])
+            self.done(0)
+        self.actions = [generate]
+        self.call('EL:EditPanel', self.result, self.cfg)
+        self.assertEqual(self.writes, [])
+
+    def test_recover_library_return_and_save_preserve_input_and_reuse_preview(self):
+        with tempfile.TemporaryDirectory() as folder:
+            catalog = self.get('catalog', self.h.builtins['EL:DLSNAPSHOT']())
+            root = library_backend.DeviceLibraryTests.fs(self, folder)
+            Path(folder, 'catalog.eld').write_text(library_backend.printer(catalog), encoding='utf-8')
+            Path(folder, '.write-lock').write_bytes(b'op-old\r\n')
+            persisted, captures, callbacks = [None], [], {}
+            def write(value): persisted[0] = value; return True
+            self.h.builtins.update({'EL:DLROOT': lambda: root,
+                'EL:DLSNAPSHOT': lambda: self.call('EL:DLSnapshotLoad', root),
+                'EL:STOREREAD': lambda: persisted[0], 'EL:STOREWRITE': write,
+                'EL:TRANSACTION': lambda fn,args: self.h.call(fn,args),
+                'EL:FRESHRESULT': lambda *args: True,
+                'EL:SYNCDIAGRAM': lambda *args: self.fail('draft changed system diagram'),
+                'EL:THUMBCAPTURE': lambda block: captures.append(block),
+                'ACTION_TILE': lambda k,v: callbacks.__setitem__(k,v),
+                'VL-STRING-RIGHT-TRIM': lambda chars,text: text.rstrip(chars),
+                'OPEN': lambda p,m,*encoding: open(p,m,encoding='ascii') if m == 'r' and Path(p).is_file() else None,
+                'ALERT': lambda msg: self.fail(msg)})
+            first_count = []
+            def open_library():
+                self.tiles['b_watts0'] = '7'
+                self.call('EL:PanelCapacity', 'p_600')
+                self.h.set('*EL:PANELINDEX*', 1)
+                first_count.append(len(captures))
+                self.h.run(callbacks['b_library'])
+            def recover():
+                self.assertEqual(self.dialogs[-1], 'el_device_library_locked')
+                self.tiles['dl_lock_confirm'] = '1'
+                self.h.run(callbacks['dl_lock_recover'])
+            def close_manager():
+                self.assertEqual(self.dialogs[-1], 'el_device_library')
+                self.h.run(callbacks['dl_close'])
+            def save():
+                self.assertEqual(self.tiles['b_watts0'], '7')
+                self.assertEqual(self.tiles['p_capacity'], 'p_600')
+                self.assertEqual(self.h.lookup('*EL:PANELINDEX*'), 1)
+                self.assertEqual(len(captures), first_count[0])
+                self.h.run(callbacks['accept'])
+            self.actions = [open_library, recover, close_manager, save]
+            self.call('EL:EditPanel', self.result, self.cfg)
+            record = self.call('EL:DiagramForPanel', 'panel', persisted[0])
+            self.assertEqual(self.call('EL:Get', 'LAMP', self.get('powers', record)), 7)
+            self.assertEqual(self.get('draft-capacity', record), Symbol('CAP600'))
+            self.assertFalse(truth(self.get('load-error', self.get('device-library', record))))
+            self.assertTrue(Path(folder, 'lock-recovered-op-test.txt').exists())
 
     def test_library_roundtrip_reuses_previews_and_prepared_draft_on_success_or_error(self):
         for outcome in ('closed', 'failed', 'error'):

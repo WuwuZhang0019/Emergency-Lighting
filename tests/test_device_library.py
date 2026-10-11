@@ -152,8 +152,10 @@ class DeviceLibraryTests(unittest.TestCase):
             'VL-FILENAME-DIRECTORY': lambda p:str(Path(p).parent),
             'EL:DLOPERATIONID': lambda: 'op-test',
             'OPEN': lambda p,m: open(p, m, encoding='ascii'),
-            'READ-LINE': lambda f: f.readline().rstrip('\r\n'),
+            'READ-LINE': lambda f: f.readline().rstrip('\r\n') or None,
             'CLOSE': lambda f: f.close(),
+            'VL-FILE-SIZE': lambda p: Path(p).stat().st_size,
+            'VL-DIRECTORY-FILES': lambda p,pattern,mode: [f.name for f in Path(p).glob(pattern) if f.is_file()],
             'EL:DLLockAcquire'.upper(): lambda p,o: Path(p).write_text(o) or True,
         })
         return root
@@ -244,6 +246,50 @@ class DeviceLibraryTests(unittest.TestCase):
             'VLAX-INVOKE-METHOD': denied, 'VLAX-RELEASE-OBJECT': lambda _: None,
             'VL-FILE-DELETE': lambda _: self.fail('deleted someone else lock')})
         self.assertFalse(truth(self.call('EL:DLLockAcquire', 'other.lock', 'op-test')))
+
+    def test_explicit_lock_recovery_archives_marker_and_preserves_catalog(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = self.fs(folder)
+            self.add()
+            original = printer(self.cat)
+            Path(folder, 'catalog.eld').write_text(original, encoding='utf-8')
+            Path(folder, '.write-lock').write_bytes(b'op-old\r\n')
+            self.assertTrue(truth(self.call('EL:DLLockRecover', root)))
+            self.assertEqual(Path(folder, 'catalog.eld').read_text(encoding='utf-8'), original)
+            self.assertEqual(Path(folder, 'lock-recovered-op-test.txt').read_bytes(), b'op-old\r\n')
+            self.assertTrue(truth(self.call('EL:DLSnapshotLoad', root)))
+
+    def test_lock_recovery_refuses_incomplete_publish_or_corrupt_catalog(self):
+        for relative, content in [('rollback-old.eld', 'old'), ('.staging/catalog-old.eld', 'new'),
+                                  ('history/1.eld', 'old'), ('catalog.eld', 'broken')]:
+            with self.subTest(relative=relative), tempfile.TemporaryDirectory() as folder:
+                root = self.fs(folder)
+                evidence = Path(folder, relative)
+                evidence.parent.mkdir(parents=True, exist_ok=True)
+                evidence.write_text(content)
+                Path(folder, '.write-lock').write_text('op-old')
+                self.assertFalse(truth(self.call('EL:DLLockRecover', root)))
+                self.assertTrue(Path(folder, '.write-lock').exists())
+                self.assertEqual(evidence.read_text(), content)
+
+    def test_empty_first_write_lock_can_recover_without_creating_catalog(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = self.fs(folder)
+            Path(folder, '.write-lock').write_bytes(b'')
+            self.assertTrue(truth(self.call('EL:DLLockRecover', root)))
+            self.assertFalse(Path(folder, 'catalog.eld').exists())
+            self.assertEqual(self.get('revision',self.get('catalog',self.call('EL:DLSnapshotLoad', root))), 0)
+
+    def test_lock_recovery_retains_busy_file_or_unknown_owner(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = self.fs(folder)
+            path = Path(folder, '.write-lock')
+            path.write_text('unrelated-file')
+            self.assertFalse(truth(self.call('EL:DLLockRecover', root)))
+            path.write_text('op-old')
+            self.h.builtins['VL-FILE-RENAME'] = lambda *args: None
+            self.assertFalse(truth(self.call('EL:DLLockRecover', root)))
+            self.assertEqual(path.read_text(), 'op-old')
 
 
 if __name__ == '__main__':

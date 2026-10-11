@@ -16,6 +16,54 @@ class DeviceUITests(unittest.TestCase):
     entry = backend.DeviceLibraryTests.entry
     fs = backend.DeviceLibraryTests.fs
 
+    def lock_dialog(self, folder, confirmed=True):
+        root = self.fs(folder)
+        self.h.set('*EL:ROOT*', 'plugin/')
+        tiles, modes, actions, dialogs = {}, {}, {}, []
+        status = [None]
+        def start():
+            self.assertEqual(modes['dl_lock_recover'], 1)
+            # Even bypassing the disabled button must require explicit confirmation.
+            self.h.run(actions['dl_lock_recover'])
+            self.assertIsNone(status[0])
+            if confirmed:
+                tiles['dl_lock_confirm'] = '1'
+                self.h.set('$VALUE', '1')
+                self.h.run(actions['dl_lock_confirm'])
+                self.assertEqual(modes['dl_lock_recover'], 0)
+                self.h.run(actions['dl_lock_recover'])
+            else:
+                self.h.run(actions['dl_lock_cancel'])
+            return status[0]
+        self.h.builtins.update({'EL:DLROOT': lambda:root, 'LOAD_DIALOG': lambda _:1,
+            'NEW_DIALOG': lambda name,_: dialogs.append(name) or True, 'UNLOAD_DIALOG': lambda _:None,
+            'SET_TILE': lambda k,v:tiles.__setitem__(k,v), 'GET_TILE': lambda k:tiles.get(k,''),
+            'MODE_TILE': lambda k,v:modes.__setitem__(k,v), 'ACTION_TILE': lambda k,v:actions.__setitem__(k,v),
+            'DONE_DIALOG': lambda n:status.__setitem__(0,n), 'START_DIALOG':start,
+            'ALERT': lambda _: self.fail('duplicate blocking alert'),
+            'EL:Dluirun'.upper(): lambda: dialogs.append('manager') or True})
+        return root, dialogs
+
+    def test_locked_manager_opens_recovery_then_manager_after_explicit_confirmation(self):
+        with tempfile.TemporaryDirectory() as folder:
+            Path(folder, '.write-lock').write_bytes(b'op-old\r\n')
+            root, dialogs = self.lock_dialog(folder)
+            self.assertTrue(truth(self.call('EL:DLUIOpen')))
+            self.assertEqual(dialogs, ['el_device_library_locked', 'manager'])
+            self.assertTrue(Path(folder, 'lock-recovered-op-test.txt').exists())
+            self.assertEqual(self.get('root', self.get('snapshot', self.h.lookup('*EL:DLUISTATE*'))), root)
+
+    def test_cancel_locked_manager_retains_lock_and_existing_drafts(self):
+        with tempfile.TemporaryDirectory() as folder:
+            Path(folder, '.write-lock').write_text('op-old')
+            self.lock_dialog(folder, confirmed=False)
+            self.state()
+            self.call('EL:DLUISetDraft', self.put('watts-text', '7', self.entry(ready=False)))
+            before = self.h.lookup('*EL:DLUISTATE*')
+            self.assertFalse(truth(self.call('EL:DLUIOpen')))
+            self.assertEqual(self.h.lookup('*EL:DLUISTATE*'), before)
+            self.assertEqual(Path(folder, '.write-lock').read_text(), 'op-old')
+
     def state(self, catalog=None):
         catalog = catalog or self.cat
         state = [Pair(Symbol('SNAPSHOT'),[Pair(Symbol('CATALOG'), catalog)]), Pair(Symbol('QUERY'),''),

@@ -181,14 +181,20 @@
         (EL:ThumbRefresh *EL:PanelDraft*) (EL:PanelFill)
         (EL:PanelText "p_error" "已应用当前库的功率和地面默认值；点击保存后写入本图。"))
       (EL:PanelText "p_error" (cond (*EL:DLError*) (T "设备库无法读取。"))))))
-;; Date: 2026-10-11. Preflight in the current dialog; failure must not rebuild previews.
-(defun EL:DLPanelOpen (/ snapshot)
-  (if (EL:PanelStore)
-    (progn (setq snapshot (vl-catch-all-apply 'EL:DLSnapshotLoad (list (EL:DLRoot))))
-      (if (and (not (vl-catch-all-error-p snapshot)) snapshot) (done_dialog 11)
-        (EL:PanelText "p_error" (cond
-          ((vl-catch-all-error-p snapshot) (strcat "设备库读取失败：" (vl-catch-all-error-message snapshot)))
-          (*EL:DLError*) (T "设备库无法打开；当前输入保留。")))))))
+;; Date: 2026-10-11. Navigation must reach the manager's recovery UI even when locked.
+(defun EL:DLPanelOpen ()
+  (if (EL:PanelStore) (done_dialog 11)))
+(defun EL:DLPanelSaveReady (/ snapshot metadata)
+  (if (EL:DLSubmissionCurrent *EL:PanelDraft*) T
+    (progn
+      (setq snapshot (vl-catch-all-apply 'EL:DLSnapshotLoad (list (EL:DLRoot))))
+      (if (and (not (vl-catch-all-error-p snapshot)) snapshot)
+        (EL:DLPanelSubmissionReady)
+        (progn
+          ;; Keep exact displayed inputs/references, but prevent diagram generation.
+          (setq metadata (EL:Put 'load-error T (EL:Get 'device-library *EL:PanelDraft*))
+            *EL:PanelDraft* (EL:PanelCompute (EL:Put 'device-library metadata *EL:PanelDraft*)
+              *EL:PanelPowers* *EL:PanelConfig*)) T)))))
 (defun EL:DLResumePanel (/ context result)
   (setq context *EL:DLParentContext* *EL:DLParentContext* nil *EL:DLParentContinue* nil
     *EL:DLResume* context *EL:DLSessionSnapshot* nil)

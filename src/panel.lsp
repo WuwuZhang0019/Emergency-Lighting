@@ -586,7 +586,8 @@
       ) T)))
 (defun EL:PanelGenerateBody ()
   (EL:LogEvent "PANEL_ACTION" 'generate)
-  (if (and (EL:PanelStoreSelections) (EL:DLPanelSubmissionReady))
+  (if (EL:PanelStoreSelections)
+    (if (EL:DLPanelSubmissionReady)
     (cond
       ((not (EL:Get 'circuits *EL:PanelDraft*)) (EL:PanelText "p_error" "请至少保留一条实际出线。"))
       ((> (length (EL:Get 'circuits *EL:PanelDraft*)) 8) (EL:PanelText "p_error" "本图块最多容纳8条实际回路，请拆箱后统计；不会截断回路。"))
@@ -596,7 +597,10 @@
       ((not (EL:SelectionsReady *EL:PanelDraft* *EL:PanelCapacity*))
         (EL:PanelText "p_error" "请先选择箱体容量。"))
       (*EL:PanelTemplateReady* (setq *EL:PanelAction* 'generate) (done_dialog 2))
-      (T (setq *EL:PanelAction* 'generate) (done_dialog 4)))))
+      (T (setq *EL:PanelAction* 'generate) (done_dialog 4)))
+      (alert (if *EL:DLError*
+        (strcat *EL:DLError* "\n请点击独立设备库检查并恢复；也可以先点保存，将当前输入保存为本图草稿。")
+        "设备库默认值已刷新，请核对当前功率和地面属性后再次生成。")))))
 (defun EL:PanelGenerate (/ outcome)
   ;; Date: 2026-10-10. Keep callback failures visible while preserving the draft.
   (setq outcome (vl-catch-all-apply 'EL:PanelGenerateBody nil))
@@ -689,7 +693,7 @@
       ((equal *EL:PanelCapacity* 'cap1000) "p_1000") (T "p_300")))))
 (defun EL:PanelAccept ()
   (EL:LogEvent "PANEL_ACTION" 'save)
-  (if (and (EL:PanelStoreSelections) (EL:DLPanelSubmissionReady))
+  (if (and (EL:PanelStoreSelections) (EL:DLPanelSaveReady))
     (if (EL:Get 'circuits *EL:PanelDraft*) (progn (setq *EL:PanelAction* 'save) (done_dialog 1))
       (EL:PanelText "p_error" "请至少保留一条实际出线。"))))
 ;; Date: 2026-10-11. List clicks open records; list initialization stays read-only.

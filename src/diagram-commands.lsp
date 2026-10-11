@@ -50,7 +50,9 @@
     (setq record (EL:Put 'status 'stale record)))
   (if (EL:TemplateReady (EL:Get 'template cfg) cfg)
     (setq store (EL:Put 'fixed-template (EL:Get 'template cfg) store)))
-  (EL:Require (EL:DLSubmissionCurrent result) "设备库已变化，当前输入保留；请刷新库并重新核对后保存。")
+  (EL:Require (or (and (not (EL:Get 'can-generate result))
+      (EL:Get 'load-error (EL:Get 'device-library result))) (EL:DLSubmissionCurrent result))
+    "设备库已变化，当前输入保留；请刷新库并重新核对后保存。")
   (setq context (EL:TransactionVerifiedStore 'EL:StoreWrite (list (EL:StorePutDiagram record store))))
   (and (equal T (EL:Get 'outcome context))
     (equal record (EL:DiagramForPanel (EL:Get 'panel result) (EL:TransactionVerifiedRead context)))))
@@ -126,7 +128,9 @@
       (EL:RememberPanelPowers result powers)
       (if (and (not (assoc 'device-library result)) (not (EL:SaveNamePowers powers)))
         (princ "\n功率库写入失败，请保留当前窗口数值并检查插件目录写入权限。"))
-      (if (and (EL:DLSubmissionCurrent result) (EL:LogCall "PRE_GENERATE_FRESH" nil 'EL:FreshResult (list result cfg)))
+      (if (and (or (and (not (EL:Get 'generate edited)) (not syncable)
+          (EL:Get 'load-error (EL:Get 'device-library result))) (EL:DLSubmissionCurrent result))
+          (EL:LogCall "PRE_GENERATE_FRESH" nil 'EL:FreshResult (list result cfg)))
         (progn
           ;; Keep accepted setup and draft outside the preview undo group.
           (setq *EL:Result* result *EL:FixedConfig* cfg)
@@ -151,7 +155,9 @@
                 (progn
                   (setq *EL:Result* result *EL:FixedConfig* cfg)
                   (if (and (not (assoc 'device-library result)) (not (EL:SaveNamePowers powers))) (princ "\nDWG 已保存；共享图块功率库写入失败，其他图纸暂不复用本次值。"))
-                  (princ "\n主面板已保存到本图；关闭图纸前请保存 DWG。")))))
+                  (princ (if (EL:Get 'load-error (EL:Get 'device-library result))
+                    "\n当前输入已保存为本图待完善草稿；设备库恢复前不生成系统图。关闭图纸前请保存 DWG。"
+                    "\n主面板已保存到本图；关闭图纸前请保存 DWG。"))))))
           (if (not saved) (princ "\n本次保存或生成未完成，未报告成功；请查看上方原因后重试。")))
         (progn (EL:MarkStale (EL:Get 'panel result) 'source-changed)
           (EL:PerfInput 'alert (list (if (EL:DLSubmissionCurrent result)

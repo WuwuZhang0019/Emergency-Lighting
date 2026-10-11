@@ -1,4 +1,17 @@
 // Date: 2026-10-11. Status: implemented; native layout acceptance pending.
+el_device_library_locked : dialog {
+  label = "独立设备库 - 占用恢复";
+  : text { key = "dl_lock_root"; width = 104; }
+  : text { label = "设备库存在占用文件。先结束其他 CAD 中的设备库保存，再检查并恢复。"; }
+  : text { label = "恢复会保留占用文件备份，不删除设备资料。当前回路和输入保留。"; }
+  : toggle { key = "dl_lock_confirm"; label = "我已确认其他 CAD 不再写入这个设备库"; }
+  : text { key = "dl_lock_status"; width = 104; }
+  : row {
+    : button { key = "dl_lock_recover"; label = "检查并恢复占用"; }
+    : button { key = "dl_lock_retry"; label = "重新检查"; }
+    : button { key = "dl_lock_cancel"; label = "返回（保留输入）"; is_cancel = true; }
+  }
+}
 el_device_library : dialog {
   label = "独立设备库";
   : text { key = "dl_root"; width = 104; }

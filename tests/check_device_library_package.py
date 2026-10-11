@@ -49,14 +49,14 @@ def check():
         assert source == packaged
         wanted.update(definitions(source))
     # The source scanner's exact network/geometry checks remain present in every merged loader.
-    for module in ('simple', 'geometry', 'topology', 'circuit-number', 'diagram-commands'):
+    for module in ('simple', 'geometry', 'topology', 'circuit-number', 'diagram-commands', 'diagram-update'):
         source = (ROOT / 'src' / f'{module}.lsp').read_text(encoding='utf-8')
         assert source == (PACKAGE / 'src' / f'{module}.lsp').read_bytes().decode('gb2312')
         wanted.update(definitions(source))
     panel = definitions((ROOT / 'src/panel.lsp').read_text(encoding='utf-8'))
     for name in ('EL:PANELSTARTINIT', 'EL:PANELSTARTDIALOG', 'EL:HISTORYSELECT', 'EL:HISTORYFILL',
                  'EL:PANELBLOCKPOWERCHANGED', 'EL:PANELDIALOG', 'EL:PANELACCEPT', 'EL:PANELCOMPUTE',
-                 'EL:PANELGENERATE', 'EL:PANELGENERATEBODY',
+                 'EL:PANELGENERATE', 'EL:PANELGENERATEBODY', 'EL:SELECTIONSREADY',
                  'EL:THUMBDRAW', 'EL:THUMBCLEANUP', 'EL:THUMBPREPARE', 'EL:THUMBREFRESH',
                  'EL:THUMBCAPTURE', 'EL:THUMBPREPAREROWS'):
         wanted[name] = panel[name]
@@ -67,7 +67,8 @@ def check():
         if entry != update:
             startup = actual['EL:STARTUPEMBEDDEDROOT']
             assert 'device-library/catalog.eld' not in str(startup)
-    for name in ('13_独立设备库与材料表管理方案.md', '14_独立设备库CAD验证与使用说明.md'):
+    for name in ('13_独立设备库与材料表管理方案.md', '14_独立设备库CAD验证与使用说明.md',
+                 '更新记录/2026-10-11-取消回路地面重复确认-103.md'):
         assert (PACKAGE / 'docs' / name).read_bytes() == (ROOT / 'docs' / name).read_bytes()
     report = {
         'date': '2026-10-11', 'status': 'passed', 'package': PACKAGE_NO, 'native_cad_status': 'pending_user_validation',

@@ -300,8 +300,9 @@
       (setq panel (EL:Get 'source-panel-handle record) cfg (EL:Get 'config record))
       (if (equal (EL:Get 'engine record) 'fixed)
         (progn
-          (setq result (EL:ReviewFixedExits (EL:RecognizeFixed cfg panel) record))
-          (EL:Require result "出线核对已取消。")
+          ;; Date: 2026-10-11. Updating uses every recognized circuit directly.
+          (setq result (EL:SelectFixedExits (EL:RecognizeFixed cfg panel) nil))
+          (EL:Require (EL:Get 'circuits result) "未识别到有效回路，请检查源图连接。")
           (setq result (EL:PanelCompute result (EL:FixedPowers record) cfg) *EL:FixedConfig* cfg))
         (progn
           (setq context (EL:CurrentContext cfg panel) seeds (cadr context)

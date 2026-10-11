@@ -36,7 +36,7 @@ def run():
     evidence = {
         'date': '2026-10-11', 'status': 'automated_passed' if result.wasSuccessful() else 'automated_failed',
         'package': PACKAGE_NO, 'native_cad_status': 'pending_user_validation',
-        'scope': 'locked-library local draft save, explicit recovery dialog and marker archival, incomplete publication protection, actionable generation feedback; catalog, CRUD, source freshness and navigation preview reuse regressions',
+        'scope': 'unchecked ground means non-ground across generation, save/reopen and unvisited rows; fixed pick/update accepts recognized circuits directly; power, number, ownership, source, library, transaction and existing device-library regressions',
         'test_count': result.testsRun, 'failure_count': len(result.failures), 'error_count': len(result.errors),
         'tests': sorted(result.records, key=lambda row: row['test']),
         'sha256': {path.relative_to(ROOT).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest() for path in files},

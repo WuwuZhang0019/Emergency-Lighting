@@ -234,7 +234,8 @@ el_panel : dialog {
       }
       : row { fixed_height = true; : button { key = "f_prev"; label = "上一页"; } : text { key = "f_page"; width = 10; } : button { key = "f_next"; label = "下一页"; } }
       : row { : button { key = "b_library"; label = "独立设备库"; } : button { key = "b_apply_library"; label = "应用当前库值"; } }
-      : text { label = "修改功率和地面只作用于本箱。"; }
+      // Date: 2026-10-11. An unchecked ground toggle means no.
+      : text { label = "地面：勾选是，不勾选就是非地面。"; }
       : text { label = "× 排除本箱同类图块，不计数量和功率。"; }
       : row { fixed_height = true; : text { key = "b_excluded"; width = 24; } : button { key = "b_restore"; label = "恢复排除"; } }
       }

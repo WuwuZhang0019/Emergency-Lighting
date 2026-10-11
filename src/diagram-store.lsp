@@ -243,10 +243,61 @@
             (cons 'message (if (vl-catch-all-error-p valid) (vl-catch-all-error-message valid) "invalid V1 required fields"))))
           (princ "\nDWG 草稿字段校验失败，详情已记录到诊断日志。") (exit)))
       value)))
+(defun EL:StoreReadCacheValid (entry cache)
+  ;; Date: 2026-10-11. A hit still checks current dictionary ownership and
+  ;; both complete native payloads. Stored business data alone is reusable;
+  ;; this never caches source geometry, output entities or a proposed write.
+  (and *EL:PerfActive* (equal (EL:Get 'scope cache) *EL:StoreReadScope*)
+    entry cache (equal (cdr (assoc 0 entry)) "XRECORD")
+    (equal (cdr (assoc -1 entry)) (EL:Get 'entity cache))
+    (equal (EL:StorePayload entry) (EL:Get 'payload cache))
+    (EL:StoreContextValid cache)))
+(defun EL:StoreReadCacheRemember (entry value / candidate valid *EL:StoreReadBusy*)
+  ;; Call only with a freshly decoded actual entry, including schema checks.
+  ;; Validate again after decoding: callbacks may have changed the owner/data.
+  (if *EL:PerfActive*
+    (progn
+      (setq *EL:StoreReadCache* nil *EL:StoreReadBusy* T)
+      (if (and value entry (equal (cdr (assoc 0 entry)) "XRECORD"))
+        (progn
+          (setq candidate (list (cons 'scope *EL:StoreReadScope*) (cons 'owner (namedobjdict))
+            (cons 'entity (cdr (assoc -1 entry))) (cons 'payload (EL:StorePayload entry))
+            (cons 'verified-store value))
+            valid (vl-catch-all-apply 'EL:PerfCall
+              (list "STORE_CACHE_CHECK" 'EL:StoreContextValid (list candidate))))
+          (if (and *EL:PerfActive* (equal (EL:Get 'scope candidate) *EL:StoreReadScope*)
+              (not (vl-catch-all-error-p valid)) valid)
+            (setq *EL:StoreReadCache* candidate)))))) value)
+(defun EL:StoreReadCachedScope (entry lookup / *EL:StoreReadBusy* cache scope valid value)
+  ;; The dynamic guard prevents a read/check callback from reusing a partially
+  ;; decoded value or publishing another candidate inside the outer read.
+  (setq *EL:StoreReadBusy* T cache *EL:StoreReadCache* scope *EL:StoreReadScope*)
+  (if (and cache (equal scope (EL:Get 'scope cache)))
+    (setq valid (vl-catch-all-apply 'EL:PerfCall
+      (list "STORE_CACHE_CHECK" (if lookup 'EL:StoreContextValid 'EL:StoreReadCacheValid)
+        (if lookup (list cache) (list entry cache))))))
+  (if (and *EL:PerfActive* (equal scope *EL:StoreReadScope*)
+      (not (vl-catch-all-error-p valid)) valid)
+    (progn (EL:PerfCount "store-read-cache-hits" 1) (EL:Get 'verified-store cache))
+    (progn
+      (setq *EL:StoreReadCache* nil)
+      (EL:PerfCount "store-read-cache-misses" 1)
+      (if lookup (setq entry (dictsearch (namedobjdict) "EL_FIXED_V1")))
+      (setq value (EL:StoreReadEntry entry))
+      (if (equal scope *EL:StoreReadScope*) (EL:StoreReadCacheRemember entry value)) value)))
+(defun EL:StoreReadCached (entry)
+  ;; Only one active top-level command owns the cache; PerfStart/Finish clear
+  ;; it. Outside that scope, or during reentry, use the original fresh decoder.
+  (if (and *EL:PerfActive* (not *EL:StoreReadBusy*))
+    (EL:StoreReadCachedScope entry nil) (EL:StoreReadEntry entry)))
 (defun EL:StoreRead (/ value perf)
   (setq perf (EL:PerfBegin "STORE_READ"))
   (EL:PerfCount "store-read-calls" 1)
-  (setq value (EL:StoreReadEntry (dictsearch (namedobjdict) "EL_FIXED_V1")))
+  ;; A cached read obtains its actual entry in StoreContextValid. Avoid a
+  ;; redundant dictionary lookup/filter before those two mandatory routes.
+  (setq value (if (and *EL:PerfActive* (not *EL:StoreReadBusy*))
+    (EL:StoreReadCachedScope nil T)
+    (EL:StoreReadEntry (dictsearch (namedobjdict) "EL_FIXED_V1"))))
   (EL:PerfEnd perf 'returned) value)
 (defun EL:StoreInitial (/ uuid)
   ;; Date: 2026-10-09. Document-local fallback survives draft reopen and is
@@ -329,7 +380,7 @@
   (EL:StoreCheck expected value 'readback)
   (EL:StoreCheck chunks (EL:StorePayload entry) 'dictsearch-readback)
   (EL:StoreCheck chunks (EL:StorePayload native) 'entget-readback)
-  value)
+  (EL:StoreReadCacheRemember entry value))
 (defun EL:StoreLegacyEntry (entry / marker value)
   ;; Date: 2026-10-11. A preserved backup must remain an independently valid
   ;; legacy record. Never use a V2/future/corrupt backup as a historical copy.
@@ -355,7 +406,7 @@
     (equal (cdr (assoc 0 native)) "XRECORD")) "当前草稿对象或关联已变化，未覆盖。")
   (setq chunks (EL:StorePayload entry))
   (EL:StoreCheck chunks (EL:StorePayload native) 'current-native-before-write)
-  (setq value (EL:StoreReadEntry entry))
+  (setq value (EL:StoreReadCached entry))
   (EL:CompactTemplates value)
   (EL:Require (equal (EL:Get 'drawing-uuid value) (EL:Get 'drawing-uuid proposed))
     "当前草稿属于其他图纸，未覆盖。") value)
@@ -447,7 +498,7 @@
 (defun EL:StoreWrite (store / chunks entry entity value current *EL:StorePhase*)
   (EL:FreshBoundary)
   ;; Every write invalidates the prior candidate, including a failed second
-  ;; write in one transaction. Direct writes never publish a reusable cache.
+  ;; write in one transaction. Only actual readback can seed the command cache.
   (if *EL:StoreContextActive*
     (setq *EL:StoreContextCandidate* nil *EL:StoreContextCommitted* nil))
   (EL:PerfCount "store-write-calls" 1)
@@ -465,6 +516,7 @@
     'EL:StoreDecode (list chunks)) 'pre-write)
   (setq entry (dictsearch (namedobjdict) "EL_FIXED_V1") entity (cdr (assoc -1 entry)))
   (if entry (setq current (EL:StoreCurrentEntry entry store)))
+  (setq *EL:StoreReadCache* nil)
   (if (not *EL:StoreLegacyWrite*) (EL:StoreLegacyBackup entry store current))
   (EL:PerfCount "master-write-attempts" 1)
   (if entity
@@ -567,6 +619,7 @@
       (mapcar '(lambda (key) (cons key (EL:Get key c)))
         '(seed-key id output-order is-ground ground-source ground-rule ground-evidence))) out))) (reverse out))
 (defun EL:TransactionRollback (/ doc)
+  (setq *EL:StoreReadCache* nil)
   (if *EL:TransactionOpen*
     (progn
       (setq doc (vla-get-ActiveDocument (vlax-get-acad-object)))
@@ -575,6 +628,7 @@
       (if *EL:TransactionDirty* (command-s "_.UNDO" "1"))
       (EL:Require (not (dictsearch (namedobjdict) "EL_FIXED_TX")) "撤销后事务标记仍存在，未确认清理完成。")
       (setq *EL:TransactionOpen* nil *EL:Created* nil *EL:TransactionDirty* nil)))
+  (setq *EL:StoreReadCache* nil)
   (redraw))
 (defun EL:TransactionBody (function args / marker outcome)
   ;; An owned temporary record ensures even an early failed edit has an undo

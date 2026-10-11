@@ -772,7 +772,7 @@
         (setq index (1+ index) label (EL:CCKKLabelPlan 'number
           (strcat "number/" (EL:Get 'circuit-uid row)) (EL:Get 'circuit-uid row)
           (EL:Get 'position row) plan)
-          labels (append labels (list (EL:Put 'text (strcat "ZE" (itoa index)) label))))
+          labels (append labels (list (EL:Put 'text (EL:CircuitNumberText row index) label))))
         (if (not (equal (EL:Get 'mode row) 'reserve))
           (setq labels (append labels (list (EL:CCKKLabelPlan 'purpose
             (strcat "label/" (EL:Get 'circuit-uid row)) (EL:Get 'circuit-uid row)

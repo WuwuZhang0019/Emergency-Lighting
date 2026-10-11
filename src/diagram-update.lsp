@@ -477,6 +477,9 @@
     template (cond ((EL:Get 'template cfg)) ((EL:Get 'template record)))
     result (EL:PreparedResult result record))
   (cond
+    ((not (EL:CircuitNumbersReady result))
+      (princ (strcat "\n" (EL:NumberProblemText result)))
+      (EL:MarkStale (EL:Get 'panel result) 'circuit-number-pending))
     ((not (EL:Get 'can-generate result)) (EL:PrintStatistics result) (EL:MarkStale (EL:Get 'panel result) 'invalid-result))
     ((and (equal (EL:Get 'engine result) 'fixed) (not (EL:SelectionsReady result capacity)))
       (princ "\n回路类型尚未确认，请在统计面板集中核对；原系统图未更新。")

@@ -42,7 +42,7 @@
   (if (not (EL:Get 'panel-output-handle record))
     (setq record (EL:Put 'rows (EL:Get 'circuits result)
       (EL:Put 'capacity-source (EL:Get 'capacity-source result) (EL:Put 'capacity-option capacity record)))))
-  (if (or (not (EL:Get 'can-generate result)) (not (EL:SelectionsReady result capacity)))
+  (if (or (not (EL:Get 'can-generate result)) (not (EL:CircuitNumbersReady result)) (not (EL:SelectionsReady result capacity)))
     (setq record (EL:Put 'status 'stale record)))
   (if (EL:TemplateReady (EL:Get 'template cfg) cfg)
     (setq store (EL:Put 'fixed-template (EL:Get 'template cfg) store)))
@@ -97,7 +97,7 @@
     (if (not (or (EL:Get 'switch-result edited) (EL:Get 'pick-panel edited))) (progn
       (setq result (EL:Get 'result edited) powers (EL:Get 'powers edited) capacity (EL:Get 'capacity edited)
         cfg (cond ((EL:Get 'config edited)) (T cfg))
-        syncable (and (EL:Get 'can-generate result) (EL:SelectionsReady result capacity)
+        syncable (and (EL:Get 'can-generate result) (EL:CircuitNumbersReady result) (EL:SelectionsReady result capacity)
           (EL:TemplateReady (EL:Get 'template cfg) cfg)))
       (EL:LogEvent "PANEL_SUBMIT" (list (cons 'generate (EL:Get 'generate edited))
         (cons 'syncable syncable) (cons 'panel (EL:Get 'panel result))))

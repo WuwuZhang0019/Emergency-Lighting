@@ -3,6 +3,8 @@ from pathlib import Path
 import unittest
 from autolisp_host import Host, Pair, Symbol, parse, quoted, truth
 import test_simple_flow as simple
+import test_diagram_update as update
+import test_cckk_panel_command as command_fixture
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -241,6 +243,68 @@ class NumberAllocationTests(unittest.TestCase):
         c = self.get('circuits', result)[0]
         self.assertEqual(self.get('number-source', c), Symbol('LEGACY'))
         self.assertEqual(self.get('circuit-number', c), 'ZE1')
+
+class NumberPresentationTests(unittest.TestCase):
+    call = NumberReadTests.call
+    get = NumberReadTests.get
+
+    def setUp(self):
+        self.f = update.UpdateTests()
+        self.f.setUp()
+        self.h = self.f.h
+
+    def set_numbers(self):
+        self.h.run('''(setq cs (list (EL:Put 'circuit-number "WL7" (car cs))
+          (EL:Put 'circuit-number "ZE3" (cadr cs))))
+          (setq result (EL:Put 'circuits cs result)
+            plan (EL:FixedPlan result template 'cap300 '(0.0 0.0 0.0) 0.0 1.0))''')
+
+    def test_panel_and_plan_captions_share_numbers_and_reserves_avoid_actuals(self):
+        self.set_numbers()
+        labels = self.h.run('(EL:CCKKLabels plan)')
+        numbers = [self.get('text', row) for row in labels if self.get('kind', row) == Symbol('NUMBER')]
+        self.assertEqual(numbers, ['WL7', 'ZE3', 'ZE4', 'ZE5'])
+        self.h.run('''(setq *EL:PanelDraft* result *EL:PanelPage* 0 *EL:PanelIndex* 0
+          *EL:PanelCapacity* 'cap300 *EL:PanelTemplateReady* T *EL:ThumbRows* '(device))''')
+        tiles = {}
+        self.h.builtins.update({'SET_TILE': lambda k, v: tiles.__setitem__(k, v),
+                               'EL:PANELBLOCKFILL': lambda: None, 'EL:PANELKNOWNTOTAL': lambda: '统计'})
+        self.call('EL:PanelFill')
+        self.assertTrue(tiles['p_row0'].startswith('WL7 | '))
+        self.assertTrue(tiles['p_row1'].startswith('ZE3 | '))
+        self.assertEqual(tiles['p_row2'], '预留1')
+
+    def test_renumber_updates_existing_caption_handles_without_moving(self):
+        self.set_numbers()
+        before = [p for p in self.f.entities['caption-number/u1'] if isinstance(p, Pair) and p.car in (10, 11)]
+        self.h.run('(EL:SyncCCKKLabels plan record store nil)')
+        self.assertIn(('caption-number/u1', 'WL7'), self.f.writes)
+        self.assertIn(('caption-number/u2', 'ZE3'), self.f.writes)
+        self.assertEqual(self.f.deleted, [])
+        self.assertEqual(before, [p for p in self.f.entities['caption-number/u1'] if isinstance(p, Pair) and p.car in (10, 11)])
+
+    def test_conflict_blocks_generate_and_plan_but_keeps_draft(self):
+        self.h.run('''(setq result (EL:Put 'circuits (list (EL:Put 'number-status 'conflict
+          (EL:Put 'number-evidence '((candidates "ZE1" "ZE2")) (car cs)))) result))
+          (setq *EL:PanelDraft* result *EL:PanelTemplateReady* T)''')
+        self.assertIsNone(self.h.run("(EL:FixedPlan result template 'cap300 '(0.0 0.0 0.0) 0.0 1.0)"))
+        done, tiles = [], {}
+        self.h.builtins.update({'EL:PANELSTORESELECTIONS': lambda: True,
+                               'SET_TILE': lambda k, v: tiles.__setitem__(k, v), 'DONE_DIALOG': done.append})
+        self.call('EL:PanelGenerateBody')
+        self.assertEqual(done, [])
+        self.assertIn('编号冲突', tiles['p_error'])
+        self.assertTrue(self.h.lookup('*EL:PANELDRAFT*'))
+
+    def test_native_cckk2_panel_dispatch_uses_resolved_numbers(self):
+        f = command_fixture.PanelCommandTests()
+        f.setUp()
+        f.h.run('''(setq result (EL:Put 'circuits (list (EL:Put 'circuit-number "ALE-ZE9" (car cs))) result))''')
+        self.assertTrue(truth(f.invoke()))
+        record = f.h.run('(EL:DiagramForPanel "source" (EL:StoreRead))')
+        number = next(row for row in f.get('cckk-labels', record) if f.get('kind', row) == Symbol('NUMBER'))
+        self.assertEqual(f.get('text', number), 'ALE-ZE9')
+        self.assertEqual(f.get('circuit-number', f.get('rows', f.get('plan', record))[0]), 'ALE-ZE9')
 
 if __name__ == '__main__':
     unittest.main()

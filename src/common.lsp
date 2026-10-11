@@ -67,6 +67,7 @@
   (if (not (and drawing rules snapshot))
     (EL:LogEvent "SOURCE_COMPARE_FAILED" (list (cons 'drawing-equal drawing)
       (cons 'rules-equal rules) (cons 'snapshot-equal snapshot))))
+  (if (not snapshot) (EL:LogSnapshotDifference (EL:Get 'snapshot result) fresh))
   (and drawing rules snapshot))
 (defun EL:OptionLabel (option)
   (cond ((equal option 'cap300) "0.3kW") ((equal option 'cap600) "0.6kW") ((equal option 'cap1000) "1kW")
@@ -189,3 +190,21 @@
   (setq value (EL:Get 'panel-number data))
   (if (and (equal (type value) 'STR) (/= (vl-string-trim " \t\r\n" value) ""))
     value "暂无编号"))
+
+;; Date: 2026-10-11. Bounded evidence for exact snapshot differences, without parsing long strings.
+(defun EL:StringDifference (before after / index start)
+  (if (and (equal (type before) 'STR) (equal (type after) 'STR))
+    (progn
+      (setq index (cond ((vl-string-mismatch before after)) (T 0)) start (max 1 (- (1+ index) 100)))
+      (list (cons 'offset index) (cons 'before-length (strlen before)) (cons 'after-length (strlen after))
+        (cons 'before (substr before start 240)) (cons 'after (substr after start 240))))
+    (list (cons 'before-type (type before)) (cons 'after-type (type after)))))
+(defun EL:LogSnapshotDifference (before after / key a b keys)
+  (setq keys (EL:Unique (append (mapcar 'car before) (mapcar 'car after))))
+  (foreach key keys
+    (setq a (EL:Get key before) b (EL:Get key after))
+    (if (not (equal a b))
+      (EL:LogEvent "SOURCE_FIELD_DIFFERENCE" (list (cons 'field key)
+        (cons 'difference (EL:StringDifference
+          (if (equal (type a) 'STR) a (EL:Signature a))
+          (if (equal (type b) 'STR) b (EL:Signature b)))))))))

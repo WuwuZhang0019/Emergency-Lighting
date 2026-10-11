@@ -1,9 +1,12 @@
 {
   "date": "2026-10-11",
   "package": 94,
-  "source_commit": "0da20622ca061f4f3fee50420080e7f38639d373",
+  "source_commit": "1f4e706274b4ef4da96aae72592b9247f557dd61",
   "passed": true,
   "asset_count": 22,
+  "verified_source_inputs": 42,
+  "source_snapshot": "1f4e706",
+  "later_numbering_task_changes_excluded": true,
   "checks": [
     "strict GB2312",
     "ZIP CRC",

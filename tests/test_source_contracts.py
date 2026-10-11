@@ -64,7 +64,7 @@ class SourceContracts(unittest.TestCase):
 
     def test_geometry_and_topology_do_not_mutate_drawing(self):
         forbidden={'ENTMOD','ENTMAKE','ENTMAKEX','ENTDEL','COMMAND','COMMAND-S','SETVAR'}
-        for filename in ['geometry.lsp','topology.lsp','simple.lsp']:
+        for filename in ['geometry.lsp','topology.lsp','simple.lsp','circuit-number.lsp']:
             for form in parse((ROOT/'src'/filename).read_text()):
                 for expr in expressions(form):
                     if isinstance(expr[0],Symbol):

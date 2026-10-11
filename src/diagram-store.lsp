@@ -616,6 +616,7 @@
       (cons 'block-handle (EL:Get 'block-handle h)) (cons 'text-handle (EL:Get 'text-handle h))
       (cons 'position (EL:Get 'position row)) (cons 'text-position (EL:Get 'text-position row))
       (cons 'mode (EL:Get 'mode row)) (cons 'value (EL:Get 'value row)) (cons 'watts (EL:Get 'watts row)))
+      (EL:NumberFormalFields c row)
       (mapcar '(lambda (key) (cons key (EL:Get key c)))
         '(seed-key id output-order is-ground ground-source ground-rule ground-evidence))) out))) (reverse out))
 (defun EL:TransactionRollback (/ doc)
@@ -772,7 +773,7 @@
         (setq index (1+ index) label (EL:CCKKLabelPlan 'number
           (strcat "number/" (EL:Get 'circuit-uid row)) (EL:Get 'circuit-uid row)
           (EL:Get 'position row) plan)
-          labels (append labels (list (EL:Put 'text (strcat "ZE" (itoa index)) label))))
+          labels (append labels (list (EL:Put 'text (EL:CircuitNumberText row index) label))))
         (if (not (equal (EL:Get 'mode row) 'reserve))
           (setq labels (append labels (list (EL:CCKKLabelPlan 'purpose
             (strcat "label/" (EL:Get 'circuit-uid row)) (EL:Get 'circuit-uid row)
@@ -957,4 +958,6 @@
       (vla-Regen doc 1)
       ;; Date: 2026-10-10. The placement click accepts the diagram.
       (EL:Require (EL:FreshResult result (EL:Get 'config record)) "SOURCE_CHANGED：预览后源图变化。")))
+  ;; Date: 2026-10-11. Also cover creation without an interactive preview.
+  (EL:Require (EL:NumberInputsCurrent result) "SOURCE_NUMBER_CHANGED：生成期间平面编号变化，已停止本次生成。")
   (EL:StoreWrite (EL:StorePutDiagram record store)) record)

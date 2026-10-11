@@ -238,11 +238,15 @@ class UpdateTests(unittest.TestCase):
             (EL:Put 'power-signature (EL:Signature (EL:Get 'power-config result)) record)))))
           (EL:StoreWrite (EL:StorePutDiagram record store))''')
 
-    def test_common_sync_noop_and_invalid_result_never_reports_saved(self):
+    def test_common_sync_migrates_legacy_record_once_then_noop_and_invalid_never_saved(self):
         self.install_sync()
-        before=copy.deepcopy(self.entities)
+        graphics=copy.deepcopy({e:d for e,d in self.entities.items() if field(d,0) != 'XRECORD'})
         self.assertTrue(truth(self.h.run("(EL:SyncDiagram result nil nil 'cap300 T nil)")))
-        self.assertEqual(self.entities,before);self.assertEqual(self.undo,[])
+        self.assertEqual({e:d for e,d in self.entities.items() if field(d,0) != 'XRECORD'},graphics)
+        self.assertEqual(self.h.run("(EL:Get 'number-policy-version (EL:DiagramForPanel \"source\" (EL:StoreRead)))"),1)
+        before=copy.deepcopy(self.entities); undo_count=len(self.undo)
+        self.assertTrue(truth(self.h.run("(EL:SyncDiagram result nil nil 'cap300 T nil)")))
+        self.assertEqual(self.entities,before);self.assertEqual(len(self.undo),undo_count)
         self.h.builtins['EL:PRINTSTATISTICS']=lambda *args:None
         self.assertFalse(truth(self.h.run("(EL:SyncDiagram (EL:Put 'can-generate nil result) nil nil 'cap300 T nil)")))
         self.assertEqual(self.h.run("(EL:Get 'status (EL:DiagramForPanel \"source\" (EL:StoreRead)))"),Symbol('STALE'))

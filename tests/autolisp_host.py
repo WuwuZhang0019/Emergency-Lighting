@@ -90,6 +90,24 @@ def cons(a, b):
     return [a] + seq(b) if b is None or isinstance(b, list) else Pair(a, b)
 
 
+def entity_data(data, apps=None):
+    """Date: 2026-10-11. Match native entget application selection, including '*'."""
+    if data is None:
+        return None
+    basic = [row for row in data if car(row) != -3]
+    if not apps:
+        return basic
+    wanted = {name.upper() for name in apps}
+    for row in data:
+        if car(row) != -3:
+            continue
+        selected = [app for app in seq(cdr(row))
+                    if '*' in wanted or str(car(app)).upper() in wanted]
+        if selected:
+            basic.append([-3, *selected])
+    return basic
+
+
 def truth(x):
     return x is not None and x is not False and x != []
 

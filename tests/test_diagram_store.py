@@ -3,7 +3,7 @@ import pathlib
 import copy
 import math
 import unittest
-from autolisp_host import Host, Pair, Symbol, truth
+from autolisp_host import Host, Pair, Symbol, entity_data, truth
 
 ROOT=pathlib.Path(__file__).resolve().parents[1]
 def dump(x):
@@ -31,7 +31,7 @@ def install_bounded_read(host, limit=256):
 class StoreTests(unittest.TestCase):
     def setUp(self):
         self.h=Host()
-        for name in ('common','store-compact','diagram-store','diagram-update'):
+        for name in ('common','circuit-number','store-compact','diagram-store','diagram-update'):
             self.h.load_definitions(ROOT/'src'/f'{name}.lsp')
         self.entities={}; self.dictionary={}; self.xrecord_id=0
         def create(data):
@@ -58,7 +58,7 @@ class StoreTests(unittest.TestCase):
         self.h.builtins.update({'VL-PRIN1-TO-STRING':dump,'NAMEDOBJDICT':lambda:'NOD',
           'DICTSEARCH':lambda _,key:self.entities.get(self.dictionary.get(key)),
           'DICTADD':lambda _,key,e:self.dictionary.setdefault(key,e),
-          'ENTMAKEX':create,'ENTMOD':modify,'ENTGET':lambda e,*apps:self.entities.get(e),
+          'ENTMAKEX':create,'ENTMOD':modify,'ENTGET':lambda e,apps=None:entity_data(self.entities.get(e),apps),
           'VLAX-ENAME->VLA-OBJECT':lambda e:e,
           'VLAX-MAKE-SAFEARRAY':lambda kind,bounds:{'kind':kind,'values':[None]*(bounds.cdr-bounds.car+1)},
           'VLAX-SAFEARRAY-FILL':fill,'VLAX-MAKE-VARIANT':lambda value,kind:('variant',kind,value),

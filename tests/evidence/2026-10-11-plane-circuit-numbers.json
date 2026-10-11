@@ -1,0 +1,393 @@
+{
+  "date": "2026-10-11",
+  "status": "offline_passed_native_pending",
+  "scope": "RN01-RN06 source and finite CAD/DCL adapters",
+  "branch": "codex/plane-circuit-numbers",
+  "base_commit": "d0703ba",
+  "cad_status": "pending",
+  "packaging": "not_run",
+  "checks": [
+    {
+      "pattern": "test_panel.py",
+      "test_count": 8,
+      "elapsed_seconds": 2.785,
+      "passed": true,
+      "selection": "all tests in file",
+      "command": [
+        "python",
+        "-X",
+        "utf8",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests",
+        "-p",
+        "test_panel.py",
+        "-q"
+      ]
+    },
+    {
+      "pattern": "test_panel_number.py",
+      "test_count": 6,
+      "elapsed_seconds": 1.224,
+      "passed": true,
+      "selection": "all tests in file",
+      "command": [
+        "python",
+        "-X",
+        "utf8",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests",
+        "-p",
+        "test_panel_number.py",
+        "-q"
+      ]
+    },
+    {
+      "pattern": "test_cckk_panel_command.py",
+      "test_count": 23,
+      "elapsed_seconds": 69.26,
+      "passed": true,
+      "selection": "all tests in file",
+      "command": [
+        "python",
+        "-X",
+        "utf8",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests",
+        "-p",
+        "test_cckk_panel_command.py",
+        "-q"
+      ],
+      "rechecked_after_guard": true
+    },
+    {
+      "pattern": "test_diagram_update.py",
+      "test_count": 45,
+      "elapsed_seconds": 25.923,
+      "passed": true,
+      "selection": "all tests in file",
+      "command": [
+        "python",
+        "-X",
+        "utf8",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests",
+        "-p",
+        "test_diagram_update.py",
+        "-q"
+      ],
+      "rechecked_after_guard": true
+    },
+    {
+      "pattern": "test_diagram_store.py",
+      "test_count": 21,
+      "elapsed_seconds": 54.993,
+      "passed": true,
+      "selection": "all tests in file",
+      "command": [
+        "python",
+        "-X",
+        "utf8",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests",
+        "-p",
+        "test_diagram_store.py",
+        "-q"
+      ]
+    },
+    {
+      "pattern": "test_fixed_source_signature.py",
+      "test_count": 5,
+      "elapsed_seconds": 6.236,
+      "passed": true,
+      "selection": "all tests in file",
+      "command": [
+        "python",
+        "-X",
+        "utf8",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests",
+        "-p",
+        "test_fixed_source_signature.py",
+        "-q"
+      ]
+    },
+    {
+      "pattern": "test_freshness_reuse.py",
+      "test_count": 4,
+      "elapsed_seconds": 2.999,
+      "passed": true,
+      "selection": "all tests in file",
+      "command": [
+        "python",
+        "-X",
+        "utf8",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests",
+        "-p",
+        "test_freshness_reuse.py",
+        "-q"
+      ]
+    },
+    {
+      "pattern": "test_store_context.py",
+      "test_count": 12,
+      "elapsed_seconds": 1.033,
+      "passed": true,
+      "selection": "all tests in file",
+      "command": [
+        "python",
+        "-X",
+        "utf8",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests",
+        "-p",
+        "test_store_context.py",
+        "-q"
+      ]
+    },
+    {
+      "pattern": "test_source_contracts.py",
+      "test_count": 5,
+      "elapsed_seconds": 1.87,
+      "passed": true,
+      "selection": "all tests in file",
+      "command": [
+        "python",
+        "-X",
+        "utf8",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests",
+        "-p",
+        "test_source_contracts.py",
+        "-q"
+      ]
+    },
+    {
+      "pattern": "test_post_stat_workflow.py",
+      "test_count": 24,
+      "elapsed_seconds": 17.959,
+      "passed": true,
+      "selection": "all tests in file",
+      "command": [
+        "python",
+        "-X",
+        "utf8",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests",
+        "-p",
+        "test_post_stat_workflow.py",
+        "-q"
+      ]
+    },
+    {
+      "pattern": "test_cad_adapter.py",
+      "test_count": 18,
+      "elapsed_seconds": 1.874,
+      "passed": true,
+      "selection": "all tests in file",
+      "command": [
+        "python",
+        "-X",
+        "utf8",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests",
+        "-p",
+        "test_cad_adapter.py",
+        "-q"
+      ]
+    },
+    {
+      "pattern": "test_performance.py",
+      "test_count": 12,
+      "elapsed_seconds": 6.13,
+      "passed": true,
+      "selection": "all tests in file",
+      "command": [
+        "python",
+        "-X",
+        "utf8",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests",
+        "-p",
+        "test_performance.py",
+        "-q"
+      ]
+    },
+    {
+      "pattern": "test_concentrated_trunk.py",
+      "test_count": 14,
+      "elapsed_seconds": 11.408,
+      "passed": true,
+      "selection": "all tests in file",
+      "command": [
+        "python",
+        "-X",
+        "utf8",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests",
+        "-p",
+        "test_concentrated_trunk.py",
+        "-q"
+      ]
+    },
+    {
+      "pattern": "test_root_init.py",
+      "test_count": 14,
+      "elapsed_seconds": 3.156,
+      "passed": true,
+      "selection": "RootInitTests only, no build",
+      "command": [
+        "python",
+        "-X",
+        "utf8",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests",
+        "-p",
+        "test_root_init.py",
+        "-q",
+        "-k",
+        "RootInitTests"
+      ]
+    },
+    {
+      "pattern": "test_circuit_number.py",
+      "test_count": 39,
+      "elapsed_seconds": 38.095,
+      "passed": true,
+      "selection": "all tests in file",
+      "command": [
+        "python",
+        "-X",
+        "utf8",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests",
+        "-p",
+        "test_circuit_number.py",
+        "-q"
+      ]
+    },
+    {
+      "pattern": "test_cckk_assembly.py",
+      "test_count": 5,
+      "elapsed_seconds": 0.1,
+      "passed": true,
+      "selection": "all tests in file",
+      "command": [
+        "python",
+        "-X",
+        "utf8",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests",
+        "-p",
+        "test_cckk_assembly.py",
+        "-q"
+      ]
+    },
+    {
+      "pattern": "test_simple_flow.py",
+      "test_count": 17,
+      "elapsed_seconds": 4.253,
+      "passed": true,
+      "selection": "all tests in file",
+      "command": [
+        "python",
+        "-X",
+        "utf8",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests",
+        "-p",
+        "test_simple_flow.py",
+        "-q"
+      ]
+    }
+  ],
+  "source_encoding": {
+    "status": "passed",
+    "lsp_files": 19,
+    "dcl_files": 1,
+    "checks": [
+      "strict UTF-8 decode",
+      "strict in-memory GB2312 roundtrip",
+      "LISP forms parse"
+    ],
+    "cad_files_created": 0
+  },
+  "test_count": 272,
+  "sha256": {
+    "src/batch-number.lsp": "9e3af40e1e52b0aa083097a453d120bc21a5ee282403410b91a8e7a1dc088fb5",
+    "src/circuit-number.lsp": "4e98c006578ef1181abafa1aa958fe4ea58f8bef310e2696b8f219e6774ffe13",
+    "src/common.lsp": "1b9b0a31531c491bc948e9f016bac6870d9de0f5d95eb68a217d805d70212c29",
+    "src/config.lsp": "cb1eacf0cdbab00b0c723c0ced635079f5f5325e35d12b5b1a4833ad51359376",
+    "src/diagram-commands.lsp": "05773f8cd409a144d0ad76832fc3865e615950c569c5551057a000cfae8a208b",
+    "src/diagram-store.lsp": "a659bcfef37e077f9f8636eb58af8393e778398f339b908f5b914dff95da7065",
+    "src/diagram-update.lsp": "dade2e24889b23438eacba6361a22dc323a03fdfc5b4b31854d40a5b7faf643c",
+    "src/fixed.lsp": "c49f09d8d4f29bfde2d48b98552df0b771e230cc83bd9beb75e0997188a722df",
+    "src/generation.lsp": "c76ee9eb00ab2b7115859270e4fc928babbe9da229476eeb126e3810d0584920",
+    "src/geometry.lsp": "2db8452439c3939e2bf9b7423d9c6f5a15e24960a296fef1123e52193aea3134",
+    "src/insert-circuit.lsp": "e7a9306c8f79849f51b26499ac5c1b0232e18fc54f911597c4334e06b66ae2cd",
+    "src/load.lsp": "d00089199b3b0651b592715980c8dd2c8ae3452fae44cd194ea00d10426746e7",
+    "src/main.lsp": "5a229c0b3081eca2a5e171e60a4e812321fcb85adb28ea32f60fb25d3ab65d6a",
+    "src/panel.lsp": "61e640c74c472f48eb20508715146281e002646257ba99f8c6606f28f613db3d",
+    "src/simple.lsp": "f6ad7f944dc5faca8a1a9e9da8fc5c158e780ac45ef17be4642ef84333f21b59",
+    "src/startup.lsp": "6c3179b5f882c81415734dc149aad5db37c3692c454ed601db1ef155c309a605",
+    "src/statistics.lsp": "45e713b3653d0c204e58cd3feef7cc11de890cc765f6dba36d4da3f85b05ddb7",
+    "src/store-compact.lsp": "afbe4fb946d16c5e2346c0472828edf80758c93ee370a32d29e8be739a72efba",
+    "src/topology.lsp": "136f648ad54d3535cc60449a2c630a4a29be694621276fd4b036869bed3d092b",
+    "ui/power.dcl": "3d3805d4da869b24e70a0cf743070cdd882f183a738a7eae9ca7d03bf3374ef9",
+    "tests/test_circuit_number.py": "2513a529cba6edafabd3df9a92627964b757325286eed83a0cd186c6c7eb06f7",
+    "tests/fixtures/tianz-circuit-number.eld": "1d6c5c9d5e4e99907246b794346b999630b498dcf2656eef18cc3f8591590a0b",
+    "tools/build_cad2020.py": "e70c17800cac102c792c596686ea799d7ae1ac13b22fe4d4b3325a495067fa1b"
+  },
+  "rechecked_after": "RN06 creation and in-place update callbacks now verify source metadata before storing"
+}

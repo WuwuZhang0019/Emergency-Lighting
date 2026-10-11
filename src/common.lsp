@@ -116,7 +116,9 @@
           "store-read-cache-hits" "store-read-cache-misses"
           "source-collect-calls" "source-selection-entities" "source-block-bounds-reads"
           "source-wire-record-reads" "device-contour-reads" "device-template-reuses"
-          "network-build-calls" "network-verified-reuses" "network-geometry-checks")
+          "network-build-calls" "network-verified-reuses" "network-geometry-checks"
+          "number-scopes" "number-source-handles" "number-problems"
+          "number-source-read-attempts" "number-source-read-failures" "number-freshness-checks")
         (EL:PerfSet key 0)) T)))
 (defun EL:PerfBegin (stage / token wait parent)
   (if *EL:PerfActive*
@@ -161,7 +163,8 @@
   (if (member stage '("USER_INPUT" "PLACEMENT_INPUT" "PANEL_DIALOG")) (EL:FreshBoundary))
   (if (and *EL:PerfActive* (or (member stage
       '("USER_INPUT" "PLACEMENT_INPUT" "PANEL_DIALOG" "RECOGNIZE_FIXED_RUN"
-        "SIMPLE_COLLECT" "SIMPLE_NETWORK" "NETWORK_VERIFY_GEOMETRY" "NETWORK_BUILD" "SPLIT_NETWORK" "PRE_GENERATE_FRESH" "FRESH_SOURCE_SCAN"
+        "SIMPLE_COLLECT" "SIMPLE_NETWORK" "NETWORK_VERIFY_GEOMETRY" "NETWORK_BUILD" "SPLIT_NETWORK" "CIRCUIT_NUMBER_SCOPE"
+        "COMPARE_SOURCE_NUMBER" "PRE_GENERATE_FRESH" "FRESH_SOURCE_SCAN"
         "CCKK2" "TX_WRITE" "STORE_READ" "STORE_DECODE" "STORE_CACHE_CHECK" "STORE_SERIALIZE"
         "STORE_PARSE" "STORE_READBACK" "DIAGRAM_VIEW" "DIAGNOSTIC_EXPORT"))
       (and *EL:PerfDetail* (member stage

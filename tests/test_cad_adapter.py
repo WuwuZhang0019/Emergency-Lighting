@@ -6,7 +6,7 @@ These checks are not real AutoCAD acceptance.
 import pathlib
 import unittest
 
-from autolisp_host import Host, Pair, Symbol, equal, truth
+from autolisp_host import Host, Pair, Symbol, entity_data, equal, truth
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
@@ -14,7 +14,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 class CadAdapterTests(unittest.TestCase):
     def setUp(self):
         self.h = Host()
-        for name in ('common', 'config', 'geometry', 'topology', 'store-compact', 'diagram-store'):
+        for name in ('common', 'config', 'geometry', 'topology', 'circuit-number', 'store-compact', 'diagram-store'):
             self.h.load_definitions(ROOT / 'src' / f'{name}.lsp')
         self.entities = {}
         self.bounds = {}
@@ -24,7 +24,8 @@ class CadAdapterTests(unittest.TestCase):
         self.h.frames[0][':VLAX-TRUE'] = -1
         self.h.builtins.update({
             'EL:ENTITYBOUNDS': lambda entity: self.bounds.get(entity),
-            'ENTGET': lambda entity,*apps: self.entities[entity],
+            'ENTGET': lambda entity,apps=None: entity_data(self.entities.get(entity), apps),
+            'HANDENT': lambda handle: handle if handle in self.entities else None,
             'TBLSEARCH': lambda table, name: self.blocks.get(name) if table == 'BLOCK' else [Pair(2, name)],
             'ENTNEXT': lambda entity: self.next_entity.get(entity),
             'TRANS': lambda point, *args: point,

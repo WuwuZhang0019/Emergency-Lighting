@@ -10,7 +10,7 @@
       (setq ok T)
       (foreach file '("src/load.lsp" "src/common.lsp" "src/config.lsp" "src/geometry.lsp"
                      "src/topology.lsp" "src/statistics.lsp" "src/generation.lsp"
-                     "src/main.lsp" "src/simple.lsp" "src/fixed.lsp" "src/panel.lsp"
+                     "src/main.lsp" "src/simple.lsp" "src/circuit-number.lsp" "src/fixed.lsp" "src/panel.lsp"
                      "src/store-compact.lsp" "src/diagram-store.lsp" "src/diagram-update.lsp" "src/diagram-commands.lsp" "src/insert-circuit.lsp" "ui/power.dcl")
         (if (not (findfile (strcat root file))) (setq ok nil)))
       (foreach folder '("config" "output" "templates")

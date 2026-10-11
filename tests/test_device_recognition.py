@@ -43,13 +43,16 @@ class DeviceRecognitionTests(unittest.TestCase):
         self.assertTrue(truth(self.get('can-generate',computed)))
         self.assertEqual(self.get('signature',self.get('snapshot',computed)),'unchanged-source')
 
-    def test_unknown_block_is_retained_and_cannot_be_silently_zero_or_non_ground(self):
+    def test_unknown_block_keeps_missing_power_but_defaults_to_non_ground(self):
         result,powers,_=self.model(('Unknown',))
         computed=self.call('EL:PanelCompute',result,powers,None)
         self.assertFalse(truth(self.get('can-generate',computed)))
         row=self.call('EL:DLMaterialRows',computed,powers)[0]
         self.assertEqual(self.get('ids',row),['D0'])
-        self.assertIsNone(self.get('watts',row));self.assertFalse(truth(self.get('ground-known',row)))
+        self.assertIsNone(self.get('watts',row));self.assertTrue(truth(self.get('ground-known',row)))
+        self.assertFalse(truth(self.get('is-ground',row)))
+        issues=self.get('power-issues',self.get('circuits',computed)[0])
+        self.assertNotIn(Symbol('DEVICE_GROUND_UNCONFIRMED'),[self.get('code',issue) for issue in issues])
         self.assertEqual(self.get('library-pending',computed),['UNKNOWN'])
 
     def test_registered_device_defaults_do_not_bypass_number_conflict(self):
@@ -104,12 +107,16 @@ class DeviceRecognitionTests(unittest.TestCase):
         self.assertTrue(truth(self.get('can-generate',computed)))
         self.assertFalse(truth(self.get('is-ground',self.get('circuits',computed)[0])))
 
-    def test_power_only_manual_confirmation_cannot_infer_false_ground(self):
+    def test_filled_power_generates_with_default_non_ground_without_manual_ground_flag(self):
         result,powers,_=self.model(('Unknown',))
+        result=self.call('EL:DLSetOverride',result,'Unknown',Symbol('WATTS'),5)
         result=self.call('EL:DLSetOverride',result,'Unknown',Symbol('WATTS-SET'),True)
         powers=self.call('EL:Put','UNKNOWN',5,powers)
         computed=self.call('EL:PanelCompute',result,powers,None)
-        self.assertFalse(truth(self.get('can-generate',computed)))
+        self.assertTrue(truth(self.get('can-generate',computed)))
+        self.assertFalse(truth(self.get('is-ground',self.get('circuits',computed)[0])))
+        self.assertFalse(truth(self.get('ground-set',self.call('EL:DLOverride','Unknown',computed))))
+        self.assertEqual(self.get('signature',self.get('snapshot',computed)),'unchanged-source')
 
     def test_marked_defaults_refresh_only_on_recognition_and_manual_values_survive(self):
         result,powers,snap=self.model(('Lamp',))

@@ -8,7 +8,7 @@ from pathlib import Path
 import test_device_library as library_backend
 import test_fixed_diagnostics as diag
 import test_diagram_store as db
-from autolisp_host import Symbol, truth
+from autolisp_host import Pair, Symbol, truth
 
 
 class PostStatWorkflowTests(unittest.TestCase):
@@ -162,6 +162,121 @@ class PostStatWorkflowTests(unittest.TestCase):
         self.assertEqual(self.get('capacity',edited),Symbol('CAP300'))
         self.assertEqual(self.get('capacity-source',self.get('result',edited)),Symbol('DEFAULT'))
         self.assertTrue(truth(self.get('generate',edited)))
+
+    def unknown_local_power(self):
+        snapshot = self.h.run("""'((root . "library-fixture/") (catalog (schema . EL_DEVICE_LIBRARY_V1) (library-id . "LIB-EMPTY") (revision . 0) (next-id . 1) (devices)) (index) (present))""")
+        self.h.builtins['EL:DLSNAPSHOT'] = lambda: snapshot
+        self.h.set('*EL:DLSESSIONSNAPSHOT*', snapshot)
+        prepared = self.call('EL:DLPrepare', self.result, self.powers, snapshot, None)
+        self.result = self.get('result', prepared)
+        self.result = self.call('EL:DLSetOverride', self.result, 'LAMP', Symbol('WATTS'), 5)
+        self.result = self.call('EL:DLSetOverride', self.result, 'LAMP', Symbol('WATTS-SET'), True)
+
+    def test_filled_power_generates_without_touching_non_ground_checkbox(self):
+        self.unknown_local_power()
+        self.h.builtins['EL:TEMPLATEREADY'] = lambda *args: True
+        self.h.builtins['ALERT'] = lambda message: self.fail(message)
+        def generate():
+            self.assertEqual(self.tiles['b_ground0'], '0')
+            self.assertNotIn('待确认', self.tiles['p_error'])
+            self.call('EL:PanelGenerate')
+            self.assertEqual(self.closed, 2)
+        self.actions = [generate]
+        edited = self.dialog()
+        self.assertTrue(truth(self.get('generate', edited)))
+        draft = self.get('result', edited)
+        self.assertFalse(truth(self.get('is-ground', self.get('circuits', draft)[0])))
+        self.assertFalse(truth(self.get('ground-set', self.call('EL:DLOverride', 'LAMP', draft))))
+        self.assertEqual(self.writes, [])
+
+    def test_unknown_ground_can_be_checked_unchecked_and_reopened(self):
+        self.unknown_local_power()
+        def edit():
+            self.call('EL:PanelBlockGround', 0, '1')
+            self.assertTrue(truth(self.get('is-ground', self.get('circuits', self.h.lookup('*EL:PANELDRAFT*'))[0])))
+            self.call('EL:PanelBlockGround', 0, '0')
+            self.call('EL:PanelAccept')
+        self.actions = [edit]
+        saved = self.get('result', self.dialog())
+        record = self.call('EL:DLPersist', saved, self.call('EL:NewRecord', 'panel', self.call('EL:StoreInitial')))
+        record = self.call('EL:StoreDecode', self.call('EL:StoreEncode', record))
+        self.result = self.call('EL:DLRestoreRecord', self.call('EL:RecognizeFixed', self.cfg, 'panel'), record)
+        self.h.builtins['EL:TEMPLATEREADY'] = lambda *args: True
+        def reopen():
+            self.assertEqual(self.tiles['b_ground0'], '0')
+            self.call('EL:PanelGenerate')
+            self.assertEqual(self.closed, 2)
+        self.actions = [reopen]
+        self.assertTrue(truth(self.get('generate', self.dialog())))
+
+    def test_pick_enters_panel_with_all_circuits_without_exit_confirmation(self):
+        self.h.builtins['EL:REVIEWFIXEDEXITS'] = lambda *args: self.fail('extra exit confirmation')
+        self.actions = [lambda: self.done(0)]
+        self.call('EL:FixedStatPick')
+        self.assertEqual(self.dialogs, ['el_panel'])
+        self.assertNotIn('f_exits', self.tiles)
+        self.assertEqual(self.writes, [])
+
+    def test_unvisited_ground_rows_default_to_non_ground_when_generating(self):
+        self.unknown_local_power()
+        snapshot = self.get('snapshot', self.result)
+        sample = self.get('blocks', snapshot)[0]
+        blocks = []
+        powers = None
+        for i in range(10):
+            name = f'TYPE{i}'
+            block = self.call('EL:Put', Symbol('ID'), f'D{i}', sample)
+            block = self.call('EL:Put', Symbol('NAME'), name, block)
+            block = self.call('EL:Put', Symbol('ROLE'), Symbol('DEVICE'), block)
+            block = self.call('EL:Put', Symbol('IDENTITY'), [name, None, 'block-name-v1'], block)
+            blocks.append(block)
+            self.result = self.call('EL:DLSetOverride', self.result, name, Symbol('WATTS'), 1)
+            self.result = self.call('EL:DLSetOverride', self.result, name, Symbol('WATTS-SET'), True)
+            powers = self.call('EL:Put', name, 1, powers)
+        circuit = self.get('circuits', self.result)[0]
+        circuit = self.call('EL:Put', Symbol('DEVICES'), [f'D{i}' for i in range(10)], circuit)
+        self.result = self.call('EL:Put', Symbol('CIRCUITS'), [circuit], self.result)
+        self.result = self.call('EL:Put', Symbol('SNAPSHOT'), self.call('EL:Put', Symbol('BLOCKS'), blocks, snapshot), self.result)
+        self.powers = powers
+        self.h.builtins['EL:TEMPLATEREADY'] = lambda *args: True
+        def generate():
+            self.assertIn('1 / 2', self.tiles['f_page'])
+            self.assertEqual(len(self.h.lookup('*EL:THUMBROWS*')), 10)
+            self.call('EL:PanelGenerate')
+            self.assertEqual(self.closed, 2)
+        self.actions = [generate]
+        draft = self.get('result', self.dialog())
+        self.assertTrue(truth(self.get('can-generate', draft)))
+        self.assertEqual(self.get('box-watts', draft), 10)
+        self.assertFalse(truth(self.get('is-ground', self.get('circuits', draft)[0])))
+        self.assertEqual(self.writes, [])
+
+    def test_fixed_update_changed_candidates_opens_panel_without_exit_confirmation(self):
+        store = self.call('EL:StoreInitial')
+        record = self.call('EL:NewRecord', 'panel', store)
+        record = self.call('EL:Put', Symbol('ENGINE'), Symbol('FIXED'), record)
+        record = self.call('EL:Put', Symbol('CONFIG'), self.cfg, record)
+        record = self.call('EL:Put', Symbol('POWERS'), self.powers, record)
+        record = self.call('EL:Put', Symbol('CANDIDATE-KEYS'), [['old-wire', Symbol('OUTLET')]], record)
+        store = self.call('EL:StorePutDiagram', record, store)
+        tag = [Pair(Symbol('DRAWING'), self.get('drawing-uuid', store)),
+               Pair(Symbol('DIAGRAM'), self.get('diagram-id', record)),
+               Pair(Symbol('ROLE'), Symbol('PANEL')), Pair(Symbol('UID'), 'panel'), Pair(Symbol('SELF'), 'managed')]
+        self.entities['managed'] = [Pair(5, 'managed')]
+        captured = []
+        self.h.builtins.update({
+            'EL:STOREREAD': lambda: store,
+            'EL:PICKENTITY': lambda *args: ['managed', [0., 0., 0.]],
+            'EL:DIAGRAMTAG': lambda entity: tag if entity == 'managed' else None,
+            'EL:REVIEWFIXEDEXITS': lambda *args: self.fail('extra exit confirmation on update'),
+            'EL:EDITPANEL': lambda result, cfg: captured.append(result),
+        })
+        self.h.run('(c:ELUPDATE)')
+        self.assertEqual(len(captured), 1)
+        self.assertEqual(len(self.get('circuits', captured[0])), 1)
+        self.assertFalse(truth(self.get('excluded-seeds', captured[0])))
+        self.assertEqual(self.dialogs, [])
+        self.assertEqual(self.writes, [])
 
     def test_library_navigation_preserves_current_circuit_and_does_not_generate(self):
         def action():
@@ -482,13 +597,13 @@ class PostStatWorkflowTests(unittest.TestCase):
         self.assertEqual(len(stored), 1)
         self.assertEqual(stored[0][3],Symbol('CAP300'))
 
-    def test_shared_sync_rejects_unconfirmed_fixed_result(self):
+    def test_shared_sync_accepts_default_ground_without_confirmation(self):
         self.h.builtins['EL:STOREREAD'] = lambda: None
-        self.h.builtins['EL:MARKSTALE'] = lambda *args: None
-        self.h.builtins['EL:TRANSACTION'] = lambda *args: self.fail('unconfirmed result cannot mutate DWG')
+        self.h.builtins['EL:MARKSTALE'] = lambda *args: self.fail('default ground must not mark stale')
+        self.h.builtins['EL:TRANSACTION'] = lambda *args: self.fail('non-generating sync must not mutate DWG')
         result = self.call('EL:PanelCompute', self.result, self.powers, self.cfg)
-        self.assertIsNone(self.call('EL:SyncDiagram', result, self.cfg, self.powers, Symbol('CAP300'), True, True))
-        self.assertIn('尚未确认', ''.join(self.messages))
+        self.assertTrue(truth(self.call('EL:SyncDiagram', result, self.cfg, self.powers, Symbol('CAP300'), None, None)))
+        self.assertNotIn('尚未确认', ''.join(self.messages))
 
     def test_legacy_generation_retains_capacity_fallback_without_fixed_review(self):
         self.h.frames[0]['*EL:RESULT*'] = self.call('EL:Put', Symbol('ENGINE'), Symbol('LEGACY'), self.result)
@@ -561,13 +676,14 @@ class SelectionStoreTests(unittest.TestCase):
         self.assertIsNone(self.h.run("(EL:Get 'is-ground (car (EL:Get 'draft-circuits reopened)))"))
         self.assertEqual(self.h.run("(EL:Get 'name (EL:Get 'fixed-template (EL:StoreRead)))"), 'captured')
 
-    def test_missing_capacity_defaults_but_unconfirmed_types_remain_stale(self):
+    def test_missing_capacity_and_ground_use_defaults_without_marking_stale(self):
         self.h.run('''(EL:SaveDraft '((panel . "source") (engine . fixed) (can-generate . T)
           (circuits ((id . "R1") (seed-key "wire" outlet) (ground-source . default)))) nil nil nil)
           (setq reopened (EL:DiagramForPanel "source" (EL:StoreRead)))''')
         self.assertEqual(self.h.run("(EL:Get 'draft-capacity reopened)"),Symbol('CAP300'))
         self.assertEqual(self.h.run("(EL:Get 'draft-capacity-source reopened)"),Symbol('DEFAULT'))
-        self.assertEqual(self.h.run("(EL:Get 'status reopened)"), Symbol('STALE'))
+        self.assertNotEqual(self.h.run("(EL:Get 'status reopened)"), Symbol('STALE'))
+        self.assertIsNone(self.h.run("(EL:Get 'is-ground (car (EL:Get 'draft-circuits reopened)))"))
 
 
 if __name__ == '__main__':

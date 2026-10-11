@@ -578,8 +578,8 @@
   ;; Date: 2026-10-09. Use 0.3kW immediately; retain a valid saved choice.
   (if (member capacity '(cap300 cap600 cap1000)) capacity 'cap300))
 (defun EL:SelectionsReady (result capacity)
-  (and (member capacity '(cap300 cap600 cap1000))
-    (vl-every '(lambda (c) (member (EL:Get 'ground-source c) '(manual device-library))) (EL:Get 'circuits result))))
+  ;; Date: 2026-10-11. Ground values need no separate confirmation state.
+  (if (member capacity '(cap300 cap600 cap1000)) T nil))
 (defun EL:PanelStoreSelections ()
   (if (EL:PanelStore)
     (progn
@@ -628,13 +628,12 @@
   (EL:PanelText "p_error" (cond
     ((not (EL:CircuitNumbersReady *EL:PanelDraft*)) (EL:NumberProblemText *EL:PanelDraft*))
     ((EL:Get 'load-error (EL:Get 'device-library *EL:PanelDraft*)) "设备库无法读取，请修复库文件后重新统计；本图和库原文件保留。")
-    ((EL:Get 'library-pending *EL:PanelDraft*) (strcat "待登记：" (EL:DLAliasText (EL:Get 'library-pending *EL:PanelDraft*)) "；可打开设备库，或明确填写本箱功率及地面。"))
-    ((and (assoc 'device-library *EL:PanelDraft*) (not (EL:SelectionsReady *EL:PanelDraft* *EL:PanelCapacity*))) "尚有设备的地面属性待确认；非地面也需明确确认。")
+    ((EL:Get 'library-pending *EL:PanelDraft*) (strcat "待登记：" (EL:DLAliasText (EL:Get 'library-pending *EL:PanelDraft*)) "；请填写本箱功率，地面设备才勾选是。"))
     ((not *EL:ThumbRows*) "未识别到连接设备，请检查导线连接、设备图块或恢复已排除图块。")
     ((>= *EL:PanelIndex* (length cs)) "预留回路无需设置；右侧图例表仍显示本箱全部设备。")
     ((and (not (assoc 'block-ground *EL:PanelDraft*)) (vl-some '(lambda (c) (EL:Get 'is-ground c)) cs))
       "沿用旧回路地面设置；修改图块地面勾选后按图块统一重算。")
-    (T "图例表显示本箱全部设备；含地面图块的回路自动设为地面。")))
+    (T "地面勾选是，未勾选即为非地面；保存或生成直接使用当前设置。")))
   (EL:PanelText "p_total" (strcat (EL:PanelKnownTotal) "；实际回路 " (itoa (length cs)) "；输出 " (itoa (EL:FixedOutputCount (length cs)))
     "；已完整核对回路 " (itoa (EL:Get 'box-watts *EL:PanelDraft*)) " W"))
   (set_tile "p_capacity" (cond ((equal *EL:PanelCapacity* 'cap600) "p_600")
@@ -1010,8 +1009,7 @@
       ((equal code 'POWER_OVERFLOW) "功率计算超出范围")
       ((equal code 'POWER_OVER_LIMIT) "回路功率超过172W")
       ((equal code 'DEVICE_OWNERSHIP_CONFLICT) "设备被多个回路共同识别")
-      ((equal code 'DEVICE_LIBRARY_UNKNOWN) "设备尚未登记到库；请登记或明确填写本箱功率和地面")
-      ((equal code 'DEVICE_GROUND_UNCONFIRMED) "设备地面属性未确认；非地面也需明确确认")
+      ((equal code 'DEVICE_LIBRARY_UNKNOWN) "设备功率未填写；请在图例表填写单个功率")
       ((equal code 'DEVICE_LIBRARY_UNAVAILABLE) "设备库读取失败；原文件保留，请修复后重新统计")
       (T (strcat "连接或几何检查未通过：" (vl-prin1-to-string code)))))
   (strcat label "；对象：" (vl-prin1-to-string (EL:Get 'object issue))

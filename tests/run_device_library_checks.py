@@ -1,4 +1,4 @@
-"""Focused device-library delivery evidence. Date: 2026-10-11. Native CAD pending."""
+"""Focused device-library delivery evidence. Date: 2026-10-12. Native CAD pending."""
 import hashlib
 import json
 import re
@@ -9,6 +9,7 @@ import unittest
 from run_checks import RecordingResult
 
 ROOT = Path(__file__).resolve().parents[1]
+EVIDENCE_DATE = '2026-10-12'
 PACKAGE_NO = int(re.search(r'^PACKAGE_NO = (\d+)$',
     (ROOT / 'tools/build_cad2020.py').read_text(encoding='utf-8'), re.M)[1])
 MODULES = (
@@ -34,16 +35,16 @@ def run():
          ROOT / 'tests/check_device_library_package.py'] +
         [ROOT / 'tests' / (name + '.py') for name in MODULES])
     evidence = {
-        'date': '2026-10-11', 'status': 'automated_passed' if result.wasSuccessful() else 'automated_failed',
+        'date': EVIDENCE_DATE, 'status': 'automated_passed' if result.wasSuccessful() else 'automated_failed',
         'package': PACKAGE_NO, 'native_cad_status': 'pending_user_validation',
-        'scope': 'inline main-panel library editor, legend selection, unsaved input retention, real catalog draft save and cached previews; locked-library recovery, local overrides, source freshness and navigation regressions',
+        'scope': 'merged inline main-panel library editor and unchecked non-ground defaults; legend selection, manual overrides, generation, save/reopen and unvisited rows; direct fixed pick/update; library recovery, power, number, ownership, source and transaction regressions',
         'test_count': result.testsRun, 'failure_count': len(result.failures), 'error_count': len(result.errors),
         'tests': sorted(result.records, key=lambda row: row['test']),
         'sha256': {path.relative_to(ROOT).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest() for path in files},
         'boundary': 'Python AutoLISP/CAD adapters and static source checks; no native WBlock, SLD, DCL, real DWG reopen or timing acceptance',
     }
-    path = ROOT / f'tests/evidence/2026-10-11-device-library-{PACKAGE_NO:03d}.json'
-    path.write_text(json.dumps(evidence, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    path = ROOT / f'tests/evidence/{EVIDENCE_DATE}-device-library-{PACKAGE_NO:03d}.json'
+    path.write_text(json.dumps(evidence, ensure_ascii=False, indent=2) + '\n', encoding='utf-8', newline='\n')
     if not result.wasSuccessful(): raise SystemExit(1)
     print(f'{result.testsRun} checks passed: {path}')
 

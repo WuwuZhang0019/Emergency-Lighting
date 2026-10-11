@@ -1,10 +1,10 @@
-"""Build the AutoCAD 2020 trial package. Date: 2026-10-11."""
+"""Build the AutoCAD 2020 trial package. Date: 2026-10-12."""
 from pathlib import Path
 import shutil
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGE_NO = 102
+PACKAGE_NO = 104
 NAME = f'应急照明-{PACKAGE_NO:03d}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 DEST = ROOT / 'output' / NAME
@@ -140,7 +140,7 @@ def build():
         shutil.copy2(source, DEST / 'tests/evidence' / source.name)
     for source in sorted((ROOT / 'tests/evidence').glob('2026-10-11-empty-panel*096.*')):
         shutil.copy2(source, DEST / 'tests/evidence' / source.name)
-    for source in sorted((ROOT / 'tests/evidence').glob('2026-10-11-device-library-*.json')):
+    for source in sorted((ROOT / 'tests/evidence').glob('????-??-??-device-library-*.json')):
         shutil.copy2(source, DEST / 'tests/evidence' / source.name)
     readme = guide
     (DEST / '使用说明.md').write_text(readme, encoding='utf-8')

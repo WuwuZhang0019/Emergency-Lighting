@@ -28,19 +28,14 @@ class PanelNumberTests(unittest.TestCase):
         self.assertEqual(self.h.run("(EL:PanelNumber (EL:PreparedResult nil reopened))"), '一层-ALE')
         self.assertEqual(self.h.run("(EL:PanelNumber (EL:PreparedResult '((panel-number . \"新编号\")) reopened))"), '新编号')
 
-    def test_pick_cancel_invalid_and_attribute(self):
-        self.h.run('(setq *EL:PanelDraft* \'((panel-number . "原编号")))')
+    def test_skip_defaults_and_invalid_pick_retries(self):
         self.h.builtins['NENTSEL']=lambda *args: None
-        self.call('EL:PanelPickNumber')
-        self.assertEqual(self.h.run('(EL:PanelNumber *EL:PanelDraft*)'), '原编号')
-        self.h.builtins['NENTSEL']=lambda *args: ['num', [0,0,0]]
-        self.entities['num']=[Pair(0,'LINE')]
-        self.h.builtins['ALERT']=lambda *args: None
-        self.call('EL:PanelPickNumber')
-        self.assertEqual(self.h.run('(EL:PanelNumber *EL:PanelDraft*)'), '原编号')
+        self.assertEqual(self.call('EL:PickPanelNumber'), '暂无编号')
+        picks=iter([['bad',[0,0,0]], ['num',[0,0,0]]])
+        self.entities['bad']=[Pair(0,'LINE')]
         self.entities['num']=[Pair(0,'ATTRIB'),Pair(1,' ZZ-B1ALE(JZ) ')]
-        self.call('EL:PanelPickNumber')
-        self.assertEqual(self.h.run('(EL:PanelNumber *EL:PanelDraft*)'), 'ZZ-B1ALE(JZ)')
+        self.h.builtins['NENTSEL']=lambda *args: next(picks)
+        self.assertEqual(self.call('EL:PickPanelNumber'), 'ZZ-B1ALE(JZ)')
 
     def test_renumber_updates_existing_caption(self):
         self.h.run('(setq plan (EL:Put \'panel-number "二层-ALE" plan))')

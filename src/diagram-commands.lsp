@@ -154,7 +154,7 @@
       (EL:LogEvent "NO_CONNECTED_DEVICES" (list (cons 'panel (EL:Get 'panel result))
         (cons 'circuits (length (EL:Get 'circuits result))) (cons 'message message)))
       (princ (strcat "\n" message)) (alert message) nil)))
-(defun EL:FixedStatPick (/ *error* panel pd cfg result record powers next)
+(defun EL:FixedStatPick (/ *error* panel pd cfg result record powers next number)
   (defun *error* (msg)
     (EL:LogFailure msg)
     (vl-catch-all-apply 'EL:ClearPickHighlights nil)
@@ -167,6 +167,7 @@
     (progn
       (setq pd (entget (car panel)))
       (EL:Require (not (EL:ManagedEntity (car panel))) "请选择平面图配电箱，不能统计系统图输出。")
+      (setq number (EL:PickPanelNumber))
       (setq cfg (EL:Put 'template (EL:Get 'template (EL:LoadConfig))
         (EL:Put 'params (EL:GapParams (EL:SuggestedParams)) (EL:DefaultConfig (EL:DrawingID)))))
       (if (setq cfg (EL:PanelWireConfig (car panel) cfg))
@@ -177,7 +178,8 @@
               (cons 'styles (EL:Get 'wire-styles cfg))) 'EL:RecognizeFixed (list cfg (cdr (assoc 5 pd))))
             record (EL:DiagramForPanel (cdr (assoc 5 pd)) (EL:StoreRead)))
           ;; Review and powers now share one modal dialog.
-          (setq result (EL:Put 'excluded-seeds (EL:Get 'excluded-seeds record) result))
+          (setq result (EL:Put 'panel-number number
+            (EL:Put 'excluded-seeds (EL:Get 'excluded-seeds record) result)))
           (setq powers (EL:FixedPowers record) result (EL:PanelCompute result powers cfg)
             *EL:Result* result *EL:FixedConfig* cfg)
           (if (EL:PickedDevicesReady result) (setq next (EL:EditPanel result cfg))
@@ -191,7 +193,7 @@
       (setq ids (cons (EL:Get 'source-panel-handle row) ids))))
   (setq ids (EL:Unique ids))
   (if (= (length ids) 1) (car ids)))
-(defun EL:FixedTrunkPick (/ *error* pick trunk panel cfg result record next data id)
+(defun EL:FixedTrunkPick (/ *error* pick trunk panel cfg result record next data id number)
   (defun *error* (msg)
     (EL:LogFailure msg)
     (vl-catch-all-apply 'EL:ClearPickHighlights nil)
@@ -215,12 +217,14 @@
         (progn
           (EL:Require (and (equal (cdr (assoc 0 (entget (handent panel)))) "INSERT")
             (not (EL:ManagedEntity (handent panel)))) "来源配电箱无效或为系统图输出。")
+          (setq number (EL:PickPanelNumber))
           (setq cfg (EL:Put 'template (EL:Get 'template (EL:LoadConfig))
             (EL:Put 'params (EL:GapParams (EL:SuggestedParams)) (EL:DefaultConfig (EL:DrawingID))))
             cfg (EL:Put 'concentrated-trunk id (EL:Put 'auto-panel panel
               (EL:Put 'wire-styles (list (EL:WireStyle data))
                 (EL:Put 'wire-layers (list (cdr (assoc 8 data))) cfg))))
-            result (EL:LogCall "RECOGNIZE_TRUNK" (list panel id) 'EL:RecognizeFixed (list cfg panel)))
+            result (EL:LogCall "RECOGNIZE_TRUNK" (list panel id) 'EL:RecognizeFixed (list cfg panel))
+            result (EL:Put 'panel-number number result))
           (princ (strcat "\n集中干线已识别 " (itoa (length (EL:Get 'circuits result)))
             " 条出线，箱侧连接段已排除；请用查看全部回路核对。"))
           (setq *EL:Result* result *EL:FixedConfig* cfg)

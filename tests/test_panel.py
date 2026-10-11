@@ -1,4 +1,4 @@
-"""Circuit draft and identity checks. Date: 2026-10-10."""
+"""Circuit draft and identity checks. Date: 2026-10-11."""
 import unittest
 import test_simple_flow as simple
 from autolisp_host import Symbol, truth
@@ -48,7 +48,11 @@ class PanelTests(unittest.TestCase):
         for name in ('generation','fixed','diagram-update','diagram-commands'):
             self.h.load_definitions(simple.adapter.ROOT/'src'/f'{name}.lsp')
         self.plan(); picks=iter([['panel',[0.,0.,0.]],['w1',[1.,0.,0.]]]); prompts=[]; panels=[]
-        def pick(kind,prompt): prompts.append(prompt); return next(picks)
+        steps=[]
+        def pick(kind,prompt):
+            steps.append('panel'); prompts.append(prompt); return next(picks)
+        def number(prompt): steps.append('number'); return None
+        self.h.builtins['NENTSEL']=number
         self.h.builtins.update({'EL:ENSUREROOT':lambda:True,'EL:PICKMODEL':pick,
           'EL:LOADCONFIG':lambda:self.cfg,'HANDENT':lambda e:e if e in self.entities else None,
           'EL:SIMPLELOADPOWERS':lambda:self.call('EL:Put',Symbol('VERSION'),1,self.call('EL:Put',Symbol('POWERS'),self.call('EL:Put','LAMP',5,None),None)),
@@ -57,6 +61,8 @@ class PanelTests(unittest.TestCase):
           'EL:PANELDIALOG':lambda result,cfg,powers,cap:panels.append(result) and None,
           'EL:CLEARPICKHIGHLIGHTS':lambda:None})
         self.h.run('(EL:FixedStatPick)')
+        self.assertEqual(steps,['panel','number'])
+        self.assertEqual(self.get('panel-number',panels[0]), '暂无编号')
         self.assertEqual(len(prompts),1);self.assertEqual(len(panels),1)
         self.assertEqual(len(self.get('circuits',panels[0])),1)
         self.assertEqual(self.get('box-watts',panels[0]),10)

@@ -1,4 +1,4 @@
-"""Concentrated outlet boundary regression. Date: 2026-10-10.
+"""Concentrated outlet boundary regression. Date: 2026-10-11.
 
 Finite CAD adapters; native AutoCAD acceptance remains pending.
 """
@@ -117,7 +117,12 @@ class TrunkTests(unittest.TestCase):
     def test_first_pick_and_saved_pick_reach_existing_panel(self):
         picks = iter([['trunk', [10., 0., 0.]], ['panel', [0., 0., 0.]]])
         seen = []
-        self.h.builtins['EL:PICKMODEL'] = lambda *args: next(picks)
+        steps=[]
+        self.entities['number']=[Pair(0,'TEXT'),Pair(1,'ZZ-B1ALE(JZ)')]
+        def number(prompt): steps.append('number'); return ['number',[0,0,0]]
+        self.h.builtins['NENTSEL']=number
+        def model(*args): steps.append('model'); return next(picks)
+        self.h.builtins['EL:PICKMODEL'] = model
         self.h.builtins['EL:EDITPANEL'] = lambda result, cfg: seen.append((result, cfg))
         self.call('EL:FixedTrunkPick')
         self.assert_five(seen[0][0])
@@ -127,6 +132,9 @@ class TrunkTests(unittest.TestCase):
         picks = iter([['trunk', [10., 0., 0.]]])
         self.call('EL:FixedTrunkPick')
         self.assert_five(seen[1][0])
+        self.assertEqual(steps,['model','model','number','model','number'])
+        for result,cfg in seen:
+            self.assertEqual(self.get('panel-number',result),'ZZ-B1ALE(JZ)')
 
     def test_trunk_outlets_without_devices_return_feedback_and_log(self):
         self.selected = [x for x in self.selected if not x.startswith('d')]

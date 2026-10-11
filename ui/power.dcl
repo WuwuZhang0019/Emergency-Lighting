@@ -100,7 +100,6 @@ el_panel : dialog {
     : spacer { width = 1; }
   }
   // Date: 2026-10-11. Number belongs to the current source panel.
-  : button { key = "p_pick_number"; label = "拾取配电箱编号"; }
   : text { key = "p_number"; label = "配电箱编号：暂无编号"; width = 46; fixed_width = true; }
   : radio_row { key = "p_capacity"; label = "当前配电箱容量档位"; fixed_width = true; alignment = left;
     : radio_button { key = "p_300"; width = 10; fixed_width = true; label = "0.3kW"; value = "1"; }

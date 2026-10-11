@@ -1,4 +1,4 @@
-"""Two-pick device table and persistent block powers. Date: 2026-10-10."""
+"""Two-pick device table and persistent block powers. Date: 2026-10-11."""
 import unittest
 from autolisp_host import Pair, Symbol, truth
 import test_cad_adapter as adapter
@@ -14,6 +14,8 @@ class SimpleFlowTests(unittest.TestCase):
         adapter.CadAdapterTests.setUp(self)
         for name in ('statistics','main','simple','diagram-update'):
             self.h.load_definitions(adapter.ROOT/'src'/f'{name}.lsp')
+        # Default finite adapter response: skip the optional panel number.
+        self.h.builtins['NENTSEL'] = lambda *args: None
         self.cfg=self.h.lookup('CFG')
 
     def network(self):

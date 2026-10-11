@@ -1,5 +1,6 @@
-"""Native thumbnail capture and modal paging. Date: 2026-10-10."""
+"""Native-format legends, source fallback and modal paging. Date: 2026-10-11."""
 import unittest
+from autolisp_host import truth
 import test_fixed_diagnostics as diagnostics
 
 
@@ -12,7 +13,7 @@ class ThumbnailTests(unittest.TestCase):
         self.slides, self.clears = [], []
         self.h.builtins.update({
             'FINDFILE': lambda p: p,
-            'SLIDE_IMAGE': lambda *args: self.slides.append(args),
+            'SLIDE_IMAGE': lambda *args: self.slides.append(args) or 'actual.sld',
             'FILL_IMAGE': lambda *args: self.clears.append(args),
         })
 
@@ -20,8 +21,75 @@ class ThumbnailTests(unittest.TestCase):
         self.call('EL:ThumbDraw', 'f_image0', ['actual.sld', [1200, 600]])
         self.assertEqual(self.slides, [(20, 0, 120, 60, 'actual.sld')])
         self.call('EL:ThumbDraw', 'f_image0', None)
-        self.assertEqual(len(self.clears), 2)
+        self.assertEqual([args[-1] for args in self.clears], [-15, -2, -15])
         self.assertEqual(len(self.slides), 1)
+
+    def test_failed_slide_draw_clears_dark_area_and_reports_failure(self):
+        ended = []
+        self.h.builtins['END_IMAGE'] = lambda: ended.append(True)
+        for result in (None, RuntimeError('native slide_image failed')):
+            with self.subTest(result=result):
+                def draw(*args):
+                    if isinstance(result, Exception): raise result
+                    return result
+                self.h.builtins['SLIDE_IMAGE'] = draw
+                self.assertFalse(truth(self.call('EL:ThumbDraw', 'dl_image', ['native.sld', [800, 600]])))
+                self.assertEqual(self.clears[-1][-1], -15)
+        self.assertEqual(len(ended), 2)
+
+    def prepare_setup(self, library=True):
+        result = self.h.run(''' '((snapshot (blocks ((id . "D1") (name . "Lamp")
+          (bounds (0 0 0) (2 2 0))))) (circuits ((devices "D1")))) ''')
+        if library:
+            result = self.call('EL:Put', self.h.run("'device-library"),
+                              self.h.run("'((items) (load-error))"), result)
+        self.h.builtins['EL:THUMBCLEANUP'] = lambda: None
+        self.h.builtins['EL:THUMBCAPTURE'] = lambda b: ['source.sld', [1200, 600]]
+        self.h.builtins['EL:DLLEGEND'] = lambda *args: None
+        return result
+
+    def test_unknown_library_device_previews_actual_source_and_modal_refresh_reuses_it(self):
+        result = self.prepare_setup()
+        original = result.copy()
+        captured = []
+        self.h.builtins['EL:THUMBCAPTURE'] = lambda b: captured.append(self.get('id', b)) or ['source.sld', [1200, 600]]
+        self.call('EL:ThumbPrepare', result)
+        self.assertEqual(captured, ['D1'])
+        self.assertEqual(self.call('EL:Get', 'Lamp', self.h.lookup('*EL:THUMBCACHE*')), ['source.sld', [1200, 600]])
+        for api in ('EL:THUMBCAPTURE', 'EL:THUMBCLEANUP', 'COMMAND-S', 'VLA-PUT-VISIBLE', 'VLA-REGEN'):
+            self.h.builtins[api] = lambda *args: self.fail('modal refresh must only read or reuse previews')
+        self.call('EL:ThumbRefresh', result)
+        self.assertEqual(self.call('EL:Get', 'Lamp', self.h.lookup('*EL:THUMBCACHE*')), ['source.sld', [1200, 600]])
+        self.assertEqual(result, original)
+
+    def test_ready_library_uses_cached_legend_and_other_library_falls_back_to_source(self):
+        result = self.prepare_setup()
+        row = self.h.run(''' '((name . "Lamp") (ids "D1") (entry (device-id . "ELDEV1"))
+          (library-id . "LIB-A")) ''')
+        self.h.builtins['EL:DLMATERIALROWS'] = lambda *args: [row]
+        self.h.set('*EL:DLSESSIONSNAPSHOT*', self.h.run("'((catalog (library-id . \"LIB-A\")))"))
+        self.h.builtins['EL:DLLEGEND'] = lambda *args: ['library.sld', [800, 600]]
+        self.h.builtins['EL:THUMBCAPTURE'] = lambda *args: self.fail('valid library asset must remain read-only')
+        self.call('EL:ThumbPrepare', result)
+        self.assertEqual(self.call('EL:Get', 'Lamp', self.h.lookup('*EL:THUMBCACHE*')), ['library.sld', [800, 600]])
+        self.h.set('*EL:DLSESSIONSNAPSHOT*', self.h.run("'((catalog (library-id . \"LIB-B\")))"))
+        self.h.builtins['EL:DLLEGEND'] = lambda *args: self.fail('other library asset must not be read')
+        self.h.builtins['EL:THUMBCAPTURE'] = lambda b: ['source.sld', [1200, 600]]
+        self.call('EL:ThumbPrepare', result)
+        self.assertEqual(self.call('EL:Get', 'Lamp', self.h.lookup('*EL:THUMBCACHE*')), ['source.sld', [1200, 600]])
+
+    def test_corrupt_library_legend_falls_back_and_capture_failure_never_invents_graphic(self):
+        result = self.prepare_setup()
+        row = self.h.run(''' '((name . "Lamp") (ids "D1") (entry (device-id . "ELDEV1"))
+          (library-id . "LIB-A")) ''')
+        self.h.builtins['EL:DLMATERIALROWS'] = lambda *args: [row]
+        self.h.set('*EL:DLSESSIONSNAPSHOT*', self.h.run("'((catalog (library-id . \"LIB-A\")))"))
+        self.call('EL:ThumbPrepare', result)
+        self.assertEqual(self.call('EL:Get', 'Lamp', self.h.lookup('*EL:THUMBCACHE*')), ['source.sld', [1200, 600]])
+        self.h.set('*EL:THUMBSOURCES*', None)
+        self.h.builtins['EL:THUMBCAPTURE'] = lambda *_: (_ for _ in ()).throw(RuntimeError('cancelled'))
+        self.call('EL:ThumbPrepare', result)
+        self.assertFalse(truth(self.call('EL:Get', 'Lamp', self.h.lookup('*EL:THUMBCACHE*'))))
 
     def test_paging_uses_prepared_slides_without_cad_commands(self):
         self.h.run('''(setq *EL:ThumbPage* 0 *EL:ThumbCache* '(("A" "a.sld" (1200 600)))

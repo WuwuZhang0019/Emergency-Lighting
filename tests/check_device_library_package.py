@@ -55,7 +55,9 @@ def check():
         wanted.update(definitions(source))
     panel = definitions((ROOT / 'src/panel.lsp').read_text(encoding='utf-8'))
     for name in ('EL:PANELSTARTINIT', 'EL:PANELSTARTDIALOG', 'EL:HISTORYSELECT', 'EL:HISTORYFILL',
-                 'EL:PANELBLOCKPOWERCHANGED', 'EL:PANELDIALOG', 'EL:PANELACCEPT', 'EL:PANELCOMPUTE'):
+                 'EL:PANELBLOCKPOWERCHANGED', 'EL:PANELDIALOG', 'EL:PANELACCEPT', 'EL:PANELCOMPUTE',
+                 'EL:THUMBDRAW', 'EL:THUMBCLEANUP', 'EL:THUMBPREPARE', 'EL:THUMBREFRESH',
+                 'EL:THUMBCAPTURE', 'EL:THUMBPREPAREROWS'):
         wanted[name] = panel[name]
     update = f'UPDATE-{PACKAGE_NO:03d}.lsp'
     for entry in ('START-CAD2020.lsp', update, 'src/load.lsp'):

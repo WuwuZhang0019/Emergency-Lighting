@@ -202,7 +202,7 @@ class DeviceRecognitionTests(unittest.TestCase):
         fresh=[Pair(Symbol('ROOT'),'library/'),Pair(Symbol('CATALOG'),newer),Pair(Symbol('INDEX'),self.call('EL:DLIndex',newer))]
         messages=[]
         self.h.builtins.update({'EL:DLSNAPSHOTCURRENT':lambda _:None,'EL:DLROOT':lambda:'library/',
-            'EL:DLSNAPSHOTLOAD':lambda _:fresh,'EL:THUMBPREPARE':lambda _:None,'EL:PANELFILL':lambda:None,
+            'EL:DLSNAPSHOTLOAD':lambda _:fresh,'EL:THUMBREFRESH':lambda _:None,'EL:PANELFILL':lambda:None,
             'EL:PANELTEXT':lambda key,value:messages.append(value),'DONE_DIALOG':lambda *_:self.fail('must stay open')})
         self.h.set('*EL:PANELDRAFT*',result);self.h.set('*EL:PANELPOWERS*',powers)
         self.assertFalse(truth(self.call('EL:DLPanelSubmissionReady')))

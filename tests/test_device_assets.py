@@ -7,6 +7,18 @@ import test_device_library as backend
 from autolisp_host import Pair, Symbol, parse, truth
 
 
+# Date: 2026-10-11. Independent golden bytes from Autodesk's annotated SLD dump:
+# https://help.autodesk.com/cloudhelp/2015/ENU/AutoCAD-DXF/files/GUID-11E004A5-B63D-44A7-BE69-939E7EA4F901.htm
+# The header table's decimal wording conflicts with its hex example; native type is 0x56.
+AUTODESK_VECTOR_SLIDE = bytes.fromhex(
+    '41 75 74 6F 43 41 44 20 53 6C 69 64 65 0D 0A 1A 00 56 02 '
+    '3C 02 24 01 0B 80 DF 00 02 00 34 12 '
+    '07 FF 3C 02 24 01 00 00 00 00 '
+    '03 FF 0F 00 32 00 0F 00 13 00 '
+    '01 FF 12 FB E7 12 CE DF FE 00 00 FE E7 21 FE 00 00 FC'
+)
+
+
 class DeviceAssetsTests(unittest.TestCase):
     setUp = backend.DeviceLibraryTests.setUp
     call = backend.DeviceLibraryTests.call
@@ -22,7 +34,27 @@ class DeviceAssetsTests(unittest.TestCase):
         self.h.builtins['EL:DLFOLDERCLAIM'] = lambda p: Path(p).mkdir() or True
 
     def slide(self, width=800, height=600):
-        return b'AutoCAD Slide\r\n\x1a\x00' + bytes([56,2]) + (width-1).to_bytes(2,'little') + (height-1).to_bytes(2,'little') + bytes(8)
+        data = bytearray(AUTODESK_VECTOR_SLIDE)
+        data[19:23] = (width-1).to_bytes(2, 'little') + (height-1).to_bytes(2, 'little')
+        data[23:27] = round(width / height * 10_000_000).to_bytes(4, 'little')
+        return bytes(data)
+
+    def test_documented_native_slide_type_and_endian_marker(self):
+        with tempfile.TemporaryDirectory() as d:
+            self.fs(d); self.binary()
+            path = str(Path(d) / 'native.sld')
+            Path(path).write_bytes(AUTODESK_VECTOR_SLIDE)
+            self.assertEqual(self.call('EL:DLSLDSize', path), [573, 293])
+            swapped = bytearray(AUTODESK_VECTOR_SLIDE)
+            for offset in (19, 21, 27, 29):
+                swapped[offset:offset+2] = reversed(swapped[offset:offset+2])
+            Path(path).write_bytes(swapped)
+            self.assertEqual(self.call('EL:DLSLDSize', path), [573, 293])
+            for offset, value in ((17, 0x38), (18, 1), (29, 0)):
+                invalid = bytearray(AUTODESK_VECTOR_SLIDE)
+                invalid[offset] = value
+                Path(path).write_bytes(invalid)
+                self.assertFalse(truth(self.call('EL:DLSLDSize', path)))
 
     def test_header_rejects_corrupt_assets_and_reads_actual_pixel_size(self):
         with tempfile.TemporaryDirectory() as d:
@@ -69,6 +101,38 @@ class DeviceAssetsTests(unittest.TestCase):
             self.assertFalse(truth(self.call('EL:DLLegend', row, snap)))
             path.unlink()
             self.assertFalse(truth(self.call('EL:DLLegend', row, snap)))
+
+    def test_saved_graphic_is_visible_before_draft_power_and_ground_are_complete(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = self.fs(d); self.binary()
+            path = Path(d, 'assets/ELDEV1/1/legend.sld')
+            path.parent.mkdir(parents=True); path.write_bytes(self.slide())
+            row = self.put('watts', None, self.put('ground-confirmed', None, self.entry()))
+            row = self.put('status', Symbol('DRAFT'), self.put('active', None, row))
+            row = self.put('legend-checksum', self.call('EL:DLChecksum', str(path)), row)
+            self.assertFalse(truth(self.call('EL:DLEntryReady', row)))
+            self.assertEqual(self.call('EL:DLLegend', row, [Pair(Symbol('ROOT'), root)]),
+                             [str(path).replace('\\', '/'), [800, 600]])
+
+    def test_capture_callback_accepts_documented_native_slide_and_retains_draft(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = self.fs(d); self.binary()
+            stage = Path(d, '.staging/op-1'); stage.mkdir(parents=True)
+            dwg, slide, marker = [str(stage / name).replace('\\', '/')
+                                  for name in ('block.dwg', 'legend.sld', 'complete.txt')]
+            Path(dwg).write_bytes(b'AC1032mock')
+            Path(slide).write_bytes(AUTODESK_VECTOR_SLIDE)
+            Path(marker).write_text('DONE\n', encoding='utf-8')
+            draft = self.entry(ready=False)
+            job = [Pair(Symbol(k), v) for k, v in {'TOKEN': 'op-1', 'DWG': dwg, 'SLIDE': slide,
+                'MARKER': marker, 'ENTRY': draft, 'SNAPSHOT': [Pair(Symbol('ROOT'), root)]}.items()]
+            self.h.set('*EL:DLCAPTUREJOB*', job)
+            self.h.builtins['EL:DLCAPTURECLOSE'] = lambda _: True
+            result = self.call('EL:DLCaptureResume', 'op-1')
+            self.assertEqual(self.get('captured', result), job)
+            self.assertEqual(self.get('device-id', result), self.get('device-id', draft))
+            self.assertTrue(Path(slide).exists())
+            self.assertIsNone(self.h.lookup('*EL:DLCAPTUREJOB*'))
 
     def test_export_cleans_only_its_selection_set_even_on_native_failure(self):
         deleted = []

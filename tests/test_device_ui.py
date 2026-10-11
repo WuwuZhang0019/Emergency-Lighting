@@ -30,6 +30,24 @@ class DeviceUITests(unittest.TestCase):
         self.assertEqual(self.get('watts-text',self.call('EL:DLUIEntry')),'错误值')
         self.assertEqual(self.get('revision',self.cat),0)
 
+    def test_asset_message_requires_successful_drawing_and_preserves_incomplete_fields(self):
+        self.state()
+        draft = self.put('watts-text', '', self.entry(ready=False))
+        draft = self.put('captured', [Pair(Symbol('SLIDE'), 'native.sld')], draft)
+        self.call('EL:DLUISetDraft', draft)
+        tiles = {}
+        self.h.builtins.update({'SET_TILE': lambda k,v: tiles.__setitem__(k,v),
+            'MODE_TILE': lambda *args: None, 'EL:DLSLDSIZE': lambda _: [800,600]})
+        for shown, expected in ((True, '新图形已预览'), (None, '图例显示失败')):
+            self.h.builtins['EL:THUMBDRAW'] = lambda *args: shown
+            self.call('EL:DLUIFields')
+            self.assertIn(expected, tiles['dl_asset'])
+            self.assertEqual(tiles['dl_watts'], '')
+            self.assertEqual(self.call('EL:DLUIEntry'), draft)
+        self.call('EL:DLUISetDraft', self.entry(ready=False))
+        self.call('EL:DLUIFields')
+        self.assertIn('未登记图形', tiles['dl_asset'])
+
     def test_explicit_false_ground_zero_and_alias_input_survive_conversion(self):
         self.state()
         row = self.put('watts-text','0',self.put('aliases-text','旧灯;Lamp',self.entry(watts=0)))

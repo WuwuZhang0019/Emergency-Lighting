@@ -215,6 +215,8 @@ class DefaultDeviceLibraryTests(unittest.TestCase):
         calls = []
         def invoke(stream, name, *args):
             calls.append(str(name))
+            if str(name) == 'OPEN':
+                self.assertEqual(args, (None, 0, -1, '', ''))
             if str(name) == 'READ':
                 return list(content[0])
             if str(name) == 'READTEXT':
@@ -231,6 +233,42 @@ class DefaultDeviceLibraryTests(unittest.TestCase):
         content[0] = b'bad\x80'
         self.assertFalse(truth(self.call('EL:DLReadStream', 'stream', 'path')))
         self.assertEqual(self.h.lookup('*EL:DLERROR*'), '设备库不是有效 UTF-8，原文件保留。')
+
+    def test_ado_write_and_asset_reads_supply_complete_method_arguments(self):
+        calls = []
+        positions = {}
+        data = [65, 67, 49, 48, 51, 50]
+
+        def invoke(stream, name, *args):
+            name = str(name)
+            calls.append((name, args))
+            if name == 'OPEN':
+                self.assertEqual(args, (None, 0, -1, '', ''))
+                positions[stream] = 0
+            elif name == 'WRITETEXT':
+                self.assertEqual(args, ('设备库中文', 0))
+            elif name == 'READ':
+                self.assertEqual(len(args), 1)
+                positions[stream] = len(data)
+                return data
+            elif name == 'SAVETOFILE':
+                self.assertEqual(args, ('catalog.eld', 1))
+            elif name == 'LOADFROMFILE':
+                self.assertEqual(len(args), 1)
+            else:
+                self.fail('unexpected ADO call: ' + name)
+
+        self.h.builtins.update({
+            'VLAX-INVOKE-METHOD': invoke,
+            'VLAX-PUT-PROPERTY': lambda *args: None,
+            'VLAX-GET-PROPERTY': lambda s, k: len(data) if str(k) == 'SIZE' else positions[s],
+            'VLAX-VARIANT-VALUE': lambda v: v,
+            'VLAX-SAFEARRAY->LIST': lambda v: v,
+        })
+        self.assertTrue(self.call('EL:DLWriteStream', 'text', 'catalog.eld', '设备库中文'))
+        self.assertEqual(self.call('EL:DLBytesWork', 'bytes', 'block.dwg', 6), data)
+        self.assertTrue(self.call('EL:DLFilesEqualWork', 'a.dwg', 'b.dwg', 'left', 'right'))
+        self.assertEqual(sum(name == 'OPEN' for name, args in calls), 4)
 
     def test_switch_failure_is_reported_and_keeps_root_and_raw_inputs(self):
         state = [Pair(Symbol('SNAPSHOT'), [Pair(Symbol('ROOT'), '/old/')]), Pair(Symbol('DRAFTS'), ['raw'])]

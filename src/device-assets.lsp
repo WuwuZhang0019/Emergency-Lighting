@@ -1,6 +1,6 @@
-;; Date: 2026-10-11. Immutable assets; preview commands run in an owned drawing.
+;; Date: 2026-10-12. Explicit ADO arguments; immutable assets and owned previews.
 (defun EL:DLBytesWork (stream path count)
-  (vlax-put-property stream 'Type 1) (vlax-invoke-method stream 'Open)
+  (vlax-put-property stream 'Type 1) (vlax-invoke-method stream 'Open nil 0 -1 "" "")
   (vlax-invoke-method stream 'LoadFromFile path)
   (vlax-safearray->list (vlax-variant-value (vlax-invoke-method stream 'Read count))))
 (defun EL:DLBytes (path count / stream result)
@@ -31,7 +31,7 @@
       (foreach byte bytes (setq hash (fix (rem (+ (* hash 131.0) byte) 2147483647.0))))
       (strcat "sld-" (itoa hash) "-" (itoa size)))))
 (defun EL:DLFilesEqualWork (a b left right / size good x y)
-  (foreach x (list left right) (vlax-put-property x 'Type 1) (vlax-invoke-method x 'Open))
+  (foreach x (list left right) (vlax-put-property x 'Type 1) (vlax-invoke-method x 'Open nil 0 -1 "" ""))
   (vlax-invoke-method left 'LoadFromFile a) (vlax-invoke-method right 'LoadFromFile b)
   (setq size (vlax-get-property left 'Size) good (and (> size 0) (<= size 67108864) (= size (vlax-get-property right 'Size))))
   (while (and good (< (vlax-get-property left 'Position) size))

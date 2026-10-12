@@ -158,7 +158,11 @@ class RootInitTests(RootFixture):
 
         def invoke(obj, method, *args):
             name = str(method).upper()
-            if name == 'OPEN': return None
+            if name == 'OPEN':
+                # Date: 2026-10-12. Reject omitted ADO slots like native VLISP.
+                if len(args) != 5: raise RuntimeError('实参太少')
+                self.assertEqual(args, (None, 0, -1, '', ''))
+                return None
             if name == 'WRITE': return obj.write(bytes(args[0]))
             if name == 'SAVETOFILE':
                 self.assertEqual(args[1], 2)
@@ -203,6 +207,7 @@ class RootInitTests(RootFixture):
         self.assertFalse(self.h.call(Symbol('EL:STARTUPWRITEBASE64'), [str(target), ['AA==']]))
         self.assertTrue(stream.closed)
         self.assertIn('binary write denied', self.h.lookup('*EL:STARTUPERROR*'))
+        self.assertIn('[BINARY_WRITE]', self.h.lookup('*EL:STARTUPERROR*'))
         self.assertEqual(len(released), 6)
 
     def test_startup_resource_keeps_actual_failure_and_path(self):

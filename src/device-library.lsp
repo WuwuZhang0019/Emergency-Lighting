@@ -149,7 +149,8 @@
             (and (= a 240) (< b 144)) (and (= a 244) (> b 143))) (setq good nil))
         (setq bytes rest)))) good)
 (defun EL:DLReadStream (stream path / bytes)
-  (vlax-put-property stream 'Type 1) (vlax-invoke-method stream 'Open)
+  ;; Date: 2026-10-12. Supply optional COM slots explicitly for CAD2020.
+  (vlax-put-property stream 'Type 1) (vlax-invoke-method stream 'Open nil 0 -1 "" "")
   (vlax-invoke-method stream 'LoadFromFile path)
   ;; Date: 2026-10-12. Preserve the validation message; skip a UTF-8 BOM as bytes.
   (cond
@@ -173,7 +174,7 @@
         (EL:DLFail (strcat "设备库读取失败：" path "；" (vl-catch-all-error-message outcome))) outcome))))
 (defun EL:DLWriteStream (stream path text)
   (vlax-put-property stream 'Type 2) (vlax-put-property stream 'Charset "utf-8")
-  (vlax-invoke-method stream 'Open) (vlax-invoke-method stream 'WriteText text)
+  (vlax-invoke-method stream 'Open nil 0 -1 "" "") (vlax-invoke-method stream 'WriteText text 0)
   (vlax-invoke-method stream 'SaveToFile path 1) T)
 (defun EL:DLWriteText (path text / stream outcome)
   (setq stream (vlax-create-object "ADODB.Stream")

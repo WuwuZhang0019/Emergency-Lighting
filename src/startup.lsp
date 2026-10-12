@@ -34,14 +34,19 @@
     (progn
       (setq *EL:StartupStream* (vlax-create-object "ADODB.Stream"))
       (vlax-put-property *EL:StartupStream* 'Type 1)
-      (vlax-invoke-method *EL:StartupStream* 'Open)
+      ;; Date: 2026-10-12. Visual LISP needs all five ADO optional slots.
+      (setq *EL:StartupStage* "STREAM_OPEN")
+      (vlax-invoke-method *EL:StartupStream* 'Open nil 0 -1 "" "")
+      (setq *EL:StartupStage* "BINARY_WRITE")
       (foreach chunk chunks
         (setq bytes (EL:StartupDecode64 chunk)
           array (vlax-make-safearray 17 (cons 0 (1- (length bytes)))))
         (vlax-safearray-fill array bytes)
         (vlax-invoke-method *EL:StartupStream* 'Write (vlax-make-variant array)))
       ;; Only the versioned runtime seed is replaced, never the user's library.
+      (setq *EL:StartupStage* "SAVE_TO_FILE")
       (vlax-invoke-method *EL:StartupStream* 'SaveToFile path 2)
+      (setq *EL:StartupStage* "BINARY_READBACK")
       (vlax-invoke-method *EL:StartupStream* 'LoadFromFile path)
       (setq good T)
       (foreach chunk chunks
@@ -50,12 +55,13 @@
         (if (equal (type actual) 'VARIANT) (setq actual (vlax-variant-value actual)))
         (if (not (equal bytes (vlax-safearray->list actual))) (setq good nil)))
       good)))
-(defun EL:StartupWriteBase64 (path chunks / result *EL:StartupStream*)
+(defun EL:StartupWriteBase64 (path chunks / result *EL:StartupStream* *EL:StartupStage*)
+  (setq *EL:StartupStage* "STREAM_CREATE")
   (setq result (vl-catch-all-apply 'EL:StartupBinaryWork (list path chunks)))
   (if *EL:StartupStream* (vl-catch-all-apply 'vlax-invoke-method (list *EL:StartupStream* 'Close)))
   (if *EL:StartupStream* (vl-catch-all-apply 'vlax-release-object (list *EL:StartupStream*)))
   (if (vl-catch-all-error-p result)
-    (setq *EL:StartupError* (strcat path " : " (vl-catch-all-error-message result))))
+    (setq *EL:StartupError* (strcat path " [" *EL:StartupStage* "] : " (vl-catch-all-error-message result))))
   (and (not (vl-catch-all-error-p result)) result))
 (defun EL:StartupResource (writer path data / result)
   (setq result (vl-catch-all-apply writer (list path data)))

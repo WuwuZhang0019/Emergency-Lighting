@@ -53,9 +53,8 @@
     {"drawing": "00000682", "display": "吊装安全出口", "role": "device", "image": 6, "row": 1, "column": 2},
     {"drawing": "00000695", "display": "E/N出口标志", "role": "device", "image": 6, "row": 2, "column": 2},
     {"drawing": "00000699", "display": "双面疏散指示", "role": "device", "image": 6, "row": 2, "column": 3},
-    {"drawing": "00000700", "display": "双面多信息标志", "role": "device", "image": 6, "row": 2, "column": 4}
+    {"drawing": "00000700", "display": "双面多信息标志", "role": "device", "image": 6, "row": 2, "column": 4},
+    {"drawing": "00001198", "block_name": "$equip$00001198", "display": "专用线路事故照明灯", "source_library": "Equip", "aliases": [], "role": "device", "image": 6, "row": 3, "column": 1}
   ],
-  "pending": [
-    {"image": 6, "row": 3, "column": 1, "drawing": "00001198", "block_name": "$equip$00001198", "display": "专用线路事故照明灯", "source_library": "Equip", "reason": "用户已确认系统图块编号；所提供 Equip_U 用户库不含该图块，缺系统图库原始 DWG 和图例"}
-  ]
+  "pending": []
 }

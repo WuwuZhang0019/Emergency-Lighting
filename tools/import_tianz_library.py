@@ -1,4 +1,4 @@
-"""提取天正用户图库并生成现有 EL_DEVICE_LIBRARY_V1 草稿库。
+"""提取天正用户及系统图库并生成现有 EL_DEVICE_LIBRARY_V1 草稿库。
 
 日期：2026-10-12
 源 TK/SLB/DWB 只读；保留原始 DWG 和 SLD，不通过重画图例替代图形。
@@ -11,6 +11,7 @@ import hashlib
 import json
 from pathlib import Path
 import re
+import shutil
 import struct
 import uuid
 import zipfile
@@ -217,15 +218,16 @@ def make_catalog(selections: list[dict], dwgs: dict, slides: dict, library_id: s
     names = set()
     for i, item in enumerate(selections, 1):
         drawing = item["drawing"]
-        if drawing not in dwgs or drawing not in slides:
+        key = (item.get("source_library", "Equip_U"), drawing)
+        if key not in dwgs or key not in slides:
             raise ValueError(f"缺少图形或图例：{drawing}")
-        block = item.get("block_name", f"$equip_U${drawing}")
+        block = item.get("block_name", f'${"equip_U" if key[0] == "Equip_U" else "equip"}${drawing}')
         aliases = item.get("aliases", [])
         for name in [block, *aliases]:
             if name.upper() in names:
                 raise ValueError(f"名称重复：{name}")
             names.add(name.upper())
-        _, _, size = slide_geometry(slides[drawing])
+        _, _, size = slide_geometry(slides[key])
         prefix = f"assets/ELDEV{i}/1/"
         fields = [f'(device-id . "ELDEV{i}")', '(revision . 1)',
                   f'(block-name . {lisp_string(block)})',
@@ -235,14 +237,15 @@ def make_catalog(selections: list[dict], dwgs: dict, slides: dict, library_id: s
                   '(ground-confirmed . T)', '(active)', '(status . draft)', '(asset-revision . 1)',
                   f'(block-file . "{prefix}block.dwg")', f'(legend-file . "{prefix}legend.sld")',
                   f'(legend-size {size[0]} {size[1]})',
-                  f'(legend-checksum . "{slide_checksum(slides[drawing])}")']
+                  f'(legend-checksum . "{slide_checksum(slides[key])}")']
         entries.append('    (' + ' '.join(fields) + ')')
     return ('((schema . EL_DEVICE_LIBRARY_V1)\n' + f' (library-id . "{library_id}")\n'
             + f' (revision . {len(entries)}) (next-id . {len(entries)+1})\n (devices\n'
             + '\n'.join(entries) + '\n ))\n')
 
 
-def build_library(source: Path, selection: Path, destination: Path) -> dict:
+def build_library(source: Path, selection: Path, destination: Path,
+                  system_source: Path | None = None, baseline: Path | None = None) -> dict:
     if destination.exists():
         raise ValueError("目标已存在，请选择新目录；不会覆盖现有设备库")
     chosen = json.loads(selection.read_text(encoding="utf-8"))
@@ -251,36 +254,78 @@ def build_library(source: Path, selection: Path, destination: Path) -> dict:
         raise ValueError("未选定图块")
     suffix = chosen.get("drawing_block_alias_suffix", "")
     for item in items:
-        if suffix and "aliases" not in item:
+        item.setdefault("source_library", chosen.get("source_library", "Equip_U"))
+        if item["source_library"] not in ("Equip_U", "Equip"):
+            raise ValueError("只支持 Equip_U 用户库或 Equip 系统库")
+        if suffix and item["source_library"] == "Equip_U" and "aliases" not in item:
             block = item.get("block_name", f'$equip_U${item["drawing"]}')
             item["aliases"] = [block + suffix]
-    if len({r["drawing"] for r in items}) != len(items):
+    if len({(r["source_library"], r["drawing"]) for r in items}) != len(items):
         raise ValueError("选定图号重复")
-    compressed = read_archive(source / "Equip_U.DWB")
-    slides = read_archive(source / "Equip_U.SLB")
-    for item in items:
-        if item["drawing"] not in compressed or item["drawing"] not in slides:
-            raise ValueError(f'缺少图形或图例：{item["drawing"]}')
-    source_hashes = {p.name: hashlib.sha256(p.read_bytes()).hexdigest()
-                     for p in (source / "Equip_U.TK", source / "Equip_U.SLB", source / "Equip_U.DWB")}
-    dwgs = {r["drawing"]: decode_dwg(compressed[r["drawing"]]) for r in items}
+    dwgs, slides, source_hashes = {}, {}, {}
+    for library in sorted({r["source_library"] for r in items}):
+        folder = source if library == "Equip_U" else system_source
+        if folder is None:
+            raise ValueError("需要 --system-source 指定系统图库目录")
+        compressed = read_archive(folder / f"{library}.DWB")
+        raw_slides = read_archive(folder / f"{library}.SLB")
+        for item in (r for r in items if r["source_library"] == library):
+            drawing = item["drawing"]
+            if drawing not in compressed or drawing not in raw_slides:
+                raise ValueError(f"缺少图形或图例：{library}/{drawing}")
+            key = (library, drawing)
+            dwgs[key] = decode_dwg(compressed[drawing])
+            slides[key] = raw_slides[drawing]
+        for extension in ("DWB", "SLB", "TK"):
+            path = folder / f"{library}.{extension}"
+            if extension != "TK" or path.exists():
+                source_hashes[path.name] = hashlib.sha256(path.read_bytes()).hexdigest()
     identity = "LIB-TIANZ-" + uuid.uuid4().hex
+    baseline_report = baseline_raw = None
+    if baseline is not None:
+        baseline_report = json.loads((baseline / "import-manifest.json").read_text(encoding="utf-8"))
+        old_items = [dict(item) for item in baseline_report["items"]]
+        for item in old_items:
+            item.setdefault("source_library", "Equip_U")
+        if items[:len(old_items)] != old_items or len(items) <= len(old_items):
+            raise ValueError("基准库条目必须保持顺序和资料，仅在末尾新增")
+        identity = baseline_report["library_id"]
+        baseline_raw = (baseline / "catalog.eld").read_bytes()
+        expected = make_catalog(old_items, dwgs, slides, identity).encode("utf-8")
+        if baseline_raw != expected:
+            raise ValueError("基准库已编辑，保留原库；不能用空功率重建替换")
+        for i, item in enumerate(old_items, 1):
+            key = (item["source_library"], item["drawing"])
+            asset = baseline / "assets" / f"ELDEV{i}" / "1"
+            if (asset / "block.dwg").read_bytes() != dwgs[key] or (asset / "legend.sld").read_bytes() != slides[key]:
+                raise ValueError("基准库原始资产已变化，停止重建")
     catalog = make_catalog(items, dwgs, slides, identity)
     destination.mkdir(parents=True, exist_ok=False)
     for i, item in enumerate(items, 1):
         asset = destination / "assets" / f"ELDEV{i}" / "1"
         asset.mkdir(parents=True)
-        (asset / "block.dwg").write_bytes(dwgs[item["drawing"]])
-        (asset / "legend.sld").write_bytes(slides[item["drawing"]])
+        key = (item["source_library"], item["drawing"])
+        (asset / "block.dwg").write_bytes(dwgs[key])
+        (asset / "legend.sld").write_bytes(slides[key])
     (destination / "history").mkdir()
+    if baseline_report is not None:
+        shutil.copytree(baseline / "history", destination / "history", dirs_exist_ok=True)
+        previous = destination / "history" / f'{baseline_report["count"]}.eld'
+        if previous.exists() and previous.read_bytes() != baseline_raw:
+            raise ValueError("基准库历史版本冲突")
+        previous.write_bytes(baseline_raw)
     (destination / "catalog.eld").write_text(catalog, encoding="utf-8", newline="\n")
     report = {"date": chosen["date"], "library_id": identity, "items": items,
               "count": len(items), "watts": None, "status": "draft",
               "pending_selections": chosen.get("pending", []),
               "source_sha256": source_hashes,
-              "assets": [{"drawing": item["drawing"], "dwg_sha256": hashlib.sha256(dwgs[item["drawing"]]).hexdigest(),
-                           "slide_sha256": hashlib.sha256(slides[item["drawing"]]).hexdigest()} for item in items],
+              "assets": [{"drawing": item["drawing"], "source_library": item["source_library"],
+                           "dwg_sha256": hashlib.sha256(dwgs[(item["source_library"], item["drawing"])]).hexdigest(),
+                           "slide_sha256": hashlib.sha256(slides[(item["source_library"], item["drawing"])]).hexdigest()} for item in items],
               "native_cad_acceptance": "pending"}
+    if baseline_report is not None:
+        report["baseline_count"] = baseline_report["count"]
+        report["baseline_catalog_sha256"] = hashlib.sha256(baseline_raw).hexdigest()
     (destination / "import-manifest.json").write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
     return report
 
@@ -290,11 +335,13 @@ def main() -> None:
     parser.add_argument("--source", type=Path, required=True)
     parser.add_argument("--selection", type=Path, required=True)
     parser.add_argument("--destination", type=Path, required=True)
+    parser.add_argument("--system-source", type=Path)
+    parser.add_argument("--baseline", type=Path, help="保留未编辑草稿库的身份、顺序和历史；已填功率时拒绝重建")
     parser.add_argument("--zip", type=Path)
     args = parser.parse_args()
     if args.zip and args.zip.exists():
         parser.error("压缩包目标已存在，不覆盖")
-    report = build_library(args.source, args.selection, args.destination)
+    report = build_library(args.source, args.selection, args.destination, args.system_source, args.baseline)
     if args.zip:
         with zipfile.ZipFile(args.zip, "x", compression=zipfile.ZIP_DEFLATED) as package:
             for path in sorted(args.destination.rglob("*")):

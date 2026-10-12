@@ -1,0 +1,42 @@
+{
+  "date": "2026-10-12",
+  "status": "automated_checks_passed",
+  "imported_count": 49,
+  "panel_count": 1,
+  "device_count": 48,
+  "pending_selections": [],
+  "watts_all_blank": true,
+  "native_dwg_assets": 49,
+  "original_slide_assets": 49,
+  "source_dwb_decoded_count": 1394,
+  "source_dwb_decoded_counts": {
+    "Equip_U": 331,
+    "Equip": 1063
+  },
+  "zip_file_count": 101,
+  "source_sha256": {
+    "Equip.DWB": "105b923ffebe510f7c71e948ef8ba7757e175cd3a78ea304f326cdcd2c65a6ef",
+    "Equip.SLB": "164b8e1b452a38d658d38061dd10159a10089c5043b94c9afd52b45abe542560",
+    "Equip_U.DWB": "be6d84801caf38360acbc75e3eaaa439aeb7f16bfcbc6f5acf9b6b374cbf797c",
+    "Equip_U.SLB": "5e5de81e754a1971840c168dcdb3746f48e938cdfe3e53b570563514e2fda2b3",
+    "Equip_U.TK": "4e0b3fe5338cccc3206ea12f9c74c7677b5800b5bc43b076c399a5c99edfb763"
+  },
+  "package_sha256": "c1fce64baa7dd6f07d3a8e37b1f66aa3d5256d49e60dc7050616acc533ed3c1f",
+  "checks": [
+    "all DWB streams decoded with exact declared length and DWG magic",
+    "selected DWG bytes match decoded source; SLD bytes match original source",
+    "current EL:DLCatalogValid, draft recognition names and exact aliases",
+    "all powers blank, zero confirmation unset and entries inactive drafts",
+    "current EL:DLDWGValid, EL:DLLegend and checksum validation",
+    "source hashes unchanged; ZIP CRC, file set and bytes equal directory",
+    "baseline library identity, existing rows and catalog history preserved"
+  ],
+  "native_cad_acceptance": "pending",
+  "baseline_count": 48,
+  "baseline_rows_preserved": true,
+  "library_identity_preserved": true,
+  "catalog_history_preserved": true,
+  "installed_default_root": "C:\\Users\\Zyf\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\Emergency-Lighting\\device-library",
+  "installed_file_count": 101,
+  "installed_bytes_equal_portable_library": true
+}

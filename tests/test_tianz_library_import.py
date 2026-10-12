@@ -163,6 +163,63 @@ class TianzCatalogTests(unittest.TestCase):
                 importer.build_library(Path('missing'), Path('missing'), target)
             self.assertEqual(existing.read_bytes(), b'original')
 
+    def test_system_library_append_preserves_identity_rows_history_and_entered_power(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory, 'user'); source.mkdir()
+            system = Path(directory, 'system'); system.mkdir()
+            for folder, prefix, numbers, dwg in (
+                (source, 'Equip_U', ['00000398'], b'AC1015user'),
+                (system, 'Equip', ['00000398', '00001198'], b'AC1015system')):
+                Path(folder, prefix + '.DWB').write_bytes(archive(b'ArchStar DWG  Library 1.0\r\n\x1a',
+                    [(number, literal_packet([dwg])) for number in numbers]))
+                Path(folder, prefix + '.SLB').write_bytes(archive(b'AutoCAD Slide Library 1.0\r\n\x1a',
+                    [(number, assets.AUTODESK_VECTOR_SLIDE) for number in numbers]))
+            selection = {'date': '2026-10-12', 'drawing_block_alias_suffix': '(Zhangyufeng)',
+                         'items': [{'drawing': '00000398', 'display': '明装箱', 'role': 'panel'}]}
+            chosen = Path(directory, 'chosen.json')
+            chosen.write_text(json.dumps(selection), encoding='utf-8')
+            baseline = Path(directory, 'baseline')
+            first = importer.build_library(source, chosen, baseline)
+            old_raw = (baseline / 'catalog.eld').read_bytes()
+            old_catalog = self.call('EL:DLParse', old_raw.decode('utf-8'))
+            selection['items'].extend([
+                {'drawing': '00000398', 'display': '系统同号图块', 'source_library': 'Equip', 'role': 'device'},
+                {'drawing': '00001198', 'display': '专用线路事故照明灯', 'source_library': 'Equip', 'role': 'device'}])
+            chosen.write_text(json.dumps(selection), encoding='utf-8')
+            target = Path(directory, 'extended')
+            result = importer.build_library(source, chosen, target, system, baseline)
+            self.assertEqual(first['library_id'], result['library_id'])
+            self.assertEqual((target / 'history/1.eld').read_bytes(), old_raw)
+            root = self.fs(target); self.binary()
+            snapshot = self.call('EL:DLSnapshotLoad', root)
+            rows = self.get('devices', self.get('catalog', snapshot))
+            self.assertEqual(self.get('devices', old_catalog), rows[:1])
+            self.assertEqual(self.get('block-name', rows[0]), '$equip_U$00000398')
+            self.assertEqual(self.get('block-name', rows[1]), '$equip$00000398')
+            self.assertEqual(self.get('block-name', rows[2]), '$equip$00001198')
+            self.assertIsNone(self.get('aliases', rows[2]))
+            self.assertIsNone(self.get('watts', rows[2]))
+            self.assertEqual(Path(target, self.get('block-file', rows[0])).read_bytes(), b'AC1015user')
+            self.assertEqual(Path(target, self.get('block-file', rows[1])).read_bytes(), b'AC1015system')
+            # 用户已填功率时重建必须拒绝，不能以新草稿覆盖原库。
+            edited = old_raw.replace(b'(watts)', b'(watts . 9)', 1)
+            (baseline / 'catalog.eld').write_bytes(edited)
+            rejected = Path(directory, 'rejected')
+            with self.assertRaisesRegex(ValueError, '基准库已编辑'):
+                importer.build_library(source, chosen, rejected, system, baseline)
+            self.assertFalse(rejected.exists())
+            self.assertEqual((baseline / 'catalog.eld').read_bytes(), edited)
+
+    def test_system_selection_requires_system_source_before_writing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            chosen = Path(directory, 'chosen.json')
+            chosen.write_text(json.dumps({'date': '2026-10-12', 'items': [
+                {'drawing': '00001198', 'display': '系统灯', 'source_library': 'Equip'}]}), encoding='utf-8')
+            target = Path(directory, 'library')
+            with self.assertRaisesRegex(ValueError, 'system-source'):
+                importer.build_library(Path('missing'), chosen, target)
+            self.assertFalse(target.exists())
+
 
 if __name__ == '__main__':
     unittest.main()

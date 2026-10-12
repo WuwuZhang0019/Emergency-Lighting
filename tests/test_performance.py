@@ -1,4 +1,4 @@
-"""P0 timing/counter and command-flow checks. Date: 2026-10-11.
+"""P0 timing/counter and command-flow checks. Date: 2026-10-13.
 
 Synthetic clocks verify accounting only; these are not real CAD performance data.
 """
@@ -127,6 +127,27 @@ class PerformanceTests(unittest.TestCase):
         self.call('EL:PerfFinish', Symbol('COMMAND-FINISHED'))
         self.assertEqual(self.get('program-ms', self.get('after-submit', self.reports[0])), 30)
         self.assertEqual(self.get('inclusive-ms', self.get('after-placement', self.reports[0])), 20)
+
+    def test_two_preview_escapes_do_not_charge_later_generation_as_user_input(self):
+        self.h.load_definitions(ROOT / 'src/panel.lsp')
+        def escape(*args):
+            self.clock += 100
+            raise RuntimeError('Function cancelled')
+        self.h.builtins.update({'VLAX-GET-ACAD-OBJECT': lambda: 'app',
+            'VLA-GET-ACTIVEDOCUMENT': lambda _: 'doc',
+            'VLA-STARTUNDOMARK': lambda _: None, 'VLA-ENDUNDOMARK': lambda _: None,
+            'EL:COLORPREVIEWCLEANUP': lambda: True, 'GETSTRING': escape,
+            'EL:ALLCIRCUITCOLORWAIT': lambda _: self.call('EL:PerfInput', Symbol('GETSTRING'), ['wait'])})
+        self.call('EL:PerfStart', 'ELSTAT')
+        outer = self.call('EL:PerfBegin', 'PANEL_DIALOG')
+        for _ in range(2):
+            self.call('EL:AllCircuitColorPreview', None)
+            self.assertEqual(self.h.lookup('*EL:PERFWAITDEPTH*'), 0)
+        self.call('EL:PerfEnd', outer, Symbol('RETURNED'))
+        self.clock += 500
+        self.call('EL:PerfFinish', Symbol('COMMAND-FINISHED'))
+        self.assertEqual(self.get('interaction-ms', self.reports[0]), 200)
+        self.assertEqual(self.get('program-ms', self.reports[0]), 500)
 
     def test_signed_tick_rollover_is_not_reported_as_zero(self):
         self.clock = 2147483640

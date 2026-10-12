@@ -357,8 +357,12 @@
   ;; Date: 2026-10-09. Compare before decoding, so malformed native data
   ;; cannot hide its first changed/inserted/missing DXF field behind EXIT.
   (setq actual (EL:StorePayload entry) left expected right actual index 1)
-  (while (and left right (equal (car left) (car right)))
-    (setq left (cdr left) right (cdr right) index (1+ index)))
+  ;; Date: 2026-10-13. Native full equality is linear without per-field Lisp calls.
+  ;; Walk only a mismatch to retain its exact diagnostic field index.
+  (if (equal expected actual)
+    (setq left nil right nil)
+    (while (and left right (equal (car left) (car right)))
+      (setq left (cdr left) right (cdr right) index (1+ index))))
   (EL:LogEvent "STORE_DXF_READBACK" (list (cons 'source source)
     (cons 'handle (cdr (assoc 5 entry))) (cons 'object-type (cdr (assoc 0 entry)))
     (cons 'expected-fields (length expected)) (cons 'actual-fields (length actual))
@@ -369,17 +373,26 @@
       (cons 'actual (EL:StoreTokenSummary (car right)))
       (cons 'expected-next (EL:StoreTokenSummary (cadr left)))
       (cons 'actual-next (EL:StoreTokenSummary (cadr right)))))))
-(defun EL:StoreReadback (chunks entity expected / entry native value)
+(defun EL:StoreReadback (chunks entity expected / entry native value actual nativepayload)
   (setq entry (dictsearch (namedobjdict) "EL_FIXED_V1"))
   (EL:StoreAuditPayload chunks entry 'dictsearch)
   (setq native (entget entity))
   (EL:StoreAuditPayload chunks native 'entget)
-  ;; Decode the actual audited entry once through the same schema checks.
-  (setq value (EL:StoreReadEntry entry))
+  ;; Date: 2026-10-12. Reuse the pre-write decoded value only after BOTH actual
+  ;; DWG representations match every typed field. No hash or sampled check.
+  (setq actual (EL:StorePayload entry) nativepayload (EL:StorePayload native))
+  (if (and *EL:StorePreverified*
+      (equal (cdr (assoc -1 entry)) entity)
+      (equal (cdr (assoc 0 entry)) "XRECORD") (equal (cdr (assoc 0 native)) "XRECORD")
+      (equal chunks (car *EL:StorePreverified*))
+      (equal chunks actual) (equal chunks nativepayload)
+      (equal expected (cadr *EL:StorePreverified*)))
+    (progn (setq value (cadr *EL:StorePreverified*)) (EL:PerfCount "store-readback-decode-reuses" 1))
+    (setq value (EL:StoreReadEntry entry)))
   ;; Preserve business-field diagnostics before checking raw representation.
   (EL:StoreCheck expected value 'readback)
-  (EL:StoreCheck chunks (EL:StorePayload entry) 'dictsearch-readback)
-  (EL:StoreCheck chunks (EL:StorePayload native) 'entget-readback)
+  (EL:StoreCheck chunks actual 'dictsearch-readback)
+  (EL:StoreCheck chunks nativepayload 'entget-readback)
   (EL:StoreReadCacheRemember entry value))
 (defun EL:StoreLegacyEntry (entry / marker value)
   ;; Date: 2026-10-11. A preserved backup must remain an independently valid
@@ -495,7 +508,7 @@
   (if (and (not (vl-catch-all-error-p valid)) valid)
     (progn (EL:PerfCount "store-context-reuses" 1) (EL:Get 'verified-store context))
     (EL:StoreRead)))
-(defun EL:StoreWrite (store / chunks entry entity value current *EL:StorePhase*)
+(defun EL:StoreWrite (store / chunks entry entity value current decoded *EL:StorePhase* *EL:StorePreverified*)
   (EL:FreshBoundary)
   ;; Every write invalidates the prior candidate, including a failed second
   ;; write in one transaction. Only actual readback can seed the command cache.
@@ -512,8 +525,11 @@
     (if *EL:StoreLegacyWrite* 'EL:StoreEncodeLegacy 'EL:StoreEncode) (list store)))
   (EL:PerfSet "store-payload-fields" (length chunks))
   ;; Both checks remain exact: no numeric tolerance, truncation or dropped fields.
-  (EL:StoreCheck store (EL:LogCall "STORE_PARSE" (list '(format . native-dxf) (cons 'tokens (length chunks)))
-    'EL:StoreDecode (list chunks)) 'pre-write)
+  (setq decoded (EL:LogCall "STORE_PARSE" (list '(format . native-dxf) (cons 'tokens (length chunks)))
+    'EL:StoreDecode (list chunks)))
+  (EL:StoreCheck store decoded 'pre-write)
+  (EL:Require (EL:StoreSchemaValid decoded) "写入前解码记录无效，未写入。")
+  (setq *EL:StorePreverified* (list chunks decoded))
   (setq entry (dictsearch (namedobjdict) "EL_FIXED_V1") entity (cdr (assoc -1 entry)))
   (if entry (setq current (EL:StoreCurrentEntry entry store)))
   (setq *EL:StoreReadCache* nil)

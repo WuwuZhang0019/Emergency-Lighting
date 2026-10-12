@@ -1,5 +1,5 @@
 # Date: 2026-10-12. Verify the Windows COM byte/UTF-8 boundaries; this is not CAD acceptance.
-param([int]$PackageNo = 110)
+param([int]$PackageNo = 111)
 $ErrorActionPreference = 'Stop'
 $TaskRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $SeedRoot = Join-Path $TaskRoot 'assets/default-device-library'
@@ -14,17 +14,19 @@ foreach ($SeedFile in Get-ChildItem -LiteralPath $SeedRoot -Recurse -File) {
     $Expected = [System.IO.File]::ReadAllBytes($SeedFile.FullName)
     $BinaryTarget = Join-Path $CheckRun ('asset-' + $FileCount.ToString('000') + '.bin')
     $Stream = $null
+    $Xml = $null
+    $Node = $null
     try {
+        $Xml = New-Object -ComObject 'MSXML2.DOMDocument.6.0'
+        $Node = $Xml.createElement('binary')
+        $Node.dataType = 'bin.base64'
+        $Node.text = [Convert]::ToBase64String($Expected)
         $Stream = New-Object -ComObject 'ADODB.Stream'
         $Stream.Type = 1
         # Match all five AutoLISP slots: nil, adModeUnknown, unspecified, empty credentials.
         # PowerShell null is not a missing COM argument: use Type.Missing here.
         $Stream.Open([Type]::Missing, 0, -1, '', '')
-        $Encoded = [Convert]::ToBase64String($Expected)
-        for ($Offset = 0; $Offset -lt $Encoded.Length; $Offset += 192) {
-            $Chunk = $Encoded.Substring($Offset, [Math]::Min(192, $Encoded.Length - $Offset))
-            $Stream.Write([Convert]::FromBase64String($Chunk))
-        }
+        $Stream.Write($Node.nodeTypedValue)
         $Stream.SaveToFile($BinaryTarget, 2)
         $ExpectedHash = (Get-FileHash -LiteralPath $SeedFile.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
         if ((Get-FileHash -LiteralPath $BinaryTarget -Algorithm SHA256).Hash.ToLowerInvariant() -ne $ExpectedHash) {
@@ -35,6 +37,8 @@ foreach ($SeedFile in Get-ChildItem -LiteralPath $SeedRoot -Recurse -File) {
         $ByteCount += $Expected.Length
     } finally {
         if ($Stream) { $Stream.Close(); [void][Runtime.InteropServices.Marshal]::ReleaseComObject($Stream) }
+        if ($Node) { [void][Runtime.InteropServices.Marshal]::ReleaseComObject($Node) }
+        if ($Xml) { [void][Runtime.InteropServices.Marshal]::ReleaseComObject($Xml) }
     }
 }
 $Catalog = Join-Path $SeedRoot 'catalog.eld'
@@ -77,9 +81,9 @@ $Report = [ordered]@{
     native_cad_status = 'pending_user_validation'
     explicit_open_argument_count = 5; explicit_write_text_argument_count = 2
     utf8_write_roundtrip = $true
-    boundary = 'Real Windows ADODB calls with explicit optional slots and 192-character Base64 chunks; AutoLISP binding, DCL, CAD2020 and real drawings are not exercised'
+    boundary = 'Real Windows MSXML native Base64 and batched ADODB calls with explicit optional slots; AutoLISP binding, DCL, CAD2020 and real drawings are not exercised'
     default_sha256 = $Digests
 }
-$ReportPath = Join-Path $TaskRoot ('tests/evidence/2026-10-12-default-library-com-' + $PackageNo.ToString('000') + '.json')
+$ReportPath = Join-Path $TaskRoot ('tests/evidence/' + $Report.date + '-default-library-com-' + $PackageNo.ToString('000') + '.json')
 [System.IO.File]::WriteAllText($ReportPath, (($Report | ConvertTo-Json -Depth 4) + "`n"), $Utf8)
 Write-Output ('Windows COM checks passed: ' + $FileCount + ' original files; UTF-8 with and without BOM')

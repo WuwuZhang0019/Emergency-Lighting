@@ -1,4 +1,4 @@
-"""Exact command-scoped DWG decode reuse. Date: 2026-10-11.
+"""Exact command-scoped DWG decode reuse. Date: 2026-10-13.
 
 Finite native adapters measure work counts, not real AutoCAD timing.
 """
@@ -147,18 +147,19 @@ class StoreDecodeCacheTests(unittest.TestCase):
         self.assertTrue(equal(self.call('EL:StoreRead'), self.changed('input callback')))
         self.assertEqual(len(self.decodes), 2)
 
-    def test_readback_always_decodes_actual_data_then_followup_reuses_it(self):
+    def test_exact_native_readback_reuses_prewrite_decode_then_followup_reuses_it(self):
         self.call('EL:StoreRead')
         latest = self.changed()
         result = self.call('EL:TransactionVerifiedStore', Symbol('EL:STOREWRITE'), [latest])
         self.assertTrue(truth(self.call('EL:Get', Symbol('COMMITTED'), result)))
-        # Initial read, mandatory write-before roundtrip and actual DWG readback.
-        self.assertEqual(len(self.decodes), 3)
+        # Initial read and prewrite roundtrip; both native readbacks still compare every field.
+        self.assertEqual(len(self.decodes), 2)
+        self.assertEqual(self.metric('store-readback-decode-reuses'), 1)
         self.assertTrue(equal(self.call('EL:StoreRead'), latest))
-        self.assertEqual(len(self.decodes), 3)
+        self.assertEqual(len(self.decodes), 2)
         stages = self.h.lookup('*EL:PERFSTAGES*')
         decode_stage = self.call('EL:Get', 'STORE_DECODE', stages)
-        self.assertEqual(self.call('EL:Get', Symbol('CALLS'), decode_stage), 2)
+        self.assertEqual(self.call('EL:Get', Symbol('CALLS'), decode_stage), 1)
         self.__class__.update_work_evidence = {
             'store_decode_calls': self.call('EL:Get', Symbol('CALLS'), decode_stage),
             'prewrite_roundtrip_calls': 1, 'fresh_postwrite_readbacks': 1,
@@ -283,8 +284,8 @@ class StoreDecodeCacheTests(unittest.TestCase):
         self.assertTrue(truth(self.call('EL:Transaction', Symbol('EL:STOREWRITE'), [latest])))
         self.assertIn('EL_FIXED_V1_LEGACY', self.fixture.dictionary)
         self.assertTrue(equal(self.call('EL:StoreRead'), latest))
-        # Initial old read, encode-check, fresh historical backup, fresh readback.
-        self.assertEqual(len(self.decodes), 4)
+        # Initial old read, encode-check and fresh historical backup; exact readback reuses decode.
+        self.assertEqual(len(self.decodes), 3)
 
 
 if __name__ == '__main__':

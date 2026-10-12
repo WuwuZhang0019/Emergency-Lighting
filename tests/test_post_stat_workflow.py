@@ -1,4 +1,4 @@
-"""Post-statistics setup and explicit selection gates. Date: 2026-10-11.
+"""Post-statistics setup and explicit selection gates. Date: 2026-10-13.
 
 Runs actual command/dialog functions with finite CAD/DCL adapters.
 """
@@ -330,7 +330,7 @@ class PostStatWorkflowTests(unittest.TestCase):
             self.tiles['b_watts0'] = '7'
             self.call('EL:PanelAccept')
             self.assertEqual(self.closed, 1)
-        self.actions = [accept]
+        self.actions = [accept, lambda: self.done(0)]
         self.call('EL:EditPanel', self.result, self.cfg)
         record = self.call('EL:DiagramForPanel', 'panel', persisted[0])
         self.assertEqual(self.call('EL:Get', 'LAMP', self.get('powers', record)), 7)
@@ -392,7 +392,7 @@ class PostStatWorkflowTests(unittest.TestCase):
                 self.assertEqual(self.h.lookup('*EL:PANELINDEX*'), 1)
                 self.assertEqual(len(captures), first_count[0])
                 self.h.run(callbacks['accept'])
-            self.actions = [open_library, recover, close_manager, save]
+            self.actions = [open_library, recover, close_manager, save, lambda: self.done(0)]
             self.call('EL:EditPanel', self.result, self.cfg)
             record = self.call('EL:DiagramForPanel', 'panel', persisted[0])
             self.assertEqual(self.call('EL:Get', 'LAMP', self.get('powers', record)), 7)
@@ -575,7 +575,7 @@ class PostStatWorkflowTests(unittest.TestCase):
                 def accept():
                     if tile:self.call('EL:PanelCapacity',tile)
                     self.call('EL:PanelAccept')
-                self.actions=[accept]
+                self.actions=[accept, lambda: self.done(0)]
                 self.call('EL:EditPanel',self.result,self.cfg)
                 record=self.call('EL:DiagramForPanel','panel',persisted[0])
                 self.assertEqual(self.get('draft-capacity',record),Symbol(capacity))
@@ -592,10 +592,75 @@ class PostStatWorkflowTests(unittest.TestCase):
         self.h.builtins['EL:SAVEDRAFT'] = lambda *args: stored.append(args) or True
         self.h.builtins['EL:SAVENAMEPOWERS'] = lambda *args: True
         self.h.builtins['EL:SYNCDIAGRAM'] = lambda *args: self.fail('missing template cannot sync')
-        self.actions = [lambda: self.done(1)]
+        self.actions = [lambda: self.done(1), lambda: self.done(0)]
         self.call('EL:EditPanel', self.result, self.cfg)
         self.assertEqual(len(stored), 1)
         self.assertEqual(stored[0][3],Symbol('CAP300'))
+
+    def test_save_returns_to_same_page_with_values_and_preview_without_picking(self):
+        captures, saves = [], []
+        self.h.builtins.update({
+            'EL:THUMBCAPTURE': lambda block: captures.append(block),
+            'EL:FRESHRESULT': lambda *args: True,
+            'EL:SAVEDRAFT': lambda *args: saves.append(args) or True,
+            'EL:SAVENAMEPOWERS': lambda *args: True,
+            'EL:SYNCDIAGRAM': lambda *args: self.fail('save must not sync output'),
+            'EL:INVOKECCKK2': lambda *args: self.fail('save must not generate'),
+            'EL:PICKONE': lambda *args: self.fail('save must not pick'),
+        })
+        counts = []
+        def save():
+            self.tiles['b_watts0'] = '7'
+            self.call('EL:PanelCapacity', 'p_600')
+            self.h.set('*EL:PANELINDEX*', 1)
+            counts.append(len(captures))
+            self.call('EL:PanelAccept')
+        def resumed():
+            self.assertEqual(self.tiles['b_watts0'], '7')
+            self.assertEqual(self.tiles['p_capacity'], 'p_600')
+            self.assertEqual(self.h.lookup('*EL:PANELINDEX*'), 1)
+            self.assertEqual(len(captures), counts[0])
+            self.assertEqual(len(saves), 1)
+            self.done(0)
+        self.actions = [save, resumed]
+        self.call('EL:EditPanel', self.result, self.cfg)
+        self.assertEqual(self.actions, [])
+        self.assertEqual(self.dialogs, ['el_panel', 'el_panel'])
+
+    def test_failed_save_returns_to_panel_with_input_for_retry(self):
+        self.h.builtins.update({'EL:FRESHRESULT': lambda *args: True,
+            'EL:SAVEDRAFT': lambda *args: None, 'EL:SAVENAMEPOWERS': lambda *args: True})
+        def save():
+            self.tiles['b_watts0'] = '9'
+            self.call('EL:PanelAccept')
+        def resumed():
+            self.assertEqual(self.tiles['b_watts0'], '9')
+            self.done(0)
+        self.actions = [save, resumed]
+        self.call('EL:EditPanel', self.result, self.cfg)
+        self.assertEqual(self.actions, [])
+
+    def test_save_existing_diagram_marks_draft_pending_with_one_write(self):
+        store = self.call('EL:StoreInitial')
+        record = self.call('EL:NewRecord', 'panel', store)
+        record = self.call('EL:Put', Symbol('PANEL-OUTPUT-HANDLE'), 'old-output', record)
+        persisted = [self.call('EL:StorePutDiagram', record, store)]
+        writes = []
+        def write(value):
+            persisted[0] = value
+            writes.append(value)
+            return True
+        self.h.builtins.update({'EL:STOREREAD': lambda: persisted[0], 'EL:STOREWRITE': write,
+            'EL:TRANSACTION': lambda fn,args: self.h.call(fn,args),
+            'EL:FRESHRESULT': lambda *args: True,
+            'EL:SYNCDIAGRAM': lambda *args: self.fail('save changed generated diagram')})
+        self.actions = [lambda: self.call('EL:PanelAccept'), lambda: self.done(0)]
+        self.call('EL:EditPanel', self.result, self.cfg)
+        self.assertEqual(len(writes), 1)
+        saved = self.call('EL:DiagramForPanel', 'panel', persisted[0])
+        self.assertEqual(self.get('panel-output-handle', saved), 'old-output')
+        self.assertEqual(self.get('status', saved), Symbol('STALE'))
+        self.assertEqual(self.get('stale-reason', saved), Symbol('DRAFT-SAVED'))
 
     def test_shared_sync_accepts_default_ground_without_confirmation(self):
         self.h.builtins['EL:STOREREAD'] = lambda: None

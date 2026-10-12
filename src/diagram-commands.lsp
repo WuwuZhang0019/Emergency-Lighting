@@ -48,6 +48,9 @@
       (EL:Put 'capacity-source (EL:Get 'capacity-source result) (EL:Put 'capacity-option capacity record))) result nil)))
   (if (or (not (EL:Get 'can-generate result)) (not (EL:CircuitNumbersReady result)) (not (EL:SelectionsReady result capacity)))
     (setq record (EL:Put 'status 'stale record)))
+  ;; Date: 2026-10-13. A saved draft has not yet updated an existing diagram.
+  (if (EL:Get 'panel-output-handle record)
+    (setq record (EL:Put 'stale-reason 'draft-saved (EL:Put 'status 'stale record))))
   (if (EL:TemplateReady (EL:Get 'template cfg) cfg)
     (setq store (EL:Put 'fixed-template (EL:Get 'template cfg) store)))
   (EL:Require (or (and (not (EL:Get 'can-generate result))
@@ -145,19 +148,19 @@
           (if (and syncable (EL:Get 'generate edited)
               (not (EL:Get 'panel-output-handle record)))
             (EL:Require (EL:LogCall "SAVE_GENERATION_DRAFT" nil 'EL:SaveDraft (list result cfg powers capacity)) "生成前保存草稿失败，请重试。"))
-          (setq saved (if syncable
-            (if (EL:Get 'generate edited)
+          (setq saved (if (not (EL:Get 'generate edited))
+            (EL:SaveDraft result cfg powers capacity)
+            (if syncable
               (EL:InvokeCCKK2 result cfg powers capacity)
-              (EL:SyncDiagram result cfg powers capacity nil T))
-            (progn
-              (if (EL:Get 'generate edited)
-                (princ "\n生成未执行：回路、功率或模板校验未通过；已保存为待更新草稿，请重新统计并核对。"))
-              (EL:MarkStale (EL:Get 'panel result) 'review-or-template-pending) T)))
+              (progn
+                (princ "\n生成未执行：回路、功率或模板校验未通过；已保存为待更新草稿，请重新统计并核对。")
+                (EL:MarkStale (EL:Get 'panel result) 'review-or-template-pending) T))))
           (if saved
             (progn
               ;; The DWG keeps a recoverable power copy even when export is unavailable.
-              (if (or (not (EL:Get 'panel-output-handle (EL:DiagramForPanel (EL:Get 'panel result) (EL:StoreRead))))
-                  (not syncable))
+              (if (and (EL:Get 'generate edited)
+                  (or (not (EL:Get 'panel-output-handle (EL:DiagramForPanel (EL:Get 'panel result) (EL:StoreRead))))
+                  (not syncable)))
                 (setq saved (EL:SaveDraft result cfg powers capacity)))
               (if saved
                 (progn
@@ -171,10 +174,17 @@
           (EL:PerfInput 'alert (list (if (EL:DLSubmissionCurrent result)
             "源图状态已变化，回路草稿未保存，请重新统计。已填写功率已尝试单独记住。"
             "设备库已变化，回路草稿未保存；输入已尝试单独记住，请打开设备库并重新核对。"))))))))
-  (if (and (not edited) (EL:Get 'panel-output-handle record))
+  (if (and (not edited) (EL:Get 'panel-output-handle record)
+      (not (and (equal (EL:Get 'status record) 'stale)
+        (equal (EL:Get 'stale-reason record) 'draft-saved))))
     (EL:MarkStale (EL:Get 'panel result) 'review-cancelled))
   (EL:ClearPickHighlights)
   (if ownlog (EL:LogFinish (if edited 'panel-accepted 'panel-cancelled)))
+  ;; Date: 2026-10-12. Save stays in the same editor; no pick or diagram sync.
+  (if (and edited (EL:Get 'result edited) (not (EL:Get 'generate edited)))
+    (setq *EL:DLResume* (list (cons 'result result) (cons 'config cfg)
+      (cons 'powers powers) (cons 'capacity capacity) (cons 'position (EL:Get 'position edited)))
+      edited (list (cons 'switch-result result) (cons 'switch-config cfg))))
   (if (or (EL:Get 'switch-result edited) (EL:Get 'pick-panel edited) (EL:Get 'library-panel edited)
     (EL:Get 'preview-panel edited)) edited))
 (defun EL:PublishDiagram (result cfg / store record powers capacity)

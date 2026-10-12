@@ -1,11 +1,11 @@
-"""Build the AutoCAD 2020 trial package. Date: 2026-10-12."""
+"""Build the AutoCAD 2020 trial package. Date: 2026-10-13."""
 from pathlib import Path
 import base64
 import shutil
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGE_NO = 110
+PACKAGE_NO = 111
 NAME = f'应急照明-{PACKAGE_NO:03d}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 DEST = ROOT / 'output' / NAME
@@ -48,7 +48,8 @@ def embedded_resources():
             '      (vl-mkdir root)\n'
             '      (foreach folder \'("src" "ui" "config" "output" "templates")\n'
             '        (vl-mkdir (strcat root folder)))\n' + '\n'.join(writes) +
-            '\n      (if (and ok (EL:RootValid root)) root))))\n')
+            f'\n      (if (and ok (EL:RootValid root)\n'
+            f'        (EL:StartupWriteLines (strcat root "package-{PACKAGE_NO:03d}.marker") \'("Emergency-Lighting {PACKAGE_NO}"))) root))))\n')
 
 
 def build():

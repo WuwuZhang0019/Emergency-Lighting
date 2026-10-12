@@ -409,11 +409,12 @@
     (setq index (1+ index)))
   (redraw)
   (EL:PerfInput 'getstring (list "\n已识别路径已改为区别于原导线的颜色；保留原色的部分未纳入回路。按 Enter 或 Esc 返回：")))
-(defun EL:AllCircuitColorPreview (result / checked document clean ended)
+(defun EL:AllCircuitColorPreview (result / checked document clean ended checkpoint)
   ;; One undo group prevents stepping through a half-restored preview.
   (setq document (vla-get-ActiveDocument (vlax-get-acad-object)))
   (vla-StartUndoMark document)
-  (setq checked (vl-catch-all-apply 'EL:AllCircuitColorWait (list result)))
+  (setq checkpoint *EL:PerfPending* checked (vl-catch-all-apply 'EL:AllCircuitColorWait (list result)))
+  (EL:PerfUnwind checkpoint)
   (setq clean (EL:ColorPreviewCleanup)
     ended (vl-catch-all-apply 'vla-EndUndoMark (list document)))
   (if (not clean)
@@ -902,7 +903,8 @@
           (progn (EL:AllCircuitColorPreview *EL:PanelDraft*) (setq status 3)))
         (if (member status '(4 7)) (setq status 3)))
       (setq status 0)))
-  (if (not (member status '(11 12))) (EL:ThumbCleanup))
+  (if (not (or (member status '(11 12))
+      (and (= status 1) (not (equal *EL:PanelAction* 'generate))))) (EL:ThumbCleanup))
   (if (> dialog 0) (unload_dialog dialog)) (setq *EL:DialogID* nil)
   (if (member status '(11 12)) (list (cons (if (= status 12) 'preview-panel 'library-panel)
     (list (cons 'result *EL:PanelDraft*) (cons 'powers *EL:PanelPowers*)
@@ -913,6 +915,8 @@
     (if switched switched
     (if (member status '(1 2)) (list (cons 'result *EL:PanelDraft*) (cons 'powers *EL:PanelPowers*)
       (cons 'config *EL:PanelConfig*) (cons 'capacity *EL:PanelCapacity*)
+      (cons 'position (list (cons 'index *EL:PanelIndex*) (cons 'page *EL:PanelPage*)
+        (cons 'device *EL:PanelDevice*) (cons 'thumb *EL:ThumbPage*)))
       (cons 'generate (or (equal *EL:PanelAction* 'generate) (= status 2)))))))))
 
 ;; Date: 2026-10-11. An empty drawing keeps only model picks and cancel active.

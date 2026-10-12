@@ -1,4 +1,4 @@
-"""Root/config and packaged-update regressions. Date: 2026-10-11.
+"""Root/config and packaged-update regressions. Date: 2026-10-13.
 
 Executes actual LISP with file/input adapters; does not start AutoCAD.
 """
@@ -148,22 +148,28 @@ class RootFixture(unittest.TestCase):
 
 
 class RootInitTests(RootFixture):
-    def test_actual_binary_startup_without_msxml_and_repairs_partial_seed(self):
+    def test_native_binary_startup_batches_bytes_and_repairs_partial_seed(self):
         self.h.load_definitions(ROOT / 'src/startup.lsp')
         self.h.builtins.pop('EL:STARTUPWRITEBASE64')
         stream = io.BytesIO()
         released = []
+        node = {'kind': 'node'}
+        xml = {'kind': 'xml'}
+        writes = []
         target = pathlib.Path(self.temp.name) / 'seed.bin'
         target.write_bytes(b'partial previous initialization')
 
         def invoke(obj, method, *args):
             name = str(method).upper()
+            if name == 'CREATEELEMENT': return node
             if name == 'OPEN':
                 # Date: 2026-10-12. Reject omitted ADO slots like native VLISP.
                 if len(args) != 5: raise RuntimeError('实参太少')
                 self.assertEqual(args, (None, 0, -1, '', ''))
                 return None
-            if name == 'WRITE': return obj.write(bytes(args[0]))
+            if name == 'WRITE':
+                writes.append(len(args[0]))
+                return obj.write(bytes(args[0]))
             if name == 'SAVETOFILE':
                 self.assertEqual(args[1], 2)
                 pathlib.Path(args[0]).write_bytes(obj.getvalue())
@@ -176,12 +182,14 @@ class RootInitTests(RootFixture):
             elif name == 'CLOSE': obj.close()
 
         def create(name):
+            if name == 'MSXML2.DOMDocument.6.0': return xml
             self.assertEqual(name, 'ADODB.Stream')
             return stream
 
         self.h.builtins.update({
             'VLAX-CREATE-OBJECT': create,
-            'VLAX-PUT-PROPERTY': lambda *args: None,
+            'VLAX-PUT-PROPERTY': lambda obj, key, value: obj.__setitem__(str(key), value) if obj is node else None,
+            'VLAX-GET-PROPERTY': lambda obj, key: list(base64.b64decode(obj['TEXT'], validate=True)),
             'VLAX-INVOKE-METHOD': invoke,
             'VLAX-MAKE-SAFEARRAY': lambda typ, bounds: [0],
             'VLAX-SAFEARRAY-FILL': lambda array, data: array.__setitem__(slice(None), data),
@@ -189,7 +197,7 @@ class RootInitTests(RootFixture):
             'VLAX-SAFEARRAY->LIST': lambda array: array,
             'VLAX-RELEASE-OBJECT': lambda obj: released.append(obj),
         })
-        for size in (1, 2, 3, 256, 1025):
+        for size in (1, 2, 3, 256, 100015):
             stream = io.BytesIO()
             expected = bytes(i % 256 for i in range(size))
             encoded = base64.b64encode(expected).decode('ascii')
@@ -198,7 +206,8 @@ class RootInitTests(RootFixture):
                             self.h.lookup('*EL:STARTUPERROR*'))
             self.assertEqual(target.read_bytes(), expected)
             self.assertTrue(stream.closed)
-        self.assertEqual(len(released), 5)
+        self.assertEqual(writes, [1, 2, 3, 256, 100015])
+        self.assertEqual(len(released), 15)
         stream = io.BytesIO()
         def fail_write(obj, method, *args):
             if str(method).upper() == 'WRITE': raise RuntimeError('binary write denied')
@@ -208,7 +217,7 @@ class RootInitTests(RootFixture):
         self.assertTrue(stream.closed)
         self.assertIn('binary write denied', self.h.lookup('*EL:STARTUPERROR*'))
         self.assertIn('[BINARY_WRITE]', self.h.lookup('*EL:STARTUPERROR*'))
-        self.assertEqual(len(released), 6)
+        self.assertEqual(len(released), 18)
 
     def test_startup_resource_keeps_actual_failure_and_path(self):
         self.h.load_definitions(ROOT / 'src/startup.lsp')
@@ -445,6 +454,16 @@ class PackagedUpdateTests(RootFixture):
         self.assertIsNone(self.h.lookup('*EL:ROOT*'))
         self.assertEqual(len(self.dialogs), 0)
         self.assertNotIn('目录已确认', ''.join(self.messages))
+
+    def test_completed_runtime_is_remembered_without_reextracting_assets(self):
+        self.environment['LOCALAPPDATA'] = self.temp.name
+        self.run_startup(registry_error=True)
+        root = self.h.lookup('*EL:ROOT*')
+        self.assertTrue((pathlib.Path(root) / f'package-{self.builder.PACKAGE_NO:03d}.marker').is_file())
+        self.h.builtins['EL:STARTUPWRITEBASE64'] = lambda *a: self.fail('rewrote completed resources')
+        self.h.builtins['OPEN'] = lambda *a: self.fail('rewrote completed text resources')
+        self.run_startup(registry_error=True)
+        self.assertEqual(self.h.lookup('*EL:ROOT*'), root)
 
     def test_missing_registry_reuses_remembered_output_root_without_prompt(self):
         self.run_startup(self.built.as_posix())

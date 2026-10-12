@@ -1,4 +1,4 @@
-;; Date: 2026-10-11. Common publication/synchronization entry points.
+;; Date: 2026-10-12. Common publication/synchronization entry points.
 (defun EL:PowerInputPath (panel / drawing)
   (if (and panel *EL:Root* (setq drawing (EL:DrawingID)))
     (strcat *EL:Root* "config/power-input-" (EL:Hash (strcat drawing "/" panel)) ".eld")))
@@ -202,21 +202,23 @@
       (setq number (EL:PickPanelNumber))
       (setq cfg (EL:Put 'template (EL:Get 'template (EL:LoadConfig))
         (EL:Put 'params (EL:GapParams (EL:SuggestedParams)) (EL:PresetConfig (EL:DefaultConfig (EL:DrawingID))))))
-      (if (setq cfg (EL:PanelWireConfig (car panel) cfg))
-        (progn
-          (EL:LogEvent "PICKS" (list (cons 'panel (EL:LogEntity (car panel)))))
-          (setq
-            result (EL:LogCall "RECOGNIZE_FIXED" (list (cons 'panel (cdr (assoc 5 pd)))
-              (cons 'styles (EL:Get 'wire-styles cfg))) 'EL:RecognizeFixed (list cfg (cdr (assoc 5 pd))))
-            record (EL:DiagramForPanel (cdr (assoc 5 pd)) (EL:StoreRead)))
-          ;; Review and powers now share one modal dialog.
-          (setq result (EL:Put 'panel-number number
-            (EL:Put 'excluded-seeds (EL:Get 'excluded-seeds record) result)))
-          (setq powers (EL:FixedPowers record) result (EL:PanelCompute result powers cfg)
-            *EL:Result* result *EL:FixedConfig* cfg)
-          (if (EL:PickedDevicesReady result) (setq next (EL:EditPanel result cfg))
-            (setq *EL:Result* nil next (EL:PanelStartDialog))))
-        (EL:MarkStale (cdr (assoc 5 pd)) 'recognition-cancelled))))
+      (if (setq cfg (EL:PresetReady (car panel) cfg))
+        (if (setq cfg (EL:PanelWireConfig (car panel) cfg))
+          (progn
+            (EL:LogEvent "PICKS" (list (cons 'panel (EL:LogEntity (car panel)))))
+            (setq
+              result (EL:LogCall "RECOGNIZE_FIXED" (list (cons 'panel (cdr (assoc 5 pd)))
+                (cons 'styles (EL:Get 'wire-styles cfg))) 'EL:RecognizeFixed (list cfg (cdr (assoc 5 pd))))
+              record (EL:DiagramForPanel (cdr (assoc 5 pd)) (EL:StoreRead)))
+            ;; Review and powers now share one modal dialog.
+            (setq result (EL:Put 'panel-number number
+              (EL:Put 'excluded-seeds (EL:Get 'excluded-seeds record) result)))
+            (setq powers (EL:FixedPowers record) result (EL:PanelCompute result powers cfg)
+              *EL:Result* result *EL:FixedConfig* cfg)
+            (if (EL:PickedDevicesReady result) (setq next (EL:EditPanel result cfg))
+              (setq *EL:Result* nil next (EL:PanelStartDialog))))
+          (EL:MarkStale (cdr (assoc 5 pd)) 'recognition-cancelled))
+        (progn (EL:ClearPickHighlights) (setq next (EL:PanelStartDialog))))))
   (EL:ClearPickHighlights) (EL:LogFinish 'command-finished) next)
 ;; Date: 2026-10-10. Reuse an exact saved trunk association; first use identifies the real panel.
 (defun EL:TrunkSavedPanel (trunk store / ids row)
@@ -251,20 +253,22 @@
             (not (EL:ManagedEntity (handent panel)))) "来源配电箱无效或为系统图输出。")
           (setq number (EL:PickPanelNumber))
           (setq cfg (EL:Put 'template (EL:Get 'template (EL:LoadConfig))
-            (EL:Put 'params (EL:GapParams (EL:SuggestedParams)) (EL:PresetConfig (EL:DefaultConfig (EL:DrawingID)))))
-            cfg (EL:PresetReady (handent panel) cfg))
+            (EL:Put 'params (EL:GapParams (EL:SuggestedParams)) (EL:PresetConfig (EL:DefaultConfig (EL:DrawingID))))))
           (EL:Require (EL:PresetMember (cdr (assoc 8 data)) (EL:Get 'wire-layers cfg))
             "集中干线不在预设导线图层，请运行 ELPRESET 核对。")
-          (setq cfg (EL:Put 'concentrated-trunk id (EL:Put 'auto-panel panel
-              (EL:Put 'wire-styles (list (EL:WireStyle data))
-                (EL:Put 'wire-layers (list (cdr (assoc 8 data))) cfg))))
-            result (EL:LogCall "RECOGNIZE_TRUNK" (list panel id) 'EL:RecognizeFixed (list cfg panel))
-            result (EL:Put 'panel-number number result))
-          (princ (strcat "\n集中干线已识别 " (itoa (length (EL:Get 'circuits result)))
-            " 条出线，箱侧连接段已排除；请用查看全部回路核对。"))
-          (setq *EL:Result* result *EL:FixedConfig* cfg)
-          (if (EL:PickedDevicesReady result) (setq next (EL:EditPanel result cfg))
-            (setq *EL:Result* nil next (EL:PanelStartDialog)))))))
+          (if (setq cfg (EL:PresetReady (handent panel) cfg))
+            (progn
+              (setq cfg (EL:Put 'concentrated-trunk id (EL:Put 'auto-panel panel
+                  (EL:Put 'wire-styles (list (EL:WireStyle data))
+                    (EL:Put 'wire-layers (list (cdr (assoc 8 data))) cfg))))
+                result (EL:LogCall "RECOGNIZE_TRUNK" (list panel id) 'EL:RecognizeFixed (list cfg panel))
+                result (EL:Put 'panel-number number result))
+              (princ (strcat "\n集中干线已识别 " (itoa (length (EL:Get 'circuits result)))
+                " 条出线，箱侧连接段已排除；请用查看全部回路核对。"))
+              (setq *EL:Result* result *EL:FixedConfig* cfg)
+              (if (EL:PickedDevicesReady result) (setq next (EL:EditPanel result cfg))
+                (setq *EL:Result* nil next (EL:PanelStartDialog))))
+            (progn (EL:ClearPickHighlights) (setq next (EL:PanelStartDialog))))))))
   (EL:ClearPickHighlights) (EL:LogFinish 'command-finished) next)
 (defun c:ELGEN (/ *error* cfg result record powers capacity perfowner)
   (defun *error* (msg)

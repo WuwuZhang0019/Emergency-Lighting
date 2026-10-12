@@ -1,4 +1,5 @@
 """Current package/source checks. Date: 2026-10-12. No native CAD execution."""
+import argparse
 import hashlib
 import json
 from pathlib import Path
@@ -18,9 +19,12 @@ def definitions(text):
             if isinstance(form, list) and len(form) > 1 and form[0] == Symbol('DEFUN')}
 
 
-def check():
-    evidence = json.loads((ROOT / f'tests/evidence/{EVIDENCE_DATE}-device-library-{PACKAGE_NO:03d}.json').read_text(encoding='utf-8'))
+def check(evidence_prefix='device-library'):
+    assert evidence_prefix in ('device-library', 'recognition-preset')
+    evidence_path = ROOT / f'tests/evidence/{EVIDENCE_DATE}-{evidence_prefix}-{PACKAGE_NO:03d}.json'
+    evidence = json.loads(evidence_path.read_text(encoding='utf-8'))
     assert evidence['status'] == 'automated_passed' and evidence['failure_count'] == evidence['error_count'] == 0
+    assert evidence['package'] == PACKAGE_NO and evidence['date'] == EVIDENCE_DATE
     for relative, digest in evidence['sha256'].items():
         assert hashlib.sha256((ROOT / relative).read_bytes()).hexdigest() == digest, relative
     archive = PACKAGE.with_suffix('.zip')
@@ -42,7 +46,12 @@ def check():
                 assert text.encode('gb2312', errors='strict') == data, name
                 hashes[relative] = hashlib.sha256(data).hexdigest()
                 if Path(name).suffix.lower() == '.lsp': parse(text); parsed.append(relative)
+        assert z.read(f'{NAME}/tests/evidence/{evidence_path.name}') == evidence_path.read_bytes()
     wanted = {}
+    config = (ROOT / 'src/config.lsp').read_text(encoding='utf-8')
+    config = config.replace('(open path "r" "utf8")', '(open path "r")').replace('(open tmp "w" "utf8")', '(open tmp "w")')
+    assert config == (PACKAGE / 'src/config.lsp').read_bytes().decode('gb2312')
+    wanted.update(definitions(config))
     for module in MODULES:
         source = (ROOT / 'src' / f'{module}.lsp').read_text(encoding='utf-8')
         packaged = (PACKAGE / 'src' / f'{module}.lsp').read_bytes().decode('gb2312')
@@ -71,19 +80,25 @@ def check():
     for name in ('13_独立设备库与材料表管理方案.md', '14_独立设备库CAD验证与使用说明.md',
                  '更新记录/2026-10-11-主面板图例联动设备库-102.md',
                  '更新记录/2026-10-11-取消回路地面重复确认-103.md',
-                 '更新记录/2026-10-12-主面板简化流程合并-104.md'):
+                 '更新记录/2026-10-12-主面板简化流程合并-104.md',
+                 '更新记录/2026-10-12-105-识别预设与设备拾取.md',
+                 '更新记录/2026-10-12-106-首次设备登记引导修复.md'):
         assert (PACKAGE / 'docs' / name).read_bytes() == (ROOT / 'docs' / name).read_bytes()
     report = {
         'date': EVIDENCE_DATE, 'status': 'passed', 'package': PACKAGE_NO, 'native_cad_status': 'pending_user_validation',
         'regression_test_count': evidence['test_count'], 'strict_gb2312_files': len(hashes),
         'parsed_lisp_files': len(parsed), 'zip_crc_and_complete_byte_match': True,
         'merged_loader_entry_count': 3, 'new_modules': list(MODULES), 'sha256': hashes,
-        'boundary': 'package encoding, file equality, actual module definitions and regression inputs only; native assets, UI and speed require CAD validation',
+        'evidence_prefix': evidence_prefix,
+        'boundary': 'package encoding, file equality, config/recognition/module definitions and regression inputs only; native assets, UI and speed require CAD validation',
     }
-    path = ROOT / f'tests/evidence/{EVIDENCE_DATE}-device-library-package-{PACKAGE_NO:03d}.json'
+    path = ROOT / f'tests/evidence/{EVIDENCE_DATE}-{evidence_prefix}-package-{PACKAGE_NO:03d}.json'
     path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf-8', newline='\n')
     print(json.dumps({'gb2312_files': len(hashes), 'parsed_lisp': len(parsed), 'regression_count': evidence['test_count'],
         'zip_sha256': hashlib.sha256(archive.read_bytes()).hexdigest(), 'report': str(path)}, ensure_ascii=False))
 
 
-if __name__ == '__main__': check()
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--evidence-prefix', choices=('device-library', 'recognition-preset'), default='device-library')
+    check(parser.parse_args().evidence_prefix)

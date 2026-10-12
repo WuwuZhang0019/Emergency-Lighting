@@ -1,0 +1,42 @@
+{
+  "date": "2026-10-12",
+  "status": "automated_checks_passed",
+  "imported_count": 48,
+  "panel_count": 1,
+  "device_count": 47,
+  "pending_selections": [
+    {
+      "image": 6,
+      "row": 3,
+      "column": 1,
+      "drawing": "00001198",
+      "block_name": "$equip$00001198",
+      "display": "专用线路事故照明灯",
+      "source_library": "Equip",
+      "reason": "用户已确认系统图块编号；所提供 Equip_U 用户库不含该图块，缺系统图库原始 DWG 和图例"
+    }
+  ],
+  "watts_all_blank": true,
+  "native_dwg_assets": 48,
+  "original_slide_assets": 48,
+  "source_dwb_decoded_count": 331,
+  "zip_file_count": 98,
+  "source_sha256": {
+    "Equip_U.TK": "4e0b3fe5338cccc3206ea12f9c74c7677b5800b5bc43b076c399a5c99edfb763",
+    "Equip_U.SLB": "5e5de81e754a1971840c168dcdb3746f48e938cdfe3e53b570563514e2fda2b3",
+    "Equip_U.DWB": "be6d84801caf38360acbc75e3eaaa439aeb7f16bfcbc6f5acf9b6b374cbf797c"
+  },
+  "package_sha256": "1640595e46563aa77cb7f7305d076c3c4de853441968176466cdacc953d11fb7",
+  "checks": [
+    "all DWB streams decoded with exact declared length and DWG magic",
+    "selected DWG bytes match decoded source; SLD bytes match original source",
+    "current EL:DLCatalogValid, draft recognition names and exact aliases",
+    "all powers blank, zero confirmation unset and entries inactive drafts",
+    "current EL:DLDWGValid, EL:DLLegend and checksum validation",
+    "source hashes unchanged; ZIP CRC, file set and bytes equal directory"
+  ],
+  "native_cad_acceptance": "pending",
+  "installed_default_root": "C:\\Users\\Zyf\\AppData\\Local\\Emergency-Lighting\\device-library",
+  "installed_file_count": 98,
+  "installed_bytes_equal_portable_library": true
+}

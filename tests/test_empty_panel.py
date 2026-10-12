@@ -1,4 +1,4 @@
-"""Empty-DWG ELSTAT initialization. Date: 2026-10-11.
+"""Empty-DWG ELSTAT initialization. Date: 2026-10-12.
 
 Finite DCL adapters enforce valid list selection; they do not reproduce a
 native AutoCAD process crash or establish native dialog acceptance.
@@ -68,7 +68,7 @@ class EmptyPanelTests(unittest.TestCase):
                 self.assertEqual(self.modes['h_open'], 1)
                 self.assertEqual(self.modes['accept'], 1)
                 self.assertEqual(self.modes['p_generate'], 1)
-                self.assertEqual(self.modes['b_library'], 1)
+                self.assertEqual(self.modes['b_library'], 0)
                 self.assertEqual(self.modes['b_apply_library'], 1)
                 self.assertEqual(self.modes['p_pick'], 0)
                 self.assertEqual(self.modes['p_trunk'], 0)
@@ -87,6 +87,15 @@ class EmptyPanelTests(unittest.TestCase):
                 self.assertIsNone(self.h.lookup('*EL:HISTORYINDEX*'))
                 self.assertEqual(self.modes['h_open'], 1)
                 self.assertEqual(self.writes, [])
+
+    def test_empty_panel_can_open_library_then_return_to_initial_panel(self):
+        libraries = []
+        self.h.builtins['EL:DLUIOPEN'] = lambda: libraries.append(True) or True
+        self.actions = [lambda: self.done(11), lambda: self.done(0)]
+        self.h.run('(c:ELSTAT)')
+        self.assertEqual(libraries, [True])
+        self.assertEqual(self.dialogs, ['el_panel', 'el_panel'])
+        self.assertEqual(self.writes, [])
 
     def test_existing_valid_store_with_zero_records_keeps_empty_panel(self):
         payload = self.h.run('(EL:StoreEncode (EL:StoreInitial))')

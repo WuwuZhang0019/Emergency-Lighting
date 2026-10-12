@@ -1,4 +1,4 @@
-// Date: 2026-10-11. Status: implemented; native layout acceptance pending.
+// Date: 2026-10-12. Status: implemented; native layout acceptance pending.
 el_device_library_locked : dialog {
   label = "独立设备库 - 占用恢复";
   : text { key = "dl_lock_root"; width = 104; }
@@ -20,6 +20,7 @@ el_device_library : dialog {
       : edit_box { key = "dl_query"; label = "搜索图块名 / 设备名"; edit_width = 28; }
       : toggle { key = "dl_deleted"; label = "同时显示已删除设备"; }
       : list_box { key = "dl_rows"; label = "图块名 / 设备名 / 状态"; width = 48; height = 19; }
+      : button { key = "dl_pick"; label = "拾取设备入库（可多选）"; }
       : row {
         : button { key = "dl_new"; label = "新增"; }
         : button { key = "dl_delete"; label = "删除"; }
@@ -44,10 +45,9 @@ el_device_library : dialog {
       : toggle { key = "dl_zero"; label = "明确确认此设备为 0W"; }
       : popup_list { key = "dl_ground"; label = "是否地面"; }
       : toggle { key = "dl_active"; label = "启用名称匹配"; value = "1"; }
-      : button { key = "dl_pick"; label = "从 CAD 拾取 / 更换图块图形"; }
       : button { key = "dl_repair"; label = "从库内图形修复图例"; }
       : button { key = "dl_save"; label = "保存设备"; is_default = true; }
-      : text { label = "资料完整后参与识别；缺资料时保存为草稿。"; }
+      : text { label = "拾取后图形直接入库；缺功率时保留为草稿。"; }
     }
   }
   : text { key = "dl_status"; width = 104; }

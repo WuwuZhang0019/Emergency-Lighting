@@ -2,7 +2,7 @@
 
 Loads the actual .lsp sources. CAD APIs fail if called. NIL, dynamic scope,
 integer division and AutoLISP LAST (one-element list) are modelled explicitly.
-Date: 2026-10-09.
+Date: 2026-10-12.
 """
 import math
 import re
@@ -264,7 +264,8 @@ class Host:
                 value = self.evaluate(clause[0])
                 if truth(value): return self.body(clause[1:]) if len(clause)>1 else value
             return None
-        if op == 'FOREACH':
+        # Date: 2026-10-12. VLAX-FOR receives a finite injected collection; no COM emulation.
+        if op in ('FOREACH', 'VLAX-FOR'):
             value = None
             for item in seq(self.evaluate(args[1])):
                 self.set(args[0],item)

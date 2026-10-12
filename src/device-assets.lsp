@@ -80,6 +80,23 @@
   (if entity (progn (setq data (entget entity) definition (tblsearch "BLOCK" (EL:EffectiveName entity)))
     (if (and (equal (cdr (assoc 0 data)) "INSERT") definition (= (logand (cdr (assoc 70 definition)) 12) 0)) entity
       (progn (alert "请选择本图中的设备 INSERT；外部参照不能登记为设备。") nil)))))
+;; Date: 2026-10-12. Independent multi-pick; one representative per exact effective name.
+(defun EL:DLPickDevices (/ selected index entity data definition name names out preset)
+  (setq preset (EL:PresetLoad))
+  (princ (strcat "\n选择要入库的设备图块，可框选多种；设备图层：" (EL:DLAliasText (EL:Get 'device-layers preset))
+    "。Enter 完成选择，Esc 返回设备库。"))
+  (setq selected (EL:PerfInput 'ssget (list '((0 . "INSERT") (410 . "Model")))) index 0)
+  (while (and selected (< index (sslength selected)))
+    (setq entity (ssname selected index) data (entget entity) name (EL:EffectiveName entity)
+      definition (tblsearch "BLOCK" name))
+    (if (and (equal (cdr (assoc 0 data)) "INSERT") (equal (cdr (assoc 410 data)) "Model")
+        definition (= (logand (cdr (assoc 70 definition)) 12) 0) (not (EL:ManagedEntity entity))
+        (EL:PresetMember (cdr (assoc 8 data)) (EL:Get 'device-layers preset))
+        (not (and (EL:PresetMember (cdr (assoc 8 data)) (EL:Get 'panel-layers preset))
+          (EL:PresetMember name (EL:Get 'panel-names preset))))
+        (not (member (EL:DLNameKey name) names)))
+      (setq names (cons (EL:DLNameKey name) names) out (append out (list entity))))
+    (setq index (1+ index))) out)
 (defun EL:DLCaptureScript (job / slide marker source fullname token)
   (setq slide (vl-prin1-to-string (EL:Get 'slide job)) marker (vl-prin1-to-string (EL:Get 'marker job))
     source (vl-prin1-to-string (EL:Get 'source-name job)) fullname (vl-prin1-to-string (cond ((EL:Get 'source-fullname job)) (T "")))
@@ -87,6 +104,9 @@
   (strcat "(progn (vl-load-com) (setq el_dl_filedia (getvar \"FILEDIA\") el_dl_cmdecho (getvar \"CMDECHO\")) "
     "(setq el_dl_outcome (vl-catch-all-apply '(lambda () "
     "(setvar \"FILEDIA\" 0) (setvar \"CMDECHO\" 0) (setvar \"TILEMODE\" 1) (setvar \"UCSFOLLOW\" 0) "
+    ;; WBlock retains layer state. Normalize only this owned temporary drawing.
+    "(vlax-for el_dl_layer (vla-get-Layers (vla-get-ActiveDocument (vlax-get-acad-object))) "
+    "(vla-put-Lock el_dl_layer :vlax-false) (vla-put-Freeze el_dl_layer :vlax-false) (vla-put-LayerOn el_dl_layer :vlax-true)) "
     "(command-s \"_.UCS\" \"_World\") (command-s \"_.PLAN\" \"_World\") "
     "(vla-ZoomExtents (vlax-get-acad-object)) (command-s \"_.ZOOM\" \"0.8x\") "
     "(vla-Regen (vla-get-ActiveDocument (vlax-get-acad-object)) 1) (command-s \"_.MSLIDE\" " slide ") T) nil)) "

@@ -1,4 +1,4 @@
-;; Date: 2026-10-11. Keep GB2312 byte pairs intact in the legacy CAD2020 engine.
+;; Date: 2026-10-12. Keep GB2312 byte pairs intact in the legacy CAD2020 engine.
 (defun EL:PanelText (key value / lines line units char cost index limit legacy step width)
   (setq width (if (member key '("dl_asset" "dl_status")) 34 44))
   (setq line "" units 0 index 1 limit (cond ((equal key "p_total") 4) ((member key '("p_error" "dl_status")) 3) (T 2)))
@@ -76,10 +76,11 @@
 (defun c:ELTHUMBRESET ()
   (princ (if (EL:ThumbRestore) "\n图例预览可见性已恢复。" "\n仍有对象未恢复，请检查锁层后重试。"))
   (vl-catch-all-apply 'vla-Regen (list (vla-get-ActiveDocument (vlax-get-acad-object)) 1)) (princ))
-(defun EL:ThumbCleanup (/ path)
+(defun EL:ThumbCleanup (/ path job)
   (EL:ThumbRestore)
   (foreach path *EL:ThumbSlides* (vl-catch-all-apply 'vl-file-delete (list path)))
-  (setq *EL:ThumbSlides* nil *EL:ThumbCache* nil *EL:ThumbSources* nil))
+  (foreach job *EL:ThumbJobs* (EL:DLCaptureCleanup job))
+  (setq *EL:ThumbSlides* nil *EL:ThumbCache* nil *EL:ThumbSources* nil *EL:ThumbJobs* nil *EL:ThumbPending* nil))
 ;; Date: 2026-10-11. Capture missing legends before DCL; callbacks only reuse files.
 (defun EL:ThumbPrepare (result)
   (EL:ThumbCleanup)
@@ -87,7 +88,7 @@
   (EL:ThumbPrepareRows result T))
 (defun EL:ThumbRefresh (result)
   (EL:ThumbPrepareRows result nil))
-(defun EL:ThumbPrepareRows (result capture / ids circuit row block geometry snapshot checked)
+(defun EL:ThumbPrepareRows (result capture / ids circuit row block geometry snapshot checked entry)
   (setq *EL:ThumbCache* nil)
   (foreach circuit (EL:Get 'circuits result) (setq ids (append ids (EL:Get 'devices circuit))))
   (foreach row (if (assoc 'device-library result) (EL:DLMaterialRows result nil)
@@ -95,21 +96,56 @@
     (setq block (EL:By 'id (car (EL:Get 'ids row)) (EL:Get 'blocks (EL:Get 'snapshot result)))
       snapshot (cond (*EL:DLSessionSnapshot*) (T *EL:DLCache*))
       geometry nil)
-    (if (and (assoc 'device-library result) (EL:Get 'entry row)
-        (equal (EL:Get 'library-id row) (EL:Get 'library-id (EL:Get 'catalog snapshot))))
+    (setq entry (if (and (EL:Get 'entry row)
+      (equal (EL:Get 'library-id row) (EL:Get 'library-id (EL:Get 'catalog snapshot)))) (EL:Get 'entry row)
+      (if (not (EL:Get 'entry row)) (EL:DLFindEntry (EL:Get 'name row) snapshot))))
+    (if (and (assoc 'device-library result) entry)
       (setq geometry (vl-catch-all-apply 'EL:PerfCall
-        (list "DEVICE_LEGEND" 'EL:DLLegend (list (EL:Get 'entry row) snapshot)))))
+        (list "DEVICE_LEGEND" 'EL:DLLegend (list entry snapshot)))))
     (if (vl-catch-all-error-p geometry) (setq geometry nil))
     (if (and (not geometry) block)
       (if (setq checked (assoc (EL:Get 'id block) *EL:ThumbSources*)) (setq geometry (cdr checked))
         (if capture (progn
-          (setq geometry (vl-catch-all-apply 'EL:ThumbCapture (list block)))
-          (if (vl-catch-all-error-p geometry) (setq geometry nil))
-          (setq *EL:ThumbSources* (cons (cons (EL:Get 'id block) geometry) *EL:ThumbSources*))))))
+          ;; Date: 2026-10-12. Native multi-document capture never hides source objects.
+          (if (equal (getvar "SDI") 0)
+            (if (not (EL:By 'id (EL:Get 'id block) *EL:ThumbPending*))
+              (setq *EL:ThumbPending* (append *EL:ThumbPending* (list block))))
+            (progn
+              (setq geometry (vl-catch-all-apply 'EL:ThumbCapture (list block)))
+              (if (vl-catch-all-error-p geometry) (setq geometry nil))
+              (setq *EL:ThumbSources* (cons (cons (EL:Get 'id block) geometry) *EL:ThumbSources*))))))))
     (EL:Require (EL:ThumbRestore) "图例预览恢复失败，请运行 ELTHUMBRESET 后继续。")
-    (if (not geometry) (EL:LogEvent "DEVICE_LEGEND_MISSING"
+    (if (and (not geometry) (not (EL:By 'id (EL:Get 'id block) *EL:ThumbPending*))) (EL:LogEvent "DEVICE_LEGEND_MISSING"
       (list (cons 'name (EL:Get 'name row)) (cons 'id (EL:Get 'id block)))))
     (setq *EL:ThumbCache* (cons (cons (EL:Get 'name row) geometry) *EL:ThumbCache*))))
+;; Date: 2026-10-12. Reuse the owned-DWG capture path; resume the same panel after all slides.
+(defun EL:ThumbBatchNext (/ block entity snapshot checked suspended)
+  (while (and *EL:ThumbPending* (not suspended))
+    (setq block (car *EL:ThumbPending*) *EL:ThumbPending* (cdr *EL:ThumbPending*)
+      *EL:ThumbActive* block entity (handent (EL:Get 'id block))
+      checked nil snapshot (list (cons 'root (strcat *EL:Root* "output/thumb-preview/"))))
+    (if entity
+      (progn (setq *EL:DLContinue* 'EL:ThumbBatchResume
+        checked (vl-catch-all-apply 'EL:DLCaptureStart (list snapshot block entity)))
+        (if (or (and (not (vl-catch-all-error-p checked)) checked) *EL:DLCaptureJob*) (setq suspended T))))
+    (if (not suspended)
+      (progn
+        (setq *EL:DLContinue* nil *EL:ThumbSources* (cons (cons (EL:Get 'id block) nil) *EL:ThumbSources*))
+        (EL:LogEvent "DEVICE_PREVIEW_FAILED" (list (cons 'id (EL:Get 'id block))
+          (cons 'message (if (vl-catch-all-error-p checked) (vl-catch-all-error-message checked) "source or capture unavailable")))))))
+  (if suspended 'suspended T))
+(defun EL:ThumbBatchResume (entry / job geometry context result)
+  (setq *EL:DLContinue* nil job (EL:Get 'captured entry))
+  (if job
+    (progn (setq geometry (list (EL:Get 'slide job) (EL:DLSLDSize (EL:Get 'slide job))))
+      (setq *EL:ThumbJobs* (cons job *EL:ThumbJobs*))))
+  (setq *EL:ThumbSources* (cons (cons (EL:Get 'id *EL:ThumbActive*) geometry) *EL:ThumbSources*))
+  (if (not (equal (EL:ThumbBatchNext) 'suspended))
+    (progn
+      (setq context *EL:ThumbParentContext* *EL:ThumbParentContext* nil *EL:DLResume* context)
+      (if context
+        (progn (EL:PerfStart "ELSTAT") (setq result (EL:EditPanel (EL:Get 'result context) (EL:Get 'config context)))
+          (EL:PerfFinish (if result 'returned 'cancelled)))))))
 (defun EL:ThumbDraw (key geometry / w h screen scale sw sh checked shown)
   (setq w (dimx_tile key) h (dimy_tile key))
   (start_image key) (fill_image 0 0 w h -15)
@@ -638,7 +674,8 @@
   (EL:PanelText "p_error" (cond
     ((not (EL:CircuitNumbersReady *EL:PanelDraft*)) (EL:NumberProblemText *EL:PanelDraft*))
     ((EL:Get 'load-error (EL:Get 'device-library *EL:PanelDraft*)) "设备库无法读取，请修复库文件后重新统计；本图和库原文件保留。")
-    ((EL:Get 'library-pending *EL:PanelDraft*) (strcat "待登记：" (EL:DLAliasText (EL:Get 'library-pending *EL:PanelDraft*)) "；请填写本箱功率，地面设备才勾选是。"))
+    ((EL:Get 'library-pending *EL:PanelDraft*) (strcat "尚有 " (itoa (length (EL:Get 'library-pending *EL:PanelDraft*)))
+      " 种设备待填写功率；在图例表中每种填一次，或打开设备库补齐默认资料。"))
     ((not *EL:ThumbRows*) "未识别到连接设备，请检查导线连接、设备图块或恢复已排除图块。")
     ((>= *EL:PanelIndex* (length cs)) "预留回路无需设置；右侧图例表仍显示本箱全部设备。")
     ((and (not (assoc 'block-ground *EL:PanelDraft*)) (vl-some '(lambda (c) (EL:Get 'is-ground c)) cs))
@@ -666,10 +703,10 @@
   (setq row (nth (+ *EL:ThumbPage* index) (EL:PanelBlockRows))
     *EL:DLExplicitPowerKeys* (cond ((EL:Get 'keys row)) ((EL:Get 'key row) (list (EL:Get 'key row)))))
   (EL:PanelPowerChanged))
-(defun EL:PanelKnownTotal (/ ids circuit rows row total missing overflow watts)
+(defun EL:PanelKnownTotal (/ ids circuit rows row total missing kinds overflow watts)
   (foreach circuit (EL:Get 'circuits *EL:PanelDraft*)
     (setq ids (append ids (EL:Get 'devices circuit))))
-  (setq ids (EL:Unique ids) total 0 missing 0)
+  (setq ids (EL:Unique ids) total 0 missing 0 kinds 0)
   (setq rows (EL:SimpleRows (vl-remove-if-not '(lambda (b) (member (EL:Get 'id b) ids))
     (EL:Get 'blocks (EL:Get 'snapshot *EL:PanelDraft*))) *EL:PanelPowers*))
   (foreach row rows
@@ -677,9 +714,9 @@
     (if (numberp watts)
       (if (> watts (/ (- 2147483647 total) (EL:Get 'count row))) (setq overflow T)
         (setq total (+ total (* watts (EL:Get 'count row)))))
-      (setq missing (+ missing (EL:Get 'count row)))))
+      (setq missing (+ missing (EL:Get 'count row)) kinds (1+ kinds))))
   (strcat "已识别设备合计：" (if overflow "超出整数范围" (strcat (itoa total) " W"))
-    (if (> missing 0) (strcat "；尚有 " (itoa missing) " 个设备未填功率") "")
+    (if (> missing 0) (strcat "；尚有 " (itoa kinds) " 种 / " (itoa missing) " 个设备未填功率") "")
     (if (EL:Get 'complete *EL:PanelDraft*) "" "；连接仍待核对")))
 (defun EL:PanelGround (index value / cs c)
   (if (EL:PanelStore)
@@ -796,6 +833,7 @@
     (setq *EL:PanelDraft* (EL:Put 'capacity-source 'default *EL:PanelDraft*)))
   (if (assoc 'block-ground *EL:PanelDraft*) (EL:PanelBlockGroundApply))
   (if *EL:DLPanelPosition* (EL:ThumbRefresh result) (EL:ThumbPrepare result))
+  (if *EL:ThumbPending* (setq status 12))
   (if *EL:DLPanelPosition*
     (progn
       (setq *EL:PanelIndex* (max 0 (min (EL:Get 'index *EL:DLPanelPosition*)
@@ -864,9 +902,10 @@
           (progn (EL:AllCircuitColorPreview *EL:PanelDraft*) (setq status 3)))
         (if (member status '(4 7)) (setq status 3)))
       (setq status 0)))
-  (if (/= status 11) (EL:ThumbCleanup))
+  (if (not (member status '(11 12))) (EL:ThumbCleanup))
   (if (> dialog 0) (unload_dialog dialog)) (setq *EL:DialogID* nil)
-  (if (= status 11) (list (cons 'library-panel (list (cons 'result *EL:PanelDraft*) (cons 'powers *EL:PanelPowers*)
+  (if (member status '(11 12)) (list (cons (if (= status 12) 'preview-panel 'library-panel)
+    (list (cons 'result *EL:PanelDraft*) (cons 'powers *EL:PanelPowers*)
     (cons 'config *EL:PanelConfig*) (cons 'capacity *EL:PanelCapacity*)
     (cons 'position (list (cons 'index *EL:PanelIndex*) (cons 'page *EL:PanelPage*)
       (cons 'device *EL:PanelDevice*) (cons 'thumb *EL:ThumbPage*))))))
@@ -882,8 +921,10 @@
   (EL:PanelText "p_error" "请拾取配电箱或配电箱的集中引出线，开始统计。")
   (EL:LogCall "PANEL_START_BUTTONS" nil 'EL:TrunkButtonDraw nil)
   (foreach key '("p_pick" "p_trunk") (mode_tile key 0))
-  (foreach key '("p_capacity" "f_preview" "f_prev" "f_next" "b_restore" "b_library" "b_apply_library" "accept" "p_generate" "h_open")
+  (foreach key '("p_capacity" "f_preview" "f_prev" "f_next" "b_restore" "b_apply_library" "accept" "p_generate" "h_open")
     (mode_tile key 1))
+  (mode_tile "b_library" 0)
+  (action_tile "b_library" "(done_dialog 11)")
   (setq i 0)
   (repeat 8
     (foreach key '("f_image" "b_watts" "b_ground" "b_remove")
@@ -897,7 +938,7 @@
   (action_tile "p_trunk" "(done_dialog 10)")
   (action_tile "cancel" "(done_dialog 0)"))
 ;; Date: 2026-10-11. Log initial DCL stages even before any model pick.
-(defun EL:PanelStartDialog (/ dialog status switched ownlog path *EL:PanelDraft* *EL:HistoryRecords* *EL:HistoryIndex*)
+(defun EL:PanelStartDialog (/ dialog status switched ownlog path managed *EL:PanelDraft* *EL:HistoryRecords* *EL:HistoryIndex*)
   (setq ownlog (not *EL:LogActive*))
   (if ownlog (EL:LogStart))
   (setq path (strcat *EL:Root* "ui/power.dcl") status 3
@@ -923,8 +964,13 @@
       (alert "无法创建统计面板，请重新加载当前版本的完整交付包。") (setq status 0))))
   (if (> dialog 0) (unload_dialog dialog)) (setq *EL:DialogID* nil)
   (if ownlog (EL:LogFinish 'initial-panel-finished))
+  (if (= status 11)
+    (progn
+      (setq *EL:DLParentContinue* 'c:ELSTAT managed (vl-catch-all-apply 'EL:DLUIOpen nil))
+      (if (vl-catch-all-error-p managed) (princ (strcat "\n设备库未打开：" (vl-catch-all-error-message managed))))
+      (if (not (equal managed 'suspended)) (progn (setq *EL:DLParentContinue* nil) (EL:PanelStartDialog))))
   (if switched switched
-    (if (member status '(9 10)) (list (cons 'pick-panel (if (= status 10) 'trunk T))))))
+    (if (member status '(9 10)) (list (cons 'pick-panel (if (= status 10) 'trunk T)))))))
 
 ;; Date: 2026-10-10. Green image button with embedded Chinese label; no runtime font/file dependency.
 ;; Label: 拾取配电箱的集中引出线. Raster source: Windows SimSun, 12 px.
@@ -1024,23 +1070,68 @@
       (T (strcat "连接或几何检查未通过：" (vl-prin1-to-string code)))))
   (strcat label "；对象：" (vl-prin1-to-string (EL:Get 'object issue))
     "；详情：" (vl-prin1-to-string (EL:Get 'detail issue))))
-(defun EL:GenerationProblems (result / lines circuit issue index problems)
+;; Date: 2026-10-12. Aggregate the two power validators by device name across circuits.
+(defun EL:GenerationMissing (result / rows circuit issue index ids identity id block name key row)
   (setq index 0)
+  (foreach circuit (EL:Get 'circuits result)
+    (setq index (1+ index))
+    (foreach issue (append (EL:Get 'issues circuit) (EL:Get 'power-issues circuit))
+      (if (member (EL:Get 'code issue) '(POWER_MISSING_OR_INVALID DEVICE_LIBRARY_UNKNOWN))
+        (progn
+          (setq ids (EL:Get 'object issue) identity (EL:Get 'detail issue))
+          (if (not (listp ids)) (setq ids (list ids)))
+          (foreach id ids
+            (setq block (EL:By 'id id (EL:Get 'blocks (EL:Get 'snapshot result)))
+              name (cond ((EL:Get 'name block)) ((equal (type identity) 'STR) identity)
+                ((and (listp identity) (equal (type (car identity)) 'STR)) (car identity))
+                ((equal (type id) 'STR) id) (T "未命名设备"))
+              key (EL:DLNameKey name) row (EL:By 'key key rows))
+            (if (not row) (setq row (list (cons 'key key) (cons 'name name) '(ids) '(circuits)) rows (append rows (list row))))
+            (setq rows (subst (EL:Put 'ids (EL:Unique (cons id (EL:Get 'ids row)))
+              (EL:Put 'circuits (EL:Unique (append (EL:Get 'circuits row) (list (itoa index)))) row)) row rows))))))) rows)
+(defun EL:GenerationProblems (result / lines circuit issue index problems row missing)
+  (setq index 0)
+  (setq missing (EL:GenerationMissing result))
+  (foreach row missing
+    (setq lines (append lines (list (strcat (EL:Get 'name row) "：请填写或核对单个功率；"
+      (itoa (length (EL:Get 'ids row))) " 个设备，回路 " (EL:DLAliasText (EL:Get 'circuits row)) "。")))))
   (foreach circuit (EL:Get 'circuits result)
     (setq index (1+ index) problems (EL:Unique (append (EL:Get 'issues circuit) (EL:Get 'power-issues circuit))))
     (foreach issue problems
-      (setq lines (append lines (list (strcat "回路" (itoa index) "：" (EL:GenerationIssueText issue))))))
+      (if (not (member (EL:Get 'code issue) '(POWER_MISSING_OR_INVALID DEVICE_LIBRARY_UNKNOWN)))
+        (setq lines (append lines (list (strcat "回路" (itoa index) "：" (EL:GenerationIssueText issue)))))))
     (if (and (not problems) (not (EL:Get 'power-complete circuit)))
       (setq lines (append lines (list (strcat "回路" (itoa index) "：连接或功率核对未完成，请查看全部回路。"))))))
   (foreach issue (EL:Get 'issues (EL:Get 'snapshot result))
     (setq lines (append lines (list (strcat "图面：" (EL:GenerationIssueText issue))))))
   (if (EL:Get 'box-total-overflow result) (setq lines (append lines '("整箱功率计算超出范围。"))))
   (if lines lines '("识别状态未完成，请重新统计并查看全部回路；详细状态已写入日志。")))
-(defun EL:PanelGenerationBlocked (result / lines line message)
+(defun EL:PanelGenerationFocus (result / missing rows row index found)
+  (setq missing (car (EL:GenerationMissing result)) rows (EL:PanelBlockRows) index 0)
+  (foreach row rows
+    (if (and missing (not found) (or (member (EL:Get 'key missing) (EL:Get 'keys row))
+        (equal (EL:Get 'key missing) (EL:Get 'key row))))
+      (setq found index))
+    (setq index (1+ index)))
+  (if found
+    (progn
+      (setq *EL:ThumbPage* (* 8 (fix (/ found 8)))) (EL:PanelBlockFill)
+      (EL:DLPanelSelect (- found *EL:ThumbPage*))
+      (mode_tile (strcat "b_watts" (itoa (- found *EL:ThumbPage*))) 2))))
+(defun EL:PanelGenerationBlocked (result / lines line message compact index missing)
   (setq lines (EL:GenerationProblems result) message "不能生成，原因如下：")
+  (setq missing (EL:GenerationMissing result))
+  (if missing (setq message (strcat "尚有 " (itoa (length missing)) " 种设备需要填写或核对单个功率。"
+    "\n在图例表中每种设备填一次，整箱同名设备都会使用该值：")))
+  (setq compact message index 0)
   (foreach line lines (setq message (strcat message "\n" line)))
+  (foreach line lines
+    (if (< index 10) (setq compact (strcat compact "\n" line))) (setq index (1+ index)))
+  (if (> index 10) (setq compact (strcat compact "\n另有 " (itoa (- index 10)) " 项，完整详情已写入诊断日志。")))
   (EL:LogEvent "GENERATION_BLOCKED" (list (cons 'panel (EL:Get 'panel result))
     (cons 'reasons lines) (cons 'circuits (EL:Get 'circuits result))))
+  (if missing (EL:PanelGenerationFocus result))
   (EL:PanelText "p_error" (car lines))
   (princ (strcat "\n" message))
-  (alert (strcat message "\n可保存草稿；请用“查看全部回路”核对上述回路。")))
+  (alert (strcat compact (if missing "\n已定位到第一种设备的功率栏，补齐后再次生成。" "")
+    "\n可保存草稿；连接问题请用“查看全部回路”核对。")))

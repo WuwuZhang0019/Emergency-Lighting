@@ -71,6 +71,13 @@
   (while result
     (setq *EL:Result* result *EL:FixedConfig* cfg)
     (setq next (EL:EditPanelOnce result cfg))
+    (if (setq context (EL:Get 'preview-panel next))
+      (progn
+        (princ (strcat "\n正在准备 " (itoa (length *EL:ThumbPending*)) " 种设备的图例，完成后返回原统计面板。"))
+        (setq *EL:ThumbParentContext* context managed (EL:ThumbBatchNext))
+        (if (equal managed 'suspended) (setq result nil)
+          (setq *EL:DLResume* context *EL:ThumbParentContext* nil
+            result (EL:Get 'result context) cfg (EL:Get 'config context))))
     (if (setq context (EL:Get 'library-panel next))
       (progn (setq *EL:DLParentContext* context *EL:DLParentContinue* 'EL:DLResumePanel)
         (setq managed (vl-catch-all-apply 'EL:DLUIOpen nil) *EL:DLSessionSnapshot* nil *EL:DLCache* nil)
@@ -79,7 +86,7 @@
         (if (equal managed 'suspended) (setq result nil)
           (setq *EL:DLResume* context *EL:DLParentContext* nil *EL:DLParentContinue* nil
             result (EL:Get 'result context) cfg (EL:Get 'config context))))
-      (setq result (EL:Get 'switch-result next) cfg (EL:Get 'switch-config next))))
+      (setq result (EL:Get 'switch-result next) cfg (EL:Get 'switch-config next)))))
   next)
 (defun EL:EditPanelOnce (result cfg / *error* store record powers capacity edited prepared saved ownlog syncable template resolved resumed *EL:FreshScope* *EL:FreshScopeEnabled*)
   (defun *error* (msg)
@@ -116,7 +123,8 @@
     prepared (EL:Get 'result resolved) powers (EL:Get 'powers resolved))
   (if (setq edited (EL:LogCall "PANEL_DIALOG" (list (cons 'panel (EL:Get 'panel result)))
       'EL:PanelDialog (list prepared cfg powers capacity)))
-    (if (not (or (EL:Get 'switch-result edited) (EL:Get 'pick-panel edited) (EL:Get 'library-panel edited))) (progn
+    (if (not (or (EL:Get 'switch-result edited) (EL:Get 'pick-panel edited) (EL:Get 'library-panel edited)
+        (EL:Get 'preview-panel edited))) (progn
       (setq result (EL:Get 'result edited) powers (EL:Get 'powers edited) capacity (EL:Get 'capacity edited)
         cfg (cond ((EL:Get 'config edited)) (T cfg))
         syncable (and (EL:Get 'can-generate result) (EL:CircuitNumbersReady result) (EL:SelectionsReady result capacity)
@@ -167,7 +175,8 @@
     (EL:MarkStale (EL:Get 'panel result) 'review-cancelled))
   (EL:ClearPickHighlights)
   (if ownlog (EL:LogFinish (if edited 'panel-accepted 'panel-cancelled)))
-  (if (or (EL:Get 'switch-result edited) (EL:Get 'pick-panel edited) (EL:Get 'library-panel edited)) edited))
+  (if (or (EL:Get 'switch-result edited) (EL:Get 'pick-panel edited) (EL:Get 'library-panel edited)
+    (EL:Get 'preview-panel edited)) edited))
 (defun EL:PublishDiagram (result cfg / store record powers capacity)
   (setq store (EL:StoreRead) record (EL:DiagramForPanel (EL:Get 'panel result) store))
   (if record

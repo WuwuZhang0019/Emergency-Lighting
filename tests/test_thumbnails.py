@@ -1,4 +1,4 @@
-"""Native-format legends, source fallback and modal paging. Date: 2026-10-11."""
+"""Native-format legends, owned-DWG source fallback and modal paging. Date: 2026-10-12."""
 import unittest
 from autolisp_host import truth
 import test_fixed_diagnostics as diagnostics
@@ -183,6 +183,65 @@ class ThumbnailTests(unittest.TestCase):
         self.assertTrue(self.h.frames[0]['*EL:THUMBHIDDEN*'])
         self.h.builtins['VLA-GET-VISIBLE'] = lambda obj: -1
         self.assertTrue(self.call('EL:ThumbRestore'))
+
+    def test_native_missing_preview_queues_owned_export_without_hiding_any_source_object(self):
+        result = self.prepare_setup()
+        self.h.builtins.update({'GETVAR': lambda key: 0,
+            'EL:THUMBCAPTURE': lambda *args: self.fail('source isolation must not run in multi-document mode'),
+            'VLA-PUT-VISIBLE': lambda *args: self.fail('locked source visibility changed')})
+        self.call('EL:ThumbPrepare', result)
+        pending = self.h.lookup('*EL:THUMBPENDING*')
+        self.assertEqual([self.get('id', b) for b in pending], ['D1'])
+        self.call('EL:ThumbRefresh', result)
+        self.assertEqual(self.h.lookup('*EL:THUMBPENDING*'), pending)
+
+    def test_graphic_only_catalog_draft_uses_its_saved_slide_without_export(self):
+        result = self.prepare_setup()
+        entry = self.h.run("'((device-id . \"ELDEV1\") (block-name . \"Lamp\") (aliases) (status . draft))")
+        snapshot = self.h.run("'((catalog (library-id . \"LIB-A\")))")
+        snapshot = self.call('EL:Put', self.h.run("'catalog"),
+            self.call('EL:Put', self.h.run("'devices"), [entry], self.get('catalog', snapshot)), snapshot)
+        self.h.set('*EL:DLSESSIONSNAPSHOT*', snapshot)
+        self.h.builtins['EL:DLLEGEND'] = lambda e,s: ['draft.sld', [800,600]] if e == entry else None
+        self.h.builtins['EL:THUMBCAPTURE'] = lambda *args: self.fail('saved draft graphic was re-exported')
+        self.call('EL:ThumbPrepare', result)
+        self.assertEqual(self.call('EL:Get', 'Lamp', self.h.lookup('*EL:THUMBCACHE*')), ['draft.sld', [800,600]])
+
+    def test_owned_preview_batch_resumes_same_panel_and_only_cleans_owned_files(self):
+        self.h.set('*EL:ROOT*', 'plugin/')
+        pending = self.h.run("'(((id . \"D1\") (name . \"A\")) ((id . \"D2\") (name . \"B\")))")
+        self.h.set('*EL:THUMBPENDING*', pending)
+        context = self.h.run("'((result (panel . \"P1\") (panel-number . \"箱5\")) (config (kept . T)) (position (thumb . 0)))")
+        self.h.set('*EL:THUMBPARENTCONTEXT*', context)
+        captures, resumed, cleaned = [], [], []
+        self.h.builtins.update({'HANDENT': lambda id: id,
+            'EL:DLCAPTURESTART': lambda s,b,e: captures.append((s,b,e)) or True,
+            'EL:DLSLDSIZE': lambda path: [800,600], 'EL:PERFSTART': lambda name: None,
+            'EL:PERFFINISH': lambda value: None,
+            'EL:EDITPANEL': lambda r,c: resumed.append((r,c)),
+            'EL:DLCAPTURECLEANUP': cleaned.append})
+        self.assertEqual(self.call('EL:ThumbBatchNext'), self.h.run("'suspended"))
+        for index in (0,1):
+            entry = self.call('EL:Put', self.h.run("'captured"),
+                self.h.run(f'\'((slide . "owned{index}.sld") (token . "op{index}"))'), pending[index])
+            self.call('EL:ThumbBatchResume', entry)
+            self.assertEqual(len(resumed), index)
+        self.assertEqual([c[2] for c in captures], ['D1','D2'])
+        self.assertEqual(self.get('root', captures[0][0]), 'plugin/output/thumb-preview/')
+        self.assertEqual(resumed, [(self.get('result', context), self.get('config', context))])
+        self.assertEqual(self.h.lookup('*EL:DLRESUME*'), context)
+        self.call('EL:ThumbCleanup')
+        self.assertEqual(len(cleaned), 2)
+        self.assertFalse(self.h.lookup('*EL:THUMBSOURCES*'))
+
+    def test_failed_export_is_cached_as_missing_so_panel_does_not_retry_forever(self):
+        self.h.set('*EL:ROOT*', 'plugin/')
+        self.h.set('*EL:THUMBPENDING*', self.h.run("'(((id . \"D1\")))"))
+        self.h.builtins.update({'HANDENT': lambda id: None,
+            'EL:DLCAPTURESTART': lambda *args: self.fail('deleted representative was exported')})
+        self.assertTrue(self.call('EL:ThumbBatchNext'))
+        self.assertTrue(self.h.lookup('*EL:THUMBSOURCES*'))
+        self.assertFalse(self.h.lookup('*EL:THUMBPENDING*'))
 
 
 if __name__ == '__main__':

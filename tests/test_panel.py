@@ -1,4 +1,4 @@
-"""Circuit draft and identity checks. Date: 2026-10-11."""
+"""Circuit draft and identity checks. Date: 2026-10-12."""
 import unittest
 import test_simple_flow as simple
 from autolisp_host import Symbol, truth
@@ -64,7 +64,8 @@ class PanelTests(unittest.TestCase):
           self.call('EL:Put',Symbol('CATALOG'),catalog,
             self.call('EL:Put',Symbol('INDEX'),self.call('EL:DLIndex',catalog),None)))
         self.h.builtins.update({'EL:ENSUREROOT':lambda:True,'EL:PICKMODEL':pick,
-          'EL:LOADCONFIG':lambda:self.cfg,'HANDENT':lambda e:e if e in self.entities else None,
+          'EL:LOADCONFIG':lambda:self.cfg,'EL:PRESETLOAD':lambda:self.cfg,
+          'HANDENT':lambda e:e if e in self.entities else None,'CHR':chr,
           'EL:DLSNAPSHOT':lambda:snapshot,
           'EL:SIMPLELOADPOWERS':lambda:self.call('EL:Put',Symbol('VERSION'),1,self.call('EL:Put',Symbol('POWERS'),self.call('EL:Put','LAMP',5,None),None)),
           'GETVAR':lambda key:{'FINGERPRINTGUID':'guid','CDATE':20261009.12,'MILLISECS':100}.get(key),

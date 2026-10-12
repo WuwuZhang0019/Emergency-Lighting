@@ -1,4 +1,4 @@
-"""Owned assets and preview job boundaries. Date: 2026-10-11. CAD export itself is native-only."""
+"""Owned assets and preview job boundaries. Date: 2026-10-12. CAD export itself is native-only."""
 from pathlib import Path
 import tempfile
 import unittest
@@ -174,7 +174,12 @@ class DeviceAssetsTests(unittest.TestCase):
             'VL-LOAD-COM': lambda: None, 'VLAX-GET-ACAD-OBJECT': lambda: 'app',
             'VLA-GET-ACTIVEDOCUMENT': lambda _: 'temporary',
             'VLA-ZOOMEXTENTS': lambda _: None, 'VLA-REGEN': lambda *_: None,
+            'VLA-GET-LAYERS': lambda doc: ['owned-locked-layer'] if doc == 'temporary' else self.fail('source layers read'),
         })
+        layers = []
+        self.h.set(':VLAX-FALSE', 0); self.h.set(':VLAX-TRUE', -1)
+        for api in ('VLA-PUT-LOCK', 'VLA-PUT-FREEZE', 'VLA-PUT-LAYERON'):
+            self.h.builtins[api] = lambda layer, value, api=api: layers.append((api, layer, value))
         for failed in (False, True):
             with self.subTest(slide_failed=failed):
                 values = {'FILEDIA': 1, 'CMDECHO': 1, 'TILEMODE': 0, 'UCSFOLLOW': 1}
@@ -189,6 +194,8 @@ class DeviceAssetsTests(unittest.TestCase):
                 self.assertEqual((values['FILEDIA'], values['CMDECHO']), (1, 1))
                 self.assertIn(('_.ZOOM', '0.8x'), commands)
                 self.assertEqual(truth(self.h.call('VL-CATCH-ALL-ERROR-P', [self.h.lookup('EL_DL_OUTCOME')])), failed)
+        self.assertEqual(layers, [('VLA-PUT-LOCK', 'owned-locked-layer', 0),
+            ('VLA-PUT-FREEZE', 'owned-locked-layer', 0), ('VLA-PUT-LAYERON', 'owned-locked-layer', -1)] * 2)
 
     def test_cleanup_refuses_to_close_document_not_owned_by_job(self):
         self.h.builtins['VLA-GET-FULLNAME'] = lambda _: 'C:/user.dwg'

@@ -265,7 +265,7 @@ el_panel : dialog {
           : button { key = "dl_restore"; label = "恢复库设备"; }
         }
         : button { key = "dl_locate"; label = "在图中查看选中设备"; }
-        : button { key = "dl_pick"; label = "打开设备库拾取 / 更换图形"; }
+        : button { key = "dl_pick"; label = "打开设备库拾取入库"; }
         : button { key = "dl_repair"; label = "打开设备库修复图例"; }
         : text { key = "dl_status"; width = 36; fixed_width = true; }
         : text { key = "dl_status1"; width = 36; fixed_width = true; }

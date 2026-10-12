@@ -508,7 +508,8 @@
               (setq object (EL:Get 'object (nth (1- index) rows)))
               (if (equal (type object) 'STR) (EL:LocateID object)
                 (foreach i object (if (equal (type i) 'STR) (EL:LocateID i)))))))))) (princ))
-(defun c:ELSTAT () (EL:FixedStat) (princ))
+;; Date: 2026-10-12. Resume an owned preview job before opening another statistics window.
+(defun c:ELSTAT () (if *EL:DLCaptureJob* (c:ELDEVLIB) (EL:FixedStat)) (princ))
 (defun c:ELSAVERESULT (/ path cfg)
   (if (and *EL:Result* (setq cfg (EL:LoadConfig))
        (EL:SourceCurrent *EL:Result* cfg (EL:CollectEndpointSnapshot cfg)))

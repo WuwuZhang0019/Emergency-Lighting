@@ -13,7 +13,8 @@ EVIDENCE_DATE = '2026-10-12'
 PACKAGE_NO = int(re.search(r'^PACKAGE_NO = (\d+)$',
     (ROOT / 'tools/build_cad2020.py').read_text(encoding='utf-8'), re.M)[1])
 MODULES = (
-    'test_device_library', 'test_device_assets', 'test_device_ui', 'test_device_migration', 'test_thumbnails',
+    'test_device_library', 'test_device_assets', 'test_device_ui', 'test_device_pick', 'test_device_migration', 'test_thumbnails',
+    'test_recognition_preset', 'test_auto_wire', 'test_concentrated_trunk', 'test_generation_reasons',
     'test_device_recognition', 'test_source_contracts', 'test_empty_panel', 'test_block_table', 'test_exit_devices',
     'test_fixed_diagnostics', 'test_post_stat_workflow', 'test_diagram_store', 'test_diagram_update',
     'test_incremental_updates', 'test_performance', 'test_root_init', 'test_box',
@@ -37,7 +38,7 @@ def run():
     evidence = {
         'date': EVIDENCE_DATE, 'status': 'automated_passed' if result.wasSuccessful() else 'automated_failed',
         'package': PACKAGE_NO, 'native_cad_status': 'pending_user_validation',
-        'scope': 'merged inline main-panel library editor and unchecked non-ground defaults; legend selection, manual overrides, generation, save/reopen and unvisited rows; direct fixed pick/update; library recovery, power, number, ownership, source and transaction regressions',
+        'scope': 'direct multi-pick library publication, graphic-only drafts and separate preset recognition; owned-DWG previews on locked drawings; grouped generation blockers and power-field focus; inline editor, power, number, geometry, save/reopen and transaction regressions',
         'test_count': result.testsRun, 'failure_count': len(result.failures), 'error_count': len(result.errors),
         'tests': sorted(result.records, key=lambda row: row['test']),
         'sha256': {path.relative_to(ROOT).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest() for path in files},

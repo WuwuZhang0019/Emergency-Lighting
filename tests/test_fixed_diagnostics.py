@@ -1,10 +1,10 @@
-"""Fixed entry, real panel fill and missing system-variable regressions. Date: 2026-10-11.
+"""Fixed entry, real panel fill and missing system-variable regressions. Date: 2026-10-12.
 
 Finite CAD/DCL adapters only; native AutoCAD acceptance remains pending.
 """
 import unittest
 from pathlib import Path
-from autolisp_host import Symbol, truth
+from autolisp_host import Pair, Symbol, truth
 import test_panel as panel
 import test_diagnostics as diagnostics
 import test_cad_adapter as adapter
@@ -82,6 +82,34 @@ class FixedDiagnosticTests(unittest.TestCase):
         for value in ('031', 'PICKS', 'panel', 'w1', 'PREPARE_PANEL', 'PANEL_FILL', 'END'):
             self.assertIn(value, log)
         self.assertFalse(truth(self.h.lookup('*EL:LOGACTIVE*')))
+
+    def test_owned_preview_suspends_then_returns_to_real_panel_with_number_and_no_source_writes(self):
+        getvar = self.h.builtins['GETVAR']
+        self.h.builtins['GETVAR'] = lambda key: 0 if key == 'SDI' else getvar(key)
+        captured = []
+        self.h.builtins.update({
+            'EL:DLCAPTURESTART': lambda s,b,e: captured.append((s,b,e)) or True,
+            'EL:DLSLDSIZE': lambda p: [800,600],
+            'EL:DLCAPTURECLEANUP': lambda job: None,
+            'EL:THUMBCAPTURE': lambda *args: self.fail('source isolation was used'),
+            'VLA-PUT-VISIBLE': lambda *args: self.fail('source visibility changed'),
+            'SLIDE_IMAGE': lambda *args: True,
+        })
+        self.entities['number'] = [Pair(0,'TEXT'), Pair(1,'箱5')]
+        self.h.builtins['NENTSEL'] = lambda *args: ['number']
+        self.call('EL:FixedStatPick')
+        self.assertEqual(self.dialogs, [])
+        self.assertEqual(len(captured), 1)
+        context = self.h.lookup('*EL:THUMBPARENTCONTEXT*')
+        self.assertEqual(self.get('panel-number', self.get('result', context)), '箱5')
+        self.h.builtins['FINDFILE'] = lambda p: p if p == 'owned.sld' else None
+        graphic = self.call('EL:Put', Symbol('CAPTURED'), self.h.run("'((slide . \"owned.sld\"))"), captured[0][1])
+        self.call('EL:ThumbBatchResume', graphic)
+        self.assertEqual(self.dialogs, ['el_panel'])
+        self.assertEqual(self.tiles['p_number'], '配电箱编号：箱5')
+        self.assertEqual(self.tiles['b_watts0'], '')
+        self.assertEqual(self.writes, [])
+        self.assertFalse(self.h.lookup('*EL:THUMBPARENTCONTEXT*'))
 
     def test_single_wire_without_devices_returns_feedback_and_logs(self):
         self.selected = ['panel', 'w1']

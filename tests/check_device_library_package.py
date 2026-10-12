@@ -58,7 +58,7 @@ def check(evidence_prefix='device-library'):
         assert source == packaged
         wanted.update(definitions(source))
     # The source scanner's exact network/geometry checks remain present in every merged loader.
-    for module in ('simple', 'geometry', 'topology', 'circuit-number', 'diagram-commands', 'diagram-update'):
+    for module in ('main', 'simple', 'geometry', 'topology', 'circuit-number', 'diagram-commands', 'diagram-update'):
         source = (ROOT / 'src' / f'{module}.lsp').read_text(encoding='utf-8')
         assert source == (PACKAGE / 'src' / f'{module}.lsp').read_bytes().decode('gb2312')
         wanted.update(definitions(source))
@@ -68,7 +68,8 @@ def check(evidence_prefix='device-library'):
                  'EL:PANELGENERATE', 'EL:PANELGENERATEBODY', 'EL:PANELSTORE', 'EL:PANELTEXT',
                  'EL:SELECTIONSREADY',
                  'EL:THUMBDRAW', 'EL:THUMBCLEANUP', 'EL:THUMBPREPARE', 'EL:THUMBREFRESH',
-                 'EL:THUMBCAPTURE', 'EL:THUMBPREPAREROWS'):
+                 'EL:THUMBCAPTURE', 'EL:THUMBPREPAREROWS', 'EL:THUMBBATCHNEXT', 'EL:THUMBBATCHRESUME',
+                 'EL:GENERATIONMISSING', 'EL:GENERATIONPROBLEMS', 'EL:PANELGENERATIONFOCUS', 'EL:PANELGENERATIONBLOCKED'):
         wanted[name] = panel[name]
     update = f'UPDATE-{PACKAGE_NO:03d}.lsp'
     for entry in ('START-CAD2020.lsp', update, 'src/load.lsp'):
@@ -82,7 +83,8 @@ def check(evidence_prefix='device-library'):
                  '更新记录/2026-10-11-取消回路地面重复确认-103.md',
                  '更新记录/2026-10-12-主面板简化流程合并-104.md',
                  '更新记录/2026-10-12-105-识别预设与设备拾取.md',
-                 '更新记录/2026-10-12-106-首次设备登记引导修复.md'):
+                 '更新记录/2026-10-12-106-首次设备登记引导修复.md',
+                 '更新记录/2026-10-12-107-设备拾取入库与图例生成提示修复.md'):
         assert (PACKAGE / 'docs' / name).read_bytes() == (ROOT / 'docs' / name).read_bytes()
     report = {
         'date': EVIDENCE_DATE, 'status': 'passed', 'package': PACKAGE_NO, 'native_cad_status': 'pending_user_validation',

@@ -148,6 +148,70 @@ class RootFixture(unittest.TestCase):
 
 
 class RootInitTests(RootFixture):
+    def test_actual_binary_startup_without_msxml_and_repairs_partial_seed(self):
+        self.h.load_definitions(ROOT / 'src/startup.lsp')
+        self.h.builtins.pop('EL:STARTUPWRITEBASE64')
+        stream = io.BytesIO()
+        released = []
+        target = pathlib.Path(self.temp.name) / 'seed.bin'
+        target.write_bytes(b'partial previous initialization')
+
+        def invoke(obj, method, *args):
+            name = str(method).upper()
+            if name == 'OPEN': return None
+            if name == 'WRITE': return obj.write(bytes(args[0]))
+            if name == 'SAVETOFILE':
+                self.assertEqual(args[1], 2)
+                pathlib.Path(args[0]).write_bytes(obj.getvalue())
+            elif name == 'LOADFROMFILE':
+                obj.seek(0)
+                obj.truncate()
+                obj.write(pathlib.Path(args[0]).read_bytes())
+                obj.seek(0)
+            elif name == 'READ': return list(obj.read(args[0]))
+            elif name == 'CLOSE': obj.close()
+
+        def create(name):
+            self.assertEqual(name, 'ADODB.Stream')
+            return stream
+
+        self.h.builtins.update({
+            'VLAX-CREATE-OBJECT': create,
+            'VLAX-PUT-PROPERTY': lambda *args: None,
+            'VLAX-INVOKE-METHOD': invoke,
+            'VLAX-MAKE-SAFEARRAY': lambda typ, bounds: [0],
+            'VLAX-SAFEARRAY-FILL': lambda array, data: array.__setitem__(slice(None), data),
+            'VLAX-MAKE-VARIANT': lambda array: array,
+            'VLAX-SAFEARRAY->LIST': lambda array: array,
+            'VLAX-RELEASE-OBJECT': lambda obj: released.append(obj),
+        })
+        for size in (1, 2, 3, 256, 1025):
+            stream = io.BytesIO()
+            expected = bytes(i % 256 for i in range(size))
+            encoded = base64.b64encode(expected).decode('ascii')
+            chunks = [encoded[i:i + 192] for i in range(0, len(encoded), 192)]
+            self.assertTrue(self.h.call(Symbol('EL:STARTUPWRITEBASE64'), [str(target), chunks]),
+                            self.h.lookup('*EL:STARTUPERROR*'))
+            self.assertEqual(target.read_bytes(), expected)
+            self.assertTrue(stream.closed)
+        self.assertEqual(len(released), 5)
+        stream = io.BytesIO()
+        def fail_write(obj, method, *args):
+            if str(method).upper() == 'WRITE': raise RuntimeError('binary write denied')
+            return invoke(obj, method, *args)
+        self.h.builtins['VLAX-INVOKE-METHOD'] = fail_write
+        self.assertFalse(self.h.call(Symbol('EL:STARTUPWRITEBASE64'), [str(target), ['AA==']]))
+        self.assertTrue(stream.closed)
+        self.assertIn('binary write denied', self.h.lookup('*EL:STARTUPERROR*'))
+        self.assertEqual(len(released), 6)
+
+    def test_startup_resource_keeps_actual_failure_and_path(self):
+        self.h.load_definitions(ROOT / 'src/startup.lsp')
+        def denied(*args): raise PermissionError('access denied')
+        self.h.builtins['TEST:WRITE'] = denied
+        self.assertFalse(self.h.run('(EL:StartupResource \'TEST:WRITE "C:/seed.bin" nil)'))
+        self.assertIn('C:/seed.bin : access denied', self.h.lookup('*EL:STARTUPERROR*'))
+
     def test_missing_circuit_number_module_rejects_incomplete_root(self):
         self.assertTrue(truth(self.h.call(Symbol('EL:ROOTVALID'), [self.root])))
         (self.package / 'src/circuit-number.lsp').unlink()

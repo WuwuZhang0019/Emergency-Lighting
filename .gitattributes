@@ -1,0 +1,2 @@
+# Date: 2026-10-12. Preserve bundled resource bytes across Git newline settings.
+assets/default-device-library/** -text whitespace=cr-at-eol

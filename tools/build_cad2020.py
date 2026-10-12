@@ -1,10 +1,11 @@
 """Build the AutoCAD 2020 trial package. Date: 2026-10-12."""
 from pathlib import Path
+import base64
 import shutil
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGE_NO = 107
+PACKAGE_NO = 108
 NAME = f'应急照明-{PACKAGE_NO:03d}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 DEST = ROOT / 'output' / NAME
@@ -20,7 +21,7 @@ def lisp_string(text):
 
 
 def embedded_resources():
-    """Date: 2026-10-10. Portable fallback; never overwrite config or output."""
+    """Date: 2026-10-12. Fallback carries the same immutable default assets."""
     assets = sorted((DEST / 'src').glob('*.lsp')) + sorted((DEST / 'ui').glob('*'))
     writes = []
     for path in assets:
@@ -30,6 +31,14 @@ def embedded_resources():
         payload = '\n'.join(lisp_string(line) for line in lines)
         relative = lisp_string(path.relative_to(DEST).as_posix())
         writes.append(f'(if (not (EL:StartupWriteLines (strcat root {relative})\n\'({payload}))) (setq ok nil))')
+    for path in sorted((DEST / 'assets/default-device-library').rglob('*')):
+        if not path.is_file():
+            continue
+        encoded = base64.b64encode(path.read_bytes()).decode('ascii')
+        # Keep every literal below the legacy READ fragment limit.
+        chunks = '\n'.join(lisp_string(encoded[i:i + 192]) for i in range(0, len(encoded), 192))
+        relative = lisp_string(path.relative_to(DEST).as_posix())
+        writes.append(f'(if (not (EL:StartupWriteBase64 (strcat root {relative})\n\'({chunks}))) (setq ok nil))')
     return ('(defun EL:StartupEmbeddedRoot (/ base root folder ok)\n'
             '  (if (setq base (EL:NormalizeRoot (getenv "LOCALAPPDATA")))\n'
             '    (progn\n'
@@ -46,6 +55,12 @@ def build():
     DEST.mkdir(exist_ok=True)
     for folder in ('src', 'ui', 'config', 'output', 'templates', 'docs', 'tests/fixtures'):
         (DEST / folder).mkdir(parents=True, exist_ok=True)
+    # Formal seed assets are versioned source, separate from the mutable user library.
+    defaults = ROOT / 'assets/default-device-library'
+    assert (defaults / 'catalog.eld').is_file()
+    assert len(list((defaults / 'assets').rglob('block.dwg'))) == 49
+    assert len(list((defaults / 'assets').rglob('legend.sld'))) == 49
+    shutil.copytree(defaults, DEST / 'assets/default-device-library', dirs_exist_ok=True)
     for folder, pattern in (('src', '*.lsp'), ('ui', '*.dcl')):
         for source in (ROOT / folder).glob(pattern):
             text = source.read_text(encoding='utf-8')
@@ -71,14 +86,15 @@ def build():
     (DEST / marker).write_text(f"Emergency-Lighting {PACKAGE_NO}\n", encoding="ascii")
     # Keep an existing valid data root; initialize it for a standalone update.
     # All modules are included; readiness requires a complete package directory.
-    modules = ('common', 'config', 'geometry', 'topology', 'statistics', 'device-library', 'device-assets', 'device-ui', 'device-recognition', 'device-inputs', 'device-migration', 'generation', 'main', 'simple', 'circuit-number', 'fixed', 'panel', 'store-compact', 'diagram-store', 'diagram-update', 'diagram-commands', 'insert-circuit', 'startup')
+    modules = ('common', 'config', 'geometry', 'topology', 'statistics', 'device-library', 'device-assets', 'device-defaults', 'device-ui', 'device-recognition', 'device-inputs', 'device-migration', 'generation', 'main', 'simple', 'circuit-number', 'fixed', 'panel', 'store-compact', 'diagram-store', 'diagram-update', 'diagram-commands', 'insert-circuit', 'startup')
     update = (';; Date: 2026-10-10. Validate or initialize the plugin data root.\n'
               '(vl-load-com)\n' + '\n'.join(
                   (DEST / 'src' / f'{module}.lsp').read_bytes().decode('gb2312') for module in modules) +
               '\n(EL:ClearPickHighlights)\n(setq *EL:Result* nil *EL:DeviceResult* nil)\n'
               f'(setq *EL:PackageMarker* "{marker}")\n'
               '(if (EL:EnsureRoot)\n'
-              f'  (princ "\\n已加载（CAD2020 v{PACKAGE_NO}）：目录已确认。输入 ELSTAT 开始统计。")\n'
+              '  (progn (EL:DLDefaultStartup)\n'
+              f'    (princ "\\n已加载（CAD2020 v{PACKAGE_NO}）：目录已确认。输入 ELSTAT 开始统计。"))\n'
               f'  (princ "\\nCAD2020 v{PACKAGE_NO} 模块已载入，但未确认插件目录。运行 ELSETUP 或 ELSTAT 后选择完整包内的 src/load.lsp。"))\n'
               '(princ)\n')
     (DEST / UPDATE_NAME).write_bytes(update.encode('gb2312'))
@@ -144,6 +160,10 @@ def build():
         shutil.copy2(source, DEST / 'tests/evidence' / source.name)
     for source in sorted((ROOT / 'tests/evidence').glob('????-??-??-recognition-preset-*.json')):
         shutil.copy2(source, DEST / 'tests/evidence' / source.name)
+    for source in sorted((ROOT / 'tests/evidence').glob(f'????-??-??-default-library-com-{PACKAGE_NO:03d}.json')):
+        shutil.copy2(source, DEST / 'tests/evidence' / source.name)
+    shutil.copy2(ROOT / 'tests/evidence/2026-10-12-default-library-source.json',
+                 DEST / 'tests/evidence/2026-10-12-default-library-source.json')
     readme = guide
     (DEST / '使用说明.md').write_text(readme, encoding='utf-8')
     for filename in ('cad-plan.dxf', 'cad-plan.expected.json'):

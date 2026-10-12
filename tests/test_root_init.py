@@ -3,6 +3,7 @@
 Executes actual LISP with file/input adapters; does not start AutoCAD.
 """
 import contextlib
+import base64
 import importlib.util
 import io
 import json
@@ -92,7 +93,20 @@ class RootFixture(unittest.TestCase):
             'GETENV': lambda name: self.environment.get(name),
             'SETENV': lambda name, value: self.environment.__setitem__(name, value) or value,
             'VL-MKDIR': lambda path: pathlib.Path(path).mkdir(exist_ok=True) or True,
+            # Catalog installation is covered by test_default_device_library.
+            'EL:DLDEFAULTSTARTUP': lambda: True,
+            'EL:STARTUPWRITEBASE64': self.write_embedded_binary,
         })
+
+    @staticmethod
+    def write_embedded_binary(path, chunks):
+        path = pathlib.Path(path)
+        expected = base64.b64decode(''.join(chunks), validate=True)
+        if path.exists():
+            return path.read_bytes() == expected
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(expected)
+        return path.read_bytes() == expected
 
     @staticmethod
     def strcat(*parts):
@@ -344,6 +358,9 @@ class PackagedUpdateTests(RootFixture):
         self.assertEqual(len(self.dialogs), 0)
         self.assertEqual((root / 'ui/power.dcl').read_bytes().decode('gb2312').splitlines(),
                          (self.built / 'ui/power.dcl').read_bytes().decode('gb2312').splitlines())
+        for source in (ROOT / 'assets/default-device-library').rglob('*'):
+            if source.is_file():
+                self.assertEqual((root / source.relative_to(ROOT)).read_bytes(), source.read_bytes())
         config = root / 'config/keep.eld'
         config.write_bytes(b'keep user data')
         self.run_startup(registry_error=True)

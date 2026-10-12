@@ -13,6 +13,7 @@ EVIDENCE_DATE = '2026-10-12'
 PACKAGE_NO = int(re.search(r'^PACKAGE_NO = (\d+)$',
     (ROOT / 'tools/build_cad2020.py').read_text(encoding='utf-8'), re.M)[1])
 MODULES = (
+    'test_default_device_library', 'test_tianz_library_import',
     'test_device_library', 'test_device_assets', 'test_device_ui', 'test_device_pick', 'test_device_migration', 'test_thumbnails',
     'test_recognition_preset', 'test_auto_wire', 'test_concentrated_trunk', 'test_generation_reasons',
     'test_device_recognition', 'test_source_contracts', 'test_empty_panel', 'test_block_table', 'test_exit_devices',
@@ -33,12 +34,16 @@ def run():
     files = sorted(list((ROOT / 'src').glob('*.lsp')) + list((ROOT / 'ui').glob('*.dcl')) +
         [ROOT / 'tools/build_cad2020.py', Path(__file__), ROOT / 'tests/autolisp_host.py',
          ROOT / 'tests/run_checks.py', ROOT / 'tests/test_cad_adapter.py',
-         ROOT / 'tests/check_device_library_package.py'] +
+         ROOT / 'tests/check_device_library_package.py', ROOT / 'tools/import_tianz_library.py',
+         ROOT / 'tools/check_default_library_com.ps1',
+         ROOT / 'tests/evidence/2026-10-12-default-library-source.json',
+         ROOT / 'config/tianz-selected-devices.json'] +
+        [path for path in (ROOT / 'assets/default-device-library').rglob('*') if path.is_file()] +
         [ROOT / 'tests' / (name + '.py') for name in MODULES])
     evidence = {
         'date': EVIDENCE_DATE, 'status': 'automated_passed' if result.wasSuccessful() else 'automated_failed',
         'package': PACKAGE_NO, 'native_cad_status': 'pending_user_validation',
-        'scope': 'direct multi-pick library publication, graphic-only drafts and separate preset recognition; owned-DWG previews on locked drawings; grouped generation blockers and power-field focus; inline editor, power, number, geometry, save/reopen and transaction regressions',
+        'scope': '49 bundled defaults, first-open installation, user values and deletion preservation, interrupted-copy recovery, UTF-8 BOM and root-switch failures; direct multi-pick, presets, geometry, power, numbering, save/reopen and transaction regressions',
         'test_count': result.testsRun, 'failure_count': len(result.failures), 'error_count': len(result.errors),
         'tests': sorted(result.records, key=lambda row: row['test']),
         'sha256': {path.relative_to(ROOT).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest() for path in files},

@@ -1,0 +1,59 @@
+{
+  "date": "2026-10-13",
+  "status": "completed",
+  "passed": true,
+  "package": 127,
+  "regression_tests_run": 87,
+  "lisp_dcl_count": 32,
+  "lisp_parsed": 30,
+  "entry_scenarios": 6,
+  "checked_entries": [
+    "START-CAD2020.lsp",
+    "UPDATE-127.lsp",
+    "src/load.lsp"
+  ],
+  "checked_functions": [
+    "EL:MonitorLoadBegin",
+    "EL:PerfCall",
+    "EL:MonitorTitle",
+    "EL:StoreReadCacheRemember",
+    "EL:StoreReadCachedScope",
+    "EL:CCKK2CreateDiagram",
+    "EL:CreateDiagram",
+    "EL:StoreForResult",
+    "EL:SplitViewP",
+    "EL:SplitMetadata",
+    "EL:SplitViewFromRoot",
+    "EL:SplitAuditReachable",
+    "EL:SplitCheckView",
+    "EL:SplitNewChunk",
+    "EL:SplitBuild",
+    "EL:SplitWrite",
+    "EL:SplitVerifiedPayload",
+    "EL:SplitRememberVerified",
+    "EL:ComponentIndex",
+    "EL:ComponentIndexTake",
+    "EL:ComponentNeighbours",
+    "EL:Component",
+    "EL:PickStartPanel",
+    "EL:SyncDiagramScoped"
+  ],
+  "checks": [
+    "strict GB2312",
+    "all LISP parsing",
+    "ZIP CRC",
+    "all archive/directory bytes equal",
+    "changed source definitions equal all three entries",
+    "current box and generation entry scenarios"
+  ],
+  "source_sha256": {
+    "src/common.lsp": "05aaae233171cf6dd78dee0f9f435e878cbffd247712ef5d09961ffa3bc53ff6",
+    "src/topology.lsp": "146293e1c5e44600687e666fd9c544f0d0e65535a58223099e2a152b6c4c9ed6",
+    "src/diagram-store.lsp": "d321af743ecd49990dfd333284e5badfda93d939c94ebf93a6c74c09dc589600",
+    "src/store-split.lsp": "e68eec5223dc59531a0c4d6749c17123c16aaa3d71e1e5a85157e59a09943ede",
+    "src/diagram-update.lsp": "5e160adfd9e0ae3ef868238a6ee21f1740394be660123949fc8c3a5e96346adc",
+    "src/diagram-commands.lsp": "b2b95b682419644d3c036e8f3ad5f04e628912cc5b4294fc9326361cf7667442"
+  },
+  "archive_sha256": "451a020bb3e6d9ab5e94a02641ecb54f4a8b83b8af495eaec7d612f5f1ab68a6",
+  "native_cad_status": "pending original DWG acceptance"
+}

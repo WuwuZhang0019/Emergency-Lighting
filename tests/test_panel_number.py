@@ -1,4 +1,4 @@
-"""Panel number lifecycle checks. Date: 2026-10-11."""
+"""Panel number lifecycle checks. Date: 2026-10-13."""
 import unittest
 import test_diagram_update as update
 from autolisp_host import Pair, truth
@@ -51,7 +51,9 @@ class PanelNumberTests(unittest.TestCase):
         labels=[]; tiles={}
         self.h.builtins.update({'EL:STOREREAD':lambda:self.h.lookup('HISTORY-STORE'),
             'START_LIST':lambda *args:None, 'END_LIST':lambda:None, 'ADD_LIST':labels.append,
-            'SET_TILE':lambda k,v:tiles.__setitem__(k,v), 'MODE_TILE':lambda *args:None})
+            'SET_TILE':lambda k,v:tiles.__setitem__(k,v), 'MODE_TILE':lambda *args:None,
+            'ACTION_TILE':lambda *args:None})
+        self.h.run('(EL:HistoryRememberStore history-store)')
         self.call('EL:HistoryFill')
         self.assertIn('ZZ-B1ALE(JZ)',labels[0])
         self.assertIn('编号待保存',labels[0])

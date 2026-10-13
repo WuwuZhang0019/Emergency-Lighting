@@ -777,8 +777,18 @@
   (if (and record (equal (EL:Get 'engine record) 'fixed) (handent panel)
       (not (equal panel (EL:Get 'panel *EL:PanelDraft*))))
     (if (or (not *EL:PanelDraft*) (EL:PanelStore)) (done_dialog 8))))
-(defun EL:HistoryFill (/ record index selected panel)
-  (setq *EL:HistoryRecords* (EL:Get 'diagrams (EL:LogCall "PANEL_HISTORY_READ" nil 'EL:StoreRead nil))
+;; Date: 2026-10-13. List data belongs to this UI session, never a write preflight.
+(defun EL:HistoryStoreReady ()
+  (and *EL:HistoryListLoaded* (equal *EL:HistoryListOwner* (namedobjdict))))
+(defun EL:HistoryRememberStore (store)
+  (setq *EL:HistoryListStore* store *EL:HistoryListOwner* (namedobjdict)
+    *EL:HistoryListLoaded* T) store)
+(defun EL:HistoryLoad ()
+  ;; Only called after closing DCL. Leave the prior list intact on read failure.
+  (EL:HistoryRememberStore (EL:LogCall "PANEL_HISTORY_READ" nil 'EL:StoreRead nil)))
+(defun EL:HistoryFill (/ record index selected panel loaded)
+  (setq loaded (EL:HistoryStoreReady)
+    *EL:HistoryRecords* (if loaded (EL:Get 'diagrams *EL:HistoryListStore*))
     index 0 selected 0)
   (start_list "h_records")
   (foreach record *EL:HistoryRecords*
@@ -790,21 +800,80 @@
       " 回路 | " (EL:HistoryState record) (EL:HistoryNumberNote record)))
     (setq index (1+ index)))
   (end_list)
+  (set_tile "h_load" (if loaded "刷新保存记录" "加载保存记录"))
+  (action_tile "h_load" "(if (or (not *EL:PanelDraft*) (EL:PanelStore)) (done_dialog 13))")
   (mode_tile "h_records" (if *EL:HistoryRecords* 0 1))
   (if *EL:HistoryRecords*
     (progn (set_tile "h_records" (itoa selected)) (EL:HistorySelect (itoa selected)))
     (progn
-      (EL:LogEvent "PANEL_HISTORY_EMPTY" '((records . 0)))
+      (if loaded (EL:LogEvent "PANEL_HISTORY_EMPTY" '((records . 0))))
       (set_tile "h_records" "")
-      (EL:HistorySelect ""))))
-(defun EL:HistoryOpen (/ record panel cfg result)
-  ;; Called only after done_dialog: recognition and DWG transactions need CAD context.
+      (EL:HistorySelect "")
+      (if (not loaded) (set_tile "h_detail" "点击加载保存记录，或直接拾取。")))))
+(defun EL:HistorySnapshot (signature panel / snapshot blocks block wires wire entity)
+  ;; Date: 2026-10-13. Reuse the exact saved baseline; opening never certifies the live drawing.
+  (if (and (listp signature) (equal (car signature) 'EL_FIXED_SOURCE_V1)
+      (setq snapshot (cadr signature)) (listp snapshot) (assoc 'wires snapshot)
+      (EL:Get 'blocks snapshot))
+    (progn
+      (foreach block (EL:Get 'blocks snapshot)
+        (if (assoc 'entity block) (setq block (EL:Put 'entity (handent (EL:Get 'id block)) block)))
+        (setq blocks (cons (EL:Put 'identity (list (EL:Get 'name block) nil "block-name-v1")
+          (EL:Put 'role (if (equal (EL:Get 'id block) panel) 'panel 'device) block)) blocks)))
+      (foreach wire (EL:Get 'wires snapshot)
+        (if (assoc 'entity wire)
+          (progn (setq entity (EL:Get 'entity wire))
+            (setq wire (EL:Put 'entity (handent (if (and (listp entity) (equal (car entity) 'handle))
+              (cadr entity) (EL:Get 'id wire))) wire))))
+        (setq wires (cons wire wires)))
+      (EL:Put 'signature signature (EL:Put 'wires (reverse wires) (EL:Put 'blocks (reverse blocks) snapshot))))))
+(defun EL:HistoryRestore (record / draft circuits signature snapshot panel cfg result key)
+  ;; Date: 2026-10-13. Formal output rows omit topology; only complete saved circuits can restore it.
+  (setq draft (EL:Get 'draft-circuits record)
+    circuits (if draft draft (EL:Get 'panel-circuits record))
+    signature (EL:Get (if draft 'draft-source-signature 'source-signature) record)
+    panel (EL:Get 'source-panel-handle record) cfg (EL:Get 'config record))
+  ;; Explicit reference only: legacy missing draft signatures must not borrow a formal baseline.
+  (if (and draft (equal signature 'formal-source)) (setq signature (EL:Get 'source-signature record)))
+  (if (and circuits
+      (vl-every '(lambda (c) (and (EL:Get 'seed c) (assoc 'wires c)
+        (assoc 'devices c) (assoc 'complete c))) circuits)
+      (setq snapshot (EL:HistorySnapshot signature panel)))
+    (progn
+      (setq result (list (cons 'panel panel) (cons 'drawing (EL:Get 'drawing snapshot))
+        (cons 'snapshot snapshot) (cons 'rules (EL:RecognitionRules cfg)) (cons 'circuits circuits)
+        (cons 'complete (and (not (EL:Get 'issues snapshot))
+          (vl-every '(lambda (c) (EL:Get 'complete c)) circuits)))
+        '(engine . fixed) '(history-restored . T)))
+      (foreach key '(panel-number candidate-keys excluded-seeds block-ground excluded-devices)
+        (if (assoc key record) (setq result (EL:Put key (EL:Get key record) result))))
+      (setq result (EL:Put 'capacity-source
+        (EL:Get (if draft 'draft-capacity-source 'capacity-source) record) result))
+      (if (EL:Get (if draft 'draft-number-policy-version 'number-policy-version) record)
+        (setq result (EL:Put 'number-policy-version
+          (EL:Get (if draft 'draft-number-policy-version 'number-policy-version) record)
+          (EL:Put 'number-inputs (EL:Get (if draft 'draft-number-inputs 'number-inputs) record) result))))
+      result)))
+(defun EL:HistoryOpen (/ record panel cfg result owner cached)
+  ;; Date: 2026-10-13. Saved content opens directly; legacy records rebuild once for their missing topology.
   (setq record (if *EL:HistoryIndex* (nth *EL:HistoryIndex* *EL:HistoryRecords*)) panel (EL:Get 'source-panel-handle record)
     cfg (EL:Get 'config record))
   (EL:Require (and record (equal (EL:Get 'engine record) 'fixed) (handent panel))
     "来源配电箱不存在或记录类型不支持，未切换。")
-  (setq result (EL:RecognizeFixed cfg panel))
+  (setq owner (namedobjdict) cached (EL:Get panel *EL:HistoryResultCache*)
+    result (if (and (equal owner (EL:Get 'owner cached)) (equal record (EL:Get 'record cached)))
+      (EL:Get 'result cached)))
+  (if result (EL:LogEvent "PANEL_HISTORY_REUSE" (list (cons 'panel panel)))
+    (setq result (EL:LogCall "PANEL_HISTORY_RESTORE" (list (cons 'panel panel)) 'EL:HistoryRestore (list record))))
+  (if (not result)
+    (progn
+      (EL:LogEvent "PANEL_HISTORY_LEGACY_REBUILD" (list (cons 'panel panel)))
+      (princ "\n此旧记录尚未保存完整回路内容，正在补充统计；保存后再次打开可直接加载。")
+      (setq result (EL:RecognizeFixed cfg panel))))
   (EL:Require (EL:Get 'circuits result) "目标配电箱未识别到有效回路，未切换。")
+  (setq result (EL:Put 'history-opened T result))
+  (setq *EL:HistoryResultCache* (EL:Put panel (list (cons 'owner owner)
+    (cons 'record record) (cons 'result result)) *EL:HistoryResultCache*))
   (if *EL:PanelDraft*
     (progn
       (EL:Require (EL:FreshResult *EL:PanelDraft* *EL:PanelConfig*)
@@ -878,6 +947,12 @@
         (action_tile "cancel" "(EL:DLPanelCancel)")
         (setq *EL:PanelAction* nil status (EL:PerfInput 'start_dialog nil))
         (EL:LogEvent "PANEL_DIALOG_RETURN" (list (cons 'status status) (cons 'action *EL:PanelAction*)))
+        (if (= status 13)
+          (progn
+            (setq switched (vl-catch-all-apply 'EL:HistoryLoad nil))
+            (if (vl-catch-all-error-p switched)
+              (alert (strcat "加载保存记录未完成：" (vl-catch-all-error-message switched))))
+            (setq switched nil status 7)))
         (if (= status 8)
           (progn
             (setq switched (vl-catch-all-apply 'EL:HistoryOpen nil))
@@ -922,7 +997,7 @@
 ;; Date: 2026-10-11. An empty drawing keeps only model picks and cancel active.
 (defun EL:PanelStartInit (/ i key)
   (foreach key '("dl_block" "dl_display" "dl_watts" "dl_aliases" "dl_zero" "dl_ground" "dl_active" "dl_keep_old" "dl_save" "dl_pick" "dl_repair" "dl_delete" "dl_restore" "dl_locate") (mode_tile key 1))
-  (EL:PanelText "p_error" "请拾取配电箱或配电箱的集中引出线，开始统计。")
+  (EL:PanelText "p_error" "请拾取配电箱或集中引出线，或点击加载保存记录。")
   (EL:LogCall "PANEL_START_BUTTONS" nil 'EL:TrunkButtonDraw nil)
   (foreach key '("p_pick" "p_trunk") (mode_tile key 0))
   (foreach key '("p_capacity" "f_preview" "f_prev" "f_next" "b_restore" "b_apply_library" "accept" "p_generate" "h_open")
@@ -942,7 +1017,7 @@
   (action_tile "p_trunk" "(done_dialog 10)")
   (action_tile "cancel" "(done_dialog 0)"))
 ;; Date: 2026-10-11. Log initial DCL stages even before any model pick.
-(defun EL:PanelStartDialog (/ dialog status switched ownlog path managed *EL:PanelDraft* *EL:HistoryRecords* *EL:HistoryIndex*)
+(defun EL:PanelStartDialog (/ dialog status switched ownlog path managed loaded index record *EL:PanelDraft* *EL:HistoryRecords* *EL:HistoryIndex*)
   (setq ownlog (not *EL:LogActive*))
   (if ownlog (EL:LogStart))
   (setq path (strcat *EL:Root* "ui/power.dcl") status 3
@@ -957,6 +1032,20 @@
       (EL:LogCall "PANEL_START_INIT" nil 'EL:PanelStartInit nil)
       (setq status (EL:LogCall "PANEL_START_WAIT" nil 'EL:PerfInput (list 'start_dialog nil)))
       (EL:LogEvent "PANEL_START_RETURN" (list (cons 'status status)))
+      (if (= status 13)
+        (progn
+          (setq loaded (vl-catch-all-apply 'EL:HistoryLoad nil) status 3)
+          (if (vl-catch-all-error-p loaded)
+            (alert (strcat "加载保存记录未完成：" (vl-catch-all-error-message loaded)))
+            (progn
+              ;; Opening the first usable record also fills circuits and devices.
+              (setq *EL:HistoryRecords* (EL:Get 'diagrams loaded) *EL:HistoryIndex* nil index 0)
+              (foreach record *EL:HistoryRecords*
+                (if (and (not *EL:HistoryIndex*) (equal (EL:Get 'engine record) 'fixed)
+                    (equal (type (EL:Get 'source-panel-handle record)) 'STR)
+                    (handent (EL:Get 'source-panel-handle record)))
+                  (setq *EL:HistoryIndex* index status 8))
+                (setq index (1+ index)))))))
       (if (= status 8)
         (progn
           (setq switched (vl-catch-all-apply 'EL:HistoryOpen nil))

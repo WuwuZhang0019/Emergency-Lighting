@@ -102,6 +102,10 @@
     (equal (EL:PanelNumber record) (EL:PanelNumber result))
     (equal (EL:Get 'number-policy-version record) (EL:Get 'number-policy-version result))
     (equal (EL:Get 'number-inputs record) (EL:Get 'number-inputs result))
+    ;; Date: 2026-10-13. A normal update also fills the missing panel members
+    ;; in older records, even when all generated objects already match.
+    (assoc 'panel-circuits record)
+    (equal (EL:Get 'panel-circuits record) (EL:Get 'circuits result))
     (not (EL:Get 'draft-circuits record)) (equal (EL:Get 'status record) 'current)
     (EL:SameStructure record plan)
     (equal (cond ((EL:Get 'capacity-source record)) (T 'default))
@@ -552,6 +556,10 @@
         (EL:Put 'engine (EL:Get 'engine result) (EL:Put 'source-signature (EL:Get 'signature (EL:Get 'snapshot result))
           (EL:Put 'power-signature (EL:Signature (EL:Get 'power-config result))
             (EL:Put 'powers powers (EL:Put 'status 'current (EL:Put 'updated-at (getvar "CDATE") record))))))))))))
+      ;; Date: 2026-10-13. Preserve members for browsing; reuse the existing
+      ;; formal source signature rather than persisting another full snapshot.
+      (setq record (EL:Put 'panel-circuits (EL:Get 'circuits result)
+        (EL:Put 'draft-source-signature nil record)))
       (if (assoc 'excluded-devices result)
         (setq record (EL:Put 'excluded-devices (EL:Get 'excluded-devices result) record)))
       (if (assoc 'block-ground result)

@@ -143,7 +143,9 @@ el_panel : dialog {
   }
     }
   : boxed_column { label = "保存记录（本图）";
-    : list_box { key = "h_records"; width = 30; fixed_width = true; height = 38; multiple_select = false; }
+    // Date: 2026-10-13. Load records separately after the first usable frame.
+    : button { key = "h_load"; label = "加载保存记录"; }
+    : list_box { key = "h_records"; width = 30; fixed_width = true; height = 36; multiple_select = false; }
     : text { key = "h_detail"; width = 30; fixed_width = true; }
     // Date: 2026-10-11. A single click opens the selected record.
     : text { label = "单击打开；[当前] 为已打开箱。"; }

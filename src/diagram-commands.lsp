@@ -24,7 +24,7 @@
       (foreach row powers
         (if (numberp (cdr row)) (setq merged (EL:Put (car row) (cdr row) merged))))
       (EL:WriteData (strcat *EL:Root* "config/block-powers.eld") (list '(version . 1) (cons 'powers merged))))))
-(defun EL:SaveDraft (result cfg powers capacity / store record context)
+(defun EL:SaveDraft (result cfg powers capacity / store record context signature)
   (if (assoc 'effective-powers result) (setq powers (EL:Get 'effective-powers result)))
   (setq capacity (EL:CapacityDefault capacity))
   (if (not (EL:Get 'capacity-source result)) (setq result (EL:Put 'capacity-source 'default result)))
@@ -32,6 +32,11 @@
     record (cond ((EL:DiagramForPanel (EL:Get 'panel result) store)) (T (EL:NewRecord (EL:Get 'panel result) store)))
     record (EL:Put 'draft-circuits (EL:Get 'circuits result) (EL:Put 'draft-capacity capacity
       (EL:Put 'powers powers (EL:Put 'config cfg (EL:Put 'engine (EL:Get 'engine result) record))))))
+  ;; Date: 2026-10-13. Reopen the saved draft from its own source snapshot.
+  ;; Keep the formal signature intact until the diagram is actually updated.
+  (setq signature (EL:Get 'signature (EL:Get 'snapshot result))
+    record (EL:Put 'draft-source-signature
+      (if (and signature (equal signature (EL:Get 'source-signature record))) 'formal-source signature) record))
   (setq record (EL:Put 'panel-number (EL:PanelNumber result) record))
   (setq record (EL:RecordNumberInputs record result T))
   (setq record (EL:DLPersist result record))
@@ -106,6 +111,8 @@
     record (cond ((EL:DiagramForPanel (EL:Get 'panel result) store))
       (T (EL:LogCall "NEW_RECORD" (list (cons 'panel (EL:Get 'panel result))
         (cons 'drawing-uuid (EL:Get 'drawing-uuid store))) 'EL:NewRecord (list (EL:Get 'panel result) store)))))
+  ;; Date: 2026-10-13. Repaint the list from this read, not another full XRecord read.
+  (EL:HistoryRememberStore store)
   (if (and *EL:DLResume* (equal (EL:Get 'panel (EL:Get 'result *EL:DLResume*)) (EL:Get 'panel result)))
     (setq prepared (EL:Get 'result *EL:DLResume*) powers (EL:Get 'powers *EL:DLResume*)
       cfg (EL:Get 'config *EL:DLResume*) capacity (EL:Get 'capacity *EL:DLResume*)
@@ -174,7 +181,8 @@
           (EL:PerfInput 'alert (list (if (EL:DLSubmissionCurrent result)
             "源图状态已变化，回路草稿未保存，请重新统计。已填写功率已尝试单独记住。"
             "设备库已变化，回路草稿未保存；输入已尝试单独记住，请打开设备库并重新核对。"))))))))
-  (if (and (not edited) (EL:Get 'panel-output-handle record)
+  ;; Date: 2026-10-13. Closing a saved-record view is read-only, including legacy views.
+  (if (and (not edited) (not (EL:Get 'history-opened result)) (EL:Get 'panel-output-handle record)
       (not (and (equal (EL:Get 'status record) 'stale)
         (equal (EL:Get 'stale-reason record) 'draft-saved))))
     (EL:MarkStale (EL:Get 'panel result) 'review-cancelled))
@@ -345,7 +353,8 @@
   (EL:ClearPickHighlights) (if perfowner (EL:PerfFinish 'command-finished)) (princ))
 
 ;; Date: 2026-10-10. ELSTAT opens the panel before requesting model selection.
-(defun EL:FixedStat (/ *error* next perfowner)
+(defun EL:FixedStat (/ *error* next perfowner *EL:HistoryListStore* *EL:HistoryListOwner*
+    *EL:HistoryListLoaded* *EL:HistoryResultCache*)
   (defun *error* (msg)
     ;; Date: 2026-10-11. Preserve the initial panel stage before unloading DCL.
     (EL:LogFailure msg)

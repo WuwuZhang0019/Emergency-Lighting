@@ -1,0 +1,126 @@
+"""Split-store migration, partial IO and rollback; Date: 2026-10-13."""
+import copy
+import unittest
+from pathlib import Path
+from autolisp_host import Symbol, Pair, truth
+import test_diagram_store as store_fixture
+from test_diagram_store import dump
+ROOT = Path(__file__).resolve().parents[1]
+
+class SplitStoreTests(unittest.TestCase):
+    def setUp(self):
+        store_fixture.StoreTests.setUp(self)
+        self.h.load_definitions(ROOT / 'src/geometry.lsp')
+        self.h.load_definitions(ROOT / 'src/store-split.lsp')
+        store_fixture.StoreTests.install_transaction(self)
+        self.h.run('(setq *EL:SplitStorageLoaded* T)')
+        self.h.frames[0]['SIG'] = [Symbol('EL_FIXED_SOURCE_V1'), ['中文快照'*60, 1.0000000000000002, Symbol('EXTRA')]]
+        self.h.run("""(setq record1 (list '(diagram-id . "one") '(source-panel-handle . "P1")
+          '(panel-number . "箱1") '(engine . fixed) '(status . draft)
+          '(draft-circuits ((circuit-uid . "UID1") (devices "D1")))
+          (cons 'source-signature sig) '(draft-source-signature . formal-source)
+          '(custom-extension (precise . 0.12345678901234567))))
+        (setq record2 (EL:Put 'diagram-id "two" (EL:Put 'source-panel-handle "P2" record1)))
+        (setq store (EL:Put 'diagrams (list record1 record2) (EL:Put 'extra "保留" (EL:StoreInitial))))""")
+
+    def call(self, name, *args):
+        return self.h.call(Symbol(name.upper()), list(args))
+
+    def save(self, value=None):
+        value = value or self.h.lookup('STORE')
+        return self.call('EL:TransactionVerifiedStore', Symbol('EL:STOREWRITE'), [value])
+
+    def get(self, key, value):
+        return self.call('EL:Get', Symbol(key.upper()), value)
+
+    def test_legacy_formats_read_without_writes_then_migrate_all_boxes_exactly(self):
+        expected = copy.deepcopy(self.h.lookup('STORE'))
+        for wire in ('text', 'typed', 'v2', 'v3'):
+            with self.subTest(wire=wire):
+                self.entities.clear(); self.dictionary.clear()
+                self.h.frames[0]['*EL:SPLITCACHE*'] = None
+                if wire == 'text': payload = [Pair(1, dump(expected))]
+                elif wire == 'typed': payload = self.call('EL:StoreEncodeLegacy', expected)
+                elif wire == 'v2': payload = self.call('EL:StoreEncodeNative', self.call('EL:StoreCompact', expected), 'EL_COMPACT_TYPED_V2')
+                else: payload = self.call('EL:StoreEncode', expected)
+                entity = self.h.builtins['ENTMAKEX']([Pair(0, 'XRECORD'), Pair(100, 'AcDbXrecord'), Pair(280, 1)] + payload)
+                self.dictionary['EL_FIXED_V1'] = entity
+                before = copy.deepcopy((self.entities, self.dictionary))
+                self.assertEqual(self.call('EL:StoreRead'), expected)
+                self.assertEqual(self.call('EL:StoreIndex'), expected)
+                self.assertEqual((self.entities, self.dictionary), before)
+                context = self.save(expected)
+                self.assertTrue(truth(self.get('committed', context)))
+                self.assertEqual(self.call('EL:StoreRead'), expected)
+                backup = self.entities[self.dictionary['EL_FIXED_MONOLITH_BACKUP']]
+                self.assertEqual(self.call('EL:StorePayload', backup), payload)
+                self.assertEqual(self.get('draft-source-signature', self.call('EL:StoreRecord', 'one')), Symbol('FORMAL-SOURCE'))
+
+    def test_index_and_one_record_do_not_read_other_details(self):
+        self.assertTrue(truth(self.get('outcome', self.save())))
+        self.h.frames[0]['*EL:SPLITCACHE*'] = None
+        reads = []
+        search = self.h.builtins['DICTSEARCH']
+        self.h.builtins['DICTSEARCH'] = lambda owner, key: reads.append(key) or search(owner, key)
+        index = self.call('EL:StoreIndex')
+        self.assertEqual(len(self.get('diagrams', index)), 2)
+        self.assertEqual(set(reads), {'EL_FIXED_SPLIT_V1'})
+        root = self.call('EL:SplitRoot')
+        item2 = self.get('items', root)[1]
+        reads.clear()
+        self.assertEqual(self.call('EL:StoreRecord', 'one'), self.h.lookup('RECORD1'))
+        self.assertNotIn(self.get('detail', item2), reads)
+
+    def test_power_edit_reuses_large_blobs_and_other_box_and_noop_writes_nothing(self):
+        self.save()
+        root = self.call('EL:SplitRoot')
+        old_items = self.get('items', root)
+        old_keys = set(self.dictionary)
+        changed = self.call('EL:Put', Symbol('POWERS'), [Pair('LIGHT', 5)], self.h.lookup('RECORD1'))
+        proposed = self.call('EL:StorePutDiagram', changed, self.call('EL:StoreRead'))
+        context = self.save(proposed)
+        self.assertTrue(truth(self.get('committed', context)))
+        new_items = self.get('items', self.call('EL:SplitRoot'))
+        self.assertEqual(old_items[1], new_items[1])
+        self.assertEqual(len(set(self.dictionary) - old_keys), 1) # new detail, root replaced
+        self.assertEqual(self.call('EL:TransactionVerifiedRead', context), proposed)
+        before = copy.deepcopy((self.entities, self.dictionary))
+        self.save(proposed)
+        self.assertEqual((self.entities, self.dictionary), before)
+
+    def test_failure_before_root_publish_rolls_back_every_chunk(self):
+        self.save()
+        before = copy.deepcopy((self.entities, self.dictionary))
+        replace = self.h.builtins['VLA-SETXRECORDDATA']
+        def fail(entity, codes, values):
+            if entity == self.dictionary['EL_FIXED_SPLIT_V1']:
+                raise RuntimeError('disk-like root failure')
+            return replace(entity, codes, values)
+        self.h.builtins['VLA-SETXRECORDDATA'] = fail
+        proposed = self.call('EL:Put', Symbol('EXTRA'), 'changed', self.h.lookup('STORE'))
+        context = self.save(proposed)
+        self.assertFalse(truth(self.get('outcome', context)))
+        self.assertEqual((self.entities, self.dictionary), before)
+        self.assertEqual(self.call('EL:StoreRead'), self.h.lookup('STORE'))
+
+    def test_changed_native_reference_invalidates_context(self):
+        context = self.save()
+        root = self.call('EL:SplitRoot')
+        entity = self.dictionary[self.get('metadata', root)]
+        self.entities[entity] = self.entities[entity] + [Pair(1, 'injected')]
+        self.assertFalse(truth(self.call('EL:StoreContextValid', context)))
+        with self.assertRaises(RuntimeError): self.call('EL:StoreRead')
+
+    def test_legacy_export_uses_latest_view_and_disables_split_authority(self):
+        self.save()
+        proposed = self.call('EL:Put', Symbol('EXTRA'), 'latest', self.h.lookup('STORE'))
+        self.save(proposed)
+        self.assertTrue(truth(self.call('EL:StoreDowngrade')))
+        self.assertNotIn('EL_FIXED_SPLIT_V1', self.dictionary)
+        legacy = self.entities[self.dictionary['EL_FIXED_V1']]
+        self.assertEqual(self.call('EL:StorePayload', legacy)[0], Pair(300, 'EL_TYPED_V1'))
+        self.assertEqual(self.call('EL:StoreRead'), proposed)
+        self.assertTrue(truth(self.get('committed', self.save(proposed))))
+        self.assertEqual(self.call('EL:StoreRead'), proposed)
+
+if __name__ == '__main__': unittest.main()

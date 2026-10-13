@@ -294,7 +294,7 @@
   ;; it. Outside that scope, or during reentry, use the original fresh decoder.
   (if (and *EL:PerfActive* (not *EL:StoreReadBusy*))
     (EL:StoreReadCachedScope entry nil) (EL:StoreReadEntry entry)))
-(defun EL:StoreRead (/ value perf)
+(defun EL:StoreReadMonolithic (/ value perf)
   (setq perf (EL:PerfBegin "STORE_READ"))
   (EL:PerfCount "store-read-calls" 1)
   ;; A cached read obtains its actual entry in StoreContextValid. Avoid a
@@ -303,6 +303,16 @@
     (EL:StoreReadCachedScope nil T)
     (EL:StoreReadEntry (dictsearch (namedobjdict) "EL_FIXED_V1"))))
   (EL:PerfEnd perf 'returned) value)
+(defun EL:StoreRead ()
+  (if *EL:SplitStorageLoaded* (EL:SplitRead) (EL:StoreReadMonolithic)))
+(defun EL:StoreIndex () (EL:StoreRead))
+(defun EL:StoreRecord (id) (EL:By 'diagram-id id (EL:Get 'diagrams (EL:StoreRead))))
+(defun EL:StoreWrite (store)
+  (if (and *EL:SplitStorageLoaded* (not *EL:StoreLegacyWrite*))
+    (EL:SplitWrite store) (EL:StoreWriteMonolithic store)))
+(defun EL:StoreContextValid (context)
+  (if (assoc 'split-contexts context) (EL:SplitContextValid context)
+    (EL:StoreContextMonolithicValid context)))
 (defun EL:StoreInitial (/ uuid)
   ;; Date: 2026-10-09. Document-local fallback survives draft reopen and is
   ;; persisted with the first saved store; cancel never writes to the DWG.
@@ -468,7 +478,7 @@
   (vlax-safearray-fill values (mapcar '(lambda (pair)
     (vlax-make-variant (cdr pair) (cond ((= (car pair) 40) 5) ((= (car pair) 90) 3) (T 8)))) chunks))
   (vla-SetXRecordData (vlax-ename->vla-object entity) codes values) T)
-(defun EL:StoreContextValid (context / entry native entity payload)
+(defun EL:StoreContextMonolithicValid (context / entry native entity payload)
   ;; Date: 2026-10-11. Check the same document, association and both complete
   ;; native payloads. Reuse avoids decoding, never the actual DWG checks.
   (if (and context (equal (EL:Get 'owner context) (namedobjdict))
@@ -514,7 +524,7 @@
   (if (and (not (vl-catch-all-error-p valid)) valid)
     (progn (EL:PerfCount "store-context-reuses" 1) (EL:Get 'verified-store context))
     (EL:StoreRead)))
-(defun EL:StoreWrite (store / chunks entry entity value current decoded *EL:StorePhase* *EL:StorePreverified*)
+(defun EL:StoreWriteMonolithic (store / chunks entry entity value current decoded *EL:StorePhase* *EL:StorePreverified*)
   (EL:FreshBoundary)
   ;; Every write invalidates the prior candidate, including a failed second
   ;; write in one transaction. Only actual readback can seed the command cache.
@@ -556,13 +566,15 @@
   ;; Only the explicit downgrade transaction selects the legacy encoder.
   (EL:Require *EL:TransactionOpen* "旧格式转换必须在完整事务中执行。")
   (setq *EL:StoreLegacyWrite* T)
-  (EL:StoreWrite store))
+  (EL:StoreWriteMonolithic store)
+  (if *EL:SplitStorageLoaded* (EL:SplitDeactivate)) T)
 (defun EL:StoreDowngradeWrite (/ store)
   ;; Read after StartUndoMark: a native callback may have edited the record.
   (if (setq store (EL:StoreRead))
     (progn (setq *EL:StoreDowngradeExpected* store) (EL:StoreWriteLegacy store))))
 (defun EL:StoreDowngrade (/ context value entry outcome *EL:StoreDowngradeExpected*)
-  (if (dictsearch (namedobjdict) "EL_FIXED_V1")
+  (if (or (dictsearch (namedobjdict) "EL_FIXED_V1")
+      (dictsearch (namedobjdict) "EL_FIXED_SPLIT_V1"))
     (progn
       (setq context (EL:TransactionVerifiedStore 'EL:StoreDowngradeWrite nil)
         outcome (EL:Get 'outcome context))

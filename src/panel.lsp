@@ -792,7 +792,7 @@
     *EL:HistoryListLoaded* T) store)
 (defun EL:HistoryLoad ()
   ;; Only called after closing DCL. Leave the prior list intact on read failure.
-  (EL:HistoryRememberStore (EL:LogCall "PANEL_HISTORY_READ" nil 'EL:StoreRead nil)))
+  (EL:HistoryRememberStore (EL:LogCall "PANEL_HISTORY_READ" nil 'EL:StoreIndex nil)))
 (defun EL:HistoryFill (/ record index selected panel loaded)
   (setq loaded (EL:HistoryStoreReady)
     *EL:HistoryRecords* (if loaded (EL:Get 'diagrams *EL:HistoryListStore*))
@@ -803,7 +803,8 @@
     (if (equal panel (EL:Get 'panel *EL:PanelDraft*)) (setq selected index))
     (add_list (strcat (if (equal panel (EL:Get 'panel *EL:PanelDraft*)) "[当前] " "")
       "配电箱 " (EL:HistoryNumber record) " | "
-      (itoa (length (cond ((EL:Get 'draft-circuits record)) (T (EL:ActualRows record)))))
+      (itoa (cond ((EL:Get 'history-circuit-count record))
+        (T (length (cond ((EL:Get 'draft-circuits record)) (T (EL:ActualRows record)))))))
       " 回路 | " (EL:HistoryState record) (EL:HistoryNumberNote record)))
     (setq index (1+ index)))
   (end_list)
@@ -864,6 +865,7 @@
 (defun EL:HistoryOpen (/ record panel cfg result owner cached)
   ;; Date: 2026-10-13. Saved content opens directly; legacy records rebuild once for their missing topology.
   (setq record (if *EL:HistoryIndex* (nth *EL:HistoryIndex* *EL:HistoryRecords*)) panel (EL:Get 'source-panel-handle record)
+    record (if (assoc 'history-circuit-count record) (EL:StoreRecord (EL:Get 'diagram-id record)) record)
     cfg (EL:Get 'config record))
   (EL:Require (and record (equal (EL:Get 'engine record) 'fixed) (handent panel))
     "来源配电箱不存在或记录类型不支持，未切换。")

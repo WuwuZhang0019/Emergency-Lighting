@@ -11,7 +11,7 @@
       (foreach file '("src/load.lsp" "src/common.lsp" "src/config.lsp" "src/geometry.lsp"
                      "src/topology.lsp" "src/statistics.lsp" "src/generation.lsp"
                      "src/main.lsp" "src/simple.lsp" "src/circuit-number.lsp" "src/fixed.lsp" "src/panel.lsp"
-                     "src/store-compact.lsp" "src/diagram-store.lsp" "src/diagram-update.lsp" "src/diagram-commands.lsp" "src/insert-circuit.lsp" "src/device-library.lsp" "src/device-assets.lsp" "src/device-defaults.lsp" "src/device-ui.lsp" "src/device-recognition.lsp" "src/device-inputs.lsp" "src/device-migration.lsp" "ui/device-library.dcl" "ui/power.dcl")
+                     "src/store-compact.lsp" "src/diagram-store.lsp" "src/store-split.lsp" "src/diagram-update.lsp" "src/diagram-commands.lsp" "src/insert-circuit.lsp" "src/device-library.lsp" "src/device-assets.lsp" "src/device-defaults.lsp" "src/device-ui.lsp" "src/device-recognition.lsp" "src/device-inputs.lsp" "src/device-migration.lsp" "ui/device-library.dcl" "ui/power.dcl")
         (if (not (findfile (strcat root file))) (setq ok nil)))
       (foreach folder '("config" "output" "templates")
         (if (not (vl-file-directory-p (strcat root folder))) (setq ok nil)))

@@ -231,7 +231,7 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(self.h.run("(EL:Get 'coordinates (EL:StoreRead))"),reals)
         entry=self.entities[self.dictionary['EL_FIXED_V1']]
         self.assertEqual([p.cdr for p in entry if p.car==40],reals)
-        self.assertEqual(next(p.cdr for p in entry if p.car==300),'EL_COMPACT_TYPED_V2')
+        self.assertEqual(next(p.cdr for p in entry if p.car==300),'EL_COMPACT_TYPED_V3')
 
     def test_native_strings_bypass_printer_reader_escapes_and_keep_case(self):
         value='前缀 C:\\项目\\mixedCase\\图纸 "普通"\\U+4E2D\n\t\r'*3000

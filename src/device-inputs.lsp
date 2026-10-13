@@ -114,5 +114,7 @@
             prepared (EL:DLPrepare *EL:PanelDraft* *EL:PanelPowers* saved nil)
             *EL:PanelPowers* (EL:Get 'powers prepared)
             *EL:PanelDraft* (EL:PanelCompute (EL:Get 'result prepared) *EL:PanelPowers* *EL:PanelConfig*))
+          ;; Date: 2026-10-13. Library matching can change a row's name/alias after power entry.
+          (EL:ThumbRefresh *EL:PanelDraft*)
           (if (and *EL:DLUIEmbedded* *EL:DLUIState*) (EL:DLPanelPowerSnapshot saved edits)) T)))))
 (princ)

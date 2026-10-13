@@ -81,6 +81,42 @@
   (EL:CompactRequire *EL:CompactRemaining* 'truncated-body)
   (setq value (car *EL:CompactRemaining*) *EL:CompactRemaining* (cdr *EL:CompactRemaining*)
     *EL:CompactRemainingCount* (1- *EL:CompactRemainingCount*)) value)
+;; Date: 2026-10-13. Pack only integer tape tokens. REALs remain native DXF doubles.
+(defun EL:CompactIntegerRun (text run)
+  ;; Native strings cost two delimiters plus their 32-character DXF pieces.
+  (if (> (length run) (+ 2 (fix (/ (+ (strlen text) 31) 32)))) (list text) (reverse run)))
+(defun EL:CompactPackIntegers (body / chunks text token item run)
+  (setq text "")
+  (foreach item body
+    (cond
+      ((equal (type item) 'INT)
+        (setq token (itoa item))
+        (if (> (+ (strlen text) (strlen token) 1) 224)
+          (progn (foreach token (EL:CompactIntegerRun text run) (setq chunks (cons token chunks)))
+            (setq text "" run nil token (itoa item))))
+        (setq text (strcat text token " ") run (cons item run)))
+      ((equal (type item) 'REAL)
+        (if run (progn (foreach token (EL:CompactIntegerRun text run) (setq chunks (cons token chunks)))
+          (setq text "" run nil)))
+        (setq chunks (cons item chunks)))
+      (T (EL:CompactRequire nil 'invalid-tape-token))))
+  (if run (foreach token (EL:CompactIntegerRun text run) (setq chunks (cons token chunks)))) (reverse chunks))
+(defun EL:CompactUnpackIntegers (chunks / body chunk start end token value)
+  (foreach chunk chunks
+    (cond
+      ((member (type chunk) '(INT REAL)) (setq body (cons chunk body)))
+      ((equal (type chunk) 'STR)
+        (EL:CompactRequire (and (> (strlen chunk) 0) (<= (strlen chunk) 224)) 'integer-chunk-size)
+        (setq start 0)
+        (while (< start (strlen chunk))
+          (setq end (vl-string-search " " chunk start))
+          (EL:CompactRequire (and end (> end start) (<= (- end start) 11)) 'integer-chunk-token)
+          (setq token (substr chunk (1+ start) (- end start)) value (atoi token))
+          ;; Canonical decimal rejects malformed, overflow and ambiguous values without READ/EVAL.
+          (EL:CompactRequire (and (<= -2147483648 value) (<= value 2147483647)
+            (equal token (itoa value))) 'integer-chunk-value)
+          (setq body (cons value body) start (1+ end))))
+      (T (EL:CompactRequire nil 'integer-chunk-type)))) (reverse body))
 (defun EL:CompactPoolPages (values / pages page count)
   ;; Date: 2026-10-11. Linear construction, then two bounded NTH traversals
   ;; replace walking a large atom/template pool from its head for every ref.
@@ -132,8 +168,9 @@
       (not (member (car row) keys))) 'envelope-field)
     (setq keys (cons (car row) keys)))
   (EL:CompactRequire (and (equal (EL:Get 'format-version packed) 2)
-    (equal (EL:Get 'codec packed) 'EL_COMPACT_V1)) 'unsupported-format)
-  (setq *EL:CompactRemaining* (EL:Get 'body packed)
+    (member (EL:Get 'codec packed) '(EL_COMPACT_V1 EL_COMPACT_V2))) 'unsupported-format)
+  (setq *EL:CompactRemaining* (if (equal (EL:Get 'codec packed) 'EL_COMPACT_V2)
+      (EL:CompactUnpackIntegers (EL:Get 'body packed)) (EL:Get 'body packed))
     *EL:CompactReadTemplates* (EL:Get 'templates packed)
     *EL:CompactReadAtoms* (EL:Get 'atoms packed))
   (foreach value (list *EL:CompactRemaining* *EL:CompactReadTemplates* *EL:CompactReadAtoms*)

@@ -88,6 +88,18 @@ class StoreMigrationTests(unittest.TestCase):
                 self.assertEqual((self.entities, self.dictionary), before)
                 self.assertNotIn('EL_FIXED_V1_LEGACY', self.dictionary)
 
+    def test_v2_updates_to_v3_without_misclassifying_it_as_a_legacy_backup(self):
+        store = self.make_store()
+        payload = self.call('EL:StoreEncodeNative', self.call('EL:StoreCompact', store), 'EL_COMPACT_TYPED_V2')
+        entity = self.h.builtins['ENTMAKEX']([Pair(0, 'XRECORD'), Pair(100, 'AcDbXrecord'), Pair(280, 1)] + payload)
+        self.dictionary['EL_FIXED_V1'] = entity
+        self.assertTrue(equal(self.call('EL:StoreRead'), store))
+        changed = self.make_store('updated')
+        self.assertTrue(truth(self.transaction_write(changed)))
+        self.assertEqual(self.marker(), 'EL_COMPACT_TYPED_V3')
+        self.assertTrue(equal(self.call('EL:StoreRead'), changed))
+        self.assertNotIn('EL_FIXED_V1_LEGACY', self.dictionary)
+
     def test_old_native_and_text_migrate_with_exact_complete_backup(self):
         for text in (False, True):
             with self.subTest(text=text):
@@ -97,7 +109,7 @@ class StoreMigrationTests(unittest.TestCase):
                 updated = self.call('EL:Put', Symbol('NEW-FIELD'), 1.203456789012345e-98, store)
                 self.assertTrue(truth(self.transaction_write(updated)))
                 self.assertEqual(self.dictionary['EL_FIXED_V1'], entity)
-                self.assertEqual(self.marker(), 'EL_COMPACT_TYPED_V2')
+                self.assertEqual(self.marker(), 'EL_COMPACT_TYPED_V3')
                 self.assertEqual(self.payload('EL_FIXED_V1_LEGACY'), original)
                 self.assertTrue(equal(self.call('EL:StoreRead'), updated))
                 self.assertNotIn('EL_FIXED_TX', self.dictionary)
@@ -113,7 +125,7 @@ class StoreMigrationTests(unittest.TestCase):
         self.assertEqual(self.marker(), 'EL_TYPED_V1')
         self.assertTrue(equal(self.call('EL:StoreRead'), latest))
         self.assertTrue(truth(self.transaction_write(latest)))
-        self.assertEqual(self.marker(), 'EL_COMPACT_TYPED_V2')
+        self.assertEqual(self.marker(), 'EL_COMPACT_TYPED_V3')
         self.assertEqual(self.entities[self.dictionary['EL_FIXED_V1_LEGACY']], backup_before)
         self.assertTrue(equal(self.call('EL:StoreRead'), latest))
 

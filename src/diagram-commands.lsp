@@ -164,10 +164,10 @@
                 (EL:MarkStale (EL:Get 'panel result) 'review-or-template-pending) T))))
           (if saved
             (progn
-              ;; The DWG keeps a recoverable power copy even when export is unavailable.
+              ;; Date: 2026-10-13. Successful CCKK2 already verifies its committed record.
+              ;; Only a non-generating fallback needs a draft, not another full StoreRead.
               (if (and (EL:Get 'generate edited)
-                  (or (not (EL:Get 'panel-output-handle (EL:DiagramForPanel (EL:Get 'panel result) (EL:StoreRead))))
-                  (not syncable)))
+                  (not syncable))
                 (setq saved (EL:SaveDraft result cfg powers capacity)))
               (if saved
                 (progn

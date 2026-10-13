@@ -3,7 +3,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from autolisp_host import Symbol, truth
+from autolisp_host import Pair, Symbol, truth
 from test_diagram_store import dump
 from test_device_recognition import DeviceRecognitionTests
 
@@ -42,6 +42,7 @@ class SharedPanelPowerTests(unittest.TestCase):
             'EL:PANELFILL': lambda: None,
             'EL:PANELTEXT': lambda key, text: self.messages.append(text),
             'EL:REMEMBERPANELPOWERS': lambda *_: True,
+            'EL:THUMBREFRESH': lambda *_: None,
         })
         return result, snapshot
 
@@ -157,6 +158,28 @@ class SharedPanelPowerTests(unittest.TestCase):
             self.assertFalse(truth(self.call('EL:PanelStore')))
             self.assertEqual(path.read_bytes(), original + b'\n')
             self.assertEqual(self.call('EL:Get', 'LAMP', self.h.lookup('*EL:PANELPOWERS*')), 8)
+
+    def test_power_publication_refreshes_legend_after_alias_becomes_catalog_name(self):
+        with tempfile.TemporaryDirectory() as folder:
+            self.panel(folder, draft=True)
+            result = self.h.lookup('*EL:PANELDRAFT*')
+            source = self.get('snapshot', result)
+            blocks = [self.put('name', 'Old Lamp', self.get('blocks', source)[0])]
+            result = self.put('snapshot', self.put('blocks', blocks, source), result)
+            prepared = self.call('EL:DLPrepare', result, None, self.h.lookup('*EL:DLSESSIONSNAPSHOT*'), None)
+            self.h.set('*EL:PANELDRAFT*', self.get('result', prepared))
+            self.h.set('*EL:PANELPOWERS*', self.get('powers', prepared))
+            legend = ['registered.sld', [800, 600]]
+            self.h.set('*EL:THUMBCACHE*', [Pair('Old Lamp', legend)])
+            del self.h.builtins['EL:THUMBREFRESH']
+            self.h.builtins.update({'EL:DLLEGEND': lambda *_: legend,
+                                   'EL:THUMBRESTORE': lambda: True,
+                                   'EL:THUMBCAPTURE': lambda *_: self.fail('must not recapture source')})
+            self.tiles['b_watts0'] = '7'
+            self.call('EL:PanelBlockPowerChanged', 0)
+            row = self.call('EL:PanelBlockRows')[0]
+            self.assertEqual(self.get('name', row), 'Lamp')
+            self.assertEqual(self.call('EL:Get', self.get('name', row), self.h.lookup('*EL:THUMBCACHE*')), legend)
 
 
 if __name__ == '__main__':

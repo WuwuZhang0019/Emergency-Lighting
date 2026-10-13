@@ -149,19 +149,22 @@
   (EL:PerfSet "store-template-pool-count" 0)
   (EL:PerfSet "store-atom-pool-count" 0)
   (EL:PerfSet "store-body-token-count" 0) tokens)
-(defun EL:StoreEncode (value / packed tokens valid)
+(defun EL:StoreEncode (value / packed tokens valid bodycount)
   ;; Preserve the public native-value codec contract for non-store callers.
   ;; StoreWrite separately refuses invalid/future business stores outright.
   (setq valid (vl-catch-all-apply 'EL:StoreSchemaValid (list value)))
   (if (and (not (vl-catch-all-error-p valid)) valid)
     (progn
-      (setq packed (EL:StoreCompact value)
-        tokens (EL:StoreEncodeNative packed "EL_COMPACT_TYPED_V2"))
-      (EL:PerfSet "store-wire-version" 2)
+      (setq packed (EL:StoreCompact value) bodycount (length (EL:Get 'body packed))
+        packed (EL:Put 'codec 'EL_COMPACT_V2
+          (EL:Put 'body (EL:CompactPackIntegers (EL:Get 'body packed)) packed))
+        tokens (EL:StoreEncodeNative packed "EL_COMPACT_TYPED_V3"))
+      (EL:PerfSet "store-wire-version" 3)
       (EL:PerfSet "store-compact-fields" (length tokens))
       (EL:PerfSet "store-template-pool-count" (length (EL:Get 'templates packed)))
       (EL:PerfSet "store-atom-pool-count" (length (EL:Get 'atoms packed)))
-      (EL:PerfSet "store-body-token-count" (length (EL:Get 'body packed))) tokens)
+      (EL:PerfSet "store-body-token-count" bodycount)
+      (EL:PerfSet "store-body-packed-items" (length (EL:Get 'body packed))) tokens)
     (EL:StoreEncodeLegacy value)))
 (defun EL:StoreTake (/ pair)
   (EL:StoreParseRequire *EL:StoreTokensLeft*)
@@ -208,6 +211,7 @@
   (cond
     ((equal marker "EL_TYPED_V1") (EL:StoreDecodeNative tokens marker))
     ((equal marker "EL_COMPACT_TYPED_V2") (EL:StoreExpand (EL:StoreDecodeNative tokens marker)))
+    ((equal marker "EL_COMPACT_TYPED_V3") (EL:StoreExpand (EL:StoreDecodeNative tokens marker)))
     (T (EL:StoreParseRequire nil))))
 (defun EL:StorePayload (entry)
   (vl-remove-if-not '(lambda (p) (member (car p) '(1 2 3 40 90 300))) entry))
@@ -428,7 +432,7 @@
   ;; Only a write changing an old wire version creates/verifies the backup.
   ;; Subsequent V2 reads/writes do not repeatedly decode historical geometry.
   (setq marker (cdr (assoc 300 entry)))
-  (if (and entry (not (equal marker "EL_COMPACT_TYPED_V2")))
+  (if (and entry (not (member marker '("EL_COMPACT_TYPED_V2" "EL_COMPACT_TYPED_V3"))))
     (progn
       (EL:Require *EL:TransactionOpen* "旧草稿格式迁移必须在完整事务中执行，未写入。")
       (setq entity (cdr (assoc -1 entry))
@@ -487,7 +491,7 @@
       (setq valid (vl-catch-all-apply '(lambda ()
         (and (= 0 (logand 8 (getvar "UNDOCTL")))
           (not *EL:TransactionOpen*)
-          (EL:StoreContextValid *EL:StoreContextCandidate*))) nil))
+          (EL:LogCall "STORE_CONTEXT_COMMIT" nil 'EL:StoreContextValid (list *EL:StoreContextCandidate*)))) nil))
       (if (and (not (vl-catch-all-error-p valid)) valid)
         (setq *EL:StoreContextCommitted* T)
         (progn
@@ -505,7 +509,8 @@
   ;; A caller uses this immediately after the transaction. Still check raw
   ;; data here: unknown callbacks, document changes or later writes invalidate.
   (if (and (EL:Get 'outcome context) (EL:Get 'committed context))
-    (setq valid (vl-catch-all-apply 'EL:StoreContextValid (list context))))
+    (setq valid (vl-catch-all-apply 'EL:LogCall
+      (list "STORE_CONTEXT_READ" nil 'EL:StoreContextValid (list context)))))
   (if (and (not (vl-catch-all-error-p valid)) valid)
     (progn (EL:PerfCount "store-context-reuses" 1) (EL:Get 'verified-store context))
     (EL:StoreRead)))
@@ -970,6 +975,7 @@
     (EL:LogEvent "CCKK_ROW_CREATED" h))
   (setq record (EL:Put 'rows (EL:RecordRows result plan handles) (EL:Put 'plan plan record)))
   (setq record (EL:SyncCCKKLabels plan record store T))
+  (princ "\n回路图形已生成，正在核对并保存记录，请稍候...")
   (if *EL:NativePreview*
     (progn
       (vla-Regen doc 1)

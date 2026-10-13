@@ -25,7 +25,8 @@ class PostStatWorkflowTests(unittest.TestCase):
         self.closed = None
         self.h.builtins.update({'GET_TILE': lambda key: self.tiles.get(key, ''),
                                'DONE_DIALOG': self.done,
-                               'START_DIALOG': self.start})
+                               'START_DIALOG': self.start,
+                               'WCMATCH': self.monitor_key_match})
         self.result = self.call('EL:RecognizeFixed', self.cfg, 'panel')
         record = self.call('EL:NewRecord', 'panel', self.call('EL:StoreInitial'))
         self.result = self.call('EL:PreparedResult', self.result, record)
@@ -43,6 +44,17 @@ class PostStatWorkflowTests(unittest.TestCase):
         snapshot=self.call('EL:Put',Symbol('CATALOG'),catalog,self.call('EL:Put',Symbol('INDEX'),self.call('EL:DLIndex',catalog),snapshot))
         self.h.builtins['EL:DLSNAPSHOT']=lambda:snapshot
         self.h.builtins['EL:DLREMEMBERINPUTS']=lambda *args:True
+
+    def monitor_key_match(self, key, pattern):
+        # Native WCMATCH semantics for the monitor's literal-prefix patterns.
+        self.assertIn(pattern, ('b_watts*', 'b_ground*', 'b_remove*', 'f_image*'))
+        return key.startswith(pattern[:-1])
+
+    def invoke_action(self, callbacks, key):
+        # DCL supplies these variables while executing ACTION_TILE code.
+        self.h.set('$KEY', key)
+        self.h.set('$VALUE', self.tiles.get(key, ''))
+        return self.h.run(callbacks[key])
 
     def done(self, status):
         self.closed = status
@@ -67,13 +79,13 @@ class PostStatWorkflowTests(unittest.TestCase):
         self.h.builtins['EL:DLLegend'.upper()]=lambda *args:None
         def action():
             self.tiles['b_watts0']='7'
-            self.h.run(callbacks['f_image0'])
+            self.invoke_action(callbacks, 'f_image0')
             self.assertIsNone(self.closed)
             self.assertEqual(self.tiles['dl_block'],'LAMP')
             self.assertEqual(self.tiles['dl_watts'],'5')
             self.assertEqual(self.tiles['b_watts0'],'7')
             self.tiles['dl_display']='库名称输入'
-            self.h.run(callbacks['b_library'])
+            self.invoke_action(callbacks, 'b_library')
             self.assertEqual(self.closed,11)
             self.assertEqual(self.get('display',self.call('EL:DLUIEntry')),'库名称输入')
         self.actions=[action]
@@ -100,8 +112,8 @@ class PostStatWorkflowTests(unittest.TestCase):
         self.h.builtins['EL:DLUISAVEWORK']=saved
         def action():
             self.tiles['b_watts0']='7'
-            self.h.run(callbacks['f_image0'])
-            self.h.run(callbacks['dl_save'])
+            self.invoke_action(callbacks, 'f_image0')
+            self.invoke_action(callbacks, 'dl_save')
             self.assertEqual(self.tiles['b_watts0'],'7')
             draft=self.h.lookup('*EL:PANELDRAFT*')
             self.assertEqual(self.get('watts',self.call('EL:DLOverride','LAMP',draft)),7)
@@ -378,20 +390,20 @@ class PostStatWorkflowTests(unittest.TestCase):
                 self.call('EL:PanelCapacity', 'p_600')
                 self.h.set('*EL:PANELINDEX*', 1)
                 first_count.append(len(captures))
-                self.h.run(callbacks['b_library'])
+                self.invoke_action(callbacks, 'b_library')
             def recover():
                 self.assertEqual(self.dialogs[-1], 'el_device_library_locked')
                 self.tiles['dl_lock_confirm'] = '1'
-                self.h.run(callbacks['dl_lock_recover'])
+                self.invoke_action(callbacks, 'dl_lock_recover')
             def close_manager():
                 self.assertEqual(self.dialogs[-1], 'el_device_library')
-                self.h.run(callbacks['dl_close'])
+                self.invoke_action(callbacks, 'dl_close')
             def save():
                 self.assertEqual(self.tiles['b_watts0'], '7')
                 self.assertEqual(self.tiles['p_capacity'], 'p_600')
                 self.assertEqual(self.h.lookup('*EL:PANELINDEX*'), 1)
                 self.assertEqual(len(captures), first_count[0])
-                self.h.run(callbacks['accept'])
+                self.invoke_action(callbacks, 'accept')
             self.actions = [open_library, recover, close_manager, save, lambda: self.done(0)]
             self.call('EL:EditPanel', self.result, self.cfg)
             record = self.call('EL:DiagramForPanel', 'panel', persisted[0])

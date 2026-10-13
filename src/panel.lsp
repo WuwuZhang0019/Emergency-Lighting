@@ -660,6 +660,10 @@
     (if (EL:DLPanelSubmissionReady)
     (cond
       ((not (EL:Get 'circuits *EL:PanelDraft*)) (EL:PanelText "p_error" "请至少保留一条实际出线。"))
+      ((EL:Get 'power-only-target *EL:PanelDraft*)
+        (if (EL:PowerOnlyReady *EL:PanelDraft*)
+          (progn (setq *EL:PanelAction* 'generate) (done_dialog 2))
+          (EL:PanelText "p_error" "请核对平面实际回路编号与功率；自动补号不能用于原图对应。")))
       ((> (length (EL:Get 'circuits *EL:PanelDraft*)) 8) (EL:PanelText "p_error" "本图块最多容纳8条实际回路，请拆箱后统计；不会截断回路。"))
       ((not (EL:CircuitNumbersReady *EL:PanelDraft*))
         (EL:PanelText "p_error" (EL:NumberProblemText *EL:PanelDraft*)))
@@ -708,8 +712,11 @@
   (set_tile "p_capacity" (cond ((equal *EL:PanelCapacity* 'cap600) "p_600")
     ((equal *EL:PanelCapacity* 'cap1000) "p_1000") (T "p_300")))
   (EL:PanelText "p_capacity_status" "默认 0.3kW；可按需要调整为 0.6kW 或 1kW。")
-  (EL:PanelText "p_template_status" (if *EL:PanelTemplateReady* "模板已验证，生成时自动切换状态。"
-    "模板未设置或已变化：点击生成时设置；不影响统计和保存草稿。"))
+  (set_tile "p_generate" (if (EL:Get 'power-only-target *EL:PanelDraft*) "更新回路功率" "生成或更新"))
+  (EL:PanelText "p_template_status" (if (EL:Get 'power-only-target *EL:PanelDraft*)
+    "仅更新原图功率；保留图形、编号、位置和其他文字。"
+    (if *EL:PanelTemplateReady* "模板已验证，生成时自动切换状态。"
+      "模板未设置或已变化：点击生成时设置；不影响统计和保存草稿。")))
   (setq c (nth *EL:PanelIndex* cs))
   (if (and c (> (strlen (EL:CircuitNumberText c (1+ *EL:PanelIndex*))) 24))
     (princ (strcat "\n当前回路完整编号：" (EL:CircuitNumberText c (1+ *EL:PanelIndex*))))))
@@ -770,6 +777,8 @@
 ;; Date: 2026-10-11. List clicks open records; list initialization stays read-only.
 (defun EL:HistoryState (record)
   (cond ((equal (EL:Get 'status record) 'stale) "待更新")
+    ((equal (EL:Get 'status record) 'power-current) "功率已更新")
+    ((EL:Get 'power-only-target record) "功率待更新")
     ((EL:Get 'panel-output-handle record) "已生成") (T "草稿")))
 ;; Date: 2026-10-11. Current record previews the picked number without writing the DWG.
 (defun EL:HistoryNumberPending (record)
@@ -868,7 +877,8 @@
         (cons 'complete (and (not (EL:Get 'issues snapshot))
           (vl-every '(lambda (c) (EL:Get 'complete c)) circuits)))
         '(engine . fixed) '(history-restored . T)))
-      (foreach key '(panel-number candidate-keys excluded-seeds block-ground excluded-devices)
+      (foreach key '(panel-number candidate-keys excluded-seeds block-ground excluded-devices
+          power-only-target power-only-scope power-only-bindings)
         (if (assoc key record) (setq result (EL:Put key (EL:Get key record) result))))
       (setq result (EL:Put 'capacity-source
         (EL:Get (if draft 'draft-capacity-source 'capacity-source) record) result))
@@ -974,9 +984,17 @@
         (EL:MonitorActionTile "p_capacity" "(EL:PanelCapacity $value)")
         (EL:MonitorActionTile "accept" "(EL:PanelAccept)")
         (EL:MonitorActionTile "p_generate" "(EL:PanelGenerate)")
+        (EL:MonitorActionTile "p_existing" "(if (EL:PanelStore) (done_dialog 14))")
         (EL:MonitorActionTile "cancel" "(EL:DLPanelCancel)")
         (setq *EL:PanelAction* nil status (EL:PerfInput 'start_dialog nil))
         (EL:LogEvent "PANEL_DIALOG_RETURN" (list (cons 'status status) (cons 'action *EL:PanelAction*)))
+        (if (= status 14)
+          (progn
+            (setq captured (vl-catch-all-apply 'EL:PowerOnlyChoose (list *EL:PanelDraft*)))
+            (if (vl-catch-all-error-p captured)
+              (princ (strcat "\n原图关联未完成：" (vl-catch-all-error-message captured)))
+              (if captured (setq *EL:PanelDraft* captured)))
+            (setq status 7)))
         (if (= status 13)
           (progn
             (setq switched (EL:MeasuredCatch 'EL:HistoryLoad nil))
@@ -1041,7 +1059,7 @@
     (set_tile "p_number" (strcat "配电箱编号：" (EL:Get 'number (EL:StartPickContext)))))
   (EL:LogCall "PANEL_START_BUTTONS" nil 'EL:TrunkButtonDraw nil)
   (foreach key '("p_pick" "p_trunk") (mode_tile key 0))
-  (foreach key '("p_capacity" "f_preview" "f_prev" "f_next" "b_restore" "b_apply_library" "accept" "p_generate" "h_open")
+  (foreach key '("p_capacity" "f_preview" "f_prev" "f_next" "b_restore" "b_apply_library" "accept" "p_generate" "p_existing" "h_open")
     (mode_tile key 1))
   (mode_tile "b_library" 0)
   (EL:MonitorActionTile "b_library" "(done_dialog 11)")

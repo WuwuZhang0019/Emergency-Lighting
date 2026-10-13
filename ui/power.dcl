@@ -139,6 +139,8 @@ el_panel : dialog {
   : column {
     : button { key = "accept"; label = "保存"; is_default = true; }
     : button { key = "p_generate"; label = "生成或更新"; }
+    // Date: 2026-10-13. Existing drawings can keep all layout and captions.
+    : button { key = "p_existing"; label = "关联原图功率"; }
     : button { key = "cancel"; label = "取消"; is_cancel = true; }
   }
     }

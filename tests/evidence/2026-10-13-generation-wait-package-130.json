@@ -1,0 +1,52 @@
+{
+  "date": "2026-10-13",
+  "status": "completed",
+  "passed": true,
+  "package": 130,
+  "lisp_dcl_count": 34,
+  "lisp_parsed": 32,
+  "checked_entries": [
+    "START-CAD2020.lsp",
+    "UPDATE-130.lsp",
+    "src/load.lsp"
+  ],
+  "checked_functions": [
+    "EL:StorePayload",
+    "EL:SplitAudit",
+    "EL:SplitChunkValid",
+    "EL:EditPanelOnce",
+    "EL:CCKK2DeferredSource",
+    "EL:GenerationSourceCurrent",
+    "EL:SyncDiagramScoped",
+    "EL:UniqueDiagram",
+    "EL:OwnedEntity",
+    "EL:DiagramOutputRefs",
+    "EL:PowerTextRead",
+    "EL:PowerTextReplacement",
+    "EL:PowerTextWrite",
+    "EL:PowerTextWrittenP",
+    "EL:PowerOnlyWritten",
+    "EL:PowerOnlyMatch",
+    "EL:PowerOnlyApply",
+    "EL:UpdateExistingPower",
+    "EL:PanelGenerateBody"
+  ],
+  "checks": [
+    "strict GB2312",
+    "all LISP parsing",
+    "ZIP CRC",
+    "all archive/directory bytes equal",
+    "changed definitions equal all three entries and individual modules"
+  ],
+  "source_sha256": {
+    "src/diagram-store.lsp": "2bd425bc8904cb13440a4b368e19c69bdb52172a545bfaf4818cbda5fb1af4b4",
+    "src/store-split.lsp": "b07d213ae890e87695da3af5db754e8f8a1e349539cdb66c4bdb3e205702f55b",
+    "src/diagram-commands.lsp": "74c044d61385cab1f200912edcf56670d312c2301402fccd06eba769fb1ab6c1",
+    "src/diagram-update.lsp": "e0c0ef1c8dde9e511bd66256b338abf3a999ec85c520e89fa11bf565bb96a08d",
+    "src/existing-power-text.lsp": "32e9599a125e16a643269c0c1a4d2f228d56e8ddff854db951c2a2f261a2490f",
+    "src/existing-power.lsp": "ea745cd0ee6ecca991538b169378644f8115167dde3794eef051d5d0474a2f4c",
+    "src/panel.lsp": "93a5a7dce0f62bf09aa516098999603aadc13a56f290b547f05b2ef622bed593"
+  },
+  "archive_sha256": "ad7e05ebcacdc47b7822afebe712c51737e0839cf91151845afdebdc590c8fb7",
+  "native_cad_status": "pending original DWG timing and acceptance"
+}

@@ -410,6 +410,7 @@
     (cons 'verified (EL:Get 'signature fresh))))) good)
 (defun EL:PreparedResult (result record / matched rows c edited key)
   (setq result (EL:DLRestoreRecord result record))
+  (setq result (EL:PowerOnlyResult result record))
   ;; Date: 2026-10-11. Restore the saved number without overwriting a new pick.
   (if (not (assoc 'panel-number result))
     (setq result (EL:Put 'panel-number (EL:PanelNumber record) result)))
@@ -552,6 +553,8 @@
     deferred (EL:CCKK2DeferredSource result cfg record generate interactive)
     result (EL:PreparedResult result record))
   (cond
+    ((EL:Get 'power-only-target result)
+      (EL:UpdateExistingPower result cfg powers capacity))
     ((not (EL:CircuitNumbersReady result))
       (princ (strcat "\n" (EL:NumberProblemText result)))
       (EL:MarkStale (EL:Get 'panel result) 'circuit-number-pending))
@@ -607,6 +610,7 @@
       (EL:Require (EL:DLSubmissionCurrent result) "设备库已变化，当前输入保留；请重新核对后生成。")
       (if (EL:Get 'panel-output-handle record) (EL:UpdatePreflight record store template plan))
       (if (and (EL:Get 'panel-output-handle record) (equal template (EL:Get 'template record))
+          (equal (EL:Get 'power-only-target record) (EL:Get 'power-only-target result))
           (equal (EL:Get 'source-panel-handle record)
             (EL:Get 'source-panel-handle (EL:By 'diagram-id (EL:Get 'diagram-id record) (EL:Get 'diagrams store))))
           (equal cfg (EL:Get 'config record)) (equal powers (EL:Get 'powers record))
@@ -633,6 +637,7 @@
       (setq record (EL:Put 'panel-number (EL:PanelNumber result) record))
       (setq record (EL:RecordNumberInputs record result nil))
       (setq record (EL:DLPersist result record))
+      (setq record (EL:PowerOnlyPersist record result))
       (setq store (EL:Put 'fixed-template template store))
       (setq context
         (cond (rebuild (EL:TransactionVerifiedStore 'EL:RebuildDiagram (list result template capacity plan record store rebuild)))

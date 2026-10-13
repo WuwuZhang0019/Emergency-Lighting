@@ -66,7 +66,7 @@
         (listp (EL:Get 'items root))) "拆分根记录版本或字段无效，未继续。") root)))
 (defun EL:SplitSummary (record / rows pair)
   (foreach pair record
-    (if (member (car pair) '(diagram-id source-panel-handle panel-number engine status panel-output-handle))
+    (if (member (car pair) '(diagram-id source-panel-handle panel-number engine status panel-output-handle power-only-target))
       (setq rows (cons pair rows))))
   (append (reverse rows) (list (cons 'history-circuit-count
     (length (cond ((EL:Get 'draft-circuits record)) (T (EL:ActualRows record))))))))

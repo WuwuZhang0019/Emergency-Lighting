@@ -15,7 +15,8 @@ class CadAdapterTests(unittest.TestCase):
     def setUp(self):
         self.h = Host()
         for name in ('common', 'config', 'geometry', 'topology', 'device-library', 'device-assets',
-                     'device-defaults', 'device-ui', 'device-recognition', 'device-inputs', 'circuit-number', 'store-compact', 'diagram-store'):
+                     'device-defaults', 'device-ui', 'device-recognition', 'device-inputs', 'circuit-number', 'store-compact', 'diagram-store',
+                     'existing-power-text', 'existing-power'):
             self.h.load_definitions(ROOT / 'src' / f'{name}.lsp')
         self.entities = {}
         self.bounds = {}

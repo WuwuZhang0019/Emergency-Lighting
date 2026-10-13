@@ -11,11 +11,16 @@ import zipfile
 from autolisp_host import Symbol, parse
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCES = ('diagram-store', 'store-split', 'diagram-commands', 'diagram-update')
+SOURCES = ('diagram-store', 'store-split', 'diagram-commands', 'diagram-update',
+           'existing-power-text', 'existing-power', 'panel')
 FUNCTIONS = ('EL:StorePayload', 'EL:SplitAudit', 'EL:SplitChunkValid',
              'EL:EditPanelOnce', 'EL:CCKK2DeferredSource',
              'EL:GenerationSourceCurrent', 'EL:SyncDiagramScoped',
-             'EL:UniqueDiagram', 'EL:OwnedEntity', 'EL:DiagramOutputRefs')
+             'EL:UniqueDiagram', 'EL:OwnedEntity', 'EL:DiagramOutputRefs',
+             'EL:PowerTextRead', 'EL:PowerTextReplacement', 'EL:PowerTextWrite',
+             'EL:PowerTextWrittenP', 'EL:PowerOnlyWritten',
+             'EL:PowerOnlyMatch', 'EL:PowerOnlyApply', 'EL:UpdateExistingPower',
+             'EL:PanelGenerateBody')
 
 
 def definitions(text):

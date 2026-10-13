@@ -25,7 +25,7 @@
     (setq key (EL:DLNameKey (EL:Get 'name block)))
     (if (not (member key names))
       (progn
-        (setq names (cons key names) old (EL:By 'key key saved) entry (EL:DLLookup key snapshot) ids nil)
+        (setq names (cons key names) old (EL:By 'key key saved) entry (EL:DLPowerEntry key snapshot) ids nil)
         (foreach block (EL:DLConnectedBlocks result)
           (if (equal key (EL:DLNameKey (EL:Get 'name block))) (setq ids (cons (EL:Get 'id block) ids))))
         ;; Refresh marked defaults on a new recognition; existing manual values still win.

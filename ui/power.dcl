@@ -273,7 +273,7 @@ el_panel : dialog {
         : text { key = "dl_status1"; width = 36; fixed_width = true; }
         : text { key = "dl_status2"; width = 36; fixed_width = true; }
         : text { label = "缺资料可保存为草稿，补齐后启用。"; }
-        : text { label = "本箱手填值保留；应用库值可覆盖。"; }
+        : text { label = "图例功率自动存入库，同类图块沿用。"; }
       }
       : spacer { height = 0; }
     }

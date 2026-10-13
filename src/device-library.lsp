@@ -113,6 +113,12 @@
   (foreach entry (EL:Get 'devices (EL:Get 'catalog snapshot))
     (if (and (not (equal (EL:Get 'status entry) 'deleted))
       (member (EL:DLNameKey name) (mapcar 'EL:DLNameKey (EL:DLEntryNames entry)))) (setq found entry))) found)
+;; Date: 2026-10-13. Registered draft graphics may already have a saved default power.
+(defun EL:DLPowerEntry (name snapshot / entry)
+  (cond ((EL:DLLookup name snapshot))
+    ((and (setq entry (EL:DLFindEntry name snapshot)) (equal (EL:Get 'status entry) 'draft)
+      (EL:DLEntryAssets entry) (EL:DLInt (EL:Get 'watts entry))
+      (or (> (EL:Get 'watts entry) 0) (EL:Get 'zero-confirmed entry))) entry)))
 (defun EL:DLRecognitionNames (snapshot / names entry)
   (foreach entry (EL:Get 'devices (EL:Get 'catalog snapshot))
     (if (and (EL:DLEntryAssets entry)

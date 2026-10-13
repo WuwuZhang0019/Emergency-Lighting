@@ -579,9 +579,10 @@
     (setq cs (cons (EL:Put 'ground-evidence hits (EL:Put 'ground-rule 'block-table
       (EL:Put 'ground-source 'manual (EL:Put 'is-ground (if hits T nil) c)))) cs)))
   (setq *EL:PanelDraft* (EL:Put 'circuits (reverse cs) *EL:PanelDraft*)))))
-(defun EL:PanelStore (/ rows row value watts i bad pending updates name draft)
+(defun EL:PanelStore (/ rows row value watts i bad pending updates name draft edits)
   (if (and *EL:DLUIEmbedded* *EL:DLSessionSnapshot*) (EL:DLUIStore))
-  (setq rows (EL:PanelBlockRows) i 0 pending *EL:PanelPowers* draft *EL:PanelDraft*)
+  (setq rows (EL:PanelBlockRows) i 0 pending *EL:PanelPowers* draft *EL:PanelDraft*
+    edits (EL:Get 'library-power-edits draft))
   (repeat 8
     (setq row (nth (+ *EL:ThumbPage* i) rows))
     (if row
@@ -592,7 +593,11 @@
             (foreach name (cond ((EL:Get 'keys row)) (T (list (EL:Get 'key row))))
               (if (and (assoc 'device-library draft)
                   (or (not (equal watts (EL:Get name pending))) (member name *EL:DLExplicitPowerKeys*)))
-                (setq draft (EL:DLSetOverride draft name 'watts watts) draft (EL:DLSetOverride draft name 'watts-set T)))
+                (progn
+                  (setq draft (EL:DLSetOverride draft name 'watts watts) draft (EL:DLSetOverride draft name 'watts-set T))
+                  ;; Date: 2026-10-13. Only fresh edits publish, never restored historical overrides.
+                  (setq edits (if (EL:DLInt watts) (EL:Put name watts edits)
+                    (vl-remove-if '(lambda (p) (equal (car p) name)) edits)))))
               (setq pending (EL:Put name watts pending))))
           (if (not bad) (setq bad (strcat "b_watts" (itoa i)))))))
     (setq i (1+ i)))
@@ -600,7 +605,8 @@
     (progn (EL:PanelText "p_error" "单个功率请输入非负整数 W；请修正后再切换。") (mode_tile bad 2) nil)
     (progn
       (setq *EL:PanelPowers* pending
-        *EL:PanelDraft* (EL:PanelCompute draft pending *EL:PanelConfig*)) T)))
+        *EL:PanelDraft* (EL:PanelCompute (EL:Put 'library-power-edits edits draft) pending *EL:PanelConfig*))
+      (EL:DLPanelPublishPowers))))
 (defun EL:PanelBlockGround (index value / row name)
   (setq row (nth (+ *EL:ThumbPage* index) (EL:PanelBlockRows)))
   (if row
@@ -699,7 +705,8 @@
       (setq saved (vl-catch-all-apply 'EL:RememberPanelPowers (list *EL:PanelDraft* *EL:PanelPowers*)))
       (EL:PanelText "p_error" (if (not (EL:CircuitNumbersReady *EL:PanelDraft*)) (EL:NumberProblemText *EL:PanelDraft*)
         (if (and (not (vl-catch-all-error-p saved)) saved)
-          "功率已记住；回路草稿请点保存。" "功率未写入文件，请点保存重试；当前窗口草稿仍保留。"))))))
+          "功率已保存到设备库，同类图块自动沿用；回路草稿请点保存。"
+          "设备库功率已保存，本箱缓存未写入；回路草稿请点保存。"))))))
 (defun EL:PanelBlockPowerChanged (index / row *EL:DLExplicitPowerKeys*)
   (setq row (nth (+ *EL:ThumbPage* index) (EL:PanelBlockRows))
     *EL:DLExplicitPowerKeys* (cond ((EL:Get 'keys row)) ((EL:Get 'key row) (list (EL:Get 'key row)))))

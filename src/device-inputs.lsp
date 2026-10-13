@@ -52,4 +52,67 @@
       (if (EL:DLLockAcquire lock owner)
         (progn (setq written (vl-catch-all-apply 'EL:DLInputsPublish (list path data))) (EL:DLLockRelease lock owner)
           (if (vl-catch-all-error-p written) (EL:DLFail (vl-catch-all-error-message written)) written))))))
+;; Date: 2026-10-13. Publish edited powers in one catalog transaction, retaining all other fields.
+(defun EL:DLPublishPowerEdits (snapshot edits / catalog candidate pair entry identity seen previous watts updated)
+  (EL:Require snapshot "设备库未加载，功率输入保留；请打开设备库后重试。")
+  (setq catalog (EL:Get 'catalog snapshot) candidate catalog)
+  (foreach pair edits
+    (setq watts (cdr pair))
+    (EL:Require (EL:DLInt watts) "功率请输入非负整数 W，未写入设备库。")
+    (setq entry (EL:DLFindEntry (car pair) (list (cons 'catalog candidate))))
+    (if (not entry) (setq entry (EL:DLEntryNew candidate (car pair))))
+    (setq identity (EL:Get 'device-id entry) previous (assoc identity seen))
+    (EL:Require (or (not previous) (equal (cdr previous) watts))
+      "同一设备的不同别名填写了不同功率，请统一后保存到设备库。")
+    (setq seen (EL:Put identity watts seen))
+    (if (or (not (equal watts (EL:Get 'watts entry)))
+        (not (equal (EL:Get 'zero-confirmed entry) (= watts 0))))
+      (progn
+        (setq entry (EL:Put 'watts watts (EL:Put 'zero-confirmed (= watts 0) entry))
+          candidate (EL:DLUpsert candidate entry))
+        (EL:Require candidate (cond (*EL:DLError*) (T "设备库功率保存失败。"))))))
+  (if (equal catalog candidate)
+    (progn (EL:Require (EL:DLSnapshotCurrent snapshot)
+      "设备库已变化，请刷新后重试；当前输入保留。") snapshot)
+    (progn
+      ;; DLCommit expects one catalog revision per atomic publication, including a batch.
+      (setq candidate (EL:Put 'revision (1+ (EL:Get 'revision catalog)) candidate))
+      (EL:Require (EL:DLCommit snapshot candidate)
+        (cond (*EL:DLError*) (T "设备库功率保存失败，输入保留。")))
+      (setq updated (EL:DLSnapshotLoad (EL:Get 'root snapshot)))
+      (EL:Require updated "设备库已写入但重读未完成，请刷新设备库；输入保留。") updated)))
+(defun EL:DLPanelPowerSnapshot (snapshot edits / oldcatalog pair draft base previous names key drafts)
+  ;; Preserve unrelated editor drafts while reflecting the newly saved default watts.
+  (setq oldcatalog (EL:Get 'catalog (EL:Get 'snapshot *EL:DLUIState*)))
+  (EL:DLUIAdoptSnapshot snapshot)
+  (foreach pair (EL:Get 'drafts *EL:DLUIState*)
+    (setq draft (cdr pair) base (EL:By 'device-id (car pair) (EL:Get 'devices (EL:Get 'catalog snapshot)))
+      previous (EL:By 'device-id (car pair) (EL:Get 'devices oldcatalog)) names nil)
+    (foreach key (EL:DLEntryNames base)
+      (if (assoc (EL:DLNameKey key) edits) (setq names T)))
+    (if (and names base (equal (EL:Get 'device-id base) (car pair))
+        (or (equal (EL:Get 'revision draft) (EL:Get 'revision previous))
+          (and (not previous) (equal (EL:Get 'revision draft) (EL:Get 'revision base)))))
+      (progn
+        (foreach key '(revision watts zero-confirmed) (setq draft (EL:Put key (EL:Get key base) draft)))
+        (setq draft (EL:Put 'watts-text (itoa (EL:Get 'watts base)) draft))))
+    (setq drafts (EL:Put (car pair) draft drafts)))
+  (setq *EL:DLUIState* (EL:Put 'drafts drafts (EL:Put 'snapshot snapshot *EL:DLUIState*)))
+  (EL:DLUIFields))
+(defun EL:DLPanelPublishPowers (/ edits saved prepared)
+  (if (not (setq edits (EL:Get 'library-power-edits *EL:PanelDraft*))) T
+    (progn
+      (setq saved (vl-catch-all-apply 'EL:DLPublishPowerEdits (list *EL:DLSessionSnapshot* edits)))
+      (if (or (vl-catch-all-error-p saved) (not saved))
+        (progn
+          (EL:PanelText "p_error" (strcat "功率未保存到设备库，输入保留："
+            (if (vl-catch-all-error-p saved) (vl-catch-all-error-message saved)
+              (cond (*EL:DLError*) (T "请稍后重试。"))))) nil)
+        (progn
+          (setq *EL:DLSessionSnapshot* saved *EL:DLCache* nil
+            *EL:PanelDraft* (EL:Put 'library-power-edits nil *EL:PanelDraft*)
+            prepared (EL:DLPrepare *EL:PanelDraft* *EL:PanelPowers* saved nil)
+            *EL:PanelPowers* (EL:Get 'powers prepared)
+            *EL:PanelDraft* (EL:PanelCompute (EL:Get 'result prepared) *EL:PanelPowers* *EL:PanelConfig*))
+          (if (and *EL:DLUIEmbedded* *EL:DLUIState*) (EL:DLPanelPowerSnapshot saved edits)) T)))))
 (princ)

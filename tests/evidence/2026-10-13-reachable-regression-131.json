@@ -1,0 +1,28 @@
+{
+  "date": "2026-10-13",
+  "status": "completed",
+  "package": 131,
+  "passed": true,
+  "tests_run": 166,
+  "failures": 0,
+  "errors": 0,
+  "elapsed_seconds": 96.407,
+  "test_modules": [
+    "test_cad_adapter",
+    "test_analytic_curves",
+    "test_contact_reuse",
+    "test_reachable_network",
+    "test_contact_evidence",
+    "test_simple_flow",
+    "test_junction_box",
+    "test_device_contact",
+    "test_network_proof",
+    "test_network_reuse",
+    "test_circuit_starts",
+    "test_concentrated_trunk",
+    "test_source_contracts"
+  ],
+  "command": "python -X utf8 - (unittest suite containing the listed modules, tests working directory)",
+  "scope": "Finite AutoLISP/CAD adapters and source contracts; no native AutoCAD performance claim",
+  "native_cad_status": "pending original CA13 DWG ELSTAT timing, circuit membership and visible-gap acceptance"
+}

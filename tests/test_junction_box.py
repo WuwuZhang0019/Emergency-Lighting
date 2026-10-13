@@ -113,7 +113,7 @@ class JunctionTests(unittest.TestCase):
                         self.next_entity[f'JBOX-edge-{i}'] = f'JBOX-edge-{i+1}' if i < 2 else 'JBOX-end'
                 self.line('in', [1., end[1], end[2]], end, 'W')
                 network = self.network()
-                self.assertNotIn(['in', 'j'], self.get('edges', network))
+                self.assertNotIn(['in', 'j'], self.get('edges', network) or [])
 
     def test_single_port_is_incomplete_and_locatable(self):
         self.plan()

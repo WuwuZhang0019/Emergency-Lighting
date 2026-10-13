@@ -1,0 +1,43 @@
+{
+  "date": "2026-10-13",
+  "status": "completed",
+  "passed": true,
+  "package": 131,
+  "checkcount": 1180,
+  "source_sha256": {
+    "src/simple.lsp": "80c5d1b74446f0be747244724e6c28635373b2f801084f28ccc88927a83bff56",
+    "src/geometry.lsp": "f2d32e8073799ad7942488221254903dbfde53084d9ced7adf7a59c99c12b5ad",
+    "src/diagram-update.lsp": "48cde4fe60c8c3a949a50fd2983578ff779520995e8664b873592c632aa29380",
+    "src/common.lsp": "f4e94b1fa2b7370b6c66dbc0311425fa9e9508491112d787f19500d68d116d6b"
+  },
+  "builder_sha256": "282cfd6c4b5f809c9d9bfffaddb7c39b03d627a91c88d7ee1e613868f25e3982",
+  "archive_sha256": "9063d5d458fc72155db9b518c630847d3de4b50a20d699cb3a9d9e94a9ba4c0f",
+  "checked_entries": [
+    "START-CAD2020.lsp",
+    "UPDATE-131.lsp",
+    "src/load.lsp"
+  ],
+  "checked_source_modules": [
+    "simple",
+    "geometry",
+    "diagram-update"
+  ],
+  "checked_common_functions": [
+    "EL:RecognitionRules",
+    "EL:MonitorTitle"
+  ],
+  "checks": [
+    "strict GB2312 roundtrip for every LISP/DCL",
+    "parse every packaged LISP",
+    "ZIP CRC",
+    "exact archive/directory file set and file bytes",
+    "all changed module DEFUNs equal source and all three loading entries",
+    "selected common DEFUNs equal source, individual module and loading entries"
+  ],
+  "native_cad_status": "pending original DWG timing and acceptance",
+  "archive_file_count": 323,
+  "lisp_dcl_count": 32,
+  "lisp_parsed": 30,
+  "source_defun_count": 194,
+  "entry_function_count": 196
+}

@@ -58,9 +58,9 @@
   (foreach key '(wire-styles auto-panel concentrated-trunk circuit-starts wire-layers panel-layers device-layers leader-layers panel-names device-names leader-names
       layer-pairs params calibrated gap-pairs leader-pairs roles exits)
     (setq rows (cons (cons key (EL:Get key cfg)) rows)))
-  ;; Date: 2026-10-13. Old recognition must be rebuilt after device pass-through.
-  (cons '(junction-policy . 1) (cons '(number-branch-policy . 1)
-    (cons '(simple-gap-policy . 1) (cons '(box-policy . 20) (cons '(gap-policy . 10) (reverse rows)))))))
+  ;; Date: 2026-10-13. Older recognition must be rebuilt for exact reachable traversal.
+  (cons '(reachable-contact-policy . 1) (cons '(junction-policy . 1) (cons '(number-branch-policy . 1)
+    (cons '(simple-gap-policy . 1) (cons '(box-policy . 20) (cons '(gap-policy . 10) (reverse rows))))))))
 ;; Date: 2026-10-11. Report which freshness condition failed.
 (defun EL:SourceSignatureCore (signature)
   (if (and (listp signature) (equal (car signature) 'EL_FIXED_SOURCE_V1))
@@ -464,7 +464,8 @@
       ("COMPONENT_INDEX" . "建立连通关系索引")
       ("NETWORK_WIRE_CONTACT" . "检查导线接触") ("NETWORK_CANDIDATE_SCOPE" . "筛选设备范围")
       ("NETWORK_DEVICE_CONTACT" . "检查设备接触") ("NETWORK_GAPS" . "检查断线连接")
-      ("NETWORK_SIGNATURE" . "生成网络签名") ("NETWORK_VERIFY_GEOMETRY" . "核对网络几何")
+      ("NETWORK_REACHABLE_TRACE" . "沿起始导线搜索真实连接")
+      ("NETWORK_SIGNATURE" . "整理去重后的几何证据") ("NETWORK_VERIFY_GEOMETRY" . "核对网络几何")
       ("SPLIT_NETWORK" . "拆分回路") ("CIRCUIT_NUMBER_SCOPE" . "识别回路编号范围")
       ("COMPARE_SOURCE_NUMBER" . "核对回路编号") ("PRE_GENERATE_FRESH" . "生成前核对源图")
       ("FRESH_SOURCE_SCAN" . "重采样源图") ("CCKK2" . "生成或更新配电箱系统图")

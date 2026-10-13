@@ -111,7 +111,12 @@ class NetworkReuseTests(unittest.TestCase):
         self.block('UNREGISTERED', 'OTHER', 'blocker', [15., 0., 0.])
         self.selected.append('blocker')
         blocked = self.network()
-        self.assertFalse(self.get('devices', blocked))
+        # An intermediate device is retained as source evidence and does not
+        # obstruct or join the virtual continuation between free wire ends.
+        self.assertEqual([self.get('id', b) for b in self.get('devices', blocked)], ['after'])
+        self.assertEqual(len(self.get('gap-pairs', blocked)), 1)
+        self.assertIn('blocker', [self.get('id', b) for b in self.get('blocks', self.get('snapshot', blocked))])
+        self.assertNotIn('blocker', sum(self.get('edges', blocked), []))
         self.assertEqual(blocked, self.oracle())
 
     def test_end_error_reload_and_document_switch_do_not_reuse(self):
@@ -244,6 +249,8 @@ class ScanGenerationIntegrationTests(unittest.TestCase):
         source = sf.call('EL:FixedFreshSnapshot', sf.cfg, 'source')
         f = native.PanelCommandTests(); f.setUp()
         f.h.builtins.pop('EL:FRESHRESULT')
+        # Date: 2026-10-13. This finite surface has no external drawing config file.
+        f.h.builtins['FINDFILE'] = lambda path: None
         f.h.builtins['EL:FIXEDFRESHSNAPSHOT'] = lambda *args: sf.call('EL:FixedFreshSnapshot', sf.cfg, 'source')
         f.h.builtins['EL:PERFREPORT'] = lambda summary: None
         f.h.frames[0]['SOURCE-SAMPLE'] = source

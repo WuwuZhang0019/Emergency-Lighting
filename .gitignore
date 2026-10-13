@@ -119,3 +119,7 @@ config/power-input-*.eld
 
 /output/应急照明-129/
 /output/应急照明-129.zip
+
+/output/reachable-contact-check/
+/output/应急照明-131/
+/output/应急照明-131.zip

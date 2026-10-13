@@ -145,6 +145,7 @@ class CircuitStartTests(unittest.TestCase):
     def test_rebound_old_target_survives_cancel_and_second_pick(self):
         record = [Pair(Symbol('DIAGRAM-ID'),'old-diagram'), Pair(Symbol('SOURCE-PANEL-HANDLE'),'old-source')]
         self.h.builtins['EL:REPICKRECORD'] = lambda *a: record
+        self.h.builtins['EL:STORERECORD'] = lambda diagram_id: record if diagram_id == 'old-diagram' else None
         self.picks([['panel',[0.,0.,0.]],None])
         self.call('EL:FixedStatPick')
         self.call('EL:RememberStartPanel','panel','箱一')

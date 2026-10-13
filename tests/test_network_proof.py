@@ -1,13 +1,31 @@
 """Persisted candidate reuse always verifies current source; Date: 2026-10-13."""
 import unittest
-from autolisp_host import Symbol, truth
+from autolisp_host import Pair, Symbol, truth
 import test_freshness_reuse as fixture
+
+
+def native_list_pairs(value):
+    """Date: 2026-10-13. (10 . (x y z)) and (10 x y z) are one native list.
+
+    The finite ENTGET fixture constructs Pair objects, whereas StableData/store
+    readback produce proper lists. Normalize that representation at the fixture
+    boundary; keep the host's exact EQUAL and every numeric value unchanged.
+    """
+    if isinstance(value, Pair):
+        head, tail = native_list_pairs(value.car), native_list_pairs(value.cdr)
+        return [head] + (tail or []) if tail is None or isinstance(tail, list) else Pair(head, tail)
+    if isinstance(value, list):
+        return [native_list_pairs(item) for item in value] or None
+    return value
+
 
 class NetworkProofTests(unittest.TestCase):
     def setUp(self):
         self.f = fixture.FreshnessReuseTests()
         self.f.setUp()
         self.h = self.f.h
+        entget = self.h.builtins['ENTGET']
+        self.h.builtins['ENTGET'] = lambda *args: native_list_pairs(entget(*args))
         self.call('EL:PerfStart', 'ELSTAT')
         self.result = self.f.result()
         self.call('EL:PerfFinish', Symbol('FINISHED'))

@@ -1,0 +1,25 @@
+{
+  "date": "2026-10-13",
+  "status": "completed",
+  "passed": true,
+  "tests_run": 56,
+  "failures": 0,
+  "errors": 0,
+  "modules": [
+    "test_gap_cross_circuit",
+    "test_simple_flow",
+    "test_gap_index",
+    "test_whole_block",
+    "test_circuit_number.NumberScopeTests",
+    "test_concentrated_trunk.TrunkTests"
+  ],
+  "command": "python -X utf8 -m unittest test_gap_cross_circuit test_simple_flow test_gap_index test_whole_block test_circuit_number.NumberScopeTests test_concentrated_trunk.TrunkTests",
+  "source_sha256": {
+    "src/common.lsp": "ee503059cf238f455ba017f77e0d9c96250c113e8423ced412f620a66ba4788f",
+    "src/simple.lsp": "ee66699c69a45ba3a80ff16869303f2cadd330349b29d8018d551f777d4d3f1a",
+    "tests/test_gap_cross_circuit.py": "4823530177929f759de7d515ebc3067fbeff3ae054f8bbeca75b97589a1ada9a",
+    "tests/test_simple_flow.py": "8337a7c48371baeb09f330bf11b244baf696489b0516e7960f41bdf532923c3c"
+  },
+  "baseline_fixture_error": "Legacy SimpleStat fixture also failed at HEAD with VL-REGISTRY-READ; supplied its registered config",
+  "scope": "Synthetic CAD adapters and actual source functions; no native AutoCAD/DWG acceptance"
+}

@@ -1,0 +1,15 @@
+{
+  "date": "2026-10-13",
+  "status": "completed",
+  "baseline_ref": "47aa5ce",
+  "scenario": "actual v118 StoreInitial with CP936 byte SUBSTR and native string conversion adapter",
+  "save_succeeded": false,
+  "drawing_uuid_last_byte_hex": "ca",
+  "readback_last_byte_hex": "3f",
+  "mismatch_path": [
+    "1",
+    "DRAWING-UUID"
+  ],
+  "rollback_preserved_empty_drawing": true,
+  "native_cad_status": "adapter reproduction; original user log contains matching CA to 3F change"
+}

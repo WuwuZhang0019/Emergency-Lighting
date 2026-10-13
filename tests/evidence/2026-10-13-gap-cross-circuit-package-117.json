@@ -1,0 +1,70 @@
+{
+  "date": "2026-10-13",
+  "status": "completed",
+  "package": 117,
+  "passed": true,
+  "regression_tests_run": 56,
+  "lisp_dcl_count": 31,
+  "checked_entries": [
+    "START-CAD2020.lsp",
+    "UPDATE-117.lsp",
+    "src/load.lsp"
+  ],
+  "checked_functions": [
+    "EL:RecognitionRules",
+    "EL:SimpleGapSnapshot",
+    "EL:SimpleNetworkBuild",
+    "EL:SimpleGapLog"
+  ],
+  "checks": [
+    "ZIP CRC",
+    "all archive files equal extracted files",
+    "strict GB2312 roundtrip",
+    "all LISP parsing",
+    "changed definitions equal source AST",
+    "1430 mm two-circuit scenario in three packaged entries"
+  ],
+  "assets": [
+    "CCKK.lsp",
+    "START-CAD2020.lsp",
+    "UPDATE-117.lsp",
+    "src/batch-number.lsp",
+    "src/circuit-number.lsp",
+    "src/common.lsp",
+    "src/config.lsp",
+    "src/device-assets.lsp",
+    "src/device-defaults.lsp",
+    "src/device-inputs.lsp",
+    "src/device-library.lsp",
+    "src/device-migration.lsp",
+    "src/device-recognition.lsp",
+    "src/device-ui.lsp",
+    "src/diagram-commands.lsp",
+    "src/diagram-store.lsp",
+    "src/diagram-update.lsp",
+    "src/fixed.lsp",
+    "src/generation.lsp",
+    "src/geometry.lsp",
+    "src/insert-circuit.lsp",
+    "src/load.lsp",
+    "src/main.lsp",
+    "src/panel.lsp",
+    "src/simple.lsp",
+    "src/startup.lsp",
+    "src/statistics.lsp",
+    "src/store-compact.lsp",
+    "src/topology.lsp",
+    "ui/device-library.dcl",
+    "ui/power.dcl"
+  ],
+  "archive_sha256": "f71fc38cb4f6e944a7ebf676c1749f4a30967659f1e4ac97145e76c0c19a4faf",
+  "source_sha256": {
+    "src/common.lsp": "ee503059cf238f455ba017f77e0d9c96250c113e8423ced412f620a66ba4788f",
+    "src/simple.lsp": "ee66699c69a45ba3a80ff16869303f2cadd330349b29d8018d551f777d4d3f1a",
+    "tests/test_gap_cross_circuit.py": "4823530177929f759de7d515ebc3067fbeff3ae054f8bbeca75b97589a1ada9a",
+    "tests/test_simple_flow.py": "8337a7c48371baeb09f330bf11b244baf696489b0516e7960f41bdf532923c3c",
+    "tools/build_cad2020.py": "b28147a6690e16c38599984bff40f3e75f3b5264bfaf4fd881c2b1df5b5739f4",
+    ".gitignore": "518eafdc24220cf71447f7a09d53a836ebf0cb84c7435196abc5dcf427cd6a29"
+  },
+  "native_cad_status": "pending; bounded adapters do not establish original DWG acceptance"
+}

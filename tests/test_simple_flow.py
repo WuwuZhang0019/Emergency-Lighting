@@ -1,4 +1,4 @@
-"""Two-pick device table and persistent block powers. Date: 2026-10-11."""
+"""Two-pick device table and persistent block powers. Date: 2026-10-13."""
 import unittest
 from autolisp_host import Pair, Symbol, truth
 import test_cad_adapter as adapter
@@ -95,15 +95,14 @@ class SimpleFlowTests(unittest.TestCase):
         self.assertEqual([self.get('id',b) for b in self.get('devices',result)],['after'])
         self.assertNotIn('cross',self.get('wire-ids',result))
 
-    def test_block_inside_gap_is_not_skipped_by_wire_bounds_filter(self):
+    def test_device_inside_gap_is_collected_but_not_connected_or_a_blocker(self):
         self.gap_plan()
         self.block('LAMP','D','obstacle',[15.,0.,0.]);self.selected.append('obstacle')
         result=self.network()
-        self.assertFalse(self.get('devices',result))
-        issues=self.get('gap-issues',result)
-        reasons=[self.get('reason',rejected) for issue in issues
-                 for rejected in (self.get('rejected',self.get('detail',issue)) or [])]
-        self.assertIn(Symbol('BLOCKED_BY_DEVICE_OR_PATH'),reasons)
+        self.assertIn('obstacle',[self.get('id',b) for b in self.get('blocks',self.get('snapshot',result))])
+        self.assertEqual([self.get('id',b) for b in self.get('devices',result)],['after'])
+        self.assertEqual(len(self.get('gap-pairs',result)),1)
+        self.assertNotIn('obstacle',sum(self.get('edges',result),[]))
 
     def test_bent_polylines_continue_along_the_actual_broken_end_direction(self):
         self.gap_plan(device=(30.,25.,0.))
@@ -170,6 +169,9 @@ class SimpleFlowTests(unittest.TestCase):
         def write(path,data):
             written.append((path,data));files[path]=data;return True
         def forbidden(*args): self.fail('No exit, role or category confirmation is permitted')
+        # Date: 2026-10-13. This legacy flow fixture owns a registered config;
+        # preset and library startup have separate CAD-adapter coverage.
+        self.h.builtins['EL:PRESETCONFIG']=lambda cfg:self.cfg
         self.h.builtins.update({'EL:ENSUREROOT':lambda:True,'ENTSEL':pick,'EL:SIMPLEDIALOG':table,
             'FINDFILE':lambda p:p if p in files else None,'EL:WRITEDATA':write,
             'EL:READDATA':lambda p:files.get(p),

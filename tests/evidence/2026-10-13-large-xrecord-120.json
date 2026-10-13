@@ -1,0 +1,557 @@
+{
+  "date": "2026-10-13",
+  "status": "completed",
+  "package": 120,
+  "passed": true,
+  "tests_run": 126,
+  "failures": 0,
+  "errors": 0,
+  "tests": [
+    {
+      "test": "test_fallback_uuid_mbcs.FallbackUUIDTests.test_byte_64_chinese_path_generates_ascii_identity_and_saves_reopens_rewrites",
+      "status": "passed"
+    },
+    {
+      "test": "test_fallback_uuid_mbcs.FallbackUUIDTests.test_complete_checker_distinguishes_byte_engine_and_unicode_engine",
+      "status": "passed"
+    },
+    {
+      "test": "test_fallback_uuid_mbcs.FallbackUUIDTests.test_complete_historical_cached_and_persisted_identities_remain_unchanged",
+      "status": "passed"
+    },
+    {
+      "test": "test_fallback_uuid_mbcs.FallbackUUIDTests.test_fingerprint_guid_takes_precedence_over_incomplete_cache",
+      "status": "passed"
+    },
+    {
+      "test": "test_fallback_uuid_mbcs.FallbackUUIDTests.test_orphan_byte_reproduces_v118_readback_mismatch_and_rolls_back",
+      "status": "passed"
+    },
+    {
+      "test": "test_fallback_uuid_mbcs.FallbackUUIDTests.test_same_cad_session_repairs_incomplete_cached_fallback_without_reload",
+      "status": "passed"
+    },
+    {
+      "test": "test_large_xrecord_create.LargeXRecordTests.test_219138_native_fields_use_small_header_and_exact_typed_payload",
+      "status": "passed"
+    },
+    {
+      "test": "test_large_xrecord_create.LargeXRecordTests.test_first_large_store_save_reopen_and_rewrite_preserve_exact_contents",
+      "status": "passed"
+    },
+    {
+      "test": "test_large_xrecord_create.LargeXRecordTests.test_large_dictionary_attach_failure_rolls_back_written_payload",
+      "status": "passed"
+    },
+    {
+      "test": "test_large_xrecord_create.LargeXRecordTests.test_large_legacy_backup_also_avoids_payload_in_entmakex",
+      "status": "passed"
+    },
+    {
+      "test": "test_large_xrecord_create.LargeXRecordTests.test_large_native_readback_corruption_is_rejected_and_rolled_back",
+      "status": "passed"
+    },
+    {
+      "test": "test_large_xrecord_create.LargeXRecordTests.test_log_records_compare_failure_before_native_write",
+      "status": "passed"
+    },
+    {
+      "test": "test_large_xrecord_create.LargeXRecordTests.test_native_write_failure_rolls_back_new_header_and_logs_stage",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_74_legacy_fields_are_replaced_even_when_entmod_would_retain_them",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_chunked_xrecord_roundtrip_and_reopen",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_corrupt_store_and_serialization_mismatch_never_modify_dwg",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_dictionary_only_extra_field_is_distinguished_from_entity_data",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_difference_reports_field_path_and_late_string_offset_without_long_values",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_fallback_identity_persists_across_store_reload",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_foreign_or_copied_handle_is_not_owned",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_gb2312_byte_engine_never_splits_multibyte_strings_in_xrecord",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_large_list_of_short_atoms_roundtrips_without_tail_recursion",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_large_signature_save_reopen_and_rewrite_with_bounded_read",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_legacy_large_v1_xrecord_reopens_without_format_migration",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_legacy_record_migrates_atomically_in_place_and_preserves_metadata",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_native_doubles_preserve_low_digits_tiny_values_and_signed_coordinates",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_native_field_mutation_is_logged_before_decoder_exit",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_native_strings_bypass_printer_reader_escapes_and_keep_case",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_parser_preserves_numbers_nil_symbols_and_improper_lists",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_parser_rejects_truncation_bad_pairs_and_trailing_data",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_schema_and_parse_errors_are_separate_and_diagnostics_are_bounded",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_string_escape_sequences_across_parser_boundaries",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_typed_decoder_rejects_missing_end_wrong_types_and_unknown_version",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_store.StoreTests.test_typed_values_keep_empty_nil_boolean_integer_and_improper_lists",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_migration.StoreMigrationTests.test_backup_association_failure_rolls_back_orphan_and_original",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_migration.StoreMigrationTests.test_backup_persists_once_through_downgrade_and_later_migration",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_migration.StoreMigrationTests.test_conflicting_or_damaged_existing_backup_refuses_and_rolls_back",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_migration.StoreMigrationTests.test_direct_old_migration_refuses_without_creating_backup",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_migration.StoreMigrationTests.test_direct_write_refuses_invalid_existing_v2_or_uuid_without_changes",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_migration.StoreMigrationTests.test_direct_write_refuses_two_native_route_difference",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_migration.StoreMigrationTests.test_downgrade_no_record_and_undo_disabled_do_not_write",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_migration.StoreMigrationTests.test_downgrade_reads_current_after_start_native_callback",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_migration.StoreMigrationTests.test_failed_legacy_downgrade_rolls_back_current_logical_data",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_migration.StoreMigrationTests.test_failed_migration_rolls_back_new_backup_and_current_record",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_migration.StoreMigrationTests.test_future_and_damaged_v2_reads_refuse_without_rewriting_dwg",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_migration.StoreMigrationTests.test_future_proposed_schema_never_writes",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_migration.StoreMigrationTests.test_legacy_writer_requires_its_transaction",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_migration.StoreMigrationTests.test_old_copy_conflict_cannot_be_silently_repaired_and_overwritten",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_migration.StoreMigrationTests.test_old_native_and_text_migrate_with_exact_complete_backup",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_migration.StoreMigrationTests.test_ordinary_legacy_read_has_no_migration_or_backup",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_migration.StoreMigrationTests.test_post_commit_change_cannot_claim_legacy_success",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_migration.StoreMigrationTests.test_public_native_codec_keeps_non_store_value_roundtrips",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_migration.StoreMigrationTests.test_v2_updates_to_v3_without_misclassifying_it_as_a_legacy_backup",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_context.StoreContextTests.test_commit_callback_change_discards_candidate_and_reads_current_dwg",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_context.StoreContextTests.test_dictionary_association_and_native_only_change_invalidate_context",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_context.StoreContextTests.test_direct_write_and_legacy_transaction_keep_original_truth_values",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_context.StoreContextTests.test_failed_end_undo_cannot_commit_verified_readback",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_context.StoreContextTests.test_late_payload_corruption_uses_decoder_failure_instead_of_cached_data",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_context.StoreContextTests.test_later_write_or_document_switch_requires_fresh_read",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_context.StoreContextTests.test_native_readback_difference_does_not_publish_context",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_context.StoreContextTests.test_nil_writer_and_exception_discard_candidate_and_rollback",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_context.StoreContextTests.test_second_write_failure_cannot_reuse_first_candidate",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_context.StoreContextTests.test_silent_end_undo_that_leaves_group_open_does_not_promote_context",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_context.StoreContextTests.test_success_reuses_actual_decoded_readback_after_commit",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_context.StoreContextTests.test_unrelated_transaction_and_empty_context_never_reuse_prior_operation",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_compact.StoreCompactTests.test_conflicting_copies_fail_before_compaction",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_compact.StoreCompactTests.test_corrupt_and_out_of_range_tokens_rejected",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_compact.StoreCompactTests.test_dictionary_bucket_collisions_use_whole_content_identity",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_compact.StoreCompactTests.test_empty_new_store_roundtrip",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_compact.StoreCompactTests.test_explicit_empty_template_and_missing_copy_are_preserved",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_compact.StoreCompactTests.test_full_template_copies_pool_once_and_preserve_structure",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_compact.StoreCompactTests.test_future_format_and_codec_rejected",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_compact.StoreCompactTests.test_large_atom_pool_lookup_work_is_bounded_and_contents_stay_exact",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_compact.StoreCompactTests.test_long_repeated_strings_keep_bounded_native_segments",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_compact.StoreCompactTests.test_malformed_pool_or_envelope_rejected",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_compact.StoreCompactTests.test_many_template_versions_cross_page_boundaries_without_identity_loss",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_compact.StoreCompactTests.test_multiple_exact_templates_and_historical_global_version",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_compact.StoreCompactTests.test_tampered_valid_template_reference_detects_copy_conflict",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_compact.StoreCompactTests.test_unknown_fields_controls_small_real_and_int_limits_stay_exact",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_compact.StoreCompactTests.test_conflicting_copies_fail_before_compaction",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_compact.StoreCompactTests.test_corrupt_and_out_of_range_tokens_rejected",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_compact.StoreCompactTests.test_dictionary_bucket_collisions_use_whole_content_identity",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_compact.StoreCompactTests.test_empty_new_store_roundtrip",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_compact.StoreCompactTests.test_explicit_empty_template_and_missing_copy_are_preserved",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_compact.StoreCompactTests.test_full_template_copies_pool_once_and_preserve_structure",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_compact.StoreCompactTests.test_future_format_and_codec_rejected",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_compact.StoreCompactTests.test_large_atom_pool_lookup_work_is_bounded_and_contents_stay_exact",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_compact.StoreCompactTests.test_long_repeated_strings_keep_bounded_native_segments",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_compact.StoreCompactTests.test_malformed_pool_or_envelope_rejected",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_compact.StoreCompactTests.test_many_template_versions_cross_page_boundaries_without_identity_loss",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_compact.StoreCompactTests.test_multiple_exact_templates_and_historical_global_version",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_compact.StoreCompactTests.test_tampered_valid_template_reference_detects_copy_conflict",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_compact.StoreCompactTests.test_unknown_fields_controls_small_real_and_int_limits_stay_exact",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_integer_tape.StoreIntegerTapeTests.test_bad_integer_chunks_rejected_without_read_or_eval",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_integer_tape.StoreIntegerTapeTests.test_integer_limits_mixed_reals_and_short_runs_roundtrip",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_integer_tape.StoreIntegerTapeTests.test_public_store_codec_keeps_all_types_and_legacy_v2_readability",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_integer_tape.StoreIntegerTapeTests.test_repeated_geometry_fixture_reduces_native_fields_without_dropping_data",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_performance.StorePerformanceTests.test_entity_readback_difference_cannot_hide_behind_correct_dictionary",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_performance.StorePerformanceTests.test_join_empty_single_odd_chunks_and_order",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_performance.StorePerformanceTests.test_large_native_signature_has_bounded_copy_work_and_exact_contents",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_performance.StorePerformanceTests.test_malformed_native_string_is_still_rejected",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_performance.StorePerformanceTests.test_save_decodes_audited_entry_without_another_dictionary_read",
+      "status": "passed"
+    },
+    {
+      "test": "test_fixed_diagnostics.FixedDiagnosticTests.test_empty_device_rows_do_not_call_native_sort",
+      "status": "passed"
+    },
+    {
+      "test": "test_fixed_diagnostics.FixedDiagnosticTests.test_first_use_unknown_handseed_reaches_real_panel_without_writes",
+      "status": "passed"
+    },
+    {
+      "test": "test_fixed_diagnostics.FixedDiagnosticTests.test_missing_drawing_identity_opens_panel_with_stable_fallback",
+      "status": "passed"
+    },
+    {
+      "test": "test_fixed_diagnostics.FixedDiagnosticTests.test_new_record_avoids_existing_ids_and_retains_existing_record",
+      "status": "passed"
+    },
+    {
+      "test": "test_fixed_diagnostics.FixedDiagnosticTests.test_owned_preview_suspends_then_returns_to_real_panel_with_number_and_no_source_writes",
+      "status": "passed"
+    },
+    {
+      "test": "test_fixed_diagnostics.FixedDiagnosticTests.test_panel_fill_failure_reports_stage_and_original_error",
+      "status": "passed"
+    },
+    {
+      "test": "test_fixed_diagnostics.FixedDiagnosticTests.test_power_reopen_preserves_legacy_record_identity_and_appends_session",
+      "status": "passed"
+    },
+    {
+      "test": "test_fixed_diagnostics.FixedDiagnosticTests.test_recognition_failure_uses_outer_error_handler",
+      "status": "passed"
+    },
+    {
+      "test": "test_fixed_diagnostics.FixedDiagnosticTests.test_single_wire_without_devices_returns_feedback_and_logs",
+      "status": "passed"
+    },
+    {
+      "test": "test_fixed_diagnostics.FixedDiagnosticTests.test_unwritable_log_still_reports_panel_failure_on_command_line",
+      "status": "passed"
+    },
+    {
+      "test": "test_gap_cross_circuit.CrossCircuitGapTests.test_1430_gap_crosses_other_circuit_device_and_wire_without_merging",
+      "status": "passed"
+    },
+    {
+      "test": "test_gap_cross_circuit.CrossCircuitGapTests.test_collinear_path_in_gap_remains_a_blocker",
+      "status": "passed"
+    },
+    {
+      "test": "test_gap_cross_circuit.CrossCircuitGapTests.test_current_panel_still_blocks_gap_continuation",
+      "status": "passed"
+    },
+    {
+      "test": "test_gap_cross_circuit.CrossCircuitGapTests.test_exact_2000_gap_passes_and_longer_gap_does_not",
+      "status": "passed"
+    },
+    {
+      "test": "test_gap_cross_circuit.CrossCircuitGapTests.test_multiple_candidates_across_devices_still_require_mutual_uniqueness",
+      "status": "passed"
+    },
+    {
+      "test": "test_gap_cross_circuit.CrossCircuitGapTests.test_rule_change_invalidates_results_recognized_with_previous_policy",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_large_template_draft_recovers_saves_and_reopens_with_bounded_read",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_existing_undo_group_saves_capacity_and_powers_with_real_transaction",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_draft_then_sync_keep_low_real_digits_and_default_capacity",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_draft_requires_store_readback_not_only_success_flag",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagram_update.UpdateTests.test_save_recovers_inline_and_continues_without_separate_command",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_default_capacity_generates_without_extra_confirmation",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_filled_power_generates_without_touching_non_ground_checkbox",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.SelectionStoreTests.test_draft_confirmation_and_shared_template_roundtrip_through_xrecord",
+      "status": "passed"
+    }
+  ],
+  "modules": [
+    "test_fallback_uuid_mbcs",
+    "test_large_xrecord_create",
+    "test_diagram_store",
+    "test_store_migration",
+    "test_store_context",
+    "test_store_compact",
+    "test_store_integer_tape",
+    "test_store_performance",
+    "test_fixed_diagnostics",
+    "test_gap_cross_circuit",
+    "test_diagram_update.UpdateTests.test_large_template_draft_recovers_saves_and_reopens_with_bounded_read",
+    "test_diagram_update.UpdateTests.test_existing_undo_group_saves_capacity_and_powers_with_real_transaction",
+    "test_diagram_update.UpdateTests.test_draft_then_sync_keep_low_real_digits_and_default_capacity",
+    "test_diagram_update.UpdateTests.test_draft_requires_store_readback_not_only_success_flag",
+    "test_diagram_update.UpdateTests.test_save_recovers_inline_and_continues_without_separate_command",
+    "test_post_stat_workflow.PostStatWorkflowTests.test_default_capacity_generates_without_extra_confirmation",
+    "test_post_stat_workflow.PostStatWorkflowTests.test_filled_power_generates_without_touching_non_ground_checkbox",
+    "test_post_stat_workflow.SelectionStoreTests.test_draft_confirmation_and_shared_template_roundtrip_through_xrecord"
+  ],
+  "source_sha256": {
+    "src/diagram-store.lsp": "6e7efc6054b8db8c6ad73482abd4943bc200656e6344ac1cfd423f063b25e813",
+    "tests/test_fallback_uuid_mbcs.py": "a505a7de3b522523d52ecac9a58c425059dfc87b2b691d8e8f7189677a75ce5a",
+    "tests/test_large_xrecord_create.py": "50cd01327ef4c730667c5ced6945013c189c6b30250c2c9eac5ce2a2f01e928d",
+    "tests/run_large_xrecord_checks.py": "ecae98a501c9edf28addf973ded16fce62368e5038093afe6047789067615146",
+    "tools/build_cad2020.py": "bbc237114f6803d1ed03a853b7184c8d6940e2217041dc72efc602d062aa490e",
+    "tests/test_store_migration.py": "dcc10487d5efbe807ac0f439eb735ca5b45c9568b9ee132b49f8bdd2afc40923"
+  },
+  "fault_boundary": "ENTMAKEX argument over 1024 fields is a conservative injected fault, not a measured native limit",
+  "source_log": {
+    "name": "ELTRACE-debug (28).log",
+    "last_stage": "STORE_MISMATCH",
+    "mismatch_sequence": 120124,
+    "serialized_fields": 219138,
+    "path": "1 DRAWING-UUID",
+    "expected_tail_hex": "ca",
+    "actual_tail_hex": "3f",
+    "native_fault_site": "STORE_READBACK; both DICTSEARCH and ENTGET changed orphan CP936 lead byte to question mark"
+  },
+  "baseline_report": "2026-10-13-large-xrecord-baseline.json",
+  "remaining_baseline_failures": 6,
+  "native_cad_status": "pending; no running AutoCAD or original DWG available"
+}

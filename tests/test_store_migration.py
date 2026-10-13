@@ -1,4 +1,4 @@
-"""V2 migration and current-record legacy downgrade; Date: 2026-10-11."""
+"""V2 migration and current-record legacy downgrade; Date: 2026-10-13."""
 import copy
 import unittest
 
@@ -206,7 +206,7 @@ class StoreMigrationTests(unittest.TestCase):
         damaged = self.call('EL:Put', Symbol('BODY'), [-999999], packed)
         cases = [self.call('EL:StoreEncodeNative', future, 'EL_COMPACT_TYPED_V2'),
                  self.call('EL:StoreEncodeNative', damaged, 'EL_COMPACT_TYPED_V2'),
-                 self.call('EL:StoreEncodeNative', packed, 'EL_COMPACT_TYPED_V3')]
+                 self.call('EL:StoreEncodeNative', packed, 'EL_COMPACT_TYPED_V4')]
         for payload in cases:
             with self.subTest(marker=payload[0].cdr):
                 self.setUp()

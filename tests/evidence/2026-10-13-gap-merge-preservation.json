@@ -1,0 +1,3586 @@
+{
+  "date": "2026-10-13",
+  "status": "completed",
+  "source_worktree": "C:\\Users\\Zyf\\.codex\\worktrees\\gap-cross-circuit\\Emergency-Lighting",
+  "destination": "G:\\rust\\AI画CAD\\Emergency-Lighting",
+  "preserved_files": 894,
+  "files": [
+    {
+      "path": "output/应急照明-117.zip",
+      "sha256": "f71fc38cb4f6e944a7ebf676c1749f4a30967659f1e4ac97145e76c0c19a4faf"
+    },
+    {
+      "path": "output/应急照明-117/CCKK.lsp",
+      "sha256": "c8566ed5c200d6c0b9e6ab0a31a73081af2888e6410d96b43c7911276218f378"
+    },
+    {
+      "path": "output/应急照明-117/package-117.marker",
+      "sha256": "764d75ccfd1a2a8e3fa035d463dbf83edce24a241c4947e6434220b4ba78b384"
+    },
+    {
+      "path": "output/应急照明-117/START-CAD2020.lsp",
+      "sha256": "21d6a178386a01d2dd15346f0a6d579047be15f333ab9750eccab6b06edffcd1"
+    },
+    {
+      "path": "output/应急照明-117/UPDATE-117.lsp",
+      "sha256": "ddbec8415e6700f7753e82c7f6dcc398e03ab5fc9a4695d99bc468dc5a3481c7"
+    },
+    {
+      "path": "output/应急照明-117/使用说明.md",
+      "sha256": "014bf3eb90963970969875772a66692ccdfa9164c3f470f91627fb21c85ad5aa"
+    },
+    {
+      "path": "output/应急照明-117/docs/00_面板保存记录.md",
+      "sha256": "e7ac8f47ef2b4ed3d1e376a2fe1331df186263515dfe46d5350d7f45b51690b1"
+    },
+    {
+      "path": "output/应急照明-117/docs/01_应急照明回路统计与系统图生成方案.md",
+      "sha256": "02f9d058b57cc30644025ede2c338b11a64a54ed6656fd2a3e77ccc836116d1d"
+    },
+    {
+      "path": "output/应急照明-117/docs/02_断线导线几何续接算法方案.md",
+      "sha256": "292a2794a03882debfd1f71e67af7a6e9d1c9a5cd3ed4649662dfa3e0e5392b8"
+    },
+    {
+      "path": "output/应急照明-117/docs/03_加载使用与验收说明.md",
+      "sha256": "014bf3eb90963970969875772a66692ccdfa9164c3f470f91627fb21c85ad5aa"
+    },
+    {
+      "path": "output/应急照明-117/docs/04_整箱自动分回路统计与设备功率赋值方案.md",
+      "sha256": "e13f3f613ccfe280323d2941950072bf8b6b098d01b954ee82e9267a2ad83b4a"
+    },
+    {
+      "path": "output/应急照明-117/docs/05_常见错误原因与修复速查.md",
+      "sha256": "e29c37e3edde857943dd735c002a9d549e2df8a690cce3067a22df6ae7bb7e24"
+    },
+    {
+      "path": "output/应急照明-117/docs/06_固定图块系统图与功率标注自动更新方案.md",
+      "sha256": "0614e42e2226d9cff381c5e82652d7af3faf504323bb159e01518124b727cceb"
+    },
+    {
+      "path": "output/应急照明-117/docs/07_识别与系统图生成性能优化方案.md",
+      "sha256": "4bb68922d303e6bc876bb6b0d38c263f2f4a926c4a0c0f45d88b0d0fb8145f59"
+    },
+    {
+      "path": "output/应急照明-117/docs/08_同箱多平面独立回路补充拾取方案.md",
+      "sha256": "8f57b81e1ff0311522bd3a949242e133cecf98ee9bf71495a5c2e942d0f44e38"
+    },
+    {
+      "path": "output/应急照明-117/docs/09_天正HLBH批量回路编号工具方案.md",
+      "sha256": "6c60846a7de5e4628f1aa5705f4669d8b47a00fc3a96b2f25e7ba375d83c92ce"
+    },
+    {
+      "path": "output/应急照明-117/docs/10_天正HLBH批量编号使用与CAD验收.md",
+      "sha256": "f4f48ebfb513cd3b313f16496dcaf538b0be34a8ed2dd663340e62bb5d9baf75"
+    },
+    {
+      "path": "output/应急照明-117/docs/11_HLBH批量编号提示误判修复记录.md",
+      "sha256": "1ddbedaf603c567549e8e140b0d3245f3d22f0f796533330e129f41138528a0c"
+    },
+    {
+      "path": "output/应急照明-117/docs/12_HLBH逐根两点输入修复方案与记录.md",
+      "sha256": "74e4e69020db18c71f2f3dd61b97dc39256bba9e3e4a4b71d21fbc8d68f249f5"
+    },
+    {
+      "path": "output/应急照明-117/docs/13_平面回路编号读取与系统图对应开发方案.md",
+      "sha256": "0ec589dd89bbc597265ce1d2e2a005e941b8151e59a9d16f0e584578f0dd26ec"
+    },
+    {
+      "path": "output/应急照明-117/docs/13_独立设备库与材料表管理方案.md",
+      "sha256": "3340197078e731d53b3f5f982b4742fe23a10351552e3fb47430a092cd7650af"
+    },
+    {
+      "path": "output/应急照明-117/docs/14_独立设备库CAD验证与使用说明.md",
+      "sha256": "171af57828b01087caee6baedeae8e4aa99565308ae658801ecbc160fdc0fa4f"
+    },
+    {
+      "path": "output/应急照明-117/docs/15_设备库统一数据源与自动入库方案.md",
+      "sha256": "b1626b0b6d9447dc64c395b6d26efa68469c79307611eb3b5343ae3d1890afd3"
+    },
+    {
+      "path": "output/应急照明-117/docs/16_天正设备库圈选图块导入说明.md",
+      "sha256": "96ff6ad5423e8775aaca2cd368bbffbbcfd97d5f37b36a1043ed441dc009af06"
+    },
+    {
+      "path": "output/应急照明-117/src/batch-number.lsp",
+      "sha256": "1ea45d451d23aba0d8392b2df7bc286c9af1e0ef8d7b426c280e46a3aba5bbc7"
+    },
+    {
+      "path": "output/应急照明-117/src/circuit-number.lsp",
+      "sha256": "021cc85f384a0bba2ac4a1e087aa54d543dde52f0582798786dd99b601f1923d"
+    },
+    {
+      "path": "output/应急照明-117/src/common.lsp",
+      "sha256": "887428428a679b828f0d40421c7c0484b56fdc7d12ef0bb024ee7cb208ef8cac"
+    },
+    {
+      "path": "output/应急照明-117/src/config.lsp",
+      "sha256": "d49adb74e7a55cde5cfa8ee5ac1f443ed2f035388f9f35f91e4876d65c8fc974"
+    },
+    {
+      "path": "output/应急照明-117/src/device-assets.lsp",
+      "sha256": "8932e770e7a03eb62c03032db4d222f3db51f2b168f3c3be220ce5cdc83060d5"
+    },
+    {
+      "path": "output/应急照明-117/src/device-defaults.lsp",
+      "sha256": "ef38e4412994adbe4fbc6e0236584178904b2b5d9581c52ee9b9828c559ce115"
+    },
+    {
+      "path": "output/应急照明-117/src/device-inputs.lsp",
+      "sha256": "190ffbb5c1b420edab984dd688ce592905a6bec5e39d35d8f62c93a566221749"
+    },
+    {
+      "path": "output/应急照明-117/src/device-library.lsp",
+      "sha256": "d4f1c49f3da49b424fb0700cb89af6f3e8a7eb4be5b034c62c88c7b66744d17e"
+    },
+    {
+      "path": "output/应急照明-117/src/device-migration.lsp",
+      "sha256": "51791cdd1b09939987e7a8cdd9ab08f42bd87e8dfc3b2ca0d3ff6e7a473e1c35"
+    },
+    {
+      "path": "output/应急照明-117/src/device-recognition.lsp",
+      "sha256": "8148c629eb39c48b46c6c6f71269cb7b3de84146adaa5c08e708942f82ee83b2"
+    },
+    {
+      "path": "output/应急照明-117/src/device-ui.lsp",
+      "sha256": "dbd4c07d47ec57257269ba69c1010c16fc5e169278ae1317ea5b3148b8c0f039"
+    },
+    {
+      "path": "output/应急照明-117/src/diagram-commands.lsp",
+      "sha256": "0d82c52eea102543a5d63c5e647faea870b4a69a9e331ce4125be23a6d8ef013"
+    },
+    {
+      "path": "output/应急照明-117/src/diagram-store.lsp",
+      "sha256": "1df24b93532b9a094e3ec76c0c53c12767f126a44e5da5b7929767646b617938"
+    },
+    {
+      "path": "output/应急照明-117/src/diagram-update.lsp",
+      "sha256": "52f2e677555da8e546703b71d2fe7dd6678ab9af7af5148d60cccab791e8cefd"
+    },
+    {
+      "path": "output/应急照明-117/src/fixed.lsp",
+      "sha256": "df5eaa3312b6bf96686b340ce8925fb9ddf57129903381349072ce9adaa4e275"
+    },
+    {
+      "path": "output/应急照明-117/src/generation.lsp",
+      "sha256": "4029b614522a4a5d2f27b35ae6c107e30b0766efba36f7a7e8dc77d5da41fd40"
+    },
+    {
+      "path": "output/应急照明-117/src/geometry.lsp",
+      "sha256": "bb896c82cc9ab557d540676d5f055dd5e223a6546f32f110929d78752ed42cc7"
+    },
+    {
+      "path": "output/应急照明-117/src/insert-circuit.lsp",
+      "sha256": "bca8ea625f428cef6bebad9f00e317c38de8c3b286141e083f347418819a3dfe"
+    },
+    {
+      "path": "output/应急照明-117/src/load.lsp",
+      "sha256": "21d6a178386a01d2dd15346f0a6d579047be15f333ab9750eccab6b06edffcd1"
+    },
+    {
+      "path": "output/应急照明-117/src/main.lsp",
+      "sha256": "f66da307cf805391b0ce4db815b00d6ce47f13bd533412f6c272a5c626d02e16"
+    },
+    {
+      "path": "output/应急照明-117/src/panel.lsp",
+      "sha256": "a36322574f78de38f0092226c6ce3904c4772e982b9db4b881508c3c83ee7b24"
+    },
+    {
+      "path": "output/应急照明-117/src/simple.lsp",
+      "sha256": "4dcc771c32e7af3921015eb16c4db7d2f6188e3a31c7f48fbd24f4eb46ba3e9e"
+    },
+    {
+      "path": "output/应急照明-117/src/startup.lsp",
+      "sha256": "8c843325278754d1ea98b42d7917fc66d429316bec7433bab9f0bcd9beff0463"
+    },
+    {
+      "path": "output/应急照明-117/src/statistics.lsp",
+      "sha256": "bed80b2ed028892eb707b63f94482f54bc1018325454e163266af081dac27770"
+    },
+    {
+      "path": "output/应急照明-117/src/store-compact.lsp",
+      "sha256": "f40065f21764fa436f82a5d41ea8d447aa63fe594de805797f4d55e3b39f659e"
+    },
+    {
+      "path": "output/应急照明-117/src/topology.lsp",
+      "sha256": "f118f39ed08e441a512c3aebe82e4c13c1ac1131412e187d79869603fc45c367"
+    },
+    {
+      "path": "output/应急照明-117/ui/box-ui-011.marker",
+      "sha256": "973a3b32f5632f31db12419d9ec6f597005e850b64dacf5d1c47fb7a69c086d4"
+    },
+    {
+      "path": "output/应急照明-117/ui/device-library.dcl",
+      "sha256": "736a25f3607ccf6a2204f2ed40b5eea378bdb3575c5a380e21add64e6ff0d2a1"
+    },
+    {
+      "path": "output/应急照明-117/ui/diagram-ui-044.marker",
+      "sha256": "bbc93f424ee5012e66511a990f87f5a40b0a84a2437aea2a8d14d30e7e629395"
+    },
+    {
+      "path": "output/应急照明-117/ui/power.dcl",
+      "sha256": "8e445e1541a6aac157900695d4adce3c18ca2bfb3b04018461d140ec3691a0a8"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-08-box-statistics.md",
+      "sha256": "5269d0973bc69977abbdc18a35212d02f689e959ab074acd71d8863434a4844b"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-08-contact-performance.md",
+      "sha256": "329a0b78efd66f5afe482cdbe1b075d52e54381fa181a22edf3f937186e04748"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-08-contour-diagnostics.md",
+      "sha256": "e1477f06b2871aac47853e294b60ec630b09fe22aeea66f3e12a63e6b8eebffd"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-08-curve-ocs-fix.md",
+      "sha256": "2565b810f158501c40b4a060225fa7dcd37fe4a780bc3545327ece087edc729b"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-08-exit-preview.md",
+      "sha256": "cd6752ab91be830abff62e829ba4f3e08b19a47c93e10cd0da5ff37494acbeb8"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-08-free-end-gaps.json",
+      "sha256": "61c38e0b2bb56b4737c522663b7eea4ee891936f58d60233bfe0aab11210a5f9"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-08-free-end-gaps.md",
+      "sha256": "8fb81e13840a6df485cb26d9de0fee2800adb469971ba888b0a8fca6a28197ef"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-08-header-alignment.json",
+      "sha256": "c4fab95c6b67199bfd9ca391811117583b477b5e4deb1f01f17b662e21a8e284"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-08-header-alignment.md",
+      "sha256": "a48c70125decd154731777681603bb1efce11dc21540f796287c591048ec5572"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-08-linear-contour-index.md",
+      "sha256": "950b1645b2bbaa0703bc19289987720f3730db9b6590b2b0bd06c93904c81f78"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-08-polyline-ocs-fix.md",
+      "sha256": "2e215bea23ce540faac55c56e2f0beface356c3446971a69251319c9520b4d23"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-08-region-performance.md",
+      "sha256": "dff5318767a62289a09f4ccb038658bead0cf6d00d5a2b13c2bbdb537572ce05"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-08-sample-layer.md",
+      "sha256": "87333544566fc021d33adade835d7127d3630185083d400c156d50be54de56cd"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-08-simple-device-table.md",
+      "sha256": "6d348e0806f86aa0cd32ca03874d460f4ba1721b1b3944a2516f5c9066c0209c"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-08-trace-diagnostics.md",
+      "sha256": "337db3350b703f3aaf06728e1062cf06fe07f7acab39df73134f61df60955727"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-08-whole-block.md",
+      "sha256": "bcf122e3f4a12eb63953c05408f6fc1adcf0b48faae198d71bd92c99512a8001"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-09-cckk-captions-054.md",
+      "sha256": "3b89cb8d76d75dedc01a50b3f55e0b8e0d4192232592b981880a781823c3eb82"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-09-cckk-command-053.md",
+      "sha256": "1465923b66aec3538cbfdd414078e52fcbf82dabecdf5770d6525b3457274c09"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-09-cckk-generation-052.md",
+      "sha256": "f5e07cf2761042e2e2c015996e3a9bbe2db52cdac513ec7fd61de256c59509d6"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-09-circuit-preview.json",
+      "sha256": "89f8132cbc92174eb7e0dea8aa9ec456d9ca374d9f95ae51c1ae619adb14be63"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-09-circuit-preview.md",
+      "sha256": "091944fcb8d3a99c7964e1d2aa9a074029d50bb7b0616932bd54e276f628a109"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-09-device-thumbnails.md",
+      "sha256": "06bfbb7a7954ab6e94472be43bd40be1974c5dbd71f9c263e87db1598ee66516"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-09-exit-devices.json",
+      "sha256": "4de0dce74ff25f0af2fee73c7fe2b93ea58b5ec84bb5dff12f90fd16f6624005"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-09-exit-devices.md",
+      "sha256": "fadc9f769425c89dd6e34afa1d16ae35a0e7322fe691834679ce964a25e26df2"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-09-fixed-diagram.json",
+      "sha256": "41a0ff6b4e890977e1953f12f7b146fe711933277fe7a8e0d3912dcf441e9988"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-09-fixed-diagram.md",
+      "sha256": "6248d01f07f95b650da3f3ab13db41404e384310a01075b4777db9e230e91e9e"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-09-inline-power.md",
+      "sha256": "26afefb75d4b535418dac2a9c107c26a59eaa37a32ba664e65362cdc901d3fa7"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-09-native-store-045.json",
+      "sha256": "90d0b11e8de809135d8655dac4748093bdca32afd936a3e657c954099d3094d7"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-09-native-store-045.md",
+      "sha256": "fcbf49d920b2c7fe5d0c4708a01ffae3adea10ed22894baafb58781e12131d74"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-09-panel-repairs.md",
+      "sha256": "be09aee5294e393f4b01b87022c61f07efdb7321cae880f6696e81c2d2bf9fb0"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-09-panel-stringp-nil.md",
+      "sha256": "2875ef2b42a9e07ff0316f3ae4ab49a93f2a9d5b86fa81906f6351b516a2a085"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-09-post-stat-workflow.json",
+      "sha256": "7b5f5973133ac7e9cae18f58c503b3698836c0bee8a169c969cd91575f5488e7"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-09-post-stat-workflow.md",
+      "sha256": "42414f5f18f392447d8619d7063fe27699bd27738323702fa6d36c2fa9d6ded4"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-09-save-insert-037.json",
+      "sha256": "b4b0b2af164998edc9af490e2a9b6ce963e9b563d903138adac6489b6ed9e95e"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-09-save-insert-037.md",
+      "sha256": "a95cca9d45d964c1dcb80a6e911f2b7e1e6845de486c4b1955e0d03ae9ab784d"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-09-store-parser-043.json",
+      "sha256": "85feb229583253d2681c82e245b9b3875582938e7dfc0d85e06932f20a8a026d"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-09-store-parser-043.md",
+      "sha256": "84b685253668214211599fc8cbdfdd1d9838b6d95ba09f44c6f17e4409d13157"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-09-store-readback-046.json",
+      "sha256": "912a1c17af1ec1dcc65a6fb99fe89640107525f1d64bd7a67246b60463fd9c19"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-09-store-readback-046.md",
+      "sha256": "cf9a13565ae3c7f540155e9f456ce43497f4ac47f7a42244f910c370df3b60ab"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-09-template-choices.md",
+      "sha256": "f84484b586059ed0937924dcaed933d92e802839d32789b8d6c317ed65ae124a"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-10-auto-wire-063.json",
+      "sha256": "e026374efb28932ffc085ecb61b2d8157430bd5d72ba3bb70560aed7eeebbb02"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-10-auto-wire-063.md",
+      "sha256": "4fe7a1fadf506814d3ef8c12e12c9d212ddcaad8ec282385d361b4f715852ddc"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-10-circuit-colors-065.md",
+      "sha256": "451f0efdd74e86d7c9382fe21c62adc7ce8e094ac0a575af9f3a78401c5f8b98"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-10-circuit-numbers-061.md",
+      "sha256": "417eadfccd258c5e698e74516dc4af2a276386f95a98a6870642bc0adfc93fa6"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-10-concentrated-trunk-071.md",
+      "sha256": "ceba752736f7c8ad0db5cdb8031661c528241ec93eb8805fa6a3dbc7769c9906"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-10-contact-exclusion-068.md",
+      "sha256": "7c28ff83da16e6f2724a745479cda88cdf8cb4518c480f67dce06e5ff235baa9"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-10-deleted-diagram-059.md",
+      "sha256": "fd74a04b74f3d1cb2a44f0b953e02d807bd32d0c0022a70c7c71b8146767d436"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-10-device-contact-060.md",
+      "sha256": "fd5bb6323f080ccbd2adf40b8ede056940a19e02a10f9561b144d48b28fb4161"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-10-diagram-view-058.md",
+      "sha256": "c9985c48e0aaa2e5266a62788decb4be5765656a9a45ea46bc2e2821c28281aa"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-10-direct-placement-056.md",
+      "sha256": "db20b15d6225d4021c346624f90e81716b91e7cdcd131a009dd3caf71d0663cd"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-10-empty-pick-076.md",
+      "sha256": "f38215c6a79381a522dea393d14290bc533fa151e03c19db6353eae096cb59e4"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-10-power-text-rollback-057.md",
+      "sha256": "bbae8a67019ea80e5210cea32479052b070db18ed70aaa1f453a34931e58feec"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-10-saved-records-067.md",
+      "sha256": "ff094849769d506dae98102280896cc53be77b9c3cf941b01f8e2d283b4984ee"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-10-startup-062.md",
+      "sha256": "acd76275c6e8a667cdc07f6fa9ff6420dc1e1e462d9976c0d1266edd522258f8"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-10-startup-064.md",
+      "sha256": "bc8b58756ac21d71c9360bcd09afae2396b85f78031d9cf37ee9d553051ebd9c"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-10-startup-066.md",
+      "sha256": "e532e2bad6dab4f90d496dcaed5611e4f964b0c7b359262c9ec738f186a0b838"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-10-transaction-memory-055.md",
+      "sha256": "83d25a17b1fe6a8c0c8621fae58e0cbb99c15cb7855fb2440d3d4f6e74d567fe"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-11-device-library-097.json",
+      "sha256": "b453a8e2d9e3707065226509e3c2a5dda6f44885ba4dff894fc9c930aeff02c0"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-11-device-library-098.json",
+      "sha256": "d715b5115e9f3d5bb0875d6ac4279eea94adf014e90f0cf49384860a1adc1772"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-11-device-library-099.json",
+      "sha256": "46c72f622ef72e525a37d63530422aab0ea5f55bfddd120285e12bb1f1c8cf88"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-11-device-library-100.json",
+      "sha256": "1d929262315e322377f82319c7e1eb98a7e4e17f725ff5baa6b576bd0f5fe6b6"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-11-device-library-101.json",
+      "sha256": "933ffa2eedeb97de3bce759862104d54462b8c1ccc7051c50e1939dd037e68d7"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-11-device-library-102.json",
+      "sha256": "bf1865bab42c8fc9b992e8aeecf3fc458dd495fd3784274edea6f14d3aff3364"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-11-device-library-103.json",
+      "sha256": "87f8e830de93f96223383a82e5fe182877fe2d89cfffc0df5e59e5d99aa4bdf9"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-11-device-library-package-097.json",
+      "sha256": "2af2774d745691e7b23a76d21184150c9e9a0c98aa8771a17721b029dee4824f"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-11-device-library-package-098.json",
+      "sha256": "5efae64482b0281c9cdbb4c38afa42443032b1db02d1fc9928b8ccce24cb1613"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-11-device-library-package-099.json",
+      "sha256": "2cbd76348773afcbe55fb9a90c3a5961dcaf95a76deb790dbfcc51c6c98040bc"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-11-device-library-package-100.json",
+      "sha256": "b50dd675dbf635983df2acb73c6a979e05409f654c3c8ca20df3e9b000d761fd"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-11-device-library-package-101.json",
+      "sha256": "e3cc518b4bfc4cc72e2d4a7efd5486ffd2cea6619984847a71ad4f188e794858"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-11-device-library-package-102.json",
+      "sha256": "75a79ab3932fb091b98b007fc84d95b7dc3241f393699813eaef4ce439f32375"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-11-device-library-package-103.json",
+      "sha256": "2a14d27abd7ee48272aafe9c89c362baf8193865daa40fb30b3b9e2a324ea928"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-11-empty-panel-096.json",
+      "sha256": "b51ed84713c8ad6e3907953f7068d648fa4daa2b7f8b6796e64450287ba302ee"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-11-empty-panel-package-096.json",
+      "sha256": "a83975d84828648f340cfce0f3fd254af359ea49f883cd54317caf6095fed036"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-11-performance-compact-093.json",
+      "sha256": "d3f4cbd5409fdf761432e80ea8ea0f879859de0796c8d61eade2fd5d39a36910"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-11-performance-decode-094.json",
+      "sha256": "efd4b0ac05aa5cf4f420302c393c261252cf96e1577a655f1ec7ed85029664f3"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-11-performance-p0-091.json",
+      "sha256": "87a0694042cd47a7b275aa4875dc73665fa7ecc91ed8fccc6f8763219bf1ea68"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-11-performance-p0-091.md",
+      "sha256": "1e875eddcd5cea2168af3e70e9161f8a3b05f6821124df0ea5d15d96e94f561d"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-11-performance-p2-092.json",
+      "sha256": "278de657b8ab3ff840b3046104b020717a3bdfe2d955184faf27b701c1d6af26"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-11-performance-package-093.json",
+      "sha256": "8e1e6184db8386076c68a611c22ea615bf064bfca31d467aa2ee12561531054a"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-11-performance-package-094.json",
+      "sha256": "768a1e26bfd11cfcd25921a156c1d145c594ddc16672d6ca6272a0f9e3892a2f"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-11-performance-remaining-093.json",
+      "sha256": "37ed622f78dfad4a369f9fdf9a47fc6f90ce4d9f0726dd441103e68dbef9674d"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-11-source-scan-094-baseline.md",
+      "sha256": "011bcedf62bd37656af449a3ddbf0a12bda41ff42ccb9cc1a4106b4b96fed629"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-11-source-scan-095.json",
+      "sha256": "12a3b47e41a46cd926e0a17ba392c9d67dd8afa0438c3d459e1d9781dd60efe9"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-11-source-scan-package-095.json",
+      "sha256": "18d3752402831f7303ee6f082aeae776430c5f14f2c5900708cdecbad115b879"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-12-default-library-source.json",
+      "sha256": "f7707fc8d7fdee491b3ddcdd7cdb963d1388607f6bfdb37626afa2a3ae8c7fd1"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-12-device-library-104.json",
+      "sha256": "a053e2e95ce5301254d340dbc9122b282787a3b570c01880ad23169d5f048657"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-12-device-library-107.json",
+      "sha256": "68d3aff6a6b6e0cf184278384666c944fe9e0dea5267246218855bd073adcaf4"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-12-device-library-108.json",
+      "sha256": "261f5bdf1d55183f121238e8f024560b637469cc3c3be453508f3cffa48d96a2"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-12-device-library-package-104.json",
+      "sha256": "23af1217ec9060bdbef9fdf3bdc7ba28d05ce52ff2d621f3512dd9638affbe92"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-12-device-library-package-107.json",
+      "sha256": "eb4b272e8746d6c3648713219243a6d2d75872c636be7afdf76147131b198476"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-12-device-library-package-108.json",
+      "sha256": "fd28acab2eb71c8b63ac74fadcefe66ffb825a260fcffc1f468b06a2fdd4fb15"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-12-recognition-preset-106.json",
+      "sha256": "ce0a3ae0f8f143b3f1210eaeb63612b75875ce0e845f9de99b501de4ecafa521"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-12-recognition-preset-package-106.json",
+      "sha256": "622c7cf0e6826323c9acac14e6eadc9e123c36a6af18b30e00865a7446162d1d"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/2026-10-13-gap-cross-circuit-117.json",
+      "sha256": "285b991d756ec2f2f0f7228fb1e27b1167a8c1a749d85de1b41c59ea435bf855"
+    },
+    {
+      "path": "output/应急照明-117/tests/evidence/automated-checks.json",
+      "sha256": "a74ce45de29524e132b72baf81a369335d63ba9fc352499d9ea04736832ab50a"
+    },
+    {
+      "path": "output/应急照明-117/tests/fixtures/cad-plan.dxf",
+      "sha256": "5265eb8a02ff207f7c693ecf4164fad0d5038348e1fbe17a09892232e5366fbb"
+    },
+    {
+      "path": "output/应急照明-117/tests/fixtures/cad-plan.expected.json",
+      "sha256": "542e5f4cade31c75033c4323483d9a07a7197db6a975d1cca7bdfe7e897833e9"
+    },
+    {
+      "path": "output/应急照明-117/docs/更新记录/109-启动备用目录初始化修复.md",
+      "sha256": "d974a9831587779daa2d6bbd46d15eb808d036856343797f54e480f2e5059f77"
+    },
+    {
+      "path": "output/应急照明-117/docs/更新记录/110-修复初始化实参太少.md",
+      "sha256": "961d75b5c755d9fad3cea8def23faea43c38ffd9a29c87a9bfdb78b28ea62169"
+    },
+    {
+      "path": "output/应急照明-117/docs/更新记录/111-启动保存与插入性能修复.md",
+      "sha256": "73a002a2c7a537c40f3f3467a1c64e13bd75e76588686a182979ea199232e031"
+    },
+    {
+      "path": "output/应急照明-117/docs/更新记录/112-按现场耗时优化网络与保存.md",
+      "sha256": "2dd1de61d3160d08005ef3d4ef896554e17f5d936e4a7eea0498726ada5dfbc5"
+    },
+    {
+      "path": "output/应急照明-117/docs/更新记录/113-保存记录按需加载与面板恢复.md",
+      "sha256": "3ad5e0c7a98524bb1d50cd37388466d71040eba6743e65269bdfa0023aa04e47"
+    },
+    {
+      "path": "output/应急照明-117/docs/更新记录/114-图例功率自动保存到设备库.md",
+      "sha256": "6295b2e94243bb0791369b8203c2d89c3db5b35add60d1172e3eb80d36e324e2"
+    },
+    {
+      "path": "output/应急照明-117/docs/更新记录/115-功率图例刷新与生成后保存优化.md",
+      "sha256": "34dc88128f19c1c91fd2389792fb4d9354b95c5f43013fced02f5af1c42509f4"
+    },
+    {
+      "path": "output/应急照明-117/docs/更新记录/16_ELSTAT面板入口.md",
+      "sha256": "02bf4b80869d3a9fc560f2ebc79af3f462ef72ba456f90a94ba2d95e0e17eb1a"
+    },
+    {
+      "path": "output/应急照明-117/docs/更新记录/2026-10-10-回路漏识别与生成诊断-079.md",
+      "sha256": "b7d46990c2eb67e56942e138be8bc6899d76ea8b6da591552976b3185603317a"
+    },
+    {
+      "path": "output/应急照明-117/docs/更新记录/2026-10-10-图例表命名-077.md",
+      "sha256": "5224f0b849d54e3469cc7b3f151b1acfabbd39fc27d64cafe4b6488ee0102c27"
+    },
+    {
+      "path": "output/应急照明-117/docs/更新记录/2026-10-10-独立图例预览-078.md",
+      "sha256": "d8e413b8c5463324a72c36c4152bdf0c057fea24ddd49b86b4de1d5264ba0f70"
+    },
+    {
+      "path": "output/应急照明-117/docs/更新记录/2026-10-10-解析圆与圆弧识别-074.md",
+      "sha256": "76de30171b4d8db635a2daff731803fffddcaf66772fccd8d6447888acb31e93"
+    },
+    {
+      "path": "output/应急照明-117/docs/更新记录/2026-10-10-设备轮廓性能优化-073.md",
+      "sha256": "2e42ff5215c419e2e5508223114a609e99258dc965e9efc99af2502485541b71"
+    },
+    {
+      "path": "output/应急照明-117/docs/更新记录/2026-10-11-主面板图例联动设备库-102.md",
+      "sha256": "1d55cbe114e2a3a206d970b37b45c119103db64299c1f267f446e65e56a7c5ea"
+    },
+    {
+      "path": "output/应急照明-117/docs/更新记录/2026-10-11-单击保存记录打开回路-083.md",
+      "sha256": "c8900d85c1ccb295d73fb5a2bcb7dd9628cf258283e2533a60ca894438e55191"
+    },
+    {
+      "path": "output/应急照明-117/docs/更新记录/2026-10-11-取消回路地面重复确认-103.md",
+      "sha256": "dc74a64e00a1b85325171cbbcb082f64df1e07531141a206eb529b706951028b"
+    },
+    {
+      "path": "output/应急照明-117/docs/更新记录/2026-10-11-存储解码优化-092.md",
+      "sha256": "01b0c59d6cca331f9537b80dced8bb885e297cef35b105a27d4f85b484e41a71"
+    },
+    {
+      "path": "output/应急照明-117/docs/更新记录/2026-10-11-存储解码优化-094.md",
+      "sha256": "9515b43fedbbabbe6153aa8aefbf1641b2f04fe1597692fe47f8f6daf37bd2a4"
+    },
+    {
+      "path": "output/应急照明-117/docs/更新记录/2026-10-11-宽导线接触与预览避色-080.md",
+      "sha256": "c39358f963b23eeb51a8f57a89d00176d6da48be5bce71b0ddc6c44592980b9b"
+    },
+    {
+      "path": "output/应急照明-117/docs/更新记录/2026-10-11-性能优化后续阶段-093.md",
+      "sha256": "a184558ad95429ffb0958b14f5d85690214f0f26e6c92f0063d3a16b4ea3fbd1"
+    },
+    {
+      "path": "output/应急照明-117/docs/更新记录/2026-10-11-性能计量基线-091.md",
+      "sha256": "d4b6cb9ed7ba708d021ccd4283f59bf2258a17726bb805b37edf4e6b7bf3df6b"
+    },
+    {
+      "path": "output/应急照明-117/docs/更新记录/2026-10-11-拾取配电箱编号-084.md",
+      "sha256": "cfee6965b2fcc1636ba80e190357ce01085f718369c0ce3881a6b08c1e2bf973"
+    },
+    {
+      "path": "output/应急照明-117/docs/更新记录/2026-10-11-拾取配电箱编号-085.md",
+      "sha256": "abdb695d26635e2f5fdceb2cb0118f0bc788edb894772e9f836c028cbb05df3d"
+    },
+    {
+      "path": "output/应急照明-117/docs/更新记录/2026-10-11-正常末端生成拦截-088.md",
+      "sha256": "5b53db84e47116227fbd2b49c081293e37e5b1229c5c7924daf39648e5c9ced6"
+    },
+    {
+      "path": "output/应急照明-117/docs/更新记录/2026-10-11-源图复扫优化-095.md",
+      "sha256": "8f68abf5da059f620dcf91ddce7bac1153ecb8c2c7dc9bd5d8b44f7f9e0ce359"
+    },
+    {
+      "path": "output/应急照明-117/docs/更新记录/2026-10-11-源图快照差异诊断-090.md",
+      "sha256": "e4f68d5e6077dd91f1b14baaa61113536cc2d5cd5cccb0c7e7adab7ce5d1b3ef"
+    },
+    {
+      "path": "output/应急照明-117/docs/更新记录/2026-10-11-独立设备库-097.md",
+      "sha256": "34c5f4bad839dfa573a2fe2b5084aa050856e452e9f50286dba3041036b35eb3"
+    },
+    {
+      "path": "output/应急照明-117/docs/更新记录/2026-10-11-生成未通过原因-087.md",
+      "sha256": "c239a3793c7ecaf6cb3a028d6933b2516c882e2a62914d1bfd93275bb4699527"
+    },
+    {
+      "path": "output/应急照明-117/docs/更新记录/2026-10-11-空图面板初始化-096.md",
+      "sha256": "79cfa151f24f7a9bb031de1d77b4e33878d6008832f5e94d0074e01fec6f4263"
+    },
+    {
+      "path": "output/应急照明-117/docs/更新记录/2026-10-11-记录编号同步-086.md",
+      "sha256": "3d66f7c211d217868d9f1a5259d34328ac0ab2083429e8b05f803660e51e4a76"
+    },
+    {
+      "path": "output/应急照明-117/docs/更新记录/2026-10-11-设备图形预览修复-099.md",
+      "sha256": "8a004c818de09443dc9b63fc6dd95e99052d97f5a6b052ffaa09988c1966ed40"
+    },
+    {
+      "path": "output/应急照明-117/docs/更新记录/2026-10-11-设备库入口与图例复用-100.md",
+      "sha256": "f982faa08f090e958a6fd31325f4e697fddbc16be8e30ed74d4455c0020a02d8"
+    },
+    {
+      "path": "output/应急照明-117/docs/更新记录/2026-10-11-设备库占用恢复与本图草稿保存-101.md",
+      "sha256": "5fe7695712cb830fd9661b0e60445384f317254d0b2b0ba4ba60e3b928e1cffd"
+    },
+    {
+      "path": "output/应急照明-117/docs/更新记录/2026-10-11-设备库合入main-098.md",
+      "sha256": "3f5d855956ef0e88ed7e0972ef31f998a5051794c5a996a78478e17e2e8483dc"
+    },
+    {
+      "path": "output/应急照明-117/docs/更新记录/2026-10-11-面板中文换行乱码-082.md",
+      "sha256": "8012da31fbeae96df3edd052000abf36945abba946db827d26a37b1cc3ee7340"
+    },
+    {
+      "path": "output/应急照明-117/docs/更新记录/2026-10-11-预览后源图复核-089.md",
+      "sha256": "432b89977df3cec675eb88c8b952bc913515826b8278f4422cefbda36d7ce477"
+    },
+    {
+      "path": "output/应急照明-117/docs/更新记录/2026-10-11-首次打开保存记录-081.md",
+      "sha256": "edd350de1d54c5aecd098ebf7024a32b1c3d051249894be07bc34975f768d562"
+    },
+    {
+      "path": "output/应急照明-117/docs/更新记录/2026-10-12-105-识别预设与设备拾取.md",
+      "sha256": "471c448319d465cb37a4cf696c0619763348002bdf8b69c0521608479ded9770"
+    },
+    {
+      "path": "output/应急照明-117/docs/更新记录/2026-10-12-106-首次设备登记引导修复.md",
+      "sha256": "8b0d8a9dd65e7a9c517329860082eeaa5affc5518b26198f70e0841bbe275173"
+    },
+    {
+      "path": "output/应急照明-117/docs/更新记录/2026-10-12-107-设备拾取入库与图例生成提示修复.md",
+      "sha256": "3378b488925d64ece96b1592af8721a7f351839b9ecade28ce14c1218a8e5a38"
+    },
+    {
+      "path": "output/应急照明-117/docs/更新记录/2026-10-12-108-默认设备库随包初始化.md",
+      "sha256": "bb7db4e309007fc205845df3020926e880484b3f86fcb2c321b214bae13a5c1e"
+    },
+    {
+      "path": "output/应急照明-117/docs/更新记录/2026-10-12-主面板简化流程合并-104.md",
+      "sha256": "3d63752391c0fcbefd6c591040ce1015d07179f734b15e339583c7f37f2dabb5"
+    },
+    {
+      "path": "output/应急照明-117/docs/更新记录/2026-10-13-117-断口跨设备续接.md",
+      "sha256": "6d1e3004a24ed8d4afb077f7acc3ddc3f18ecd237092b326fd4d0f975be4d13c"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/catalog.eld",
+      "sha256": "725548bdaaea1d2974aa918d661e4a29d6ade22cd4b126c08241221692c27634"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/import-manifest.json",
+      "sha256": "e448fd581543e13d1fb05209a9f8465cf7c2163ca346bb067e1123dc0e2d72ba"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/README.md",
+      "sha256": "7ebc9442984fa29b290a11bbbd4bccf01039d679c0571b18440d2f92f1e0867f"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV9/1/block.dwg",
+      "sha256": "b40abb6f06760ccffca394c737d38abcc9dab98286870d9367fe09ce8b22b81e"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV9/1/legend.sld",
+      "sha256": "de212b795bd3b033ec02b70c51ead5df4a08301087a92ae60ff38cb71e64fe2c"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV8/1/block.dwg",
+      "sha256": "34cb5fdcdb284df3cf61bf310008d02472c0723cfa5ea4811fe2dc676723b60b"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV8/1/legend.sld",
+      "sha256": "e5de9f41c0993b807627ce204a3a05791f691d0ca218c611858b07034e83aa27"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV7/1/block.dwg",
+      "sha256": "3593d41173c404965d91f5251174ae424c64c61c90849b543415705786ff600d"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV7/1/legend.sld",
+      "sha256": "f51e082ba41f5084bee622d8e004257f29a70daa7a9c05cc6935fc96131f05b0"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV6/1/block.dwg",
+      "sha256": "09853733e661a35d358f2aace96070d3e901e142d7ed6e040285bc8c7fbb27e1"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV6/1/legend.sld",
+      "sha256": "7ec4e07df789cc2cb2f84c0e3efb0127fa8605b513b3ec9f36479b01883e6827"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV5/1/block.dwg",
+      "sha256": "50a2b4dfd26bcca673fcec7a8c8c86e772b52628512cb5cdec67d81b3cf0719e"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV5/1/legend.sld",
+      "sha256": "2abe380246f9eeee6a8446deb1401474a60b227485c491a2a1767d192ea3b69b"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV49/1/block.dwg",
+      "sha256": "d1def7865bd155c06e707e36a24be3e9d4288782d776201443eb18b5e29ef402"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV49/1/legend.sld",
+      "sha256": "89d303514252cd84554ff1bf472ea16c335385675c0569a6e6cdf8012e98d977"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV48/1/block.dwg",
+      "sha256": "590e770b25c29b8170bf66c7e8ca6ae7dce0e6fe735a46c725bfb112a5766e52"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV48/1/legend.sld",
+      "sha256": "ffb758bff62e54faf7a734adc82d92076fe43ae397e2f56b7781b816a2bed714"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV47/1/block.dwg",
+      "sha256": "cbd59452d4d1e22947628e58d84fabfb3c4ae65c7cbe7293ce9df44c1b20d68e"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV47/1/legend.sld",
+      "sha256": "702deeac9bd1e785562df3a55bdf2801e06c8ce1a891d5e4faedeb0bca225e94"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV46/1/block.dwg",
+      "sha256": "491c4ed9a7a6099bf726b954bf0370d21475a8fadb23e8402452122a6d956132"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV46/1/legend.sld",
+      "sha256": "488de23b278b4f173c456a44109c748c21bf02249d23ea73eb97f901aefe122f"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV45/1/block.dwg",
+      "sha256": "d09f561cd59e1d663550f033159a38d538697cf2ec1f0821253a426d5fe64abf"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV45/1/legend.sld",
+      "sha256": "6db389a66364787511f4c7c2f9f5d80d9bc92a9091278d17585796a70caa63d2"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV44/1/block.dwg",
+      "sha256": "889b9c64191520644b454b31bf5de83629ef9b8956bc23af06816a7671331b85"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV44/1/legend.sld",
+      "sha256": "ad56061bf23b3a27577115a4a8ec009aeaeba06f0290c31bc3540fd01fc5aa45"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV43/1/block.dwg",
+      "sha256": "7911e96b42bbf7e389a8fc227ed1d8920024b0c9ccdcf8d25d946495736f2a59"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV43/1/legend.sld",
+      "sha256": "2d956285763c3fc4b88139f37b0bb3fadbb5ffc11c7b12e690574a791aabb77a"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV42/1/block.dwg",
+      "sha256": "2c563e3e1bb956ed32dab76101c97e8976f44b8f4366760b24cbfab97cd38305"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV42/1/legend.sld",
+      "sha256": "245ed0b1441d61b38e9449e1870845ccb71e5fdfa6a2fede54b94ed435e5da82"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV41/1/block.dwg",
+      "sha256": "e015b6e6399fbd32998cc850fc5f0c61cd0ada8a6345f397bedfdd9770f0d8a7"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV41/1/legend.sld",
+      "sha256": "33944c4ebbdf1319b393db0e93ac726061a4106006cc5965a7f35df3f55f1805"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV40/1/block.dwg",
+      "sha256": "2bc0d6a581fe84ffd60448e155c98a46069c544976e58e79342de57c5251861f"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV40/1/legend.sld",
+      "sha256": "60dd5cc1362fed7378795ab20da82e692b8a5068137d71d7154df1786f71f2bc"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV4/1/block.dwg",
+      "sha256": "7ca572c8858e89661b4e9a68439eb934c6d56d82dd18011ce7a7c00fe6a408e6"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV4/1/legend.sld",
+      "sha256": "0a26b05c280966a0a0d9799928784cc5c87b0998ea509c58d9ab1a68deff3a4b"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV39/1/block.dwg",
+      "sha256": "855a10fcba5602de92a46bfc2568c83e98fa511c4842896fc0bc07a64bd7aae6"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV39/1/legend.sld",
+      "sha256": "2bb242cc2ef3818c688e357716d3361d813e41fcd7683f56c4dd5a7816688730"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV38/1/block.dwg",
+      "sha256": "24350f4d20df4c8d75ce5c5519182fe2116b8462444623c014fa01f2897bdae1"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV38/1/legend.sld",
+      "sha256": "03a76db305a75c44dc87376b7c75d835156a1a8c1add72973e617da9020b731d"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV37/1/block.dwg",
+      "sha256": "eda11f73d51c4de38c8b5e0fcc7075eb53e0f472dc905098c362016ad00d588a"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV37/1/legend.sld",
+      "sha256": "463e27b2fbc3e8dd78f65312fcbe71f84896054c8d6262bab1b81678dbfcaf3b"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV36/1/block.dwg",
+      "sha256": "80a8ca62822276ce955999ea305e9a3a0614789f0937c775d351bd1c01913361"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV36/1/legend.sld",
+      "sha256": "6845028d185cf092bc2aeb671324ddf633de6c7ffdf37e3aff83bc7669079435"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV35/1/block.dwg",
+      "sha256": "4c0001af064e94a5dd8b04bbf94915e1204a97029337a96aee3e8b4861705201"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV35/1/legend.sld",
+      "sha256": "0d485802f2350f16bb41fc2c1ee51bc884e278bda40f4a3ca842f94c687e4a74"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV34/1/block.dwg",
+      "sha256": "bd20a1e98227ca04e4e8dac55012e19b21de9caabebcc26095e98f777c18eefc"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV34/1/legend.sld",
+      "sha256": "baedbe5f109ed1e78f5ed68093ca6e1a53a400fd87dfe76621cab99b5b2c1c7a"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV33/1/block.dwg",
+      "sha256": "f7da0a4c8e6926f8f3968b80ce18789b898cddb4ed836db987b45a412e8f3815"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV33/1/legend.sld",
+      "sha256": "e416e5c5b08f9c98acc74484440e8a267ccca7561dadb8ad44b33799e598d998"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV32/1/block.dwg",
+      "sha256": "5f1e0debff7d04272af0f11b424992037a0207f5504e08c1129c93eaa5fcd318"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV32/1/legend.sld",
+      "sha256": "13994c1364daace8a94045a5b04c07e5d2ec79d4223b8f5ab20db477c30b7fb0"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV31/1/block.dwg",
+      "sha256": "98c58f5d3117007a89e7be5fa039a0b1d25417c111abfe84f18ff454f599e691"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV31/1/legend.sld",
+      "sha256": "3cb370431b9197672881cfd6be4e8fefe3eedb71b43967bc6dffb16f3d1977fa"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV30/1/block.dwg",
+      "sha256": "036db71abb8e872930994d3372b6832291c17ec3accec2df5383c4d71a5ccf92"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV30/1/legend.sld",
+      "sha256": "588c1012544ef7f3373147e08f0fdceb7c2ad463b2899c25053d97f99c39caee"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV3/1/block.dwg",
+      "sha256": "f6ab920f412d60b9d121887fc1f6da764088ff78527a8c801843561b35e5a4c7"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV3/1/legend.sld",
+      "sha256": "6f360f758e4735d43bae91500bac7759d47ecd65ce90b1c06e8d4cf0e8333996"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV29/1/block.dwg",
+      "sha256": "fb01a50ab1889b384eb885a4dd47a815a4c1d07b539fd1450d92047de8540ad5"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV29/1/legend.sld",
+      "sha256": "dfd8d188691e02ad337b13cbd60fe2f146fc6da6fc2f3621bf8cc5705535537f"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV28/1/block.dwg",
+      "sha256": "c578619cb5828bd9fdc5e95e0f6a37a5b3c6bd1ed6aebb207df8411895aed12e"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV28/1/legend.sld",
+      "sha256": "15fa35903c4de21e91c671081996061a9bdb3d27ee48112a525f93fc37dc9385"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV27/1/block.dwg",
+      "sha256": "de562b613d30945677f3653c7d092f4f6381b433d6d53f59f0dfa3e49858cdf8"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV27/1/legend.sld",
+      "sha256": "bd656fe346c707e4125cc9ac2bf031ba03360b6a7737f84f85ab45b1a5f6c32a"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV26/1/block.dwg",
+      "sha256": "205e5d4fbe5a9860db513830da68aa63c35d7be35eefbe273d194a72bf06500c"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV26/1/legend.sld",
+      "sha256": "dc8008dd33c012e89c38ec922475502f1e451d8d97c9ead6a53c7263f2128f04"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV25/1/block.dwg",
+      "sha256": "cf395b6fd507691b81a1d818eef5b024107a5e2b4ad49c5a3aa338bac6385db2"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV25/1/legend.sld",
+      "sha256": "63bb437835b752d46bbde7276c1c53d5557a2d87d7e911508d26259a4cc1042e"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV24/1/block.dwg",
+      "sha256": "70646aeab4fac9b5b73a2748e9675ad832446156bf23164e71cc15babf65835a"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV24/1/legend.sld",
+      "sha256": "f8542293c1828bbd481cd37a0e8925d932cb518d76e6b73436a05ba729a373a6"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV23/1/block.dwg",
+      "sha256": "937d5f861c49249e48d571077065751121e5fe9158f58aa4cbe2d39a8c34b0cf"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV23/1/legend.sld",
+      "sha256": "ed33cab36fd597e2501522276a2a20504e2626beacf918023d241fdc0b905140"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV22/1/block.dwg",
+      "sha256": "8001b48fdbd89da4bba4b448c3aa1db94d8c160f4ac5dfc3b60146e1e422181b"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV22/1/legend.sld",
+      "sha256": "4c1b65a105a19670f6d7a80382ca4061c19af92899ef9dbb8ae755e316e18bac"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV21/1/block.dwg",
+      "sha256": "02ac5304edf2f912f614fa40aace547a9b5186166d05ac79d9c2661d4a69d93f"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV21/1/legend.sld",
+      "sha256": "5a694555a21b0f8303d735055370ed4fef15f27f57cd638a82bf487f52810014"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV20/1/block.dwg",
+      "sha256": "43bbcae447895302a15c1ea3c32307d3edd3e21e3549534393a1cddbcb9e2bf2"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV20/1/legend.sld",
+      "sha256": "14f00932b967e9dc6cff745f433caf6daab852979affb2b3b5ca6b4099453bce"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV2/1/block.dwg",
+      "sha256": "0ca8fbf7bf24c2a8b197078adbc1ac093011910b8a10f22e3e732c6ef2857620"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV2/1/legend.sld",
+      "sha256": "5d340aef6f1d7214a8f21e10ed201b8d46b4458ddf101a94a736a6e92779a9d9"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV19/1/block.dwg",
+      "sha256": "fd4fb5dd737e79e4883dedbe8485185f30d12a32ef4fe1e1a94f887c46919ad0"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV19/1/legend.sld",
+      "sha256": "6339e5c6524fc18758d2f4f9e0e7c2388f98be156dab3ba544cf4f94b3cc656a"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV18/1/block.dwg",
+      "sha256": "ed09f053f97aa3aa04fc1540fa54ca867d8073d3c564388f031132145d7579ae"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV18/1/legend.sld",
+      "sha256": "f28899381766ea9cae80f66d49d0a22e2697dd9f2598947d6652ce5ac19b7441"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV17/1/block.dwg",
+      "sha256": "71a2845c99767a3a4dfab223a9de6ae1ab30c46fc4cac1d9a873adcc6b11406e"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV17/1/legend.sld",
+      "sha256": "c478fc5e207e8b0acdb04371eb0540e063e7426710f4a098b8333f643c3e29ee"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV16/1/block.dwg",
+      "sha256": "c9a0c5692a0c071ce57c15b28cdb34b6c264a6248f6159f3e5f7637dc1ee93c2"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV16/1/legend.sld",
+      "sha256": "ca2064f6cf69aacb1f503c967ab241d88ad6894fc974b7688327aa69431658f3"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV15/1/block.dwg",
+      "sha256": "10f76e3f8034cada66883c8fa34085b30da93c1a405da87f3b86b052e1691614"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV15/1/legend.sld",
+      "sha256": "f3c66c2e0e5ccc15fdb629e63616fc2615e480288dbaf904ea7125ad77d42a6c"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV14/1/block.dwg",
+      "sha256": "24ab3daafd9c7883711ff812eb3d86976639e5daee1624711979f4685f88e8aa"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV14/1/legend.sld",
+      "sha256": "cd51749cefd59b32ac7aeae8a6739e2fcf96cfbc145e41d9efcff6c48341f9b1"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV13/1/block.dwg",
+      "sha256": "72e8cf52e527d7efb39d0b389d7923e63b9074bdc2f7b47c6b2e8b4753712c9f"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV13/1/legend.sld",
+      "sha256": "9d5583f9a4f10cd3b14384464288e85640ccfd76e186198496b367cbbfab27df"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV12/1/block.dwg",
+      "sha256": "e3b2e2b8fb7ae9f3f8ad3d5c11310c67a707e106f242a9946c84b268bc0104a5"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV12/1/legend.sld",
+      "sha256": "365de774b034c43ae349412ce5a4cdff9e63581556ac356a9a06826901400237"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV11/1/block.dwg",
+      "sha256": "fe532ed0c9826118a34d35d9517e607f9eedc13d29ab4d15fceabbc548db7cce"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV11/1/legend.sld",
+      "sha256": "700cf6a83d4f90aa930e3bea40c4f89e6d4b0f9887371eaa41cfeec46b883ad8"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV10/1/block.dwg",
+      "sha256": "0bac45b84b8f51673c1a5f70704d436912149ead6dd6dacaf7500c510709fa99"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV10/1/legend.sld",
+      "sha256": "660aaab299eb15949b35a58c7275f1df7b7fab3a71ae2089df50f6b494e95209"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV1/1/block.dwg",
+      "sha256": "ae7b56de06757f1d7ca3e59a4dc5c40762b49e101895e097a4f52cc450dd10ee"
+    },
+    {
+      "path": "output/应急照明-117/assets/default-device-library/assets/ELDEV1/1/legend.sld",
+      "sha256": "ae17278edebed0de60c701e76d119dadbf5e1ec8ad2fd6cbd95ea376b08611a0"
+    },
+    {
+      "path": "output/应急照明-118.zip",
+      "sha256": "1710a07e034bcc91e3097e257bf51d05008797a8be06d4d1ca6be67a68ca04c1"
+    },
+    {
+      "path": "output/应急照明-118/CCKK.lsp",
+      "sha256": "81ef2b8163a5ac145fe24149a29fa145df0204e14f4955d3674f91f2f201f5a5"
+    },
+    {
+      "path": "output/应急照明-118/package-118.marker",
+      "sha256": "f3b6ec050988a49cd6f0c0b8ee95796cfb2635e1d10aa4aed93141350da64c6c"
+    },
+    {
+      "path": "output/应急照明-118/START-CAD2020.lsp",
+      "sha256": "cecd7a79c70125a9abcc663362a824fd8d24318f4ee2167420402541d380e17b"
+    },
+    {
+      "path": "output/应急照明-118/UPDATE-118.lsp",
+      "sha256": "4c98255965c66f499a9d8e65606fd22f9aa355a9fec8c56956587723de18f617"
+    },
+    {
+      "path": "output/应急照明-118/使用说明.md",
+      "sha256": "014bf3eb90963970969875772a66692ccdfa9164c3f470f91627fb21c85ad5aa"
+    },
+    {
+      "path": "output/应急照明-118/docs/00_面板保存记录.md",
+      "sha256": "e7ac8f47ef2b4ed3d1e376a2fe1331df186263515dfe46d5350d7f45b51690b1"
+    },
+    {
+      "path": "output/应急照明-118/docs/01_应急照明回路统计与系统图生成方案.md",
+      "sha256": "02f9d058b57cc30644025ede2c338b11a64a54ed6656fd2a3e77ccc836116d1d"
+    },
+    {
+      "path": "output/应急照明-118/docs/02_断线导线几何续接算法方案.md",
+      "sha256": "292a2794a03882debfd1f71e67af7a6e9d1c9a5cd3ed4649662dfa3e0e5392b8"
+    },
+    {
+      "path": "output/应急照明-118/docs/03_加载使用与验收说明.md",
+      "sha256": "014bf3eb90963970969875772a66692ccdfa9164c3f470f91627fb21c85ad5aa"
+    },
+    {
+      "path": "output/应急照明-118/docs/04_整箱自动分回路统计与设备功率赋值方案.md",
+      "sha256": "e13f3f613ccfe280323d2941950072bf8b6b098d01b954ee82e9267a2ad83b4a"
+    },
+    {
+      "path": "output/应急照明-118/docs/05_常见错误原因与修复速查.md",
+      "sha256": "e29c37e3edde857943dd735c002a9d549e2df8a690cce3067a22df6ae7bb7e24"
+    },
+    {
+      "path": "output/应急照明-118/docs/06_固定图块系统图与功率标注自动更新方案.md",
+      "sha256": "0614e42e2226d9cff381c5e82652d7af3faf504323bb159e01518124b727cceb"
+    },
+    {
+      "path": "output/应急照明-118/docs/07_识别与系统图生成性能优化方案.md",
+      "sha256": "4bb68922d303e6bc876bb6b0d38c263f2f4a926c4a0c0f45d88b0d0fb8145f59"
+    },
+    {
+      "path": "output/应急照明-118/docs/08_同箱多平面独立回路补充拾取方案.md",
+      "sha256": "8f57b81e1ff0311522bd3a949242e133cecf98ee9bf71495a5c2e942d0f44e38"
+    },
+    {
+      "path": "output/应急照明-118/docs/09_天正HLBH批量回路编号工具方案.md",
+      "sha256": "6c60846a7de5e4628f1aa5705f4669d8b47a00fc3a96b2f25e7ba375d83c92ce"
+    },
+    {
+      "path": "output/应急照明-118/docs/10_天正HLBH批量编号使用与CAD验收.md",
+      "sha256": "f4f48ebfb513cd3b313f16496dcaf538b0be34a8ed2dd663340e62bb5d9baf75"
+    },
+    {
+      "path": "output/应急照明-118/docs/11_HLBH批量编号提示误判修复记录.md",
+      "sha256": "1ddbedaf603c567549e8e140b0d3245f3d22f0f796533330e129f41138528a0c"
+    },
+    {
+      "path": "output/应急照明-118/docs/12_HLBH逐根两点输入修复方案与记录.md",
+      "sha256": "74e4e69020db18c71f2f3dd61b97dc39256bba9e3e4a4b71d21fbc8d68f249f5"
+    },
+    {
+      "path": "output/应急照明-118/docs/13_平面回路编号读取与系统图对应开发方案.md",
+      "sha256": "0ec589dd89bbc597265ce1d2e2a005e941b8151e59a9d16f0e584578f0dd26ec"
+    },
+    {
+      "path": "output/应急照明-118/docs/13_独立设备库与材料表管理方案.md",
+      "sha256": "3340197078e731d53b3f5f982b4742fe23a10351552e3fb47430a092cd7650af"
+    },
+    {
+      "path": "output/应急照明-118/docs/14_独立设备库CAD验证与使用说明.md",
+      "sha256": "171af57828b01087caee6baedeae8e4aa99565308ae658801ecbc160fdc0fa4f"
+    },
+    {
+      "path": "output/应急照明-118/docs/15_设备库统一数据源与自动入库方案.md",
+      "sha256": "b1626b0b6d9447dc64c395b6d26efa68469c79307611eb3b5343ae3d1890afd3"
+    },
+    {
+      "path": "output/应急照明-118/docs/16_天正设备库圈选图块导入说明.md",
+      "sha256": "96ff6ad5423e8775aaca2cd368bbffbbcfd97d5f37b36a1043ed441dc009af06"
+    },
+    {
+      "path": "output/应急照明-118/src/batch-number.lsp",
+      "sha256": "1ea45d451d23aba0d8392b2df7bc286c9af1e0ef8d7b426c280e46a3aba5bbc7"
+    },
+    {
+      "path": "output/应急照明-118/src/circuit-number.lsp",
+      "sha256": "021cc85f384a0bba2ac4a1e087aa54d543dde52f0582798786dd99b601f1923d"
+    },
+    {
+      "path": "output/应急照明-118/src/common.lsp",
+      "sha256": "887428428a679b828f0d40421c7c0484b56fdc7d12ef0bb024ee7cb208ef8cac"
+    },
+    {
+      "path": "output/应急照明-118/src/config.lsp",
+      "sha256": "d49adb74e7a55cde5cfa8ee5ac1f443ed2f035388f9f35f91e4876d65c8fc974"
+    },
+    {
+      "path": "output/应急照明-118/src/device-assets.lsp",
+      "sha256": "8932e770e7a03eb62c03032db4d222f3db51f2b168f3c3be220ce5cdc83060d5"
+    },
+    {
+      "path": "output/应急照明-118/src/device-defaults.lsp",
+      "sha256": "ef38e4412994adbe4fbc6e0236584178904b2b5d9581c52ee9b9828c559ce115"
+    },
+    {
+      "path": "output/应急照明-118/src/device-inputs.lsp",
+      "sha256": "190ffbb5c1b420edab984dd688ce592905a6bec5e39d35d8f62c93a566221749"
+    },
+    {
+      "path": "output/应急照明-118/src/device-library.lsp",
+      "sha256": "d4f1c49f3da49b424fb0700cb89af6f3e8a7eb4be5b034c62c88c7b66744d17e"
+    },
+    {
+      "path": "output/应急照明-118/src/device-migration.lsp",
+      "sha256": "51791cdd1b09939987e7a8cdd9ab08f42bd87e8dfc3b2ca0d3ff6e7a473e1c35"
+    },
+    {
+      "path": "output/应急照明-118/src/device-recognition.lsp",
+      "sha256": "8148c629eb39c48b46c6c6f71269cb7b3de84146adaa5c08e708942f82ee83b2"
+    },
+    {
+      "path": "output/应急照明-118/src/device-ui.lsp",
+      "sha256": "dbd4c07d47ec57257269ba69c1010c16fc5e169278ae1317ea5b3148b8c0f039"
+    },
+    {
+      "path": "output/应急照明-118/src/diagram-commands.lsp",
+      "sha256": "0d82c52eea102543a5d63c5e647faea870b4a69a9e331ce4125be23a6d8ef013"
+    },
+    {
+      "path": "output/应急照明-118/src/diagram-store.lsp",
+      "sha256": "e54a57ecf63dc4ff146b73cec24059141e9cb152b9f6baf28eeacc82fbd53bb0"
+    },
+    {
+      "path": "output/应急照明-118/src/diagram-update.lsp",
+      "sha256": "52f2e677555da8e546703b71d2fe7dd6678ab9af7af5148d60cccab791e8cefd"
+    },
+    {
+      "path": "output/应急照明-118/src/fixed.lsp",
+      "sha256": "df5eaa3312b6bf96686b340ce8925fb9ddf57129903381349072ce9adaa4e275"
+    },
+    {
+      "path": "output/应急照明-118/src/generation.lsp",
+      "sha256": "4029b614522a4a5d2f27b35ae6c107e30b0766efba36f7a7e8dc77d5da41fd40"
+    },
+    {
+      "path": "output/应急照明-118/src/geometry.lsp",
+      "sha256": "bb896c82cc9ab557d540676d5f055dd5e223a6546f32f110929d78752ed42cc7"
+    },
+    {
+      "path": "output/应急照明-118/src/insert-circuit.lsp",
+      "sha256": "bca8ea625f428cef6bebad9f00e317c38de8c3b286141e083f347418819a3dfe"
+    },
+    {
+      "path": "output/应急照明-118/src/load.lsp",
+      "sha256": "cecd7a79c70125a9abcc663362a824fd8d24318f4ee2167420402541d380e17b"
+    },
+    {
+      "path": "output/应急照明-118/src/main.lsp",
+      "sha256": "f66da307cf805391b0ce4db815b00d6ce47f13bd533412f6c272a5c626d02e16"
+    },
+    {
+      "path": "output/应急照明-118/src/panel.lsp",
+      "sha256": "a36322574f78de38f0092226c6ce3904c4772e982b9db4b881508c3c83ee7b24"
+    },
+    {
+      "path": "output/应急照明-118/src/simple.lsp",
+      "sha256": "4dcc771c32e7af3921015eb16c4db7d2f6188e3a31c7f48fbd24f4eb46ba3e9e"
+    },
+    {
+      "path": "output/应急照明-118/src/startup.lsp",
+      "sha256": "8c843325278754d1ea98b42d7917fc66d429316bec7433bab9f0bcd9beff0463"
+    },
+    {
+      "path": "output/应急照明-118/src/statistics.lsp",
+      "sha256": "bed80b2ed028892eb707b63f94482f54bc1018325454e163266af081dac27770"
+    },
+    {
+      "path": "output/应急照明-118/src/store-compact.lsp",
+      "sha256": "f40065f21764fa436f82a5d41ea8d447aa63fe594de805797f4d55e3b39f659e"
+    },
+    {
+      "path": "output/应急照明-118/src/topology.lsp",
+      "sha256": "f118f39ed08e441a512c3aebe82e4c13c1ac1131412e187d79869603fc45c367"
+    },
+    {
+      "path": "output/应急照明-118/ui/box-ui-011.marker",
+      "sha256": "973a3b32f5632f31db12419d9ec6f597005e850b64dacf5d1c47fb7a69c086d4"
+    },
+    {
+      "path": "output/应急照明-118/ui/device-library.dcl",
+      "sha256": "736a25f3607ccf6a2204f2ed40b5eea378bdb3575c5a380e21add64e6ff0d2a1"
+    },
+    {
+      "path": "output/应急照明-118/ui/diagram-ui-044.marker",
+      "sha256": "bbc93f424ee5012e66511a990f87f5a40b0a84a2437aea2a8d14d30e7e629395"
+    },
+    {
+      "path": "output/应急照明-118/ui/power.dcl",
+      "sha256": "8e445e1541a6aac157900695d4adce3c18ca2bfb3b04018461d140ec3691a0a8"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-08-box-statistics.md",
+      "sha256": "5269d0973bc69977abbdc18a35212d02f689e959ab074acd71d8863434a4844b"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-08-contact-performance.md",
+      "sha256": "329a0b78efd66f5afe482cdbe1b075d52e54381fa181a22edf3f937186e04748"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-08-contour-diagnostics.md",
+      "sha256": "e1477f06b2871aac47853e294b60ec630b09fe22aeea66f3e12a63e6b8eebffd"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-08-curve-ocs-fix.md",
+      "sha256": "2565b810f158501c40b4a060225fa7dcd37fe4a780bc3545327ece087edc729b"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-08-exit-preview.md",
+      "sha256": "cd6752ab91be830abff62e829ba4f3e08b19a47c93e10cd0da5ff37494acbeb8"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-08-free-end-gaps.json",
+      "sha256": "61c38e0b2bb56b4737c522663b7eea4ee891936f58d60233bfe0aab11210a5f9"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-08-free-end-gaps.md",
+      "sha256": "8fb81e13840a6df485cb26d9de0fee2800adb469971ba888b0a8fca6a28197ef"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-08-header-alignment.json",
+      "sha256": "c4fab95c6b67199bfd9ca391811117583b477b5e4deb1f01f17b662e21a8e284"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-08-header-alignment.md",
+      "sha256": "a48c70125decd154731777681603bb1efce11dc21540f796287c591048ec5572"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-08-linear-contour-index.md",
+      "sha256": "950b1645b2bbaa0703bc19289987720f3730db9b6590b2b0bd06c93904c81f78"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-08-polyline-ocs-fix.md",
+      "sha256": "2e215bea23ce540faac55c56e2f0beface356c3446971a69251319c9520b4d23"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-08-region-performance.md",
+      "sha256": "dff5318767a62289a09f4ccb038658bead0cf6d00d5a2b13c2bbdb537572ce05"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-08-sample-layer.md",
+      "sha256": "87333544566fc021d33adade835d7127d3630185083d400c156d50be54de56cd"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-08-simple-device-table.md",
+      "sha256": "6d348e0806f86aa0cd32ca03874d460f4ba1721b1b3944a2516f5c9066c0209c"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-08-trace-diagnostics.md",
+      "sha256": "337db3350b703f3aaf06728e1062cf06fe07f7acab39df73134f61df60955727"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-08-whole-block.md",
+      "sha256": "bcf122e3f4a12eb63953c05408f6fc1adcf0b48faae198d71bd92c99512a8001"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-09-cckk-captions-054.md",
+      "sha256": "3b89cb8d76d75dedc01a50b3f55e0b8e0d4192232592b981880a781823c3eb82"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-09-cckk-command-053.md",
+      "sha256": "1465923b66aec3538cbfdd414078e52fcbf82dabecdf5770d6525b3457274c09"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-09-cckk-generation-052.md",
+      "sha256": "f5e07cf2761042e2e2c015996e3a9bbe2db52cdac513ec7fd61de256c59509d6"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-09-circuit-preview.json",
+      "sha256": "89f8132cbc92174eb7e0dea8aa9ec456d9ca374d9f95ae51c1ae619adb14be63"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-09-circuit-preview.md",
+      "sha256": "091944fcb8d3a99c7964e1d2aa9a074029d50bb7b0616932bd54e276f628a109"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-09-device-thumbnails.md",
+      "sha256": "06bfbb7a7954ab6e94472be43bd40be1974c5dbd71f9c263e87db1598ee66516"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-09-exit-devices.json",
+      "sha256": "4de0dce74ff25f0af2fee73c7fe2b93ea58b5ec84bb5dff12f90fd16f6624005"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-09-exit-devices.md",
+      "sha256": "fadc9f769425c89dd6e34afa1d16ae35a0e7322fe691834679ce964a25e26df2"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-09-fixed-diagram.json",
+      "sha256": "41a0ff6b4e890977e1953f12f7b146fe711933277fe7a8e0d3912dcf441e9988"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-09-fixed-diagram.md",
+      "sha256": "6248d01f07f95b650da3f3ab13db41404e384310a01075b4777db9e230e91e9e"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-09-inline-power.md",
+      "sha256": "26afefb75d4b535418dac2a9c107c26a59eaa37a32ba664e65362cdc901d3fa7"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-09-native-store-045.json",
+      "sha256": "90d0b11e8de809135d8655dac4748093bdca32afd936a3e657c954099d3094d7"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-09-native-store-045.md",
+      "sha256": "fcbf49d920b2c7fe5d0c4708a01ffae3adea10ed22894baafb58781e12131d74"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-09-panel-repairs.md",
+      "sha256": "be09aee5294e393f4b01b87022c61f07efdb7321cae880f6696e81c2d2bf9fb0"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-09-panel-stringp-nil.md",
+      "sha256": "2875ef2b42a9e07ff0316f3ae4ab49a93f2a9d5b86fa81906f6351b516a2a085"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-09-post-stat-workflow.json",
+      "sha256": "7b5f5973133ac7e9cae18f58c503b3698836c0bee8a169c969cd91575f5488e7"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-09-post-stat-workflow.md",
+      "sha256": "42414f5f18f392447d8619d7063fe27699bd27738323702fa6d36c2fa9d6ded4"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-09-save-insert-037.json",
+      "sha256": "b4b0b2af164998edc9af490e2a9b6ce963e9b563d903138adac6489b6ed9e95e"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-09-save-insert-037.md",
+      "sha256": "a95cca9d45d964c1dcb80a6e911f2b7e1e6845de486c4b1955e0d03ae9ab784d"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-09-store-parser-043.json",
+      "sha256": "85feb229583253d2681c82e245b9b3875582938e7dfc0d85e06932f20a8a026d"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-09-store-parser-043.md",
+      "sha256": "84b685253668214211599fc8cbdfdd1d9838b6d95ba09f44c6f17e4409d13157"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-09-store-readback-046.json",
+      "sha256": "912a1c17af1ec1dcc65a6fb99fe89640107525f1d64bd7a67246b60463fd9c19"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-09-store-readback-046.md",
+      "sha256": "cf9a13565ae3c7f540155e9f456ce43497f4ac47f7a42244f910c370df3b60ab"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-09-template-choices.md",
+      "sha256": "f84484b586059ed0937924dcaed933d92e802839d32789b8d6c317ed65ae124a"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-10-auto-wire-063.json",
+      "sha256": "e026374efb28932ffc085ecb61b2d8157430bd5d72ba3bb70560aed7eeebbb02"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-10-auto-wire-063.md",
+      "sha256": "4fe7a1fadf506814d3ef8c12e12c9d212ddcaad8ec282385d361b4f715852ddc"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-10-circuit-colors-065.md",
+      "sha256": "451f0efdd74e86d7c9382fe21c62adc7ce8e094ac0a575af9f3a78401c5f8b98"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-10-circuit-numbers-061.md",
+      "sha256": "417eadfccd258c5e698e74516dc4af2a276386f95a98a6870642bc0adfc93fa6"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-10-concentrated-trunk-071.md",
+      "sha256": "ceba752736f7c8ad0db5cdb8031661c528241ec93eb8805fa6a3dbc7769c9906"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-10-contact-exclusion-068.md",
+      "sha256": "7c28ff83da16e6f2724a745479cda88cdf8cb4518c480f67dce06e5ff235baa9"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-10-deleted-diagram-059.md",
+      "sha256": "fd74a04b74f3d1cb2a44f0b953e02d807bd32d0c0022a70c7c71b8146767d436"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-10-device-contact-060.md",
+      "sha256": "fd5bb6323f080ccbd2adf40b8ede056940a19e02a10f9561b144d48b28fb4161"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-10-diagram-view-058.md",
+      "sha256": "c9985c48e0aaa2e5266a62788decb4be5765656a9a45ea46bc2e2821c28281aa"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-10-direct-placement-056.md",
+      "sha256": "db20b15d6225d4021c346624f90e81716b91e7cdcd131a009dd3caf71d0663cd"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-10-empty-pick-076.md",
+      "sha256": "f38215c6a79381a522dea393d14290bc533fa151e03c19db6353eae096cb59e4"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-10-power-text-rollback-057.md",
+      "sha256": "bbae8a67019ea80e5210cea32479052b070db18ed70aaa1f453a34931e58feec"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-10-saved-records-067.md",
+      "sha256": "ff094849769d506dae98102280896cc53be77b9c3cf941b01f8e2d283b4984ee"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-10-startup-062.md",
+      "sha256": "acd76275c6e8a667cdc07f6fa9ff6420dc1e1e462d9976c0d1266edd522258f8"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-10-startup-064.md",
+      "sha256": "bc8b58756ac21d71c9360bcd09afae2396b85f78031d9cf37ee9d553051ebd9c"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-10-startup-066.md",
+      "sha256": "e532e2bad6dab4f90d496dcaed5611e4f964b0c7b359262c9ec738f186a0b838"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-10-transaction-memory-055.md",
+      "sha256": "83d25a17b1fe6a8c0c8621fae58e0cbb99c15cb7855fb2440d3d4f6e74d567fe"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-11-device-library-097.json",
+      "sha256": "b453a8e2d9e3707065226509e3c2a5dda6f44885ba4dff894fc9c930aeff02c0"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-11-device-library-098.json",
+      "sha256": "d715b5115e9f3d5bb0875d6ac4279eea94adf014e90f0cf49384860a1adc1772"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-11-device-library-099.json",
+      "sha256": "46c72f622ef72e525a37d63530422aab0ea5f55bfddd120285e12bb1f1c8cf88"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-11-device-library-100.json",
+      "sha256": "1d929262315e322377f82319c7e1eb98a7e4e17f725ff5baa6b576bd0f5fe6b6"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-11-device-library-101.json",
+      "sha256": "933ffa2eedeb97de3bce759862104d54462b8c1ccc7051c50e1939dd037e68d7"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-11-device-library-102.json",
+      "sha256": "bf1865bab42c8fc9b992e8aeecf3fc458dd495fd3784274edea6f14d3aff3364"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-11-device-library-103.json",
+      "sha256": "87f8e830de93f96223383a82e5fe182877fe2d89cfffc0df5e59e5d99aa4bdf9"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-11-device-library-package-097.json",
+      "sha256": "2af2774d745691e7b23a76d21184150c9e9a0c98aa8771a17721b029dee4824f"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-11-device-library-package-098.json",
+      "sha256": "5efae64482b0281c9cdbb4c38afa42443032b1db02d1fc9928b8ccce24cb1613"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-11-device-library-package-099.json",
+      "sha256": "2cbd76348773afcbe55fb9a90c3a5961dcaf95a76deb790dbfcc51c6c98040bc"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-11-device-library-package-100.json",
+      "sha256": "b50dd675dbf635983df2acb73c6a979e05409f654c3c8ca20df3e9b000d761fd"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-11-device-library-package-101.json",
+      "sha256": "e3cc518b4bfc4cc72e2d4a7efd5486ffd2cea6619984847a71ad4f188e794858"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-11-device-library-package-102.json",
+      "sha256": "75a79ab3932fb091b98b007fc84d95b7dc3241f393699813eaef4ce439f32375"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-11-device-library-package-103.json",
+      "sha256": "2a14d27abd7ee48272aafe9c89c362baf8193865daa40fb30b3b9e2a324ea928"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-11-empty-panel-096.json",
+      "sha256": "b51ed84713c8ad6e3907953f7068d648fa4daa2b7f8b6796e64450287ba302ee"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-11-empty-panel-package-096.json",
+      "sha256": "a83975d84828648f340cfce0f3fd254af359ea49f883cd54317caf6095fed036"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-11-performance-compact-093.json",
+      "sha256": "d3f4cbd5409fdf761432e80ea8ea0f879859de0796c8d61eade2fd5d39a36910"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-11-performance-decode-094.json",
+      "sha256": "efd4b0ac05aa5cf4f420302c393c261252cf96e1577a655f1ec7ed85029664f3"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-11-performance-p0-091.json",
+      "sha256": "87a0694042cd47a7b275aa4875dc73665fa7ecc91ed8fccc6f8763219bf1ea68"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-11-performance-p0-091.md",
+      "sha256": "1e875eddcd5cea2168af3e70e9161f8a3b05f6821124df0ea5d15d96e94f561d"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-11-performance-p2-092.json",
+      "sha256": "278de657b8ab3ff840b3046104b020717a3bdfe2d955184faf27b701c1d6af26"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-11-performance-package-093.json",
+      "sha256": "8e1e6184db8386076c68a611c22ea615bf064bfca31d467aa2ee12561531054a"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-11-performance-package-094.json",
+      "sha256": "768a1e26bfd11cfcd25921a156c1d145c594ddc16672d6ca6272a0f9e3892a2f"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-11-performance-remaining-093.json",
+      "sha256": "37ed622f78dfad4a369f9fdf9a47fc6f90ce4d9f0726dd441103e68dbef9674d"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-11-source-scan-094-baseline.md",
+      "sha256": "011bcedf62bd37656af449a3ddbf0a12bda41ff42ccb9cc1a4106b4b96fed629"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-11-source-scan-095.json",
+      "sha256": "12a3b47e41a46cd926e0a17ba392c9d67dd8afa0438c3d459e1d9781dd60efe9"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-11-source-scan-package-095.json",
+      "sha256": "18d3752402831f7303ee6f082aeae776430c5f14f2c5900708cdecbad115b879"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-12-default-library-source.json",
+      "sha256": "f7707fc8d7fdee491b3ddcdd7cdb963d1388607f6bfdb37626afa2a3ae8c7fd1"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-12-device-library-104.json",
+      "sha256": "a053e2e95ce5301254d340dbc9122b282787a3b570c01880ad23169d5f048657"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-12-device-library-107.json",
+      "sha256": "68d3aff6a6b6e0cf184278384666c944fe9e0dea5267246218855bd073adcaf4"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-12-device-library-108.json",
+      "sha256": "261f5bdf1d55183f121238e8f024560b637469cc3c3be453508f3cffa48d96a2"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-12-device-library-package-104.json",
+      "sha256": "23af1217ec9060bdbef9fdf3bdc7ba28d05ce52ff2d621f3512dd9638affbe92"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-12-device-library-package-107.json",
+      "sha256": "eb4b272e8746d6c3648713219243a6d2d75872c636be7afdf76147131b198476"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-12-device-library-package-108.json",
+      "sha256": "fd28acab2eb71c8b63ac74fadcefe66ffb825a260fcffc1f468b06a2fdd4fb15"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-12-recognition-preset-106.json",
+      "sha256": "ce0a3ae0f8f143b3f1210eaeb63612b75875ce0e845f9de99b501de4ecafa521"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-12-recognition-preset-package-106.json",
+      "sha256": "622c7cf0e6826323c9acac14e6eadc9e123c36a6af18b30e00865a7446162d1d"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-13-gap-cross-circuit-117.json",
+      "sha256": "285b991d756ec2f2f0f7228fb1e27b1167a8c1a749d85de1b41c59ea435bf855"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-13-large-xrecord-118.json",
+      "sha256": "2ee01158b36cd9e07c0f9c2c176cf56c432219e454326c083ef547ef45de7b33"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/2026-10-13-large-xrecord-baseline.json",
+      "sha256": "c8c13d903f031d3e0bdb44fd10e3008e95f98de2237a38b15fb86dfd297cb6ee"
+    },
+    {
+      "path": "output/应急照明-118/tests/evidence/automated-checks.json",
+      "sha256": "a74ce45de29524e132b72baf81a369335d63ba9fc352499d9ea04736832ab50a"
+    },
+    {
+      "path": "output/应急照明-118/tests/fixtures/cad-plan.dxf",
+      "sha256": "5265eb8a02ff207f7c693ecf4164fad0d5038348e1fbe17a09892232e5366fbb"
+    },
+    {
+      "path": "output/应急照明-118/tests/fixtures/cad-plan.expected.json",
+      "sha256": "542e5f4cade31c75033c4323483d9a07a7197db6a975d1cca7bdfe7e897833e9"
+    },
+    {
+      "path": "output/应急照明-118/docs/更新记录/109-启动备用目录初始化修复.md",
+      "sha256": "d974a9831587779daa2d6bbd46d15eb808d036856343797f54e480f2e5059f77"
+    },
+    {
+      "path": "output/应急照明-118/docs/更新记录/110-修复初始化实参太少.md",
+      "sha256": "961d75b5c755d9fad3cea8def23faea43c38ffd9a29c87a9bfdb78b28ea62169"
+    },
+    {
+      "path": "output/应急照明-118/docs/更新记录/111-启动保存与插入性能修复.md",
+      "sha256": "73a002a2c7a537c40f3f3467a1c64e13bd75e76588686a182979ea199232e031"
+    },
+    {
+      "path": "output/应急照明-118/docs/更新记录/112-按现场耗时优化网络与保存.md",
+      "sha256": "2dd1de61d3160d08005ef3d4ef896554e17f5d936e4a7eea0498726ada5dfbc5"
+    },
+    {
+      "path": "output/应急照明-118/docs/更新记录/113-保存记录按需加载与面板恢复.md",
+      "sha256": "3ad5e0c7a98524bb1d50cd37388466d71040eba6743e65269bdfa0023aa04e47"
+    },
+    {
+      "path": "output/应急照明-118/docs/更新记录/114-图例功率自动保存到设备库.md",
+      "sha256": "6295b2e94243bb0791369b8203c2d89c3db5b35add60d1172e3eb80d36e324e2"
+    },
+    {
+      "path": "output/应急照明-118/docs/更新记录/115-功率图例刷新与生成后保存优化.md",
+      "sha256": "34dc88128f19c1c91fd2389792fb4d9354b95c5f43013fced02f5af1c42509f4"
+    },
+    {
+      "path": "output/应急照明-118/docs/更新记录/16_ELSTAT面板入口.md",
+      "sha256": "02bf4b80869d3a9fc560f2ebc79af3f462ef72ba456f90a94ba2d95e0e17eb1a"
+    },
+    {
+      "path": "output/应急照明-118/docs/更新记录/2026-10-10-回路漏识别与生成诊断-079.md",
+      "sha256": "b7d46990c2eb67e56942e138be8bc6899d76ea8b6da591552976b3185603317a"
+    },
+    {
+      "path": "output/应急照明-118/docs/更新记录/2026-10-10-图例表命名-077.md",
+      "sha256": "5224f0b849d54e3469cc7b3f151b1acfabbd39fc27d64cafe4b6488ee0102c27"
+    },
+    {
+      "path": "output/应急照明-118/docs/更新记录/2026-10-10-独立图例预览-078.md",
+      "sha256": "d8e413b8c5463324a72c36c4152bdf0c057fea24ddd49b86b4de1d5264ba0f70"
+    },
+    {
+      "path": "output/应急照明-118/docs/更新记录/2026-10-10-解析圆与圆弧识别-074.md",
+      "sha256": "76de30171b4d8db635a2daff731803fffddcaf66772fccd8d6447888acb31e93"
+    },
+    {
+      "path": "output/应急照明-118/docs/更新记录/2026-10-10-设备轮廓性能优化-073.md",
+      "sha256": "2e42ff5215c419e2e5508223114a609e99258dc965e9efc99af2502485541b71"
+    },
+    {
+      "path": "output/应急照明-118/docs/更新记录/2026-10-11-主面板图例联动设备库-102.md",
+      "sha256": "1d55cbe114e2a3a206d970b37b45c119103db64299c1f267f446e65e56a7c5ea"
+    },
+    {
+      "path": "output/应急照明-118/docs/更新记录/2026-10-11-单击保存记录打开回路-083.md",
+      "sha256": "c8900d85c1ccb295d73fb5a2bcb7dd9628cf258283e2533a60ca894438e55191"
+    },
+    {
+      "path": "output/应急照明-118/docs/更新记录/2026-10-11-取消回路地面重复确认-103.md",
+      "sha256": "dc74a64e00a1b85325171cbbcb082f64df1e07531141a206eb529b706951028b"
+    },
+    {
+      "path": "output/应急照明-118/docs/更新记录/2026-10-11-存储解码优化-092.md",
+      "sha256": "01b0c59d6cca331f9537b80dced8bb885e297cef35b105a27d4f85b484e41a71"
+    },
+    {
+      "path": "output/应急照明-118/docs/更新记录/2026-10-11-存储解码优化-094.md",
+      "sha256": "9515b43fedbbabbe6153aa8aefbf1641b2f04fe1597692fe47f8f6daf37bd2a4"
+    },
+    {
+      "path": "output/应急照明-118/docs/更新记录/2026-10-11-宽导线接触与预览避色-080.md",
+      "sha256": "c39358f963b23eeb51a8f57a89d00176d6da48be5bce71b0ddc6c44592980b9b"
+    },
+    {
+      "path": "output/应急照明-118/docs/更新记录/2026-10-11-性能优化后续阶段-093.md",
+      "sha256": "a184558ad95429ffb0958b14f5d85690214f0f26e6c92f0063d3a16b4ea3fbd1"
+    },
+    {
+      "path": "output/应急照明-118/docs/更新记录/2026-10-11-性能计量基线-091.md",
+      "sha256": "d4b6cb9ed7ba708d021ccd4283f59bf2258a17726bb805b37edf4e6b7bf3df6b"
+    },
+    {
+      "path": "output/应急照明-118/docs/更新记录/2026-10-11-拾取配电箱编号-084.md",
+      "sha256": "cfee6965b2fcc1636ba80e190357ce01085f718369c0ce3881a6b08c1e2bf973"
+    },
+    {
+      "path": "output/应急照明-118/docs/更新记录/2026-10-11-拾取配电箱编号-085.md",
+      "sha256": "abdb695d26635e2f5fdceb2cb0118f0bc788edb894772e9f836c028cbb05df3d"
+    },
+    {
+      "path": "output/应急照明-118/docs/更新记录/2026-10-11-正常末端生成拦截-088.md",
+      "sha256": "5b53db84e47116227fbd2b49c081293e37e5b1229c5c7924daf39648e5c9ced6"
+    },
+    {
+      "path": "output/应急照明-118/docs/更新记录/2026-10-11-源图复扫优化-095.md",
+      "sha256": "8f68abf5da059f620dcf91ddce7bac1153ecb8c2c7dc9bd5d8b44f7f9e0ce359"
+    },
+    {
+      "path": "output/应急照明-118/docs/更新记录/2026-10-11-源图快照差异诊断-090.md",
+      "sha256": "e4f68d5e6077dd91f1b14baaa61113536cc2d5cd5cccb0c7e7adab7ce5d1b3ef"
+    },
+    {
+      "path": "output/应急照明-118/docs/更新记录/2026-10-11-独立设备库-097.md",
+      "sha256": "34c5f4bad839dfa573a2fe2b5084aa050856e452e9f50286dba3041036b35eb3"
+    },
+    {
+      "path": "output/应急照明-118/docs/更新记录/2026-10-11-生成未通过原因-087.md",
+      "sha256": "c239a3793c7ecaf6cb3a028d6933b2516c882e2a62914d1bfd93275bb4699527"
+    },
+    {
+      "path": "output/应急照明-118/docs/更新记录/2026-10-11-空图面板初始化-096.md",
+      "sha256": "79cfa151f24f7a9bb031de1d77b4e33878d6008832f5e94d0074e01fec6f4263"
+    },
+    {
+      "path": "output/应急照明-118/docs/更新记录/2026-10-11-记录编号同步-086.md",
+      "sha256": "3d66f7c211d217868d9f1a5259d34328ac0ab2083429e8b05f803660e51e4a76"
+    },
+    {
+      "path": "output/应急照明-118/docs/更新记录/2026-10-11-设备图形预览修复-099.md",
+      "sha256": "8a004c818de09443dc9b63fc6dd95e99052d97f5a6b052ffaa09988c1966ed40"
+    },
+    {
+      "path": "output/应急照明-118/docs/更新记录/2026-10-11-设备库入口与图例复用-100.md",
+      "sha256": "f982faa08f090e958a6fd31325f4e697fddbc16be8e30ed74d4455c0020a02d8"
+    },
+    {
+      "path": "output/应急照明-118/docs/更新记录/2026-10-11-设备库占用恢复与本图草稿保存-101.md",
+      "sha256": "5fe7695712cb830fd9661b0e60445384f317254d0b2b0ba4ba60e3b928e1cffd"
+    },
+    {
+      "path": "output/应急照明-118/docs/更新记录/2026-10-11-设备库合入main-098.md",
+      "sha256": "3f5d855956ef0e88ed7e0972ef31f998a5051794c5a996a78478e17e2e8483dc"
+    },
+    {
+      "path": "output/应急照明-118/docs/更新记录/2026-10-11-面板中文换行乱码-082.md",
+      "sha256": "8012da31fbeae96df3edd052000abf36945abba946db827d26a37b1cc3ee7340"
+    },
+    {
+      "path": "output/应急照明-118/docs/更新记录/2026-10-11-预览后源图复核-089.md",
+      "sha256": "432b89977df3cec675eb88c8b952bc913515826b8278f4422cefbda36d7ce477"
+    },
+    {
+      "path": "output/应急照明-118/docs/更新记录/2026-10-11-首次打开保存记录-081.md",
+      "sha256": "edd350de1d54c5aecd098ebf7024a32b1c3d051249894be07bc34975f768d562"
+    },
+    {
+      "path": "output/应急照明-118/docs/更新记录/2026-10-12-105-识别预设与设备拾取.md",
+      "sha256": "471c448319d465cb37a4cf696c0619763348002bdf8b69c0521608479ded9770"
+    },
+    {
+      "path": "output/应急照明-118/docs/更新记录/2026-10-12-106-首次设备登记引导修复.md",
+      "sha256": "8b0d8a9dd65e7a9c517329860082eeaa5affc5518b26198f70e0841bbe275173"
+    },
+    {
+      "path": "output/应急照明-118/docs/更新记录/2026-10-12-107-设备拾取入库与图例生成提示修复.md",
+      "sha256": "3378b488925d64ece96b1592af8721a7f351839b9ecade28ce14c1218a8e5a38"
+    },
+    {
+      "path": "output/应急照明-118/docs/更新记录/2026-10-12-108-默认设备库随包初始化.md",
+      "sha256": "bb7db4e309007fc205845df3020926e880484b3f86fcb2c321b214bae13a5c1e"
+    },
+    {
+      "path": "output/应急照明-118/docs/更新记录/2026-10-12-主面板简化流程合并-104.md",
+      "sha256": "3d63752391c0fcbefd6c591040ce1015d07179f734b15e339583c7f37f2dabb5"
+    },
+    {
+      "path": "output/应急照明-118/docs/更新记录/2026-10-13-117-断口跨设备续接.md",
+      "sha256": "6d1e3004a24ed8d4afb077f7acc3ddc3f18ecd237092b326fd4d0f975be4d13c"
+    },
+    {
+      "path": "output/应急照明-118/docs/更新记录/2026-10-13-118-大草稿保存异常.md",
+      "sha256": "a07712e6997f1ceefe62e111c82cbf8b45ee599b313e523270a63f22492c5478"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/catalog.eld",
+      "sha256": "725548bdaaea1d2974aa918d661e4a29d6ade22cd4b126c08241221692c27634"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/import-manifest.json",
+      "sha256": "e448fd581543e13d1fb05209a9f8465cf7c2163ca346bb067e1123dc0e2d72ba"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/README.md",
+      "sha256": "7ebc9442984fa29b290a11bbbd4bccf01039d679c0571b18440d2f92f1e0867f"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV9/1/block.dwg",
+      "sha256": "b40abb6f06760ccffca394c737d38abcc9dab98286870d9367fe09ce8b22b81e"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV9/1/legend.sld",
+      "sha256": "de212b795bd3b033ec02b70c51ead5df4a08301087a92ae60ff38cb71e64fe2c"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV8/1/block.dwg",
+      "sha256": "34cb5fdcdb284df3cf61bf310008d02472c0723cfa5ea4811fe2dc676723b60b"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV8/1/legend.sld",
+      "sha256": "e5de9f41c0993b807627ce204a3a05791f691d0ca218c611858b07034e83aa27"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV7/1/block.dwg",
+      "sha256": "3593d41173c404965d91f5251174ae424c64c61c90849b543415705786ff600d"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV7/1/legend.sld",
+      "sha256": "f51e082ba41f5084bee622d8e004257f29a70daa7a9c05cc6935fc96131f05b0"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV6/1/block.dwg",
+      "sha256": "09853733e661a35d358f2aace96070d3e901e142d7ed6e040285bc8c7fbb27e1"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV6/1/legend.sld",
+      "sha256": "7ec4e07df789cc2cb2f84c0e3efb0127fa8605b513b3ec9f36479b01883e6827"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV5/1/block.dwg",
+      "sha256": "50a2b4dfd26bcca673fcec7a8c8c86e772b52628512cb5cdec67d81b3cf0719e"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV5/1/legend.sld",
+      "sha256": "2abe380246f9eeee6a8446deb1401474a60b227485c491a2a1767d192ea3b69b"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV49/1/block.dwg",
+      "sha256": "d1def7865bd155c06e707e36a24be3e9d4288782d776201443eb18b5e29ef402"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV49/1/legend.sld",
+      "sha256": "89d303514252cd84554ff1bf472ea16c335385675c0569a6e6cdf8012e98d977"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV48/1/block.dwg",
+      "sha256": "590e770b25c29b8170bf66c7e8ca6ae7dce0e6fe735a46c725bfb112a5766e52"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV48/1/legend.sld",
+      "sha256": "ffb758bff62e54faf7a734adc82d92076fe43ae397e2f56b7781b816a2bed714"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV47/1/block.dwg",
+      "sha256": "cbd59452d4d1e22947628e58d84fabfb3c4ae65c7cbe7293ce9df44c1b20d68e"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV47/1/legend.sld",
+      "sha256": "702deeac9bd1e785562df3a55bdf2801e06c8ce1a891d5e4faedeb0bca225e94"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV46/1/block.dwg",
+      "sha256": "491c4ed9a7a6099bf726b954bf0370d21475a8fadb23e8402452122a6d956132"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV46/1/legend.sld",
+      "sha256": "488de23b278b4f173c456a44109c748c21bf02249d23ea73eb97f901aefe122f"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV45/1/block.dwg",
+      "sha256": "d09f561cd59e1d663550f033159a38d538697cf2ec1f0821253a426d5fe64abf"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV45/1/legend.sld",
+      "sha256": "6db389a66364787511f4c7c2f9f5d80d9bc92a9091278d17585796a70caa63d2"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV44/1/block.dwg",
+      "sha256": "889b9c64191520644b454b31bf5de83629ef9b8956bc23af06816a7671331b85"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV44/1/legend.sld",
+      "sha256": "ad56061bf23b3a27577115a4a8ec009aeaeba06f0290c31bc3540fd01fc5aa45"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV43/1/block.dwg",
+      "sha256": "7911e96b42bbf7e389a8fc227ed1d8920024b0c9ccdcf8d25d946495736f2a59"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV43/1/legend.sld",
+      "sha256": "2d956285763c3fc4b88139f37b0bb3fadbb5ffc11c7b12e690574a791aabb77a"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV42/1/block.dwg",
+      "sha256": "2c563e3e1bb956ed32dab76101c97e8976f44b8f4366760b24cbfab97cd38305"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV42/1/legend.sld",
+      "sha256": "245ed0b1441d61b38e9449e1870845ccb71e5fdfa6a2fede54b94ed435e5da82"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV41/1/block.dwg",
+      "sha256": "e015b6e6399fbd32998cc850fc5f0c61cd0ada8a6345f397bedfdd9770f0d8a7"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV41/1/legend.sld",
+      "sha256": "33944c4ebbdf1319b393db0e93ac726061a4106006cc5965a7f35df3f55f1805"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV40/1/block.dwg",
+      "sha256": "2bc0d6a581fe84ffd60448e155c98a46069c544976e58e79342de57c5251861f"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV40/1/legend.sld",
+      "sha256": "60dd5cc1362fed7378795ab20da82e692b8a5068137d71d7154df1786f71f2bc"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV4/1/block.dwg",
+      "sha256": "7ca572c8858e89661b4e9a68439eb934c6d56d82dd18011ce7a7c00fe6a408e6"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV4/1/legend.sld",
+      "sha256": "0a26b05c280966a0a0d9799928784cc5c87b0998ea509c58d9ab1a68deff3a4b"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV39/1/block.dwg",
+      "sha256": "855a10fcba5602de92a46bfc2568c83e98fa511c4842896fc0bc07a64bd7aae6"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV39/1/legend.sld",
+      "sha256": "2bb242cc2ef3818c688e357716d3361d813e41fcd7683f56c4dd5a7816688730"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV38/1/block.dwg",
+      "sha256": "24350f4d20df4c8d75ce5c5519182fe2116b8462444623c014fa01f2897bdae1"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV38/1/legend.sld",
+      "sha256": "03a76db305a75c44dc87376b7c75d835156a1a8c1add72973e617da9020b731d"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV37/1/block.dwg",
+      "sha256": "eda11f73d51c4de38c8b5e0fcc7075eb53e0f472dc905098c362016ad00d588a"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV37/1/legend.sld",
+      "sha256": "463e27b2fbc3e8dd78f65312fcbe71f84896054c8d6262bab1b81678dbfcaf3b"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV36/1/block.dwg",
+      "sha256": "80a8ca62822276ce955999ea305e9a3a0614789f0937c775d351bd1c01913361"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV36/1/legend.sld",
+      "sha256": "6845028d185cf092bc2aeb671324ddf633de6c7ffdf37e3aff83bc7669079435"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV35/1/block.dwg",
+      "sha256": "4c0001af064e94a5dd8b04bbf94915e1204a97029337a96aee3e8b4861705201"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV35/1/legend.sld",
+      "sha256": "0d485802f2350f16bb41fc2c1ee51bc884e278bda40f4a3ca842f94c687e4a74"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV34/1/block.dwg",
+      "sha256": "bd20a1e98227ca04e4e8dac55012e19b21de9caabebcc26095e98f777c18eefc"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV34/1/legend.sld",
+      "sha256": "baedbe5f109ed1e78f5ed68093ca6e1a53a400fd87dfe76621cab99b5b2c1c7a"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV33/1/block.dwg",
+      "sha256": "f7da0a4c8e6926f8f3968b80ce18789b898cddb4ed836db987b45a412e8f3815"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV33/1/legend.sld",
+      "sha256": "e416e5c5b08f9c98acc74484440e8a267ccca7561dadb8ad44b33799e598d998"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV32/1/block.dwg",
+      "sha256": "5f1e0debff7d04272af0f11b424992037a0207f5504e08c1129c93eaa5fcd318"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV32/1/legend.sld",
+      "sha256": "13994c1364daace8a94045a5b04c07e5d2ec79d4223b8f5ab20db477c30b7fb0"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV31/1/block.dwg",
+      "sha256": "98c58f5d3117007a89e7be5fa039a0b1d25417c111abfe84f18ff454f599e691"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV31/1/legend.sld",
+      "sha256": "3cb370431b9197672881cfd6be4e8fefe3eedb71b43967bc6dffb16f3d1977fa"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV30/1/block.dwg",
+      "sha256": "036db71abb8e872930994d3372b6832291c17ec3accec2df5383c4d71a5ccf92"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV30/1/legend.sld",
+      "sha256": "588c1012544ef7f3373147e08f0fdceb7c2ad463b2899c25053d97f99c39caee"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV3/1/block.dwg",
+      "sha256": "f6ab920f412d60b9d121887fc1f6da764088ff78527a8c801843561b35e5a4c7"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV3/1/legend.sld",
+      "sha256": "6f360f758e4735d43bae91500bac7759d47ecd65ce90b1c06e8d4cf0e8333996"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV29/1/block.dwg",
+      "sha256": "fb01a50ab1889b384eb885a4dd47a815a4c1d07b539fd1450d92047de8540ad5"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV29/1/legend.sld",
+      "sha256": "dfd8d188691e02ad337b13cbd60fe2f146fc6da6fc2f3621bf8cc5705535537f"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV28/1/block.dwg",
+      "sha256": "c578619cb5828bd9fdc5e95e0f6a37a5b3c6bd1ed6aebb207df8411895aed12e"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV28/1/legend.sld",
+      "sha256": "15fa35903c4de21e91c671081996061a9bdb3d27ee48112a525f93fc37dc9385"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV27/1/block.dwg",
+      "sha256": "de562b613d30945677f3653c7d092f4f6381b433d6d53f59f0dfa3e49858cdf8"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV27/1/legend.sld",
+      "sha256": "bd656fe346c707e4125cc9ac2bf031ba03360b6a7737f84f85ab45b1a5f6c32a"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV26/1/block.dwg",
+      "sha256": "205e5d4fbe5a9860db513830da68aa63c35d7be35eefbe273d194a72bf06500c"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV26/1/legend.sld",
+      "sha256": "dc8008dd33c012e89c38ec922475502f1e451d8d97c9ead6a53c7263f2128f04"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV25/1/block.dwg",
+      "sha256": "cf395b6fd507691b81a1d818eef5b024107a5e2b4ad49c5a3aa338bac6385db2"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV25/1/legend.sld",
+      "sha256": "63bb437835b752d46bbde7276c1c53d5557a2d87d7e911508d26259a4cc1042e"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV24/1/block.dwg",
+      "sha256": "70646aeab4fac9b5b73a2748e9675ad832446156bf23164e71cc15babf65835a"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV24/1/legend.sld",
+      "sha256": "f8542293c1828bbd481cd37a0e8925d932cb518d76e6b73436a05ba729a373a6"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV23/1/block.dwg",
+      "sha256": "937d5f861c49249e48d571077065751121e5fe9158f58aa4cbe2d39a8c34b0cf"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV23/1/legend.sld",
+      "sha256": "ed33cab36fd597e2501522276a2a20504e2626beacf918023d241fdc0b905140"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV22/1/block.dwg",
+      "sha256": "8001b48fdbd89da4bba4b448c3aa1db94d8c160f4ac5dfc3b60146e1e422181b"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV22/1/legend.sld",
+      "sha256": "4c1b65a105a19670f6d7a80382ca4061c19af92899ef9dbb8ae755e316e18bac"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV21/1/block.dwg",
+      "sha256": "02ac5304edf2f912f614fa40aace547a9b5186166d05ac79d9c2661d4a69d93f"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV21/1/legend.sld",
+      "sha256": "5a694555a21b0f8303d735055370ed4fef15f27f57cd638a82bf487f52810014"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV20/1/block.dwg",
+      "sha256": "43bbcae447895302a15c1ea3c32307d3edd3e21e3549534393a1cddbcb9e2bf2"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV20/1/legend.sld",
+      "sha256": "14f00932b967e9dc6cff745f433caf6daab852979affb2b3b5ca6b4099453bce"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV2/1/block.dwg",
+      "sha256": "0ca8fbf7bf24c2a8b197078adbc1ac093011910b8a10f22e3e732c6ef2857620"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV2/1/legend.sld",
+      "sha256": "5d340aef6f1d7214a8f21e10ed201b8d46b4458ddf101a94a736a6e92779a9d9"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV19/1/block.dwg",
+      "sha256": "fd4fb5dd737e79e4883dedbe8485185f30d12a32ef4fe1e1a94f887c46919ad0"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV19/1/legend.sld",
+      "sha256": "6339e5c6524fc18758d2f4f9e0e7c2388f98be156dab3ba544cf4f94b3cc656a"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV18/1/block.dwg",
+      "sha256": "ed09f053f97aa3aa04fc1540fa54ca867d8073d3c564388f031132145d7579ae"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV18/1/legend.sld",
+      "sha256": "f28899381766ea9cae80f66d49d0a22e2697dd9f2598947d6652ce5ac19b7441"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV17/1/block.dwg",
+      "sha256": "71a2845c99767a3a4dfab223a9de6ae1ab30c46fc4cac1d9a873adcc6b11406e"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV17/1/legend.sld",
+      "sha256": "c478fc5e207e8b0acdb04371eb0540e063e7426710f4a098b8333f643c3e29ee"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV16/1/block.dwg",
+      "sha256": "c9a0c5692a0c071ce57c15b28cdb34b6c264a6248f6159f3e5f7637dc1ee93c2"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV16/1/legend.sld",
+      "sha256": "ca2064f6cf69aacb1f503c967ab241d88ad6894fc974b7688327aa69431658f3"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV15/1/block.dwg",
+      "sha256": "10f76e3f8034cada66883c8fa34085b30da93c1a405da87f3b86b052e1691614"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV15/1/legend.sld",
+      "sha256": "f3c66c2e0e5ccc15fdb629e63616fc2615e480288dbaf904ea7125ad77d42a6c"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV14/1/block.dwg",
+      "sha256": "24ab3daafd9c7883711ff812eb3d86976639e5daee1624711979f4685f88e8aa"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV14/1/legend.sld",
+      "sha256": "cd51749cefd59b32ac7aeae8a6739e2fcf96cfbc145e41d9efcff6c48341f9b1"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV13/1/block.dwg",
+      "sha256": "72e8cf52e527d7efb39d0b389d7923e63b9074bdc2f7b47c6b2e8b4753712c9f"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV13/1/legend.sld",
+      "sha256": "9d5583f9a4f10cd3b14384464288e85640ccfd76e186198496b367cbbfab27df"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV12/1/block.dwg",
+      "sha256": "e3b2e2b8fb7ae9f3f8ad3d5c11310c67a707e106f242a9946c84b268bc0104a5"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV12/1/legend.sld",
+      "sha256": "365de774b034c43ae349412ce5a4cdff9e63581556ac356a9a06826901400237"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV11/1/block.dwg",
+      "sha256": "fe532ed0c9826118a34d35d9517e607f9eedc13d29ab4d15fceabbc548db7cce"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV11/1/legend.sld",
+      "sha256": "700cf6a83d4f90aa930e3bea40c4f89e6d4b0f9887371eaa41cfeec46b883ad8"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV10/1/block.dwg",
+      "sha256": "0bac45b84b8f51673c1a5f70704d436912149ead6dd6dacaf7500c510709fa99"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV10/1/legend.sld",
+      "sha256": "660aaab299eb15949b35a58c7275f1df7b7fab3a71ae2089df50f6b494e95209"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV1/1/block.dwg",
+      "sha256": "ae7b56de06757f1d7ca3e59a4dc5c40762b49e101895e097a4f52cc450dd10ee"
+    },
+    {
+      "path": "output/应急照明-118/assets/default-device-library/assets/ELDEV1/1/legend.sld",
+      "sha256": "ae17278edebed0de60c701e76d119dadbf5e1ec8ad2fd6cbd95ea376b08611a0"
+    },
+    {
+      "path": "output/应急照明-119.zip",
+      "sha256": "bc68d22bc8272a10819c9c5b80c2df033a82a85f22c38e29c0296baa34d2711c"
+    },
+    {
+      "path": "output/应急照明-119/CCKK.lsp",
+      "sha256": "187f9f3553ac116f05109151f3dc03983bf8dd3450eb273f933c0f5a96073fd6"
+    },
+    {
+      "path": "output/应急照明-119/package-119.marker",
+      "sha256": "aeb1ff618962a5e8e94e8a4645d8e9ada8eba7083aeeeb7d746cc1ceb00bbeab"
+    },
+    {
+      "path": "output/应急照明-119/START-CAD2020.lsp",
+      "sha256": "2d6166009156b9525735cdcce0dfc3159a1e3dc677c072eb2cd5733c539a3b6c"
+    },
+    {
+      "path": "output/应急照明-119/UPDATE-119.lsp",
+      "sha256": "fd3c383e39955a73d7778288934a89f1feed1a3919d7bc07837bd86f866dfd10"
+    },
+    {
+      "path": "output/应急照明-119/使用说明.md",
+      "sha256": "014bf3eb90963970969875772a66692ccdfa9164c3f470f91627fb21c85ad5aa"
+    },
+    {
+      "path": "output/应急照明-119/docs/00_面板保存记录.md",
+      "sha256": "e7ac8f47ef2b4ed3d1e376a2fe1331df186263515dfe46d5350d7f45b51690b1"
+    },
+    {
+      "path": "output/应急照明-119/docs/01_应急照明回路统计与系统图生成方案.md",
+      "sha256": "02f9d058b57cc30644025ede2c338b11a64a54ed6656fd2a3e77ccc836116d1d"
+    },
+    {
+      "path": "output/应急照明-119/docs/02_断线导线几何续接算法方案.md",
+      "sha256": "292a2794a03882debfd1f71e67af7a6e9d1c9a5cd3ed4649662dfa3e0e5392b8"
+    },
+    {
+      "path": "output/应急照明-119/docs/03_加载使用与验收说明.md",
+      "sha256": "014bf3eb90963970969875772a66692ccdfa9164c3f470f91627fb21c85ad5aa"
+    },
+    {
+      "path": "output/应急照明-119/docs/04_整箱自动分回路统计与设备功率赋值方案.md",
+      "sha256": "e13f3f613ccfe280323d2941950072bf8b6b098d01b954ee82e9267a2ad83b4a"
+    },
+    {
+      "path": "output/应急照明-119/docs/05_常见错误原因与修复速查.md",
+      "sha256": "e29c37e3edde857943dd735c002a9d549e2df8a690cce3067a22df6ae7bb7e24"
+    },
+    {
+      "path": "output/应急照明-119/docs/06_固定图块系统图与功率标注自动更新方案.md",
+      "sha256": "0614e42e2226d9cff381c5e82652d7af3faf504323bb159e01518124b727cceb"
+    },
+    {
+      "path": "output/应急照明-119/docs/07_识别与系统图生成性能优化方案.md",
+      "sha256": "4bb68922d303e6bc876bb6b0d38c263f2f4a926c4a0c0f45d88b0d0fb8145f59"
+    },
+    {
+      "path": "output/应急照明-119/docs/08_同箱多平面独立回路补充拾取方案.md",
+      "sha256": "8f57b81e1ff0311522bd3a949242e133cecf98ee9bf71495a5c2e942d0f44e38"
+    },
+    {
+      "path": "output/应急照明-119/docs/09_天正HLBH批量回路编号工具方案.md",
+      "sha256": "6c60846a7de5e4628f1aa5705f4669d8b47a00fc3a96b2f25e7ba375d83c92ce"
+    },
+    {
+      "path": "output/应急照明-119/docs/10_天正HLBH批量编号使用与CAD验收.md",
+      "sha256": "f4f48ebfb513cd3b313f16496dcaf538b0be34a8ed2dd663340e62bb5d9baf75"
+    },
+    {
+      "path": "output/应急照明-119/docs/11_HLBH批量编号提示误判修复记录.md",
+      "sha256": "1ddbedaf603c567549e8e140b0d3245f3d22f0f796533330e129f41138528a0c"
+    },
+    {
+      "path": "output/应急照明-119/docs/12_HLBH逐根两点输入修复方案与记录.md",
+      "sha256": "74e4e69020db18c71f2f3dd61b97dc39256bba9e3e4a4b71d21fbc8d68f249f5"
+    },
+    {
+      "path": "output/应急照明-119/docs/13_平面回路编号读取与系统图对应开发方案.md",
+      "sha256": "0ec589dd89bbc597265ce1d2e2a005e941b8151e59a9d16f0e584578f0dd26ec"
+    },
+    {
+      "path": "output/应急照明-119/docs/13_独立设备库与材料表管理方案.md",
+      "sha256": "3340197078e731d53b3f5f982b4742fe23a10351552e3fb47430a092cd7650af"
+    },
+    {
+      "path": "output/应急照明-119/docs/14_独立设备库CAD验证与使用说明.md",
+      "sha256": "171af57828b01087caee6baedeae8e4aa99565308ae658801ecbc160fdc0fa4f"
+    },
+    {
+      "path": "output/应急照明-119/docs/15_设备库统一数据源与自动入库方案.md",
+      "sha256": "b1626b0b6d9447dc64c395b6d26efa68469c79307611eb3b5343ae3d1890afd3"
+    },
+    {
+      "path": "output/应急照明-119/docs/16_天正设备库圈选图块导入说明.md",
+      "sha256": "96ff6ad5423e8775aaca2cd368bbffbbcfd97d5f37b36a1043ed441dc009af06"
+    },
+    {
+      "path": "output/应急照明-119/src/batch-number.lsp",
+      "sha256": "1ea45d451d23aba0d8392b2df7bc286c9af1e0ef8d7b426c280e46a3aba5bbc7"
+    },
+    {
+      "path": "output/应急照明-119/src/circuit-number.lsp",
+      "sha256": "021cc85f384a0bba2ac4a1e087aa54d543dde52f0582798786dd99b601f1923d"
+    },
+    {
+      "path": "output/应急照明-119/src/common.lsp",
+      "sha256": "887428428a679b828f0d40421c7c0484b56fdc7d12ef0bb024ee7cb208ef8cac"
+    },
+    {
+      "path": "output/应急照明-119/src/config.lsp",
+      "sha256": "d49adb74e7a55cde5cfa8ee5ac1f443ed2f035388f9f35f91e4876d65c8fc974"
+    },
+    {
+      "path": "output/应急照明-119/src/device-assets.lsp",
+      "sha256": "8932e770e7a03eb62c03032db4d222f3db51f2b168f3c3be220ce5cdc83060d5"
+    },
+    {
+      "path": "output/应急照明-119/src/device-defaults.lsp",
+      "sha256": "ef38e4412994adbe4fbc6e0236584178904b2b5d9581c52ee9b9828c559ce115"
+    },
+    {
+      "path": "output/应急照明-119/src/device-inputs.lsp",
+      "sha256": "190ffbb5c1b420edab984dd688ce592905a6bec5e39d35d8f62c93a566221749"
+    },
+    {
+      "path": "output/应急照明-119/src/device-library.lsp",
+      "sha256": "d4f1c49f3da49b424fb0700cb89af6f3e8a7eb4be5b034c62c88c7b66744d17e"
+    },
+    {
+      "path": "output/应急照明-119/src/device-migration.lsp",
+      "sha256": "51791cdd1b09939987e7a8cdd9ab08f42bd87e8dfc3b2ca0d3ff6e7a473e1c35"
+    },
+    {
+      "path": "output/应急照明-119/src/device-recognition.lsp",
+      "sha256": "8148c629eb39c48b46c6c6f71269cb7b3de84146adaa5c08e708942f82ee83b2"
+    },
+    {
+      "path": "output/应急照明-119/src/device-ui.lsp",
+      "sha256": "dbd4c07d47ec57257269ba69c1010c16fc5e169278ae1317ea5b3148b8c0f039"
+    },
+    {
+      "path": "output/应急照明-119/src/diagram-commands.lsp",
+      "sha256": "0d82c52eea102543a5d63c5e647faea870b4a69a9e331ce4125be23a6d8ef013"
+    },
+    {
+      "path": "output/应急照明-119/src/diagram-store.lsp",
+      "sha256": "a600ef2923d387e9f28d4d724680719475f59b1d35ec74848fbe7d5a280289ba"
+    },
+    {
+      "path": "output/应急照明-119/src/diagram-update.lsp",
+      "sha256": "52f2e677555da8e546703b71d2fe7dd6678ab9af7af5148d60cccab791e8cefd"
+    },
+    {
+      "path": "output/应急照明-119/src/fixed.lsp",
+      "sha256": "df5eaa3312b6bf96686b340ce8925fb9ddf57129903381349072ce9adaa4e275"
+    },
+    {
+      "path": "output/应急照明-119/src/generation.lsp",
+      "sha256": "4029b614522a4a5d2f27b35ae6c107e30b0766efba36f7a7e8dc77d5da41fd40"
+    },
+    {
+      "path": "output/应急照明-119/src/geometry.lsp",
+      "sha256": "bb896c82cc9ab557d540676d5f055dd5e223a6546f32f110929d78752ed42cc7"
+    },
+    {
+      "path": "output/应急照明-119/src/insert-circuit.lsp",
+      "sha256": "bca8ea625f428cef6bebad9f00e317c38de8c3b286141e083f347418819a3dfe"
+    },
+    {
+      "path": "output/应急照明-119/src/load.lsp",
+      "sha256": "2d6166009156b9525735cdcce0dfc3159a1e3dc677c072eb2cd5733c539a3b6c"
+    },
+    {
+      "path": "output/应急照明-119/src/main.lsp",
+      "sha256": "f66da307cf805391b0ce4db815b00d6ce47f13bd533412f6c272a5c626d02e16"
+    },
+    {
+      "path": "output/应急照明-119/src/panel.lsp",
+      "sha256": "a36322574f78de38f0092226c6ce3904c4772e982b9db4b881508c3c83ee7b24"
+    },
+    {
+      "path": "output/应急照明-119/src/simple.lsp",
+      "sha256": "4dcc771c32e7af3921015eb16c4db7d2f6188e3a31c7f48fbd24f4eb46ba3e9e"
+    },
+    {
+      "path": "output/应急照明-119/src/startup.lsp",
+      "sha256": "8c843325278754d1ea98b42d7917fc66d429316bec7433bab9f0bcd9beff0463"
+    },
+    {
+      "path": "output/应急照明-119/src/statistics.lsp",
+      "sha256": "bed80b2ed028892eb707b63f94482f54bc1018325454e163266af081dac27770"
+    },
+    {
+      "path": "output/应急照明-119/src/store-compact.lsp",
+      "sha256": "f40065f21764fa436f82a5d41ea8d447aa63fe594de805797f4d55e3b39f659e"
+    },
+    {
+      "path": "output/应急照明-119/src/topology.lsp",
+      "sha256": "f118f39ed08e441a512c3aebe82e4c13c1ac1131412e187d79869603fc45c367"
+    },
+    {
+      "path": "output/应急照明-119/ui/box-ui-011.marker",
+      "sha256": "973a3b32f5632f31db12419d9ec6f597005e850b64dacf5d1c47fb7a69c086d4"
+    },
+    {
+      "path": "output/应急照明-119/ui/device-library.dcl",
+      "sha256": "736a25f3607ccf6a2204f2ed40b5eea378bdb3575c5a380e21add64e6ff0d2a1"
+    },
+    {
+      "path": "output/应急照明-119/ui/diagram-ui-044.marker",
+      "sha256": "bbc93f424ee5012e66511a990f87f5a40b0a84a2437aea2a8d14d30e7e629395"
+    },
+    {
+      "path": "output/应急照明-119/ui/power.dcl",
+      "sha256": "8e445e1541a6aac157900695d4adce3c18ca2bfb3b04018461d140ec3691a0a8"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-08-box-statistics.md",
+      "sha256": "5269d0973bc69977abbdc18a35212d02f689e959ab074acd71d8863434a4844b"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-08-contact-performance.md",
+      "sha256": "329a0b78efd66f5afe482cdbe1b075d52e54381fa181a22edf3f937186e04748"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-08-contour-diagnostics.md",
+      "sha256": "e1477f06b2871aac47853e294b60ec630b09fe22aeea66f3e12a63e6b8eebffd"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-08-curve-ocs-fix.md",
+      "sha256": "2565b810f158501c40b4a060225fa7dcd37fe4a780bc3545327ece087edc729b"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-08-exit-preview.md",
+      "sha256": "cd6752ab91be830abff62e829ba4f3e08b19a47c93e10cd0da5ff37494acbeb8"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-08-free-end-gaps.json",
+      "sha256": "61c38e0b2bb56b4737c522663b7eea4ee891936f58d60233bfe0aab11210a5f9"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-08-free-end-gaps.md",
+      "sha256": "8fb81e13840a6df485cb26d9de0fee2800adb469971ba888b0a8fca6a28197ef"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-08-header-alignment.json",
+      "sha256": "c4fab95c6b67199bfd9ca391811117583b477b5e4deb1f01f17b662e21a8e284"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-08-header-alignment.md",
+      "sha256": "a48c70125decd154731777681603bb1efce11dc21540f796287c591048ec5572"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-08-linear-contour-index.md",
+      "sha256": "950b1645b2bbaa0703bc19289987720f3730db9b6590b2b0bd06c93904c81f78"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-08-polyline-ocs-fix.md",
+      "sha256": "2e215bea23ce540faac55c56e2f0beface356c3446971a69251319c9520b4d23"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-08-region-performance.md",
+      "sha256": "dff5318767a62289a09f4ccb038658bead0cf6d00d5a2b13c2bbdb537572ce05"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-08-sample-layer.md",
+      "sha256": "87333544566fc021d33adade835d7127d3630185083d400c156d50be54de56cd"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-08-simple-device-table.md",
+      "sha256": "6d348e0806f86aa0cd32ca03874d460f4ba1721b1b3944a2516f5c9066c0209c"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-08-trace-diagnostics.md",
+      "sha256": "337db3350b703f3aaf06728e1062cf06fe07f7acab39df73134f61df60955727"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-08-whole-block.md",
+      "sha256": "bcf122e3f4a12eb63953c05408f6fc1adcf0b48faae198d71bd92c99512a8001"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-09-cckk-captions-054.md",
+      "sha256": "3b89cb8d76d75dedc01a50b3f55e0b8e0d4192232592b981880a781823c3eb82"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-09-cckk-command-053.md",
+      "sha256": "1465923b66aec3538cbfdd414078e52fcbf82dabecdf5770d6525b3457274c09"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-09-cckk-generation-052.md",
+      "sha256": "f5e07cf2761042e2e2c015996e3a9bbe2db52cdac513ec7fd61de256c59509d6"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-09-circuit-preview.json",
+      "sha256": "89f8132cbc92174eb7e0dea8aa9ec456d9ca374d9f95ae51c1ae619adb14be63"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-09-circuit-preview.md",
+      "sha256": "091944fcb8d3a99c7964e1d2aa9a074029d50bb7b0616932bd54e276f628a109"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-09-device-thumbnails.md",
+      "sha256": "06bfbb7a7954ab6e94472be43bd40be1974c5dbd71f9c263e87db1598ee66516"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-09-exit-devices.json",
+      "sha256": "4de0dce74ff25f0af2fee73c7fe2b93ea58b5ec84bb5dff12f90fd16f6624005"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-09-exit-devices.md",
+      "sha256": "fadc9f769425c89dd6e34afa1d16ae35a0e7322fe691834679ce964a25e26df2"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-09-fixed-diagram.json",
+      "sha256": "41a0ff6b4e890977e1953f12f7b146fe711933277fe7a8e0d3912dcf441e9988"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-09-fixed-diagram.md",
+      "sha256": "6248d01f07f95b650da3f3ab13db41404e384310a01075b4777db9e230e91e9e"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-09-inline-power.md",
+      "sha256": "26afefb75d4b535418dac2a9c107c26a59eaa37a32ba664e65362cdc901d3fa7"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-09-native-store-045.json",
+      "sha256": "90d0b11e8de809135d8655dac4748093bdca32afd936a3e657c954099d3094d7"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-09-native-store-045.md",
+      "sha256": "fcbf49d920b2c7fe5d0c4708a01ffae3adea10ed22894baafb58781e12131d74"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-09-panel-repairs.md",
+      "sha256": "be09aee5294e393f4b01b87022c61f07efdb7321cae880f6696e81c2d2bf9fb0"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-09-panel-stringp-nil.md",
+      "sha256": "2875ef2b42a9e07ff0316f3ae4ab49a93f2a9d5b86fa81906f6351b516a2a085"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-09-post-stat-workflow.json",
+      "sha256": "7b5f5973133ac7e9cae18f58c503b3698836c0bee8a169c969cd91575f5488e7"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-09-post-stat-workflow.md",
+      "sha256": "42414f5f18f392447d8619d7063fe27699bd27738323702fa6d36c2fa9d6ded4"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-09-save-insert-037.json",
+      "sha256": "b4b0b2af164998edc9af490e2a9b6ce963e9b563d903138adac6489b6ed9e95e"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-09-save-insert-037.md",
+      "sha256": "a95cca9d45d964c1dcb80a6e911f2b7e1e6845de486c4b1955e0d03ae9ab784d"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-09-store-parser-043.json",
+      "sha256": "85feb229583253d2681c82e245b9b3875582938e7dfc0d85e06932f20a8a026d"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-09-store-parser-043.md",
+      "sha256": "84b685253668214211599fc8cbdfdd1d9838b6d95ba09f44c6f17e4409d13157"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-09-store-readback-046.json",
+      "sha256": "912a1c17af1ec1dcc65a6fb99fe89640107525f1d64bd7a67246b60463fd9c19"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-09-store-readback-046.md",
+      "sha256": "cf9a13565ae3c7f540155e9f456ce43497f4ac47f7a42244f910c370df3b60ab"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-09-template-choices.md",
+      "sha256": "f84484b586059ed0937924dcaed933d92e802839d32789b8d6c317ed65ae124a"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-10-auto-wire-063.json",
+      "sha256": "e026374efb28932ffc085ecb61b2d8157430bd5d72ba3bb70560aed7eeebbb02"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-10-auto-wire-063.md",
+      "sha256": "4fe7a1fadf506814d3ef8c12e12c9d212ddcaad8ec282385d361b4f715852ddc"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-10-circuit-colors-065.md",
+      "sha256": "451f0efdd74e86d7c9382fe21c62adc7ce8e094ac0a575af9f3a78401c5f8b98"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-10-circuit-numbers-061.md",
+      "sha256": "417eadfccd258c5e698e74516dc4af2a276386f95a98a6870642bc0adfc93fa6"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-10-concentrated-trunk-071.md",
+      "sha256": "ceba752736f7c8ad0db5cdb8031661c528241ec93eb8805fa6a3dbc7769c9906"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-10-contact-exclusion-068.md",
+      "sha256": "7c28ff83da16e6f2724a745479cda88cdf8cb4518c480f67dce06e5ff235baa9"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-10-deleted-diagram-059.md",
+      "sha256": "fd74a04b74f3d1cb2a44f0b953e02d807bd32d0c0022a70c7c71b8146767d436"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-10-device-contact-060.md",
+      "sha256": "fd5bb6323f080ccbd2adf40b8ede056940a19e02a10f9561b144d48b28fb4161"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-10-diagram-view-058.md",
+      "sha256": "c9985c48e0aaa2e5266a62788decb4be5765656a9a45ea46bc2e2821c28281aa"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-10-direct-placement-056.md",
+      "sha256": "db20b15d6225d4021c346624f90e81716b91e7cdcd131a009dd3caf71d0663cd"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-10-empty-pick-076.md",
+      "sha256": "f38215c6a79381a522dea393d14290bc533fa151e03c19db6353eae096cb59e4"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-10-power-text-rollback-057.md",
+      "sha256": "bbae8a67019ea80e5210cea32479052b070db18ed70aaa1f453a34931e58feec"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-10-saved-records-067.md",
+      "sha256": "ff094849769d506dae98102280896cc53be77b9c3cf941b01f8e2d283b4984ee"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-10-startup-062.md",
+      "sha256": "acd76275c6e8a667cdc07f6fa9ff6420dc1e1e462d9976c0d1266edd522258f8"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-10-startup-064.md",
+      "sha256": "bc8b58756ac21d71c9360bcd09afae2396b85f78031d9cf37ee9d553051ebd9c"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-10-startup-066.md",
+      "sha256": "e532e2bad6dab4f90d496dcaed5611e4f964b0c7b359262c9ec738f186a0b838"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-10-transaction-memory-055.md",
+      "sha256": "83d25a17b1fe6a8c0c8621fae58e0cbb99c15cb7855fb2440d3d4f6e74d567fe"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-11-device-library-097.json",
+      "sha256": "b453a8e2d9e3707065226509e3c2a5dda6f44885ba4dff894fc9c930aeff02c0"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-11-device-library-098.json",
+      "sha256": "d715b5115e9f3d5bb0875d6ac4279eea94adf014e90f0cf49384860a1adc1772"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-11-device-library-099.json",
+      "sha256": "46c72f622ef72e525a37d63530422aab0ea5f55bfddd120285e12bb1f1c8cf88"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-11-device-library-100.json",
+      "sha256": "1d929262315e322377f82319c7e1eb98a7e4e17f725ff5baa6b576bd0f5fe6b6"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-11-device-library-101.json",
+      "sha256": "933ffa2eedeb97de3bce759862104d54462b8c1ccc7051c50e1939dd037e68d7"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-11-device-library-102.json",
+      "sha256": "bf1865bab42c8fc9b992e8aeecf3fc458dd495fd3784274edea6f14d3aff3364"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-11-device-library-103.json",
+      "sha256": "87f8e830de93f96223383a82e5fe182877fe2d89cfffc0df5e59e5d99aa4bdf9"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-11-device-library-package-097.json",
+      "sha256": "2af2774d745691e7b23a76d21184150c9e9a0c98aa8771a17721b029dee4824f"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-11-device-library-package-098.json",
+      "sha256": "5efae64482b0281c9cdbb4c38afa42443032b1db02d1fc9928b8ccce24cb1613"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-11-device-library-package-099.json",
+      "sha256": "2cbd76348773afcbe55fb9a90c3a5961dcaf95a76deb790dbfcc51c6c98040bc"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-11-device-library-package-100.json",
+      "sha256": "b50dd675dbf635983df2acb73c6a979e05409f654c3c8ca20df3e9b000d761fd"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-11-device-library-package-101.json",
+      "sha256": "e3cc518b4bfc4cc72e2d4a7efd5486ffd2cea6619984847a71ad4f188e794858"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-11-device-library-package-102.json",
+      "sha256": "75a79ab3932fb091b98b007fc84d95b7dc3241f393699813eaef4ce439f32375"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-11-device-library-package-103.json",
+      "sha256": "2a14d27abd7ee48272aafe9c89c362baf8193865daa40fb30b3b9e2a324ea928"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-11-empty-panel-096.json",
+      "sha256": "b51ed84713c8ad6e3907953f7068d648fa4daa2b7f8b6796e64450287ba302ee"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-11-empty-panel-package-096.json",
+      "sha256": "a83975d84828648f340cfce0f3fd254af359ea49f883cd54317caf6095fed036"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-11-performance-compact-093.json",
+      "sha256": "d3f4cbd5409fdf761432e80ea8ea0f879859de0796c8d61eade2fd5d39a36910"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-11-performance-decode-094.json",
+      "sha256": "efd4b0ac05aa5cf4f420302c393c261252cf96e1577a655f1ec7ed85029664f3"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-11-performance-p0-091.json",
+      "sha256": "87a0694042cd47a7b275aa4875dc73665fa7ecc91ed8fccc6f8763219bf1ea68"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-11-performance-p0-091.md",
+      "sha256": "1e875eddcd5cea2168af3e70e9161f8a3b05f6821124df0ea5d15d96e94f561d"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-11-performance-p2-092.json",
+      "sha256": "278de657b8ab3ff840b3046104b020717a3bdfe2d955184faf27b701c1d6af26"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-11-performance-package-093.json",
+      "sha256": "8e1e6184db8386076c68a611c22ea615bf064bfca31d467aa2ee12561531054a"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-11-performance-package-094.json",
+      "sha256": "768a1e26bfd11cfcd25921a156c1d145c594ddc16672d6ca6272a0f9e3892a2f"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-11-performance-remaining-093.json",
+      "sha256": "37ed622f78dfad4a369f9fdf9a47fc6f90ce4d9f0726dd441103e68dbef9674d"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-11-source-scan-094-baseline.md",
+      "sha256": "011bcedf62bd37656af449a3ddbf0a12bda41ff42ccb9cc1a4106b4b96fed629"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-11-source-scan-095.json",
+      "sha256": "12a3b47e41a46cd926e0a17ba392c9d67dd8afa0438c3d459e1d9781dd60efe9"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-11-source-scan-package-095.json",
+      "sha256": "18d3752402831f7303ee6f082aeae776430c5f14f2c5900708cdecbad115b879"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-12-default-library-source.json",
+      "sha256": "f7707fc8d7fdee491b3ddcdd7cdb963d1388607f6bfdb37626afa2a3ae8c7fd1"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-12-device-library-104.json",
+      "sha256": "a053e2e95ce5301254d340dbc9122b282787a3b570c01880ad23169d5f048657"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-12-device-library-107.json",
+      "sha256": "68d3aff6a6b6e0cf184278384666c944fe9e0dea5267246218855bd073adcaf4"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-12-device-library-108.json",
+      "sha256": "261f5bdf1d55183f121238e8f024560b637469cc3c3be453508f3cffa48d96a2"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-12-device-library-package-104.json",
+      "sha256": "23af1217ec9060bdbef9fdf3bdc7ba28d05ce52ff2d621f3512dd9638affbe92"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-12-device-library-package-107.json",
+      "sha256": "eb4b272e8746d6c3648713219243a6d2d75872c636be7afdf76147131b198476"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-12-device-library-package-108.json",
+      "sha256": "fd28acab2eb71c8b63ac74fadcefe66ffb825a260fcffc1f468b06a2fdd4fb15"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-12-recognition-preset-106.json",
+      "sha256": "ce0a3ae0f8f143b3f1210eaeb63612b75875ce0e845f9de99b501de4ecafa521"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-12-recognition-preset-package-106.json",
+      "sha256": "622c7cf0e6826323c9acac14e6eadc9e123c36a6af18b30e00865a7446162d1d"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-13-fallback-uuid-baseline-119.json",
+      "sha256": "6e867d363a1ac6c341bafdeb80b713e96bf2804704e8813ee03c3bd0e67a39e2"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-13-gap-cross-circuit-117.json",
+      "sha256": "285b991d756ec2f2f0f7228fb1e27b1167a8c1a749d85de1b41c59ea435bf855"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-13-large-xrecord-118.json",
+      "sha256": "2ee01158b36cd9e07c0f9c2c176cf56c432219e454326c083ef547ef45de7b33"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-13-large-xrecord-119.json",
+      "sha256": "b4f58743ee5de70a90cd4a151e9d73cbe41bb2d7a9ff9c9f08c6b5fee99a9daa"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/2026-10-13-large-xrecord-baseline.json",
+      "sha256": "c8c13d903f031d3e0bdb44fd10e3008e95f98de2237a38b15fb86dfd297cb6ee"
+    },
+    {
+      "path": "output/应急照明-119/tests/evidence/automated-checks.json",
+      "sha256": "a74ce45de29524e132b72baf81a369335d63ba9fc352499d9ea04736832ab50a"
+    },
+    {
+      "path": "output/应急照明-119/tests/fixtures/cad-plan.dxf",
+      "sha256": "5265eb8a02ff207f7c693ecf4164fad0d5038348e1fbe17a09892232e5366fbb"
+    },
+    {
+      "path": "output/应急照明-119/tests/fixtures/cad-plan.expected.json",
+      "sha256": "542e5f4cade31c75033c4323483d9a07a7197db6a975d1cca7bdfe7e897833e9"
+    },
+    {
+      "path": "output/应急照明-119/docs/更新记录/109-启动备用目录初始化修复.md",
+      "sha256": "d974a9831587779daa2d6bbd46d15eb808d036856343797f54e480f2e5059f77"
+    },
+    {
+      "path": "output/应急照明-119/docs/更新记录/110-修复初始化实参太少.md",
+      "sha256": "961d75b5c755d9fad3cea8def23faea43c38ffd9a29c87a9bfdb78b28ea62169"
+    },
+    {
+      "path": "output/应急照明-119/docs/更新记录/111-启动保存与插入性能修复.md",
+      "sha256": "73a002a2c7a537c40f3f3467a1c64e13bd75e76588686a182979ea199232e031"
+    },
+    {
+      "path": "output/应急照明-119/docs/更新记录/112-按现场耗时优化网络与保存.md",
+      "sha256": "2dd1de61d3160d08005ef3d4ef896554e17f5d936e4a7eea0498726ada5dfbc5"
+    },
+    {
+      "path": "output/应急照明-119/docs/更新记录/113-保存记录按需加载与面板恢复.md",
+      "sha256": "3ad5e0c7a98524bb1d50cd37388466d71040eba6743e65269bdfa0023aa04e47"
+    },
+    {
+      "path": "output/应急照明-119/docs/更新记录/114-图例功率自动保存到设备库.md",
+      "sha256": "6295b2e94243bb0791369b8203c2d89c3db5b35add60d1172e3eb80d36e324e2"
+    },
+    {
+      "path": "output/应急照明-119/docs/更新记录/115-功率图例刷新与生成后保存优化.md",
+      "sha256": "34dc88128f19c1c91fd2389792fb4d9354b95c5f43013fced02f5af1c42509f4"
+    },
+    {
+      "path": "output/应急照明-119/docs/更新记录/16_ELSTAT面板入口.md",
+      "sha256": "02bf4b80869d3a9fc560f2ebc79af3f462ef72ba456f90a94ba2d95e0e17eb1a"
+    },
+    {
+      "path": "output/应急照明-119/docs/更新记录/2026-10-10-回路漏识别与生成诊断-079.md",
+      "sha256": "b7d46990c2eb67e56942e138be8bc6899d76ea8b6da591552976b3185603317a"
+    },
+    {
+      "path": "output/应急照明-119/docs/更新记录/2026-10-10-图例表命名-077.md",
+      "sha256": "5224f0b849d54e3469cc7b3f151b1acfabbd39fc27d64cafe4b6488ee0102c27"
+    },
+    {
+      "path": "output/应急照明-119/docs/更新记录/2026-10-10-独立图例预览-078.md",
+      "sha256": "d8e413b8c5463324a72c36c4152bdf0c057fea24ddd49b86b4de1d5264ba0f70"
+    },
+    {
+      "path": "output/应急照明-119/docs/更新记录/2026-10-10-解析圆与圆弧识别-074.md",
+      "sha256": "76de30171b4d8db635a2daff731803fffddcaf66772fccd8d6447888acb31e93"
+    },
+    {
+      "path": "output/应急照明-119/docs/更新记录/2026-10-10-设备轮廓性能优化-073.md",
+      "sha256": "2e42ff5215c419e2e5508223114a609e99258dc965e9efc99af2502485541b71"
+    },
+    {
+      "path": "output/应急照明-119/docs/更新记录/2026-10-11-主面板图例联动设备库-102.md",
+      "sha256": "1d55cbe114e2a3a206d970b37b45c119103db64299c1f267f446e65e56a7c5ea"
+    },
+    {
+      "path": "output/应急照明-119/docs/更新记录/2026-10-11-单击保存记录打开回路-083.md",
+      "sha256": "c8900d85c1ccb295d73fb5a2bcb7dd9628cf258283e2533a60ca894438e55191"
+    },
+    {
+      "path": "output/应急照明-119/docs/更新记录/2026-10-11-取消回路地面重复确认-103.md",
+      "sha256": "dc74a64e00a1b85325171cbbcb082f64df1e07531141a206eb529b706951028b"
+    },
+    {
+      "path": "output/应急照明-119/docs/更新记录/2026-10-11-存储解码优化-092.md",
+      "sha256": "01b0c59d6cca331f9537b80dced8bb885e297cef35b105a27d4f85b484e41a71"
+    },
+    {
+      "path": "output/应急照明-119/docs/更新记录/2026-10-11-存储解码优化-094.md",
+      "sha256": "9515b43fedbbabbe6153aa8aefbf1641b2f04fe1597692fe47f8f6daf37bd2a4"
+    },
+    {
+      "path": "output/应急照明-119/docs/更新记录/2026-10-11-宽导线接触与预览避色-080.md",
+      "sha256": "c39358f963b23eeb51a8f57a89d00176d6da48be5bce71b0ddc6c44592980b9b"
+    },
+    {
+      "path": "output/应急照明-119/docs/更新记录/2026-10-11-性能优化后续阶段-093.md",
+      "sha256": "a184558ad95429ffb0958b14f5d85690214f0f26e6c92f0063d3a16b4ea3fbd1"
+    },
+    {
+      "path": "output/应急照明-119/docs/更新记录/2026-10-11-性能计量基线-091.md",
+      "sha256": "d4b6cb9ed7ba708d021ccd4283f59bf2258a17726bb805b37edf4e6b7bf3df6b"
+    },
+    {
+      "path": "output/应急照明-119/docs/更新记录/2026-10-11-拾取配电箱编号-084.md",
+      "sha256": "cfee6965b2fcc1636ba80e190357ce01085f718369c0ce3881a6b08c1e2bf973"
+    },
+    {
+      "path": "output/应急照明-119/docs/更新记录/2026-10-11-拾取配电箱编号-085.md",
+      "sha256": "abdb695d26635e2f5fdceb2cb0118f0bc788edb894772e9f836c028cbb05df3d"
+    },
+    {
+      "path": "output/应急照明-119/docs/更新记录/2026-10-11-正常末端生成拦截-088.md",
+      "sha256": "5b53db84e47116227fbd2b49c081293e37e5b1229c5c7924daf39648e5c9ced6"
+    },
+    {
+      "path": "output/应急照明-119/docs/更新记录/2026-10-11-源图复扫优化-095.md",
+      "sha256": "8f68abf5da059f620dcf91ddce7bac1153ecb8c2c7dc9bd5d8b44f7f9e0ce359"
+    },
+    {
+      "path": "output/应急照明-119/docs/更新记录/2026-10-11-源图快照差异诊断-090.md",
+      "sha256": "e4f68d5e6077dd91f1b14baaa61113536cc2d5cd5cccb0c7e7adab7ce5d1b3ef"
+    },
+    {
+      "path": "output/应急照明-119/docs/更新记录/2026-10-11-独立设备库-097.md",
+      "sha256": "34c5f4bad839dfa573a2fe2b5084aa050856e452e9f50286dba3041036b35eb3"
+    },
+    {
+      "path": "output/应急照明-119/docs/更新记录/2026-10-11-生成未通过原因-087.md",
+      "sha256": "c239a3793c7ecaf6cb3a028d6933b2516c882e2a62914d1bfd93275bb4699527"
+    },
+    {
+      "path": "output/应急照明-119/docs/更新记录/2026-10-11-空图面板初始化-096.md",
+      "sha256": "79cfa151f24f7a9bb031de1d77b4e33878d6008832f5e94d0074e01fec6f4263"
+    },
+    {
+      "path": "output/应急照明-119/docs/更新记录/2026-10-11-记录编号同步-086.md",
+      "sha256": "3d66f7c211d217868d9f1a5259d34328ac0ab2083429e8b05f803660e51e4a76"
+    },
+    {
+      "path": "output/应急照明-119/docs/更新记录/2026-10-11-设备图形预览修复-099.md",
+      "sha256": "8a004c818de09443dc9b63fc6dd95e99052d97f5a6b052ffaa09988c1966ed40"
+    },
+    {
+      "path": "output/应急照明-119/docs/更新记录/2026-10-11-设备库入口与图例复用-100.md",
+      "sha256": "f982faa08f090e958a6fd31325f4e697fddbc16be8e30ed74d4455c0020a02d8"
+    },
+    {
+      "path": "output/应急照明-119/docs/更新记录/2026-10-11-设备库占用恢复与本图草稿保存-101.md",
+      "sha256": "5fe7695712cb830fd9661b0e60445384f317254d0b2b0ba4ba60e3b928e1cffd"
+    },
+    {
+      "path": "output/应急照明-119/docs/更新记录/2026-10-11-设备库合入main-098.md",
+      "sha256": "3f5d855956ef0e88ed7e0972ef31f998a5051794c5a996a78478e17e2e8483dc"
+    },
+    {
+      "path": "output/应急照明-119/docs/更新记录/2026-10-11-面板中文换行乱码-082.md",
+      "sha256": "8012da31fbeae96df3edd052000abf36945abba946db827d26a37b1cc3ee7340"
+    },
+    {
+      "path": "output/应急照明-119/docs/更新记录/2026-10-11-预览后源图复核-089.md",
+      "sha256": "432b89977df3cec675eb88c8b952bc913515826b8278f4422cefbda36d7ce477"
+    },
+    {
+      "path": "output/应急照明-119/docs/更新记录/2026-10-11-首次打开保存记录-081.md",
+      "sha256": "edd350de1d54c5aecd098ebf7024a32b1c3d051249894be07bc34975f768d562"
+    },
+    {
+      "path": "output/应急照明-119/docs/更新记录/2026-10-12-105-识别预设与设备拾取.md",
+      "sha256": "471c448319d465cb37a4cf696c0619763348002bdf8b69c0521608479ded9770"
+    },
+    {
+      "path": "output/应急照明-119/docs/更新记录/2026-10-12-106-首次设备登记引导修复.md",
+      "sha256": "8b0d8a9dd65e7a9c517329860082eeaa5affc5518b26198f70e0841bbe275173"
+    },
+    {
+      "path": "output/应急照明-119/docs/更新记录/2026-10-12-107-设备拾取入库与图例生成提示修复.md",
+      "sha256": "3378b488925d64ece96b1592af8721a7f351839b9ecade28ce14c1218a8e5a38"
+    },
+    {
+      "path": "output/应急照明-119/docs/更新记录/2026-10-12-108-默认设备库随包初始化.md",
+      "sha256": "bb7db4e309007fc205845df3020926e880484b3f86fcb2c321b214bae13a5c1e"
+    },
+    {
+      "path": "output/应急照明-119/docs/更新记录/2026-10-12-主面板简化流程合并-104.md",
+      "sha256": "3d63752391c0fcbefd6c591040ce1015d07179f734b15e339583c7f37f2dabb5"
+    },
+    {
+      "path": "output/应急照明-119/docs/更新记录/2026-10-13-117-断口跨设备续接.md",
+      "sha256": "6d1e3004a24ed8d4afb077f7acc3ddc3f18ecd237092b326fd4d0f975be4d13c"
+    },
+    {
+      "path": "output/应急照明-119/docs/更新记录/2026-10-13-118-大草稿保存异常.md",
+      "sha256": "a07712e6997f1ceefe62e111c82cbf8b45ee599b313e523270a63f22492c5478"
+    },
+    {
+      "path": "output/应急照明-119/docs/更新记录/2026-10-13-119-中文路径草稿保存.md",
+      "sha256": "9dab95680e69ff2882f1e5bc10d01d544debd0e18b5042818b8ce7fd8b55aaaf"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/catalog.eld",
+      "sha256": "725548bdaaea1d2974aa918d661e4a29d6ade22cd4b126c08241221692c27634"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/import-manifest.json",
+      "sha256": "e448fd581543e13d1fb05209a9f8465cf7c2163ca346bb067e1123dc0e2d72ba"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/README.md",
+      "sha256": "7ebc9442984fa29b290a11bbbd4bccf01039d679c0571b18440d2f92f1e0867f"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV9/1/block.dwg",
+      "sha256": "b40abb6f06760ccffca394c737d38abcc9dab98286870d9367fe09ce8b22b81e"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV9/1/legend.sld",
+      "sha256": "de212b795bd3b033ec02b70c51ead5df4a08301087a92ae60ff38cb71e64fe2c"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV8/1/block.dwg",
+      "sha256": "34cb5fdcdb284df3cf61bf310008d02472c0723cfa5ea4811fe2dc676723b60b"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV8/1/legend.sld",
+      "sha256": "e5de9f41c0993b807627ce204a3a05791f691d0ca218c611858b07034e83aa27"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV7/1/block.dwg",
+      "sha256": "3593d41173c404965d91f5251174ae424c64c61c90849b543415705786ff600d"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV7/1/legend.sld",
+      "sha256": "f51e082ba41f5084bee622d8e004257f29a70daa7a9c05cc6935fc96131f05b0"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV6/1/block.dwg",
+      "sha256": "09853733e661a35d358f2aace96070d3e901e142d7ed6e040285bc8c7fbb27e1"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV6/1/legend.sld",
+      "sha256": "7ec4e07df789cc2cb2f84c0e3efb0127fa8605b513b3ec9f36479b01883e6827"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV5/1/block.dwg",
+      "sha256": "50a2b4dfd26bcca673fcec7a8c8c86e772b52628512cb5cdec67d81b3cf0719e"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV5/1/legend.sld",
+      "sha256": "2abe380246f9eeee6a8446deb1401474a60b227485c491a2a1767d192ea3b69b"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV49/1/block.dwg",
+      "sha256": "d1def7865bd155c06e707e36a24be3e9d4288782d776201443eb18b5e29ef402"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV49/1/legend.sld",
+      "sha256": "89d303514252cd84554ff1bf472ea16c335385675c0569a6e6cdf8012e98d977"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV48/1/block.dwg",
+      "sha256": "590e770b25c29b8170bf66c7e8ca6ae7dce0e6fe735a46c725bfb112a5766e52"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV48/1/legend.sld",
+      "sha256": "ffb758bff62e54faf7a734adc82d92076fe43ae397e2f56b7781b816a2bed714"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV47/1/block.dwg",
+      "sha256": "cbd59452d4d1e22947628e58d84fabfb3c4ae65c7cbe7293ce9df44c1b20d68e"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV47/1/legend.sld",
+      "sha256": "702deeac9bd1e785562df3a55bdf2801e06c8ce1a891d5e4faedeb0bca225e94"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV46/1/block.dwg",
+      "sha256": "491c4ed9a7a6099bf726b954bf0370d21475a8fadb23e8402452122a6d956132"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV46/1/legend.sld",
+      "sha256": "488de23b278b4f173c456a44109c748c21bf02249d23ea73eb97f901aefe122f"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV45/1/block.dwg",
+      "sha256": "d09f561cd59e1d663550f033159a38d538697cf2ec1f0821253a426d5fe64abf"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV45/1/legend.sld",
+      "sha256": "6db389a66364787511f4c7c2f9f5d80d9bc92a9091278d17585796a70caa63d2"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV44/1/block.dwg",
+      "sha256": "889b9c64191520644b454b31bf5de83629ef9b8956bc23af06816a7671331b85"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV44/1/legend.sld",
+      "sha256": "ad56061bf23b3a27577115a4a8ec009aeaeba06f0290c31bc3540fd01fc5aa45"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV43/1/block.dwg",
+      "sha256": "7911e96b42bbf7e389a8fc227ed1d8920024b0c9ccdcf8d25d946495736f2a59"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV43/1/legend.sld",
+      "sha256": "2d956285763c3fc4b88139f37b0bb3fadbb5ffc11c7b12e690574a791aabb77a"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV42/1/block.dwg",
+      "sha256": "2c563e3e1bb956ed32dab76101c97e8976f44b8f4366760b24cbfab97cd38305"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV42/1/legend.sld",
+      "sha256": "245ed0b1441d61b38e9449e1870845ccb71e5fdfa6a2fede54b94ed435e5da82"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV41/1/block.dwg",
+      "sha256": "e015b6e6399fbd32998cc850fc5f0c61cd0ada8a6345f397bedfdd9770f0d8a7"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV41/1/legend.sld",
+      "sha256": "33944c4ebbdf1319b393db0e93ac726061a4106006cc5965a7f35df3f55f1805"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV40/1/block.dwg",
+      "sha256": "2bc0d6a581fe84ffd60448e155c98a46069c544976e58e79342de57c5251861f"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV40/1/legend.sld",
+      "sha256": "60dd5cc1362fed7378795ab20da82e692b8a5068137d71d7154df1786f71f2bc"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV4/1/block.dwg",
+      "sha256": "7ca572c8858e89661b4e9a68439eb934c6d56d82dd18011ce7a7c00fe6a408e6"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV4/1/legend.sld",
+      "sha256": "0a26b05c280966a0a0d9799928784cc5c87b0998ea509c58d9ab1a68deff3a4b"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV39/1/block.dwg",
+      "sha256": "855a10fcba5602de92a46bfc2568c83e98fa511c4842896fc0bc07a64bd7aae6"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV39/1/legend.sld",
+      "sha256": "2bb242cc2ef3818c688e357716d3361d813e41fcd7683f56c4dd5a7816688730"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV38/1/block.dwg",
+      "sha256": "24350f4d20df4c8d75ce5c5519182fe2116b8462444623c014fa01f2897bdae1"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV38/1/legend.sld",
+      "sha256": "03a76db305a75c44dc87376b7c75d835156a1a8c1add72973e617da9020b731d"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV37/1/block.dwg",
+      "sha256": "eda11f73d51c4de38c8b5e0fcc7075eb53e0f472dc905098c362016ad00d588a"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV37/1/legend.sld",
+      "sha256": "463e27b2fbc3e8dd78f65312fcbe71f84896054c8d6262bab1b81678dbfcaf3b"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV36/1/block.dwg",
+      "sha256": "80a8ca62822276ce955999ea305e9a3a0614789f0937c775d351bd1c01913361"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV36/1/legend.sld",
+      "sha256": "6845028d185cf092bc2aeb671324ddf633de6c7ffdf37e3aff83bc7669079435"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV35/1/block.dwg",
+      "sha256": "4c0001af064e94a5dd8b04bbf94915e1204a97029337a96aee3e8b4861705201"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV35/1/legend.sld",
+      "sha256": "0d485802f2350f16bb41fc2c1ee51bc884e278bda40f4a3ca842f94c687e4a74"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV34/1/block.dwg",
+      "sha256": "bd20a1e98227ca04e4e8dac55012e19b21de9caabebcc26095e98f777c18eefc"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV34/1/legend.sld",
+      "sha256": "baedbe5f109ed1e78f5ed68093ca6e1a53a400fd87dfe76621cab99b5b2c1c7a"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV33/1/block.dwg",
+      "sha256": "f7da0a4c8e6926f8f3968b80ce18789b898cddb4ed836db987b45a412e8f3815"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV33/1/legend.sld",
+      "sha256": "e416e5c5b08f9c98acc74484440e8a267ccca7561dadb8ad44b33799e598d998"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV32/1/block.dwg",
+      "sha256": "5f1e0debff7d04272af0f11b424992037a0207f5504e08c1129c93eaa5fcd318"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV32/1/legend.sld",
+      "sha256": "13994c1364daace8a94045a5b04c07e5d2ec79d4223b8f5ab20db477c30b7fb0"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV31/1/block.dwg",
+      "sha256": "98c58f5d3117007a89e7be5fa039a0b1d25417c111abfe84f18ff454f599e691"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV31/1/legend.sld",
+      "sha256": "3cb370431b9197672881cfd6be4e8fefe3eedb71b43967bc6dffb16f3d1977fa"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV30/1/block.dwg",
+      "sha256": "036db71abb8e872930994d3372b6832291c17ec3accec2df5383c4d71a5ccf92"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV30/1/legend.sld",
+      "sha256": "588c1012544ef7f3373147e08f0fdceb7c2ad463b2899c25053d97f99c39caee"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV3/1/block.dwg",
+      "sha256": "f6ab920f412d60b9d121887fc1f6da764088ff78527a8c801843561b35e5a4c7"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV3/1/legend.sld",
+      "sha256": "6f360f758e4735d43bae91500bac7759d47ecd65ce90b1c06e8d4cf0e8333996"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV29/1/block.dwg",
+      "sha256": "fb01a50ab1889b384eb885a4dd47a815a4c1d07b539fd1450d92047de8540ad5"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV29/1/legend.sld",
+      "sha256": "dfd8d188691e02ad337b13cbd60fe2f146fc6da6fc2f3621bf8cc5705535537f"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV28/1/block.dwg",
+      "sha256": "c578619cb5828bd9fdc5e95e0f6a37a5b3c6bd1ed6aebb207df8411895aed12e"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV28/1/legend.sld",
+      "sha256": "15fa35903c4de21e91c671081996061a9bdb3d27ee48112a525f93fc37dc9385"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV27/1/block.dwg",
+      "sha256": "de562b613d30945677f3653c7d092f4f6381b433d6d53f59f0dfa3e49858cdf8"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV27/1/legend.sld",
+      "sha256": "bd656fe346c707e4125cc9ac2bf031ba03360b6a7737f84f85ab45b1a5f6c32a"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV26/1/block.dwg",
+      "sha256": "205e5d4fbe5a9860db513830da68aa63c35d7be35eefbe273d194a72bf06500c"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV26/1/legend.sld",
+      "sha256": "dc8008dd33c012e89c38ec922475502f1e451d8d97c9ead6a53c7263f2128f04"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV25/1/block.dwg",
+      "sha256": "cf395b6fd507691b81a1d818eef5b024107a5e2b4ad49c5a3aa338bac6385db2"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV25/1/legend.sld",
+      "sha256": "63bb437835b752d46bbde7276c1c53d5557a2d87d7e911508d26259a4cc1042e"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV24/1/block.dwg",
+      "sha256": "70646aeab4fac9b5b73a2748e9675ad832446156bf23164e71cc15babf65835a"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV24/1/legend.sld",
+      "sha256": "f8542293c1828bbd481cd37a0e8925d932cb518d76e6b73436a05ba729a373a6"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV23/1/block.dwg",
+      "sha256": "937d5f861c49249e48d571077065751121e5fe9158f58aa4cbe2d39a8c34b0cf"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV23/1/legend.sld",
+      "sha256": "ed33cab36fd597e2501522276a2a20504e2626beacf918023d241fdc0b905140"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV22/1/block.dwg",
+      "sha256": "8001b48fdbd89da4bba4b448c3aa1db94d8c160f4ac5dfc3b60146e1e422181b"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV22/1/legend.sld",
+      "sha256": "4c1b65a105a19670f6d7a80382ca4061c19af92899ef9dbb8ae755e316e18bac"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV21/1/block.dwg",
+      "sha256": "02ac5304edf2f912f614fa40aace547a9b5186166d05ac79d9c2661d4a69d93f"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV21/1/legend.sld",
+      "sha256": "5a694555a21b0f8303d735055370ed4fef15f27f57cd638a82bf487f52810014"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV20/1/block.dwg",
+      "sha256": "43bbcae447895302a15c1ea3c32307d3edd3e21e3549534393a1cddbcb9e2bf2"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV20/1/legend.sld",
+      "sha256": "14f00932b967e9dc6cff745f433caf6daab852979affb2b3b5ca6b4099453bce"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV2/1/block.dwg",
+      "sha256": "0ca8fbf7bf24c2a8b197078adbc1ac093011910b8a10f22e3e732c6ef2857620"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV2/1/legend.sld",
+      "sha256": "5d340aef6f1d7214a8f21e10ed201b8d46b4458ddf101a94a736a6e92779a9d9"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV19/1/block.dwg",
+      "sha256": "fd4fb5dd737e79e4883dedbe8485185f30d12a32ef4fe1e1a94f887c46919ad0"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV19/1/legend.sld",
+      "sha256": "6339e5c6524fc18758d2f4f9e0e7c2388f98be156dab3ba544cf4f94b3cc656a"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV18/1/block.dwg",
+      "sha256": "ed09f053f97aa3aa04fc1540fa54ca867d8073d3c564388f031132145d7579ae"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV18/1/legend.sld",
+      "sha256": "f28899381766ea9cae80f66d49d0a22e2697dd9f2598947d6652ce5ac19b7441"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV17/1/block.dwg",
+      "sha256": "71a2845c99767a3a4dfab223a9de6ae1ab30c46fc4cac1d9a873adcc6b11406e"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV17/1/legend.sld",
+      "sha256": "c478fc5e207e8b0acdb04371eb0540e063e7426710f4a098b8333f643c3e29ee"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV16/1/block.dwg",
+      "sha256": "c9a0c5692a0c071ce57c15b28cdb34b6c264a6248f6159f3e5f7637dc1ee93c2"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV16/1/legend.sld",
+      "sha256": "ca2064f6cf69aacb1f503c967ab241d88ad6894fc974b7688327aa69431658f3"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV15/1/block.dwg",
+      "sha256": "10f76e3f8034cada66883c8fa34085b30da93c1a405da87f3b86b052e1691614"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV15/1/legend.sld",
+      "sha256": "f3c66c2e0e5ccc15fdb629e63616fc2615e480288dbaf904ea7125ad77d42a6c"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV14/1/block.dwg",
+      "sha256": "24ab3daafd9c7883711ff812eb3d86976639e5daee1624711979f4685f88e8aa"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV14/1/legend.sld",
+      "sha256": "cd51749cefd59b32ac7aeae8a6739e2fcf96cfbc145e41d9efcff6c48341f9b1"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV13/1/block.dwg",
+      "sha256": "72e8cf52e527d7efb39d0b389d7923e63b9074bdc2f7b47c6b2e8b4753712c9f"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV13/1/legend.sld",
+      "sha256": "9d5583f9a4f10cd3b14384464288e85640ccfd76e186198496b367cbbfab27df"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV12/1/block.dwg",
+      "sha256": "e3b2e2b8fb7ae9f3f8ad3d5c11310c67a707e106f242a9946c84b268bc0104a5"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV12/1/legend.sld",
+      "sha256": "365de774b034c43ae349412ce5a4cdff9e63581556ac356a9a06826901400237"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV11/1/block.dwg",
+      "sha256": "fe532ed0c9826118a34d35d9517e607f9eedc13d29ab4d15fceabbc548db7cce"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV11/1/legend.sld",
+      "sha256": "700cf6a83d4f90aa930e3bea40c4f89e6d4b0f9887371eaa41cfeec46b883ad8"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV10/1/block.dwg",
+      "sha256": "0bac45b84b8f51673c1a5f70704d436912149ead6dd6dacaf7500c510709fa99"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV10/1/legend.sld",
+      "sha256": "660aaab299eb15949b35a58c7275f1df7b7fab3a71ae2089df50f6b494e95209"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV1/1/block.dwg",
+      "sha256": "ae7b56de06757f1d7ca3e59a4dc5c40762b49e101895e097a4f52cc450dd10ee"
+    },
+    {
+      "path": "output/应急照明-119/assets/default-device-library/assets/ELDEV1/1/legend.sld",
+      "sha256": "ae17278edebed0de60c701e76d119dadbf5e1ec8ad2fd6cbd95ea376b08611a0"
+    }
+  ],
+  "excluded": "Python bytecode caches are disposable"
+}

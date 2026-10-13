@@ -55,7 +55,7 @@
         (T data)))
 (defun EL:Signature (data) (vl-prin1-to-string (EL:StableData data)))
 (defun EL:RecognitionRules (cfg / rows key)
-  (foreach key '(wire-styles auto-panel concentrated-trunk wire-layers panel-layers device-layers leader-layers panel-names device-names leader-names
+  (foreach key '(wire-styles auto-panel concentrated-trunk circuit-starts wire-layers panel-layers device-layers leader-layers panel-names device-names leader-names
       layer-pairs params calibrated gap-pairs leader-pairs roles exits)
     (setq rows (cons (cons key (EL:Get key cfg)) rows)))
   ;; Date: 2026-10-13. Old recognition must be rebuilt after device pass-through.
@@ -430,6 +430,7 @@
       ("LOAD_ROOT" . "确认目录及释放内置资源") ("LOAD_LIBRARY" . "初始化默认设备库")
       ("LOAD_BOOTSTRAP" . "加载启动入口及公共函数")
       ("PICK_PANEL" . "拾取配电箱并处理回路") ("PICK_TRUNK" . "拾取集中引出线并处理回路")
+      ("PICK_STARTS" . "拾取回路起始端导线") ("RECOGNIZE_STARTS" . "沿起始导线识别回路")
       ("PANEL_START_LOAD" . "读取面板文件") ("PANEL_START_NEW" . "创建面板")
       ("PANEL_START_INIT" . "初始化面板") ("PANEL_START_BUTTONS" . "绘制拾取按钮")
       ("PANEL_START_WAIT" . "首屏面板会话") ("PANEL_DIALOG" . "回路设置面板会话")
@@ -462,7 +463,7 @@
   (action_tile key (strcat "(EL:MonitorUIBegin $key $value) " code " (EL:MonitorUIEnd)")))
 (defun EL:MonitorUIBegin (key value / *EL:MonitorLabel* title)
   (setq title (cdr (assoc key
-    '(("p_pick" . "拾取配电箱") ("p_trunk" . "拾取集中引出线")
+    '(("p_pick" . "拾取配电箱") ("p_trunk" . "拾取回路起始端导线")
       ("h_load" . "加载保存记录") ("h_records" . "选择保存记录")
       ("h_open" . "保存当前并打开记录") ("accept" . "保存或确定")
       ("cancel" . "取消或退出") ("p_generate" . "生成或更新")

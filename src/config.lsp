@@ -55,7 +55,7 @@
         (cons 'leader-pairs nil) (cons 'powers nil) (cons 'template nil)))
 (defun EL:ConfigValid (cfg id / ok k pair seen)
   (setq ok (and (EL:OnlyKeys cfg '(version drawing revision calibrated units params
-        preset-scoped wire-styles auto-panel concentrated-trunk wire-layers panel-layers device-layers leader-layers panel-names device-names
+        preset-scoped wire-styles auto-panel concentrated-trunk circuit-starts wire-layers panel-layers device-layers leader-layers panel-names device-names
         leader-names layer-pairs gap-pairs leader-pairs powers template roles exits))
         (member (EL:Get 'version cfg) '(1 2)) (equal (EL:Get 'drawing cfg) id)
         (equal (type (EL:Get 'revision cfg)) 'INT) (>= (EL:Get 'revision cfg) 0)
@@ -66,6 +66,9 @@
   (foreach k '(wire-layers panel-layers device-layers leader-layers panel-names device-names leader-names)
     (if (not (EL:Strings (EL:Get k cfg))) (setq ok nil)))
   ;; Date: 2026-10-10. Optional inferred style and exact panel-contact identity.
+  (if (and (EL:Get 'circuit-starts cfg)
+      (not (and (EL:Get 'auto-panel cfg) (not (EL:Get 'concentrated-trunk cfg))
+        (EL:CircuitStartsValid (EL:Get 'circuit-starts cfg))))) (setq ok nil))
   (if (and (EL:Get 'auto-panel cfg) (not (equal (type (EL:Get 'auto-panel cfg)) 'STR))) (setq ok nil))
   (if (and (EL:Get 'concentrated-trunk cfg)
       (or (not (equal (type (EL:Get 'concentrated-trunk cfg)) 'STR))

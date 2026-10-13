@@ -627,6 +627,9 @@ class NumberWorkflowTests(unittest.TestCase):
             if marked:
                 f.entities[f'w{i}'].append([-3, ['linenum', Pair(1000, f'ZE{6-i}')]])
             f.selected += [f'lamp{i}', f'w{i}']
+        picks = iter([['panel', [0., 0., 0.]]] +
+                     [[f'w{i}', [100., y, 0.]] for i,y in enumerate((-80.,-40.,0.,40.,80.),1)] + [None])
+        self.h.builtins['EL:PICKMODEL'] = lambda *args: next(picks)
         self.seen = []
 
     def capture_panel(self):

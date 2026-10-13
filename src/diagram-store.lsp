@@ -213,8 +213,19 @@
     ((equal marker "EL_COMPACT_TYPED_V2") (EL:StoreExpand (EL:StoreDecodeNative tokens marker)))
     ((equal marker "EL_COMPACT_TYPED_V3") (EL:StoreExpand (EL:StoreDecodeNative tokens marker)))
     (T (EL:StoreParseRequire nil))))
-(defun EL:StorePayload (entry)
-  (vl-remove-if-not '(lambda (p) (member (car p) '(1 2 3 40 90 300))) entry))
+(defun EL:StorePayload (entry / prefix)
+  ;; Date: 2026-10-13. Typed records start at group 300. Filter only the
+  ;; short header, then return the COMPLETE tail without per-field Lisp calls.
+  ;; Preserve unexpected fields after that marker for exact checks/decoding;
+  ;; also retain data before it so malformed prefixes cannot hide corruption.
+  ;; Without a typed marker, this is the original legacy text-field filter.
+  (while (and entry (not (equal (caar entry) 300)))
+    (if (member (caar entry) '(1 2 3 40 90)) (setq prefix (cons (car entry) prefix)))
+    (setq entry (cdr entry)))
+  (if entry
+    (progn (EL:PerfCount "store-payload-tail-reuses" 1)
+      (if prefix (append (reverse prefix) entry) entry))
+    (progn (EL:PerfCount "store-payload-filter-calls" 1) (reverse prefix))))
 (defun EL:StoreSchemaValid (value)
   (and (listp value) (equal (EL:Get 'schema-version value) 1)
     (equal (type (EL:Get 'drawing-uuid value)) 'STR) (listp (EL:Get 'diagrams value))))

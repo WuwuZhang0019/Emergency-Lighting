@@ -100,7 +100,7 @@
             result (EL:Get 'result context) cfg (EL:Get 'config context))))
       (setq result (EL:Get 'switch-result next) cfg (EL:Get 'switch-config next)))))
   next)
-(defun EL:EditPanelOnce (result cfg / *error* store record powers capacity edited prepared saved ownlog syncable template resolved resumed *EL:FreshScope* *EL:FreshScopeEnabled*)
+(defun EL:EditPanelOnce (result cfg / *error* store record powers capacity edited prepared saved ownlog syncable template resolved resumed preflight-owner *EL:FreshScope* *EL:FreshScopeEnabled* *EL:GenerationPreflight*)
   (defun *error* (msg)
     (EL:LogFailure msg)
     (vl-catch-all-apply 'EL:ClearGapPreview nil)
@@ -155,10 +155,15 @@
           (EL:LogCall "PRE_GENERATE_FRESH" nil 'EL:FreshResult (list result cfg)))
         (progn
           ;; Keep accepted setup and draft outside the preview undo group.
-          (setq *EL:Result* result *EL:FixedConfig* cfg)
+          (setq *EL:Result* result *EL:FixedConfig* cfg preflight-owner (namedobjdict))
           (if (and syncable (EL:Get 'generate edited)
               (not (EL:Get 'panel-output-handle record)))
-            (EL:Require (EL:LogCall "SAVE_GENERATION_DRAFT" nil 'EL:SaveDraft (list result cfg powers capacity)) "生成前保存草稿失败，请重试。"))
+            (progn
+              (EL:Require (EL:LogCall "SAVE_GENERATION_DRAFT" nil 'EL:SaveDraft (list result cfg powers capacity)) "生成前保存草稿失败，请重试。")
+              ;; Date: 2026-10-13. The new native placement checks the source
+              ;; again before any circuit rows. Defer the intervening scan;
+              ;; this receipt never makes an invalidated snapshot reusable.
+              (setq *EL:GenerationPreflight* (list preflight-owner result cfg))))
           (setq saved (if (not (EL:Get 'generate edited))
             (EL:SaveDraft result cfg powers capacity)
             (if syncable

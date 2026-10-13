@@ -524,8 +524,10 @@ class PostStatWorkflowTests(unittest.TestCase):
         self.h.builtins['EL:FRESHRESULT'] = lambda *args: True
         synced = []
         commands = []
+        receipts = []
         def cckk2():
             commands.append(self.h.lookup('*EL:CCKK2REQUEST*'))
+            receipts.append(self.h.lookup('*EL:GENERATIONPREFLIGHT*'))
             del self.h.builtins['C:CCKK2']
             try:
                 return self.h.run('(c:CCKK2)')
@@ -540,11 +542,36 @@ class PostStatWorkflowTests(unittest.TestCase):
         self.assertEqual(len(synced), 1)
         self.assertEqual(len(commands),1)
         self.assertIsNone(self.h.lookup('*EL:CCKK2REQUEST*'))
+        self.assertIsNone(self.h.lookup('*EL:GENERATIONPREFLIGHT*'))
         result, cfg, powers, capacity, generate, interactive = synced[0]
+        self.assertEqual(receipts[0], [self.h.run('(namedobjdict)'), result, cfg])
         self.assertEqual(self.get('template', cfg), template)
         self.assertEqual(capacity, Symbol('CAP600'))
         self.assertTrue(truth(self.call('EL:SelectionsReady', result, capacity)))
         self.assertTrue(truth(generate))
+
+    def test_failed_generation_draft_cannot_issue_preflight_or_start_placement(self):
+        template = self.h.run("'((template-test . \"captured\"))")
+        self.h.builtins.update({
+            'EL:CAPTUREFIXEDTEMPLATE': lambda cfg: template,
+            'EL:TEMPLATEREADY': lambda value, cfg: value == template,
+            'EL:FRESHRESULT': lambda *args: True,
+            'EL:SAVENAMEPOWERS': lambda *args: True,
+            'EL:DLPANELPUBLISHPOWERS': lambda: True,
+            'EL:INVOKECCKK2': lambda *args: self.fail('failed draft must not generate'),
+        })
+        def reject_draft(*args):
+            self.assertIsNone(self.h.lookup('*EL:GENERATIONPREFLIGHT*'))
+            return None
+        self.h.builtins['EL:SAVEDRAFT'] = reject_draft
+        def generate():
+            self.tiles['b_watts0'] = '9'
+            self.call('EL:PanelGenerate')
+        self.actions = [generate]
+        with self.assertRaises(RuntimeError):
+            self.call('EL:EditPanelOnce', self.result, self.cfg)
+        self.assertIsNone(self.h.lookup('*EL:GENERATIONPREFLIGHT*'))
+        self.assertEqual(self.get('watts', self.get('circuits', self.h.lookup('*EL:RESULT*'))[0]), 18)
 
     def test_capacity_and_manual_no_restore_from_saved_draft(self):
         self.h.frames[0]['RESULT'] = self.result
@@ -601,6 +628,7 @@ class PostStatWorkflowTests(unittest.TestCase):
         captures, saves = [], []
         self.h.builtins.update({
             'EL:THUMBCAPTURE': lambda block: captures.append(block),
+            'EL:DLPANELPUBLISHPOWERS': lambda: True,
             'EL:FRESHRESULT': lambda *args: True,
             'EL:SAVEDRAFT': lambda *args: saves.append(args) or True,
             'EL:SAVENAMEPOWERS': lambda *args: True,
@@ -629,6 +657,7 @@ class PostStatWorkflowTests(unittest.TestCase):
 
     def test_failed_save_returns_to_panel_with_input_for_retry(self):
         self.h.builtins.update({'EL:FRESHRESULT': lambda *args: True,
+            'EL:DLPANELPUBLISHPOWERS': lambda: True,
             'EL:SAVEDRAFT': lambda *args: None, 'EL:SAVENAMEPOWERS': lambda *args: True})
         def save():
             self.tiles['b_watts0'] = '9'

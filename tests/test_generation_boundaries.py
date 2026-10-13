@@ -1,4 +1,4 @@
-"""Source/template guards across callbacks and native placement. Date: 2026-10-11."""
+"""Source/template guards across callbacks and native placement. Date: 2026-10-13."""
 import copy
 import unittest
 
@@ -161,6 +161,86 @@ class NativePlacementBoundaryTests(unittest.TestCase):
         self.assertFalse(truth(self.f.invoke()))
         self.assertEqual(len(self.f.commands), 1)
         self.assertFalse(any(name.startswith('native-') for name in self.f.entities))
+
+
+class AcceptedGenerationBoundaryTests(unittest.TestCase):
+    def setUp(self):
+        self.f = native.PanelCommandTests()
+        self.f.setUp()
+        self.h = self.f.h
+        self.h.run("""(setq result (EL:Put 'engine 'fixed result))
+            (setq *EL:GenerationPreflight* (list (namedobjdict) result cfg))""")
+        self.h.builtins['EL:CURRENTJUNCTIONCONFIG'] = lambda cfg: cfg
+        self.checked = []
+        self.h.builtins['EL:FRESHRESULT'] = self.current
+
+    def current(self, result, cfg):
+        self.checked.append(len(self.f.commands))
+        return True
+
+    def test_saved_submission_checks_after_placement_and_after_row_writes(self):
+        self.assertTrue(truth(self.f.invoke()))
+        self.assertEqual(self.checked, [1, 4])
+        self.assertTrue(self.f.get('panel-output-handle',
+            self.h.run('(EL:DiagramForPanel "source" (EL:StoreRead))')))
+
+    def test_source_changed_since_draft_rolls_back_before_any_circuit_rows(self):
+        before = copy.deepcopy(self.h.run('(EL:StoreRead)'))
+        self.h.builtins['EL:FRESHRESULT'] = lambda *args: self.current(*args) and False
+        self.assertFalse(truth(self.f.invoke()))
+        self.assertEqual(self.checked, [1])
+        self.assertEqual(len(self.f.commands), 1)
+        self.assertFalse(any(name.startswith('native-') for name in self.f.entities))
+        self.assertEqual(self.h.run('(EL:StoreRead)'), before)
+
+    def test_source_changed_during_output_writes_rolls_back_and_keeps_draft(self):
+        before = copy.deepcopy(self.h.run('(EL:StoreRead)'))
+        self.h.builtins['EL:FRESHRESULT'] = lambda *args: self.current(*args) and len(self.f.commands) == 1
+        self.assertFalse(truth(self.f.invoke()))
+        self.assertEqual(self.checked, [1, 4])
+        self.assertFalse(any(name.startswith('native-') for name in self.f.entities))
+        self.assertEqual(self.h.run('(EL:StoreRead)'), before)
+
+    def test_unaccepted_or_changed_submission_cannot_defer_source_check(self):
+        for change in ("(setq *EL:GenerationPreflight* nil)",
+                       "(setq cfg (EL:Put 'changed T cfg))",
+                       "(setq result (EL:Put 'panel-number \"changed\" result))",
+                       "(setq *EL:GenerationPreflight* (cons \"other-drawing\" (cdr *EL:GenerationPreflight*)))"):
+            with self.subTest(change=change):
+                self.setUp()
+                self.h.run(change)
+                self.h.builtins['EL:FRESHRESULT'] = lambda *args: self.current(*args) and False
+                self.assertFalse(truth(self.f.invoke()))
+                self.assertEqual(self.checked, [0])
+                self.assertEqual(self.f.commands, [])
+
+    def test_changed_live_config_or_number_rejects_before_placement(self):
+        for changed in ('config', 'number'):
+            with self.subTest(changed=changed):
+                self.setUp()
+                if changed == 'config':
+                    self.h.builtins['EL:CURRENTJUNCTIONCONFIG'] = lambda cfg: [Pair(Symbol('CHANGED'), True)] + cfg
+                else:
+                    self.h.builtins['EL:NUMBERINPUTSCURRENT'] = lambda result: False
+                self.assertFalse(truth(self.f.invoke()))
+                self.assertEqual(self.f.commands, [])
+
+    def test_changed_library_rejects_before_placement(self):
+        self.h.builtins['EL:DLSUBMISSIONCURRENT'] = lambda result: False
+        with self.assertRaises(RuntimeError):
+            self.f.invoke()
+        self.assertEqual(self.f.commands, [])
+
+    def test_existing_or_erased_output_handle_keeps_original_source_guard(self):
+        for handle in ('panel', 'erased-output'):
+            with self.subTest(handle=handle):
+                self.setUp()
+                self.h.run(f'''(setq record (EL:Put 'panel-output-handle "{handle}" record))
+                    (EL:StoreWrite (EL:StorePutDiagram record store))''')
+                self.h.builtins['EL:FRESHRESULT'] = lambda *args: self.current(*args) and False
+                self.assertFalse(truth(self.f.invoke()))
+                self.assertEqual(self.checked, [0])
+                self.assertEqual(self.f.commands, [])
 
 
 if __name__ == '__main__':

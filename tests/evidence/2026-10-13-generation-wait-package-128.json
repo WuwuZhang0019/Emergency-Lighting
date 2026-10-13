@@ -1,0 +1,37 @@
+{
+  "date": "2026-10-13",
+  "status": "completed",
+  "passed": true,
+  "package": 128,
+  "lisp_dcl_count": 32,
+  "lisp_parsed": 30,
+  "checked_entries": [
+    "START-CAD2020.lsp",
+    "UPDATE-128.lsp",
+    "src/load.lsp"
+  ],
+  "checked_functions": [
+    "EL:StorePayload",
+    "EL:SplitAudit",
+    "EL:SplitChunkValid",
+    "EL:EditPanelOnce",
+    "EL:CCKK2DeferredSource",
+    "EL:GenerationSourceCurrent",
+    "EL:SyncDiagramScoped"
+  ],
+  "checks": [
+    "strict GB2312",
+    "all LISP parsing",
+    "ZIP CRC",
+    "all archive/directory bytes equal",
+    "changed definitions equal all three entries and individual modules"
+  ],
+  "source_sha256": {
+    "src/diagram-store.lsp": "0a997241610cca51499f767eeedfcf61ad2dcac4d78fa3e07d8e3db41f0526da",
+    "src/store-split.lsp": "14e1644117e72c6199e0277d56e01d15d9572860a126295d6bad46206f18754a",
+    "src/diagram-commands.lsp": "76768954c7bb8aeafc512153eab1b663f1ad20917fea05bfc1906a967f8388f6",
+    "src/diagram-update.lsp": "27ba557afe4363d29395ce31016d0f0fc4ab10cd6262e71d81812f46c1ea6ce2"
+  },
+  "archive_sha256": "180a0be71ac74094211d4d92d34e67b38a9f8a4c4790874b7ca157ffd086c417",
+  "native_cad_status": "pending original DWG timing and acceptance"
+}

@@ -528,13 +528,28 @@
         (vl-prin1-to-string (EL:Get 'position (EL:Get 'plan record))) "。请查看诊断日志。")) nil)))
 (defun EL:SyncDiagram (result cfg powers capacity generate interactive)
   (EL:SyncDiagramScoped result cfg powers capacity generate interactive *EL:FreshScope*))
-(defun EL:SyncDiagramScoped (result cfg powers capacity generate interactive scope / store record template transform plan point structural outcome rotation scale rebuild context *EL:NativePreview* *EL:FreshScope* *EL:FreshScopeEnabled* *EL:UpdateOperations* *EL:UpdateScopeActive*)
+(defun EL:CCKK2DeferredSource (result cfg record generate interactive)
+  ;; Date: 2026-10-13. Only an accepted, saved new-panel submission may defer
+  ;; the second scan to CreateDiagram's mandatory post-placement guard.
+  ;; Existing/missing managed outputs and direct invocations keep all guards.
+  (and generate interactive *EL:CCKK2Request* *EL:GenerationPreflight*
+    (equal (EL:Get 'engine result) 'fixed)
+    (not (EL:Get 'panel-output-handle record)) (not (EL:Get 'identity-ambiguous result))
+    (equal (list (namedobjdict) result cfg) *EL:GenerationPreflight*)))
+(defun EL:GenerationSourceCurrent (result cfg deferred)
+  (if deferred
+    (and (equal (car *EL:GenerationPreflight*) (namedobjdict))
+      (equal cfg (EL:CurrentJunctionConfig cfg))
+      (EL:LogCall "COMPARE_SOURCE_NUMBER" nil 'EL:NumberInputsCurrent (list result)))
+    (EL:FreshResult result cfg)))
+(defun EL:SyncDiagramScoped (result cfg powers capacity generate interactive scope / store record template transform plan point structural outcome rotation scale rebuild context deferred *EL:NativePreview* *EL:FreshScope* *EL:FreshScopeEnabled* *EL:UpdateOperations* *EL:UpdateScopeActive*)
   (if (assoc 'effective-powers result) (setq powers (EL:Get 'effective-powers result)))
   (setq *EL:FreshScope* scope *EL:FreshScopeEnabled* T *EL:UpdateScopeActive* T)
   (setq capacity (EL:CapacityDefault capacity))
   (setq store (cond ((EL:StoreForResult result)) (T (EL:StoreInitial)))
     record (cond ((EL:RecordForResult result store)) (T (EL:NewRecord (EL:Get 'panel result) store)))
     template (cond ((EL:Get 'template cfg)) ((EL:Get 'template record)))
+    deferred (EL:CCKK2DeferredSource result cfg record generate interactive)
     result (EL:PreparedResult result record))
   (cond
     ((not (EL:CircuitNumbersReady result))
@@ -544,7 +559,7 @@
     ((vl-some '(lambda (c) (EL:Get 'identity-error c)) (EL:Get 'circuits result))
       (princ "\n出线种子身份不唯一，不能通过删除确认绕过；请修复源图。")
       (EL:MarkStale (EL:Get 'panel result) 'identity-conflict))
-    ((not (EL:FreshResult result cfg)) (EL:MarkStale (EL:Get 'panel result) 'source-changed))
+    ((not (EL:GenerationSourceCurrent result cfg deferred)) (EL:MarkStale (EL:Get 'panel result) 'source-changed))
     ((and (EL:Get 'identity-ambiguous result)
         (not (and interactive (EL:ConfirmRemoved result record))))
       (EL:MarkStale (EL:Get 'panel result) 'identity-conflict))
@@ -588,7 +603,7 @@
           (initget "Reflow Cancel")
           (EL:Require (and interactive (equal (EL:PerfInput 'getkword (list "\n结构变化影响手工排版，按预览模板重排？[Reflow/Cancel] <Cancel>：")) "Reflow"))
             "已保留现场排版，取消结构更新。") (redraw)))
-      (EL:Require (EL:FreshResult result cfg) "SOURCE_CHANGED：提交前源图变化，未更新。")
+      (EL:Require (EL:GenerationSourceCurrent result cfg deferred) "SOURCE_CHANGED：提交前源图变化，未更新。")
       (EL:Require (EL:DLSubmissionCurrent result) "设备库已变化，当前输入保留；请重新核对后生成。")
       (if (EL:Get 'panel-output-handle record) (EL:UpdatePreflight record store template plan))
       (if (and (EL:Get 'panel-output-handle record) (equal template (EL:Get 'template record))

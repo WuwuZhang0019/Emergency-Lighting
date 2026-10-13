@@ -21,7 +21,7 @@
                 (load (strcat *EL:Root* "src/" el-file ".lsp")) (EL:PerfEnd token 'returned))))
           (EL:PerfCall "LOAD_LIBRARY" 'EL:DLDefaultStartup nil)
           (EL:MonitorLoadEnd 'load-finished)
-          (princ "\n已加载：ELSETUP / ELPRESET / ELDEVPICK / ELDEVLIB / ELGAPTEST / ELSTAT / ELPOWER / ELTEMPLATE / ELGEN / ELUPDATE / ELSTORELEGACY / CCKK。"))))
+          (princ "\n已加载：ELSETUP / ELPRESET / ELDEVPICK / ELDEVLIB / ELJBOX / ELGAPTEST / ELSTAT / ELPOWER / ELTEMPLATE / ELGEN / ELUPDATE / ELSTORELEGACY / CCKK。"))))
     (princ "\n需要 AutoCAD 2021+ Windows、LISPSYS=1/2（更改后重启）及完整插件目录。")))
 (EL:LoadModules)
 (princ)

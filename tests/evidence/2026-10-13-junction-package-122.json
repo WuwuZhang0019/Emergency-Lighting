@@ -1,0 +1,35 @@
+{
+  "date": "2026-10-13",
+  "package": 122,
+  "passed": true,
+  "lisp_dcl_count": 31,
+  "lisp_parsed": 29,
+  "entries": [
+    "START-CAD2020.lsp",
+    "UPDATE-122.lsp",
+    "src/load.lsp"
+  ],
+  "entry_scenarios": 9,
+  "definition_count": 25,
+  "checks": [
+    "ZIP CRC",
+    "all archive/directory bytes equal",
+    "all strict GB2312 roundtrip",
+    "all LISP parsing",
+    "source definitions equal three entries",
+    "ELSTAT five-lamp panel/system plan",
+    "ELJBOX save/remove",
+    "shared junction conflict"
+  ],
+  "archive_sha256": "a0bea7f49116e8f12d40a32ad59e875ed00aa21ec862941d47dab4bde16df3e3",
+  "source_sha256": {
+    "src/common.lsp": "04e96a8170cbc0a9e1e5b4e90c48db9e6038940cf012244419ef4be88a0dcb74",
+    "src/config.lsp": "7b46f4ccb2d98d3074fafc883d4e16eba3574c356be5442bb528c9363c792375",
+    "src/simple.lsp": "d56a72f50f76a28595fe28905a509a2984ac1dd7adcbcda42eaadc0a59681788",
+    "src/topology.lsp": "6d05b4e10a6a272dadb8633be0654c90ce8393a3fd6e0507812ee210e65f7eb3",
+    "src/panel.lsp": "ce4d763c96e75ab511fb78b0f361dd3c8e2f7e0f0437721de6141621350a9a54",
+    "src/diagram-commands.lsp": "73ab15d91eede8ae14170be02d18961fc150c3c40bdee0c53ad3831bf0130143",
+    "src/diagram-update.lsp": "7f9a45b422a8480d53d252ab5c2b85a743f1d70bbf97b75d9b1e1217251d9307"
+  },
+  "native_cad_status": "pending original DWG acceptance"
+}

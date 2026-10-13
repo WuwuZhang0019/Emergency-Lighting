@@ -1,0 +1,17 @@
+{
+  "date": "2026-10-13",
+  "passed": true,
+  "tests_run": 88,
+  "junction_tests": 17,
+  "scope": [
+    "junction connection/branch/ownership/config/ELSTAT/plan",
+    "existing simple geometry and gaps",
+    "preset collection",
+    "circuit numbers"
+  ],
+  "excluded": {
+    "test_dialog_preview_restores_current_row_and_unsaved_values": "unchanged baseline also fails: adapter lacks WCMATCH; unrelated dialog preview",
+    "SimplePersistenceTests": "unchanged power file IO; outside junction scope"
+  },
+  "native_cad_status": "pending original DWG acceptance"
+}

@@ -175,6 +175,7 @@ class Host:
             'VL-STRING-MISMATCH': lambda a,b: next((i for i,(x,y) in enumerate(zip(a,b)) if x!=y), min(len(a),len(b))),
             'VL-STRING-SEARCH': lambda token,textdata,offset=0: (i if (i:=textdata.find(token,offset))>=0 else None),
             'SUBSTR': lambda s,start,n=None:s[start-1:] if n is None else s[start-1:start-1+n],
+            'VL-STRING-RIGHT-TRIM': lambda chars,value:value.rstrip(chars),
             'VL-PRIN1-TO-STRING': repr, 'VL-REMOVE': lambda x,xs:[y for y in seq(xs) if not equal(x,y)] or None,
             'PRINC': lambda *x: None, 'READ': lambda x:quoted(parse(x)[0]),
             'MAPCAR': lambda fn,*xs: [self.call(fn,list(a)) for a in zip(*(seq(x) for x in xs))] or None,

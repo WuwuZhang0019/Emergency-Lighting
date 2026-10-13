@@ -329,6 +329,7 @@
   (list (cons 'diagram-id id) (cons 'source-panel-handle panel) '(capacity-option . cap300) '(capacity-source . default)
     '(template-version . 1) '(status . unverified)))
 (defun EL:RecognizeFixed (cfg panel / snapshot network result record keys perf)
+  (setq cfg (EL:CurrentJunctionConfig cfg))
   (setq perf (EL:PerfBegin "RECOGNIZE_FIXED_RUN"))
   (EL:PerfCount "recognize-fixed-calls" 1)
   (EL:Require (and (handent panel) (not (EL:ManagedEntity (handent panel)))) "来源配电箱缺失或为受管输出。")
@@ -353,6 +354,7 @@
     network (EL:LogCall "SIMPLE_NETWORK" nil 'EL:SimpleNetwork (list snapshot cfg panel)))
   (EL:CircuitSnapshot (EL:Get 'snapshot network) panel))
 (defun EL:FixedFreshSnapshot (cfg panel)
+  (setq cfg (EL:CurrentJunctionConfig cfg))
   (if *EL:FreshSourceCandidate* (EL:FixedFreshForResult cfg *EL:FreshSourceCandidate*)
     (EL:FixedFreshSnapshotFull cfg panel)))
 (defun EL:FixedFreshForResult (cfg result / snapshot network proof epoch panel owner answer
@@ -387,6 +389,7 @@
     (EL:Get 'verified context) signature))
 (defun EL:FreshResult (result cfg / fresh key good *EL:FreshSourceCandidate*)
   (setq *EL:FreshSourceCandidate* result)
+  (if (equal (EL:Get 'engine result) 'fixed) (setq cfg (EL:CurrentJunctionConfig cfg)))
   (setq key (list (EL:Get 'drawing cfg) (getvar "DWGNAME") (getvar "DWGPREFIX")
     (EL:Get 'panel result) (EL:RecognitionRules cfg)
     (EL:Get 'signature (EL:Get 'snapshot result)) *EL:FreshEpoch*))

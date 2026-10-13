@@ -208,8 +208,8 @@
   (list 'EL_FIXED_SOURCE_V1 (EL:StableData snapshot)))
 (defun EL:CircuitSnapshot (snapshot panel / blocks b)
   (foreach b (EL:Get 'blocks snapshot)
-    (setq blocks (cons (EL:Put 'identity (list (EL:Get 'name b) nil "block-name-v1")
-      (EL:Put 'role (if (equal (EL:Get 'id b) panel) 'panel 'device) b)) blocks)))
+    (setq blocks (cons (EL:Put 'identity (EL:FixedBlockIdentity (EL:Get 'name b))
+      (EL:Put 'role (EL:FixedBlockRole b panel nil) b)) blocks)))
   (EL:Put 'signature (EL:LogCall "SNAPSHOT_SIGNATURE" nil 'EL:FixedSourceSignature (list snapshot)) (EL:Put 'blocks (reverse blocks) snapshot)))
 (defun EL:SplitNetwork (network cfg / snapshot panel edges seeds wire block i circuits result circuit
     *EL:DeviceContactCache* *EL:DeviceTemplateCache* *EL:DeviceTemplateEnabled*)
@@ -244,9 +244,22 @@
       (setq records (cons (list (cons 'identity (EL:Get 'identity b)) '(category . other)
         (cons 'display (if (and (assoc 'device-library result) (setq entry (EL:Get 'entry (EL:DLReference (EL:Get 'name b) result))))
           (EL:Get 'display entry) (EL:Get 'name b))) (cons 'watts w) '(zero-confirmed . T)) records)))) records)
+;; Date: 2026-10-13. Ownership is checked before removing non-load objects.
+(defun EL:FixedOwnership (circuits snapshot / out circuit other id block shared issues)
+  (foreach circuit circuits
+    (setq shared nil issues (vl-remove-if '(lambda (i) (equal (EL:Get 'code i) 'CIRCUIT_OWNERSHIP_CONFLICT)) (EL:Get 'issues circuit)))
+    (foreach id (EL:Get 'objects circuit)
+      (setq block (EL:By 'id id (EL:Get 'blocks snapshot)))
+      (if (or (member id (EL:Get 'wires circuit)) (equal (EL:Get 'role block) 'junction))
+        (foreach other circuits
+          (if (and (not (equal (EL:Get 'id circuit) (EL:Get 'id other))) (member id (EL:Get 'objects other)))
+            (setq shared (cons id shared))))))
+    (if shared (setq issues (cons (EL:Issue 'CIRCUIT_OWNERSHIP_CONFLICT (EL:Get 'id circuit) (EL:Unique shared)) issues)))
+    (setq out (cons (EL:Put 'complete (not issues) (EL:Put 'issues issues circuit)) out))) (reverse out))
 (defun EL:SelectFixedExits (result excluded / circuits keys)
   (setq keys (mapcar '(lambda (c) (EL:Get 'key (EL:Get 'seed c))) (EL:Get 'circuits result))
-    circuits (vl-remove-if '(lambda (c) (member (EL:Get 'key (EL:Get 'seed c)) excluded)) (EL:Get 'circuits result)))
+    circuits (vl-remove-if '(lambda (c) (member (EL:Get 'key (EL:Get 'seed c)) excluded)) (EL:Get 'circuits result))
+    circuits (EL:FixedOwnership circuits (EL:Get 'snapshot result)))
   (EL:Put 'candidate-keys keys (EL:Put 'excluded-seeds excluded (EL:Put 'circuits circuits
     (EL:Put 'complete (and circuits (not (EL:Get 'issues (EL:Get 'snapshot result)))
       (vl-every '(lambda (c) (EL:Get 'complete c)) circuits)) result)))))
@@ -1200,6 +1213,7 @@
       ((equal code 'OTHER_PANEL) "连接到其他配电箱")
       ((equal code 'UNKNOWN_ROLE) "对象用途未明确")
       ((equal code 'ABNORMAL_BRANCH) "分支连接异常")
+      ((equal code 'JUNCTION_INCOMPLETE) "接线盒只有一个有效接入导线，请核对盒后线路")
       ((equal code 'POWER_MISSING_OR_INVALID) "设备功率缺失或无效")
       ((equal code 'POWER_OVERFLOW) "功率计算超出范围")
       ((equal code 'POWER_OVER_LIMIT) "回路功率超过172W")

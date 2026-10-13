@@ -336,7 +336,10 @@
           (EL:Get 'curves shape))) (setq hit T)))
   hit)
 (defun EL:SimpleDevicePathHit (wire block cfg / shape hit)
-  (if (equal (EL:Get 'role block) 'panel) (EL:PathBlockHit wire block cfg)
+  (cond ((equal (EL:Get 'role block) 'junction)
+      (vl-some '(lambda (ep) (EL:SimpleDevicePointHit (EL:Get 'point ep) block cfg)) (EL:Get 'ends wire)))
+    ((equal (EL:Get 'role block) 'panel) (EL:PathBlockHit wire block cfg))
+    (T
     (and (EL:DevicePathBoundsHit wire block cfg)
       (progn
         (setq shape (EL:DeviceContactShape block)
@@ -349,11 +352,21 @@
           (EL:LogEvent "DEVICE_WIRE_MISS" (list (cons 'wire (EL:Get 'id wire))
             (cons 'device (EL:Get 'id block)) (cons 'segments (EL:Get 'segments wire))
             (cons 'geometry-issues (EL:Get 'issues shape)))))
-        hit))))
+        hit)))))
 (defun EL:SimpleDevicePointHit (point block cfg)
   (if (equal (EL:Get 'role block) 'panel) (EL:BlockPointHit point block cfg)
     (and (EL:BlockPointHit point block cfg)
       (EL:ContourPointHit point (EL:DeviceContactShape block) (EL:StrictDeviceConfig cfg)))))
+;; Date: 2026-10-13. Only real endpoints enter a registered junction.
+(defun EL:JunctionTree (blocks / items block bounds)
+  (foreach block blocks
+    (if (and (equal (EL:Get 'role block) 'junction) (setq bounds (EL:Get 'bounds block)))
+      (setq items (cons (list (cons 'key (EL:Get 'id block)) (cons 'block block) (cons 'bounds bounds)
+        (cons 'point (EL:V* 0.5 (EL:V+ (car bounds) (cadr bounds))))) items))))
+  (EL:SpatialTree items 0))
+(defun EL:JunctionAtPoint (point tree cfg / item ids)
+  (foreach item (EL:SpatialBoxQuery tree (list point point) (EL:GapEpsilon))
+    (if (EL:SimpleDevicePointHit point (EL:Get 'block item) cfg) (setq ids (cons (EL:Get 'key item) ids)))) ids)
 (defun EL:DevicesTouch (a b / sa sb seg edge hit segments candidates)
   (setq sa (EL:DeviceContactShape a) sb (EL:DeviceContactShape b))
   (setq segments (EL:Get 'segments sa))
@@ -488,12 +501,12 @@
   ;; selected panel and real wires as blockers; occupancy is already verified.
   (EL:Put 'blocks (vl-remove-if-not '(lambda (block) (equal (EL:Get 'role block) 'panel))
     (EL:Get 'blocks snapshot)) snapshot))
-(defun EL:SimpleNetworkBuild (snapshot cfg panel / wires blocks block wire bounds items tree edges ends ep other occupied tol ztol rows pairs component scope perf gap-snapshot)
+(defun EL:SimpleNetworkBuild (snapshot cfg panel / wires blocks block wire bounds items tree edges ends ep other occupied tol ztol rows pairs component scope perf gap-snapshot junction-tree junctions)
   (setq *EL:DeviceTemplateEnabled* T wires (EL:Get 'wires snapshot) tol (EL:Get 'eps_touch (EL:Get 'params cfg)) ztol (EL:GapEpsilon))
   (setq perf (EL:PerfBegin "NETWORK_WIRE_CONTACT"))
   (foreach block (EL:Get 'blocks snapshot)
-    (setq blocks (cons (EL:Put 'role (if (equal (EL:Get 'id block) panel) 'panel 'device) block) blocks)))
-  (setq blocks (reverse blocks) snapshot (EL:Put 'blocks blocks snapshot))
+    (setq blocks (cons (EL:Put 'role (EL:FixedBlockRole block panel cfg) block) blocks)))
+  (setq blocks (reverse blocks) snapshot (EL:Put 'blocks blocks snapshot) junction-tree (EL:JunctionTree blocks))
   ;; Wire endpoints may meet another endpoint or the middle of another wire.
   ;; Two crossing interiors alone do not create a junction.
   (foreach wire wires
@@ -504,12 +517,13 @@
   (foreach ep (EL:Get 'circuit-starts snapshot)
     (setq edges (cons (EL:Edge panel (EL:Get 'wire ep)) edges)))
   (foreach ep (EL:Get 'ends snapshot)
-    (setq occupied (or (EL:StartBoundaryPoint (EL:Get 'point ep) snapshot cfg)
+    (setq junctions (EL:JunctionAtPoint (EL:Get 'point ep) junction-tree cfg)
+      occupied (or junctions (EL:StartBoundaryPoint (EL:Get 'point ep) snapshot cfg)
       (EL:TrunkPoint (EL:Get 'point ep) (EL:Get 'trunk-segments snapshot)))
       bounds (list (EL:Get 'point ep) (EL:Get 'point ep)))
     (foreach other (EL:SpatialBoxQuery tree bounds tol)
       (setq wire (EL:Get 'wire other))
-      (if (and (not (EL:StartBoundaryPoint (EL:Get 'point ep) snapshot cfg))
+      (if (and (not junctions) (not (EL:StartBoundaryPoint (EL:Get 'point ep) snapshot cfg))
           (not (EL:TrunkPoint (EL:Get 'point ep) (EL:Get 'trunk-segments snapshot)))
           (not (equal (EL:Get 'wire ep) (EL:Get 'id wire)))
           (EL:Touches (EL:Get 'point ep) (EL:Get 'segments wire) tol ztol))
@@ -532,9 +546,9 @@
   ;; Date: 2026-10-10. Actual device geometry must touch without a wire.
   ;; Use numerical epsilon only; never bridge a visible gap or join through the panel.
   (foreach block blocks
-    (if (and (member (EL:Get 'id block) scope) (not (equal (EL:Get 'id block) panel)) (EL:Get 'bounds block))
+    (if (and (member (EL:Get 'id block) scope) (equal (EL:Get 'role block) 'device) (EL:Get 'bounds block))
       (foreach other (EL:SpatialBoxQuery tree (EL:Get 'bounds block) (EL:GapEpsilon))
-        (if (and (not (equal (EL:Get 'key other) panel))
+        (if (and (equal (EL:Get 'role (EL:Get 'block other)) 'device)
                  (< (EL:Get 'id block) (EL:Get 'key other))
                  (EL:DevicesTouch block (EL:Get 'block other)))
           (setq edges (cons (EL:Edge (EL:Get 'id block) (EL:Get 'key other)) edges))))))
@@ -560,7 +574,7 @@
     component (EL:Component panel (EL:Unique edges)))
   (EL:PerfEnd perf 'returned)
   (list (cons 'edges (EL:Unique edges)) (cons 'snapshot snapshot) (cons 'panel panel)
-    (cons 'devices (vl-remove-if-not '(lambda (b) (and (not (equal (EL:Get 'id b) panel)) (member (EL:Get 'id b) component))) blocks))
+    (cons 'devices (vl-remove-if-not '(lambda (b) (and (equal (EL:Get 'role b) 'device) (member (EL:Get 'id b) component))) blocks))
     (cons 'wire-ids (vl-remove-if-not '(lambda (id) (member id component)) (mapcar '(lambda (w) (EL:Get 'id w)) wires)))
     (cons 'gap-pairs (vl-remove-if-not '(lambda (p) (member (car (EL:Get 'a p)) component)) (EL:Get 'pairs pairs)))
     (cons 'gap-issues (EL:SimpleBlockingGapIssues (EL:Get 'issues pairs)))))

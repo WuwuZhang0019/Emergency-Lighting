@@ -1,0 +1,46 @@
+{
+  "date": "2026-10-13",
+  "status": "completed",
+  "package": 126,
+  "passed": true,
+  "lisp_dcl_count": 32,
+  "checked_entries": [
+    "START-CAD2020.lsp",
+    "UPDATE-126.lsp",
+    "src/load.lsp"
+  ],
+  "checked_functions": [
+    "EL:FixedStatPick",
+    "EL:FixedStartPick",
+    "EL:PickCircuitStarts",
+    "EL:StartPickResumeResult",
+    "EL:StartSnapshot",
+    "EL:SimpleNetworkBuild",
+    "EL:SplitNetwork",
+    "EL:NumberRootStation",
+    "EL:ConfigValid",
+    "EL:RecognitionRules",
+    "EL:RecognizeFixed",
+    "EL:FixedFreshSnapshot",
+    "EL:FixedFreshForResult",
+    "EL:EditPanel",
+    "EL:PickStartPanel",
+    "EL:StartPickRun",
+    "EL:PanelStartInit",
+    "EL:PanelDialog",
+    "EL:PickButtonRuns",
+    "EL:TrunkButtonDraw"
+  ],
+  "entry_workflows_passed": 18,
+  "checks": [
+    "ZIP CRC",
+    "all package and archive bytes equal",
+    "strict GB2312 roundtrip",
+    "all LISP parsing",
+    "changed definitions equal source AST",
+    "actual selection, cancellation, draft preservation and numbering in all three entries"
+  ],
+  "archive_sha256": "b38195ec7a08e7cd2f20202e3e4fd2758828adadb87bb5df069d820f1928d8fb",
+  "native_cad_status": "pending; finite CAD/DCL adapters are not original DWG acceptance",
+  "final_document_rebuild": "Only completion documentation changed; final ZIP CRC, directory bytes and strict GB2312 verified again; source and entry definitions unchanged"
+}

@@ -59,8 +59,8 @@
       layer-pairs params calibrated gap-pairs leader-pairs roles exits)
     (setq rows (cons (cons key (EL:Get key cfg)) rows)))
   ;; Date: 2026-10-13. Old recognition must be rebuilt after device pass-through.
-  (cons '(number-branch-policy . 1)
-    (cons '(simple-gap-policy . 1) (cons '(box-policy . 20) (cons '(gap-policy . 10) (reverse rows))))))
+  (cons '(junction-policy . 1) (cons '(number-branch-policy . 1)
+    (cons '(simple-gap-policy . 1) (cons '(box-policy . 20) (cons '(gap-policy . 10) (reverse rows)))))))
 ;; Date: 2026-10-11. Report which freshness condition failed.
 (defun EL:SourceSignatureCore (signature)
   (if (and (listp signature) (equal (car signature) 'EL_FIXED_SOURCE_V1))

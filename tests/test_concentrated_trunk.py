@@ -178,7 +178,7 @@ class TrunkDialogTests(unittest.TestCase):
     setUp = workflow.PostStatWorkflowTests.setUp
     def test_trunk_button_dispatches_after_dialog_closes(self):
         seen = []
-        self.h.builtins['EL:FIXEDTRUNKPICK'] = lambda: seen.append('trunk')
+        self.h.builtins['EL:FIXEDSTARTPICK'] = lambda: seen.append('trunk')
         self.actions = [lambda: self.done(10)]
         self.h.run('(c:ELSTAT)')
         self.assertEqual(seen, ['trunk'])

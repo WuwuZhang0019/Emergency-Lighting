@@ -1,0 +1,41 @@
+{
+  "date": "2026-10-13",
+  "status": "completed",
+  "package": 124,
+  "passed": true,
+  "lisp_dcl_count": 31,
+  "checked_entries": [
+    "START-CAD2020.lsp",
+    "UPDATE-124.lsp",
+    "src/load.lsp"
+  ],
+  "checked_functions": [
+    "EL:FixedStatPick",
+    "EL:FixedStartPick",
+    "EL:PickCircuitStarts",
+    "EL:StartPickResumeResult",
+    "EL:StartSnapshot",
+    "EL:SimpleNetworkBuild",
+    "EL:SplitNetwork",
+    "EL:NumberRootStation",
+    "EL:ConfigValid",
+    "EL:RecognitionRules",
+    "EL:RecognizeFixed",
+    "EL:FixedFreshSnapshot",
+    "EL:PanelStartInit",
+    "EL:PanelDialog",
+    "EL:PickButtonRuns",
+    "EL:TrunkButtonDraw"
+  ],
+  "entry_workflows_passed": 12,
+  "checks": [
+    "ZIP CRC",
+    "all package and archive bytes equal",
+    "strict GB2312 roundtrip",
+    "all LISP parsing",
+    "changed definitions equal source AST",
+    "actual selection, cancellation, draft preservation and numbering in all three entries"
+  ],
+  "archive_sha256": "44997aab12f305935b117c61806b0e68a51e65d702749b92420e71b09d224ccc",
+  "native_cad_status": "pending; finite CAD/DCL adapters are not original DWG acceptance"
+}

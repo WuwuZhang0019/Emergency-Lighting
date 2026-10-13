@@ -27,7 +27,7 @@ class FixedDiagnosticTests(unittest.TestCase):
         self.h.builtins['EL:DLSNAPSHOT'] = lambda: self.h.run(
             "'((root . \"library-fixture/\") (catalog (schema . EL_DEVICE_LIBRARY_V1) (library-id . \"LIB-FIXTURE\") (revision . 0) (next-id . 1) (devices)) (index) (present))")
         self.tiles, self.dialogs, self.writes, self.variables = {}, [], [], []
-        picks = iter([['panel', [0., 0., 0.]], ['w1', [1., 0., 0.]]])
+        picks = iter([['panel', [0., 0., 0.]], ['w1', [1., 0., 0.]], None])
 
         def getvar(key):
             self.variables.append(key)
@@ -56,6 +56,8 @@ class FixedDiagnosticTests(unittest.TestCase):
             'EL:REVIEWFIXEDEXITS': lambda result, record: result,
             'EL:CLEARPICKHIGHLIGHTS': lambda: None,
             'EL:CLEARGAPPREVIEW': lambda: None,
+            'EL:DRAWTRANSIENT': lambda *args: None,
+            'EL:HIGHLIGHTPICK': lambda *args: None,
             'LOAD_DIALOG': lambda path: 1,
             'NEW_DIALOG': lambda name, number: self.dialogs.append(name) or True,
             'UNLOAD_DIALOG': lambda number: None,
@@ -190,15 +192,14 @@ class FixedDiagnosticTests(unittest.TestCase):
         self.assertIn('guid/panel/A0', log)
         self.assertEqual(self.writes, [])
 
-    def test_recognition_failure_uses_outer_error_handler(self):
+    def test_recognition_failure_returns_to_pick_panel_with_context(self):
         def fail(*args):
             raise TypeError('recognition stringp nil')
         self.h.builtins['EL:RECOGNIZEFIXED'] = fail
-        with self.assertRaisesRegex(TypeError, 'recognition stringp nil') as caught:
-            self.call('EL:FixedStatPick')
-        self.call('*ERROR*', str(caught.exception))
+        self.call('EL:FixedStatPick')
+        self.assertEqual(self.get('panel', self.call('EL:StartPickContext')), 'panel')
         log = self.log.read_text(encoding='utf-8')
-        for value in ('PICKS', 'RECOGNIZE_FIXED', 'recognition stringp nil', 'END'):
+        for value in ('PICKS', 'RECOGNIZE_STARTS', 'recognition stringp nil', 'END'):
             self.assertIn(value, log)
         self.assertFalse(truth(self.h.lookup('*EL:LOGACTIVE*')))
         self.assertEqual(self.writes, [])

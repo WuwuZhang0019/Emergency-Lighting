@@ -44,10 +44,10 @@ class PanelTests(unittest.TestCase):
             self.assertFalse(truth(self.h.run(f"(EL:Get 'can-generate (EL:PanelCompute result {power} cfg))")))
         self.assertTrue(truth(self.h.run('(EL:Get \'can-generate (EL:PanelCompute result \'(("LAMP" . 0)) cfg))')))
 
-    def test_pick_phase_reuses_detected_wire_and_opens_real_circuit_panel(self):
+    def test_pick_phase_collects_explicit_start_and_opens_real_circuit_panel(self):
         for name in ('generation','fixed','diagram-update','diagram-commands'):
             self.h.load_definitions(simple.adapter.ROOT/'src'/f'{name}.lsp')
-        self.plan(); picks=iter([['panel',[0.,0.,0.]],['w1',[1.,0.,0.]]]); prompts=[]; panels=[]
+        self.plan(); picks=iter([['panel',[0.,0.,0.]],['w1',[1.,0.,0.]],None]); prompts=[]; panels=[]
         steps=[]
         def pick(kind,prompt):
             steps.append('panel'); prompts.append(prompt); return next(picks)
@@ -71,11 +71,12 @@ class PanelTests(unittest.TestCase):
           'GETVAR':lambda key:{'FINGERPRINTGUID':'guid','CDATE':20261009.12,'MILLISECS':100}.get(key),
           'EL:REVIEWFIXEDEXITS':lambda result,record:result,
           'EL:PANELDIALOG':lambda result,cfg,powers,cap:panels.append(self.call('EL:PanelCompute',result,powers,cfg)) and None,
-          'EL:CLEARPICKHIGHLIGHTS':lambda:None})
+          'EL:CLEARPICKHIGHLIGHTS':lambda:None,'EL:CLEARGAPPREVIEW':lambda:None,
+          'EL:DRAWTRANSIENT':lambda *args:None,'EL:HIGHLIGHTPICK':lambda *args:None})
         self.h.run('(EL:FixedStatPick)')
-        self.assertEqual(steps,['panel','number'])
+        self.assertEqual(steps,['panel','number','panel','panel'])
         self.assertEqual(self.get('panel-number',panels[0]), '暂无编号')
-        self.assertEqual(len(prompts),1);self.assertEqual(len(panels),1)
+        self.assertEqual(len(prompts),3);self.assertEqual(len(panels),1)
         self.assertEqual(len(self.get('circuits',panels[0])),1)
         self.assertEqual(self.get('box-watts',panels[0]),10)
 

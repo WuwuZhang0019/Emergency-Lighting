@@ -94,9 +94,10 @@ class NumberedFeederTests(unittest.TestCase):
 
     def test_regular_repick_reaches_panel_with_native_branches_and_saved_target(self):
         seen = []
+        picks = iter([['panel', [0., 0., 0.]]] + [[key, [10., y, 0.]] for key, y in [('D969', -12.), ('D97E', 0.), ('D980', 12.)]] + [[key, [-10., y, 0.]] for key, y in [('ECC1', -12.), ('ECC2', 0.), ('ECC5', 12.)]] + [None])
         record = [pair('diagram-id', 'old-diagram'), pair('source-panel-handle', 'panel'), pair('panel-number', 'ALE1')]
         self.h.builtins.update({'EL:STOREREAD': lambda: [pair('diagrams', [record])],
-                               'EL:PICKMODEL': lambda *args: ['panel', [0., 0., 0.]],
+                               'EL:PICKMODEL': lambda *args: next(picks),
                                'EL:EDITPANEL': lambda result, cfg: seen.append(result)})
         self.call('EL:FixedStatPick')
         self.assertEqual(len(seen), 1)
@@ -205,20 +206,23 @@ class RepickTargetTests(unittest.TestCase):
         self.assertFalse(truth(self.h.run("(EL:SyncDiagram result nil nil 'cap300 T nil)")))
         self.assertEqual((self.f.entities, self.f.dictionary, self.f.dynamic), before)
 
-    def test_saved_trunk_configuration_is_restored_before_regular_panel_recognition(self):
+    def test_saved_trunk_is_replaced_by_explicit_starts_with_old_target(self):
         f = trunk.TrunkTests()
         f.setUp()
         self.addCleanup(f.doCleanups)
         seen = []
         record = [pair('diagram-id', 'd'), pair('source-panel-handle', 'panel'), pair('config', f.cfg)]
         store = [pair('diagrams', [record])]
+        picks = iter([['panel', [0., 0., 0.]]] + [[f'w{i}', [10., y, 0.]] for i, y in enumerate((-12., -6., 0., 6., 12.))] + [None])
         f.h.builtins.update({'EL:STOREREAD': lambda: store,
-                            'EL:PICKMODEL': lambda *args: ['panel', [0., 0., 0.]],
+                            'EL:PICKMODEL': lambda *args: next(picks),
                             'EL:EDITPANEL': lambda result, cfg: seen.append((result, cfg))})
         f.call('EL:FixedStatPick')
         self.assertEqual(len(seen), 1)
         f.assert_five(seen[0][0])
-        self.assertEqual(f.get('concentrated-trunk', seen[0][1]), 'trunk')
+        self.assertIsNone(f.get('concentrated-trunk', seen[0][1]))
+        self.assertEqual(len(f.get('circuit-starts', seen[0][1])), 5)
+        self.assertEqual(f.get('update-diagram-id', seen[0][0]), 'd')
 
 
 if __name__ == '__main__':

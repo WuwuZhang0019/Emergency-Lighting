@@ -58,7 +58,8 @@
   (foreach key '(wire-styles auto-panel concentrated-trunk wire-layers panel-layers device-layers leader-layers panel-names device-names leader-names
       layer-pairs params calibrated gap-pairs leader-pairs roles exits)
     (setq rows (cons (cons key (EL:Get key cfg)) rows)))
-  (cons '(box-policy . 20) (cons '(gap-policy . 10) (reverse rows))))
+  ;; Date: 2026-10-13. Old recognition must be rebuilt after device pass-through.
+  (cons '(simple-gap-policy . 1) (cons '(box-policy . 20) (cons '(gap-policy . 10) (reverse rows)))))
 ;; Date: 2026-10-11. Report which freshness condition failed.
 (defun EL:SourceCurrent (result cfg fresh / drawing rules snapshot)
   (setq drawing (equal (EL:Get 'drawing result) (EL:Get 'drawing cfg))

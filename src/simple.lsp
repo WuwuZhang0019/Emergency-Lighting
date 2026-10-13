@@ -141,7 +141,8 @@
 (defun EL:SimpleBlockCandidates (wire tree cfg / candidates ep)
   (setq candidates (EL:SpatialBoxQuery tree (EL:WireContactBounds wire)
     (EL:Get 'eps_boundary (EL:Get 'params cfg))))
-  ;; A block wholly inside a gap must still prevent jumping across it.
+  ;; Date: 2026-10-13. Collect gap devices for endpoint/contact checks and
+  ;; source freshness even though virtual continuation does not connect them.
   (foreach ep (EL:Get 'ends wire)
     (if (EL:GapEligible ep)
       (setq candidates (append candidates (EL:SpatialRayQuery tree (EL:Get 'point ep)
@@ -229,7 +230,7 @@
               (progn
                 (EL:LogEvent "SIMPLE_GAP_END" (list ep (EL:By 'key (EL:Get 'key ep) rows)))
                 (setq logged (1+ logged)))))))
-      (EL:LogEvent "SIMPLE_GAPS" (list (cons 'max-distance (EL:Get 'Dmax (EL:Get 'params cfg)))
+      (EL:LogEvent "SIMPLE_GAPS" (list (cons 'device-policy 'pass-through) (cons 'max-distance (EL:Get 'Dmax (EL:Get 'params cfg)))
         (cons 'open-ends count) (cons 'logged-ends logged) (cons 'omitted-ends (- count logged))
         (cons 'paired-gaps (length (EL:Get 'pairs pairs))))))))
 
@@ -414,7 +415,13 @@
     (setq *EL:NetworkMemo* (list key result *EL:DeviceContactCache*))
     (setq *EL:NetworkMemo* nil))
   result)
-(defun EL:SimpleNetworkBuild (snapshot cfg panel / wires blocks block wire bounds items tree edges ends ep other occupied tol ztol rows pairs component scope perf)
+(defun EL:SimpleGapSnapshot (snapshot)
+  ;; Date: 2026-10-13. Virtual continuation joins only the two free wire ends.
+  ;; Intermediate devices are not physical contacts or obstacles. Retain the
+  ;; selected panel and real wires as blockers; occupancy is already verified.
+  (EL:Put 'blocks (vl-remove-if-not '(lambda (block) (equal (EL:Get 'role block) 'panel))
+    (EL:Get 'blocks snapshot)) snapshot))
+(defun EL:SimpleNetworkBuild (snapshot cfg panel / wires blocks block wire bounds items tree edges ends ep other occupied tol ztol rows pairs component scope perf gap-snapshot)
   (setq *EL:DeviceTemplateEnabled* T wires (EL:Get 'wires snapshot) tol (EL:Get 'eps_touch (EL:Get 'params cfg)) ztol (EL:GapEpsilon))
   (setq perf (EL:PerfBegin "NETWORK_WIRE_CONTACT"))
   (foreach block (EL:Get 'blocks snapshot)
@@ -468,8 +475,8 @@
   (setq ends (mapcar '(lambda (e) (EL:SimpleEndState e tree cfg)) (reverse ends))
         snapshot (EL:Put 'ends ends snapshot))
   (EL:PerfEnd perf 'returned)
-  (setq perf (EL:PerfBegin "NETWORK_GAPS")
-        rows (EL:FindGapCandidates snapshot cfg) pairs (EL:BuildMutualPairs rows snapshot cfg))
+  (setq perf (EL:PerfBegin "NETWORK_GAPS") gap-snapshot (EL:SimpleGapSnapshot snapshot)
+        rows (EL:FindGapCandidates gap-snapshot cfg) pairs (EL:BuildMutualPairs rows gap-snapshot cfg))
   (EL:SimpleGapLog snapshot cfg rows pairs)
   (foreach other (EL:Get 'pairs pairs)
     (setq edges (cons (EL:Edge (car (EL:Get 'a other)) (car (EL:Get 'b other))) edges)))

@@ -271,20 +271,25 @@
               (list "STORE_CACHE_CHECK" 'EL:StoreContextValid (list candidate))))
           (if (and *EL:PerfActive* (equal (EL:Get 'scope candidate) *EL:StoreReadScope*)
               (not (vl-catch-all-error-p valid)) valid)
-            (setq *EL:StoreReadCache* candidate)))))) value)
+            (setq *EL:StoreReadCache* candidate *EL:StoreWarmCache* candidate)))))) value)
 (defun EL:StoreReadCachedScope (entry lookup / *EL:StoreReadBusy* cache scope valid value)
   ;; The dynamic guard prevents a read/check callback from reusing a partially
   ;; decoded value or publishing another candidate inside the outer read.
   (setq *EL:StoreReadBusy* T cache *EL:StoreReadCache* scope *EL:StoreReadScope*)
+  ;; Date: 2026-10-13. One bounded decoded legacy store may outlive a command.
+  ;; Transfer only data, never timing/source proofs, and audit both native paths.
+  (if (and (not cache) *EL:StoreWarmCache*)
+    (setq cache (EL:Put 'scope scope *EL:StoreWarmCache*)))
   (if (and cache (equal scope (EL:Get 'scope cache)))
     (setq valid (EL:MeasuredCatch 'EL:PerfCall
       (list "STORE_CACHE_CHECK" (if lookup 'EL:StoreContextValid 'EL:StoreReadCacheValid)
         (if lookup (list cache) (list entry cache))))))
   (if (and *EL:PerfActive* (equal scope *EL:StoreReadScope*)
       (not (vl-catch-all-error-p valid)) valid)
-    (progn (EL:PerfCount "store-read-cache-hits" 1) (EL:Get 'verified-store cache))
+    (progn (setq *EL:StoreReadCache* cache *EL:StoreWarmCache* cache)
+      (EL:PerfCount "store-read-cache-hits" 1) (EL:Get 'verified-store cache))
     (progn
-      (setq *EL:StoreReadCache* nil)
+      (setq *EL:StoreReadCache* nil *EL:StoreWarmCache* nil)
       (EL:PerfCount "store-read-cache-misses" 1)
       (if lookup (setq entry (dictsearch (namedobjdict) "EL_FIXED_V1")))
       (setq value (EL:StoreReadEntry entry))
@@ -319,6 +324,7 @@
     (EL:StoreReadMonolithic)))
 (defun EL:StoreIndex () (EL:StoreRead))
 (defun EL:StoreRecord (id) (EL:By 'diagram-id id (EL:Get 'diagrams (EL:StoreRead))))
+(defun EL:StoreForResult (result) (EL:StoreRead))
 (defun EL:StoreWrite (store)
   (if (and *EL:SplitStorageLoaded* (not *EL:StoreLegacyWrite*))
     (progn (EL:PerfCount "store-write-calls" 1) (EL:SplitWrite store))
@@ -964,13 +970,16 @@
   ;; The enclosing managed transaction rolls back objects and the DWG record.
   (foreach item '("CMDECHO" "ATTREQ" "DRAGMODE" "CLAYER")
     (setq saved (cons (cons item (getvar item)) saved)))
-  (setq outcome (vl-catch-all-apply 'EL:CCKK2CreateConfigured
-    (list result template capacity plan record store)))
+  (setq outcome (EL:MeasuredCatch 'EL:LogCall
+    (list "CCKK2_CREATE" nil 'EL:CCKK2CreateConfigured
+      (list result template capacity plan record store))))
   (foreach item saved (setvar (car item) (cdr item)))
   (if (vl-catch-all-error-p outcome)
     (progn
       (EL:LogEvent "CCKK2_INSERT_ERROR" (list (cons 'message (vl-catch-all-error-message outcome))))
-      (princ (strcat "\nCCKK2 插入停止：" (vl-catch-all-error-message outcome))) (exit))) outcome)
+      (princ (strcat "\nCCKK2 插入停止：" (vl-catch-all-error-message outcome))) (exit)))
+  (EL:Require (and (listp outcome) (EL:Get 'panel-output-handle outcome))
+    "GENERATION_EMPTY_RESULT：生成未返回完整记录，已停止并回滚；请查看 CCKK2_CREATE 阶段。") outcome)
 (defun EL:CCKK2CreateConfigured (result template capacity plan record store)
   (EL:Require (EL:CCKKLayer (EL:Get 'layer template)) "CCKK2 输出图层不可用。")
   (setvar "CMDECHO" 0) (setvar "ATTREQ" 0) (setvar "DRAGMODE" 2)
@@ -1044,4 +1053,6 @@
       (EL:Require (EL:FreshResult result (EL:Get 'config record)) "SOURCE_CHANGED：预览后源图变化。")))
   ;; Date: 2026-10-11. Also cover creation without an interactive preview.
   (EL:Require (EL:NumberInputsCurrent result) "SOURCE_NUMBER_CHANGED：生成期间平面编号变化，已停止本次生成。")
-  (EL:StoreWrite (EL:StorePutDiagram record store)) record)
+  (EL:Require (equal T (EL:LogCall "SAVE_CREATED_DIAGRAM" nil 'EL:StoreWrite
+    (list (EL:StorePutDiagram record store))))
+    "系统图记录保存失败，已停止生成并回滚。") record)

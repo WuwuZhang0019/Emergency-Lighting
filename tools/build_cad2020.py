@@ -5,7 +5,7 @@ import shutil
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGE_NO = 126
+PACKAGE_NO = 127
 NAME = f'应急照明-{PACKAGE_NO:03d}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 DEST = ROOT / 'output' / NAME
@@ -180,6 +180,8 @@ def build():
                     '????-??-??-fallback-uuid-baseline-[0-9][0-9][0-9].json'):
         for source in sorted((ROOT / 'tests/evidence').glob(pattern)):
             shutil.copy2(source, DEST / 'tests/evidence' / source.name)
+    for source in sorted((ROOT / 'tests/evidence').glob(f'????-??-??-current-box-source-{PACKAGE_NO:03d}.json')):
+        shutil.copy2(source, DEST / 'tests/evidence' / source.name)
     readme = guide
     (DEST / '使用说明.md').write_text(readme, encoding='utf-8')
     for filename in ('cad-plan.dxf', 'cad-plan.expected.json'):

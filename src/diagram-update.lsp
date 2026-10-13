@@ -312,7 +312,7 @@
     (EL:Require (equal T (EL:StoreWrite (EL:StorePutDiagram record store)))
       "系统图记录保存失败，已停止更新并回滚原系统图。")) record)
 (defun EL:MarkStale (panel reason / store record)
-  (if (and panel (setq store (EL:StoreRead)) (setq record (EL:DiagramForPanel panel store)))
+  (if (and panel (setq store (EL:StoreForResult (list (cons 'panel panel)))) (setq record (EL:DiagramForPanel panel store)))
     (progn
       (setq record (EL:Put 'status 'stale (EL:Put 'stale-reason reason record)))
       (EL:Transaction 'EL:StoreWrite (list (EL:StorePutDiagram record store)))
@@ -532,7 +532,7 @@
   (if (assoc 'effective-powers result) (setq powers (EL:Get 'effective-powers result)))
   (setq *EL:FreshScope* scope *EL:FreshScopeEnabled* T *EL:UpdateScopeActive* T)
   (setq capacity (EL:CapacityDefault capacity))
-  (setq store (cond ((EL:StoreRead)) (T (EL:StoreInitial)))
+  (setq store (cond ((EL:StoreForResult result)) (T (EL:StoreInitial)))
     record (cond ((EL:RecordForResult result store)) (T (EL:NewRecord (EL:Get 'panel result) store)))
     template (cond ((EL:Get 'template cfg)) ((EL:Get 'template record)))
     result (EL:PreparedResult result record))
@@ -636,6 +636,7 @@
             (itoa (- (length (EL:Get 'rows plan)) (length (EL:Get 'circuits result)))) " 条预留，无预留功率文字。"))
           (if (and generate interactive) (EL:ShowDiagram outcome store)) T)
         (progn
-          ;; Do not auto-recover and start another write after failed rollback.
-          (if (not *EL:TransactionOpen*) (EL:MarkStale (EL:Get 'panel result) 'transaction-failed))
+          ;; Date: 2026-10-13. Failure cleanup must not start a second store
+          ;; read/write. The accepted draft and the previous diagram survive.
+          (EL:LogEvent "GENERATION_NOT_COMMITTED" (list (cons 'panel (EL:Get 'panel result))))
           nil)))))

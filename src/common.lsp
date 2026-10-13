@@ -191,7 +191,8 @@
         "UNDO_BEGIN" "UNDO_END" "TX_MARKER_CREATE" "RECOVERY_UNDO_END"
         "SIMPLE_COLLECT" "SIMPLE_NETWORK" "NETWORK_VERIFY_GEOMETRY" "NETWORK_BUILD" "SPLIT_NETWORK" "CIRCUIT_NUMBER_SCOPE"
         "COMPARE_SOURCE_NUMBER" "PRE_GENERATE_FRESH" "FRESH_SOURCE_SCAN"
-        "CCKK2" "TX_WRITE" "STORE_READ" "STORE_DECODE" "STORE_CACHE_CHECK" "STORE_SERIALIZE"
+        "CCKK2" "CCKK2_CREATE" "SAVE_CREATED_DIAGRAM" "COMPONENT_INDEX" "STORE_CURRENT_BOX"
+        "TX_WRITE" "STORE_READ" "STORE_DECODE" "STORE_CACHE_CHECK" "STORE_SERIALIZE"
         "STORE_PARSE" "STORE_READBACK" "STORE_CONTEXT_COMMIT" "STORE_CONTEXT_READ"
         "DIAGRAM_VIEW" "DIAGNOSTIC_EXPORT" "DEVICE_LIBRARY_LOAD" "DEVICE_LEGEND"))
       (and *EL:PerfDetail* (member stage
@@ -453,18 +454,21 @@
       ("PANEL_FILL" . "填充回路及图块") ("PANEL_HISTORY_READ" . "加载保存记录")
       ("PANEL_HISTORY_RESTORE" . "恢复保存记录中的回路与图块")
       ("READ_STORE" . "读取本图记录") ("STORE_READ" . "读取本图记录")
+      ("STORE_CURRENT_BOX" . "读取当前配电箱保存数据")
       ("STORE_DECODE" . "解码记录") ("STORE_CACHE_CHECK" . "核对记录缓存")
       ("NEW_RECORD" . "创建配电箱记录") ("PREPARE_PANEL" . "准备面板数据")
       ("RECOGNIZE_FIXED" . "识别配电箱回路") ("RECOGNIZE_TRUNK" . "识别集中引出线")
       ("RECOGNIZE_FIXED_RUN" . "执行整箱识别") ("SIMPLE_COLLECT" . "收集图纸候选对象")
       ("COLLECT_ENTITY_READ" . "读取候选实体") ("COLLECT_CANDIDATES" . "过滤候选对象")
       ("SIMPLE_NETWORK" . "准备连接网络") ("NETWORK_BUILD" . "建立连接网络")
+      ("COMPONENT_INDEX" . "建立连通关系索引")
       ("NETWORK_WIRE_CONTACT" . "检查导线接触") ("NETWORK_CANDIDATE_SCOPE" . "筛选设备范围")
       ("NETWORK_DEVICE_CONTACT" . "检查设备接触") ("NETWORK_GAPS" . "检查断线连接")
       ("NETWORK_SIGNATURE" . "生成网络签名") ("NETWORK_VERIFY_GEOMETRY" . "核对网络几何")
       ("SPLIT_NETWORK" . "拆分回路") ("CIRCUIT_NUMBER_SCOPE" . "识别回路编号范围")
       ("COMPARE_SOURCE_NUMBER" . "核对回路编号") ("PRE_GENERATE_FRESH" . "生成前核对源图")
       ("FRESH_SOURCE_SCAN" . "重采样源图") ("CCKK2" . "生成或更新配电箱系统图")
+      ("CCKK2_CREATE" . "创建配电箱系统图") ("SAVE_CREATED_DIAGRAM" . "保存生成的系统图记录")
       ("TX_WRITE" . "写入系统图及保存记录") ("STORE_SERIALIZE" . "序列化保存记录")
       ("STORE_PARSE" . "解析并核对序列化数据") ("STORE_REPLACE_PAYLOAD" . "写入图纸记录载荷")
       ("STORE_READBACK" . "回读核对保存内容") ("STORE_CONTEXT_COMMIT" . "核对提交后的上下文")
@@ -599,6 +603,13 @@
     (setq suffix (1+ suffix) path (strcat base "-" (itoa suffix) ".md")))
   (if (EL:MonitorWrite path summary) (setq *EL:MonitorPath* path)))
 (defun EL:MonitorLoadBegin (started / token)
+  ;; Date: 2026-10-13. Finish the old clock before a reload changes its origin.
+  ;; A cancelled command must never become the parent of later APPLOAD events.
+  (if *EL:PerfActive*
+    (progn
+      (setq *EL:MonitorError* "RELOADED: 上次执行被重新加载中断")
+      (EL:LogFinish 'interrupted-by-load)
+      (EL:PerfFinish 'interrupted-by-load)))
   (EL:PerfStart "APPLOAD")
   (setq *EL:PerfStarted* started token (EL:PerfBegin "LOAD_BOOTSTRAP"))
   (setq *EL:PerfPending* (vl-remove token *EL:PerfPending*) token (EL:Put 'start started token)

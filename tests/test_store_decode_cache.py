@@ -124,7 +124,7 @@ class StoreDecodeCacheTests(unittest.TestCase):
         self.assertTrue(equal(self.call('EL:StoreRead'), self.store))
         self.assertEqual(len(self.decodes), 6)
 
-    def test_finish_cancel_error_and_new_command_have_no_shared_cache(self):
+    def test_finish_clears_active_cache_but_new_command_rechecks_warm_candidate(self):
         for outcome in ('COMMAND-FINISHED', 'CANCELLED', 'FAILED'):
             with self.subTest(outcome=outcome):
                 self.call('EL:StoreRead')
@@ -138,7 +138,15 @@ class StoreDecodeCacheTests(unittest.TestCase):
                 entry = self.h.builtins['DICTSEARCH'](self.owner, 'EL_FIXED_V1')
                 self.assertFalse(truth(self.call('EL:StoreReadCacheValid', entry, previous)))
                 self.call('EL:StoreRead')
-                self.assertEqual(len(self.decodes), count + 2)
+                self.assertEqual(len(self.decodes), count + 1)
+
+    def test_warm_candidate_never_hides_a_cross_command_native_change(self):
+        self.call('EL:StoreRead')
+        self.call('EL:PerfFinish', Symbol('COMMAND-FINISHED'))
+        self.replace(self.changed('between commands'))
+        self.start()
+        self.assertTrue(equal(self.call('EL:StoreRead'), self.changed('between commands')))
+        self.assertEqual(len(self.decodes), 2)
 
     def test_input_callback_can_reuse_only_when_full_stored_data_matches(self):
         self.call('EL:StoreRead')

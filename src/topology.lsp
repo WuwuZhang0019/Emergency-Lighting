@@ -3,14 +3,53 @@
   (foreach e edges
     (cond ((equal id (car e)) (setq out (cons (cadr e) out)))
           ((equal id (cadr e)) (setq out (cons (car e) out))))) (EL:Unique out))
-(defun EL:Component (start edges / queue visited id next)
+(defun EL:ComponentIndex (edges / rows edge serial sorted id neighbours groups *EL:ComponentCursor*)
+  ;; Date: 2026-10-13. Sort directed rows once, then build a balanced lookup.
+  ;; Edge ordinal preserves the original reverse-edge neighbour visit order.
+  (setq serial 0)
+  (foreach edge edges
+    (setq rows (cons (list (car edge) (cadr edge) serial) rows))
+    (if (not (equal (car edge) (cadr edge)))
+      (setq rows (cons (list (cadr edge) (car edge) serial) rows)))
+    (setq serial (1+ serial)))
+  (setq sorted (vl-sort rows '(lambda (a b)
+    (if (equal (car a) (car b)) (> (caddr a) (caddr b)) (< (car a) (car b))))))
+  (foreach edge sorted
+    (if (and id (not (equal id (car edge))))
+      (setq groups (cons (cons id (EL:Unique (reverse neighbours))) groups) neighbours nil))
+    (setq id (car edge) neighbours (cons (cadr edge) neighbours)))
+  (if id (setq groups (cons (cons id (EL:Unique (reverse neighbours))) groups)))
+  (setq *EL:ComponentCursor* (reverse groups))
+  (EL:PerfCount "component-index-builds" 1)
+  (EL:PerfCount "component-edge-scans" serial)
+  (EL:ComponentIndexTake (length groups)))
+(defun EL:ComponentIndexTake (count / middle left row right)
+  (if (> count 0)
+    (progn
+      (setq middle (/ count 2) left (EL:ComponentIndexTake middle)
+        row (car *EL:ComponentCursor*) *EL:ComponentCursor* (cdr *EL:ComponentCursor*)
+        right (EL:ComponentIndexTake (- count middle 1)))
+      (list row left right))))
+(defun EL:ComponentNeighbours (id tree)
+  (if tree
+    (cond ((equal id (caar tree)) (cdar tree))
+      ((< id (caar tree)) (EL:ComponentNeighbours id (cadr tree)))
+      (T (EL:ComponentNeighbours id (caddr tree))))))
+(defun EL:Component (start edges / queue visited id next index)
+  ;; Small or non-handle graphs retain the general-purpose original path.
+  (if (and (> (length edges) 32) (equal (type start) 'STR)
+      (vl-every '(lambda (edge) (and (equal (type (car edge)) 'STR)
+        (equal (type (cadr edge)) 'STR))) edges))
+    (setq index (EL:PerfCall "COMPONENT_INDEX" 'EL:ComponentIndex (list edges))))
   (setq queue (list start))
   (while queue
     (setq id (car queue) queue (cdr queue))
     (if (not (member id visited))
       (progn
         (setq visited (cons id visited))
-        (foreach next (EL:Neighbours id edges)
+        (if index (EL:PerfCount "component-index-lookups" 1)
+          (EL:PerfCount "component-edge-scans" (length edges)))
+        (foreach next (if index (EL:ComponentNeighbours id index) (EL:Neighbours id edges))
           (if (not (member next visited)) (setq queue (cons next queue))))))) (EL:Unique visited))
 (defun EL:InsideSegments (p segments / count seg a b x)
   (setq count 0)

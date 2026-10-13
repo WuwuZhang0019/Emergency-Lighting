@@ -6,10 +6,11 @@ from pathlib import Path
 import zipfile
 from autolisp_host import Symbol, parse
 from test_large_xrecord_create import LargeXRecordTests
+from test_fallback_uuid_mbcs import FallbackUUIDTests
 from test_gap_cross_circuit import CrossCircuitGapTests
 
 ROOT=Path(__file__).resolve().parents[1]
-FUNCTIONS=('EL:StoreCreatePayload','EL:StoreReplacePayload','EL:StoreWrite',
+FUNCTIONS=('EL:StoreInitial','EL:StoreStringComplete','EL:StoreCreatePayload','EL:StoreReplacePayload','EL:StoreWrite',
     'EL:StoreLegacyBackup','EL:TransactionGuarded','EL:SimpleGapSnapshot')
 
 
@@ -51,13 +52,17 @@ def check():
         assert z.read(f'{builder.NAME}/tests/evidence/{evidence.name}')==evidence.read_bytes()
         baseline=ROOT/'tests/evidence'/regression['baseline_report']
         assert z.read(f'{builder.NAME}/tests/evidence/{baseline.name}')==baseline.read_bytes()
+        fallback_baseline=ROOT/'tests/evidence'/f'2026-10-13-fallback-uuid-baseline-{builder.PACKAGE_NO:03d}.json'
+        assert z.read(f'{builder.NAME}/tests/evidence/{fallback_baseline.name}')==fallback_baseline.read_bytes()
         for entry in entries:
             packed=definitions(z.read(f'{builder.NAME}/{entry}').decode('gb2312'))
             for name in FUNCTIONS:
                 key=Symbol(name.upper())
                 assert packed[key]==source[key],(entry,name)
             for cls,method in ((LargeXRecordTests,'test_first_large_store_save_reopen_and_rewrite_preserve_exact_contents'),
-                               (CrossCircuitGapTests,'test_1430_gap_crosses_other_circuit_device_and_wire_without_merging')):
+                               (CrossCircuitGapTests,'test_1430_gap_crosses_other_circuit_device_and_wire_without_merging'),
+                               (FallbackUUIDTests,'test_byte_64_chinese_path_generates_ascii_identity_and_saves_reopens_rewrites'),
+                               (FallbackUUIDTests,'test_same_cad_session_repairs_incomplete_cached_fallback_without_reload')):
                 fixture=cls(method)
                 fixture.setUp()
                 try:
@@ -71,9 +76,9 @@ def check():
         'checked_functions':FUNCTIONS,'checked_entries':entries,
         'checks':['strict GB2312','ZIP CRC','all file-set and byte equality','all LISP parsing',
             'passing regression report matches source hashes','changed source AST equals all three entries',
-            'large first save/reopen/rewrite and 1430 mm circuit isolation in each packaged entry'],
+            'large save/reopen/rewrite, CP936 fallback identity boundary and cached retry, 1430 mm circuit isolation in each packaged entry'],
         'archive_sha256':hashlib.sha256(archive.read_bytes()).hexdigest(),
-        'native_cad_status':'pending; original DWG fault site was not recorded in v117'}
+        'native_cad_status':'pending; v118 log identified orphan byte in fallback DRAWING-UUID, original DWG v119 retest required'}
     target=ROOT/'tests/evidence'/f'2026-10-13-large-xrecord-package-{builder.PACKAGE_NO:03d}.json'
     target.write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
     print(f'{builder.NAME}: {len(assets)} LISP/DCL assets, 3 entrypoints passed save and gap scenarios')

@@ -5,7 +5,7 @@ import shutil
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGE_NO = 118
+PACKAGE_NO = 119
 NAME = f'应急照明-{PACKAGE_NO:03d}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 DEST = ROOT / 'output' / NAME
@@ -168,7 +168,8 @@ def build():
     for source in sorted((ROOT / 'tests/evidence').glob('????-??-??-gap-cross-circuit-[0-9][0-9][0-9].json')):
         shutil.copy2(source, DEST / 'tests/evidence' / source.name)
     for pattern in ('????-??-??-large-xrecord-[0-9][0-9][0-9].json',
-                    '????-??-??-large-xrecord-baseline.json'):
+                    '????-??-??-large-xrecord-baseline.json',
+                    '????-??-??-fallback-uuid-baseline-[0-9][0-9][0-9].json'):
         for source in sorted((ROOT / 'tests/evidence').glob(pattern)):
             shutil.copy2(source, DEST / 'tests/evidence' / source.name)
     readme = guide

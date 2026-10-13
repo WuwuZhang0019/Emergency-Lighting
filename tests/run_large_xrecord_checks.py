@@ -8,7 +8,7 @@ import unittest
 from run_checks import RecordingResult
 
 ROOT=Path(__file__).resolve().parents[1]
-MODULES=('test_large_xrecord_create','test_diagram_store','test_store_migration',
+MODULES=('test_fallback_uuid_mbcs','test_large_xrecord_create','test_diagram_store','test_store_migration',
     'test_store_context','test_store_compact','test_store_integer_tape','test_store_performance',
     'test_fixed_diagnostics','test_gap_cross_circuit',
     'test_diagram_update.UpdateTests.test_large_template_draft_recovers_saves_and_reopens_with_bounded_read',
@@ -26,15 +26,17 @@ if __name__=='__main__':
     spec=importlib.util.spec_from_file_location('builder',ROOT/'tools/build_cad2020.py')
     builder=importlib.util.module_from_spec(spec)
     spec.loader.exec_module(builder)
-    paths=('src/diagram-store.lsp','tests/test_large_xrecord_create.py','tests/run_large_xrecord_checks.py',
+    paths=('src/diagram-store.lsp','tests/test_fallback_uuid_mbcs.py','tests/test_large_xrecord_create.py','tests/run_large_xrecord_checks.py',
            'tools/build_cad2020.py','tests/test_store_migration.py')
     report={'date':'2026-10-13','status':'completed' if result.wasSuccessful() else 'failed',
         'package':builder.PACKAGE_NO,'passed':result.wasSuccessful(),'tests_run':result.testsRun,
         'failures':len(result.failures),'errors':len(result.errors),'tests':result.records,'modules':MODULES,
         'source_sha256':{p:hashlib.sha256((ROOT/p).read_bytes()).hexdigest() for p in paths},
         'fault_boundary':'ENTMAKEX argument over 1024 fields is a conservative injected fault, not a measured native limit',
-        'source_log':{'name':'ELTRACE-debug (27).log','last_stage':'LEAVE STORE_PARSE',
-            'last_sequence':120102,'serialized_fields':219138,'native_fault_site':'not recorded'},
+        'source_log':{'name':'ELTRACE-debug (28).log','last_stage':'STORE_MISMATCH',
+            'mismatch_sequence':120124,'serialized_fields':219138,
+            'path':'1 DRAWING-UUID','expected_tail_hex':'ca','actual_tail_hex':'3f',
+            'native_fault_site':'STORE_READBACK; both DICTSEARCH and ENTGET changed orphan CP936 lead byte to question mark'},
         'baseline_report':'2026-10-13-large-xrecord-baseline.json',
         'remaining_baseline_failures':6,
         'native_cad_status':'pending; no running AutoCAD or original DWG available'}

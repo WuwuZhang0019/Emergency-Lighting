@@ -303,16 +303,28 @@
     (EL:StoreReadCachedScope nil T)
     (EL:StoreReadEntry (dictsearch (namedobjdict) "EL_FIXED_V1"))))
   (EL:PerfEnd perf 'returned) value)
+(defun EL:StoreStringComplete (value / codes code unicode valid)
+  ;; Date: 2026-10-13. A legacy byte string may end in an orphan DBCS lead
+  ;; byte after SUBSTR. Do not reuse that failed-save fallback identifier.
+  (setq unicode (vl-catch-all-apply 'getvar (list "LISPSYS"))
+    codes (vl-string->list value) valid T)
+  (if (not (and (numberp unicode) (> unicode 0)))
+    (while (and codes valid)
+      (setq code (car codes) codes (cdr codes))
+      (if (and (>= code 129) (<= code 254))
+        (if codes (setq codes (cdr codes)) (setq valid nil))))) valid)
 (defun EL:StoreInitial (/ uuid)
-  ;; Date: 2026-10-09. Document-local fallback survives draft reopen and is
-  ;; persisted with the first saved store; cancel never writes to the DWG.
+  ;; Date: 2026-10-13. Hash the complete drawing signature into ASCII rather
+  ;; than truncating a Chinese path at byte 64. Persisted identities are read
+  ;; unchanged by StoreRead; repair only an incomplete in-memory fallback.
   (setq uuid (vl-catch-all-apply 'getvar (list "FINGERPRINTGUID")))
   (if (or (not (equal (type uuid) 'STR)) (equal uuid ""))
     (progn
-      (if (not *EL:FallbackDrawingUUID*)
+      (if (or (not *EL:FallbackDrawingUUID*)
+          (not (EL:StoreStringComplete *EL:FallbackDrawingUUID*)))
         (setq *EL:FallbackDrawingUUID* (strcat "EL-"
           (rtos (getvar "CDATE") 2 8) "-" (itoa (getvar "MILLISECS"))
-          "-" (substr (EL:Signature (EL:DrawingID)) 1 64))))
+          "-" (EL:Hash (EL:Signature (EL:DrawingID))))))
       (setq uuid *EL:FallbackDrawingUUID*)))
   (list '(schema-version . 1) (cons 'drawing-uuid uuid) '(diagrams)))
 (defun EL:StoreText (value / textdata tail)

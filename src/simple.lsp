@@ -346,7 +346,9 @@
   ;; Include every forward gap candidate, even ambiguous or blocked candidates.
   (foreach block (EL:Get 'blocks snapshot)
     (foreach other (EL:SpatialBoxQuery tree (EL:Get 'bounds block) (EL:GapEpsilon))
-      (if (and (not (equal (EL:Get 'id block) panel)) (not (equal (EL:Get 'key other) panel)))
+      ;; Date: 2026-10-13. Box overlap is symmetric; retain each pair once.
+      (if (and (< (EL:Get 'id block) (EL:Get 'key other))
+          (not (equal (EL:Get 'id block) panel)) (not (equal (EL:Get 'key other) panel)))
         (setq edges (cons (EL:Edge (EL:Get 'id block) (EL:Get 'key other)) edges)))))
   (foreach wire (EL:Get 'wires snapshot)
     (foreach other (EL:SpatialBoxQuery tree (EL:WireContactBounds wire)
@@ -358,7 +360,8 @@
   (foreach ep (EL:Get 'ends snapshot)
     (if (EL:GapEligible ep)
       (foreach other (EL:SpatialRayQuery endpoints (EL:Get 'point ep) (EL:Get 'direction ep) limit)
-        (setq edges (cons (EL:Edge (EL:Get 'wire ep) (EL:Get 'wire other)) edges)))))
+        (if (not (equal (EL:Get 'wire ep) (EL:Get 'wire other)))
+          (setq edges (cons (EL:Edge (EL:Get 'wire ep) (EL:Get 'wire other)) edges))))))
   (setq rows (EL:Component panel (EL:Unique edges)))
   (EL:LogEvent "DEVICE_CANDIDATE_SCOPE" (list (cons 'objects (length rows))
     (cons 'blocks (length (EL:Get 'blocks snapshot)))))
@@ -382,7 +385,9 @@
           (setq good nil))))) good)
 (defun EL:SimpleNetwork (snapshot cfg panel / saved key epoch result reused *EL:DeviceContactCache* *EL:DeviceTemplateCache* *EL:DeviceTemplateEnabled*)
   (setq *EL:DeviceTemplateEnabled* T epoch *EL:FreshEpoch*
-    key (list (namedobjdict) cfg panel snapshot)
+    ;; Date: 2026-10-13. Dialog template selection changes drawing output only;
+    ;; preserve every other config field, including unknown future fields.
+    key (list (namedobjdict) (vl-remove-if '(lambda (row) (equal (car row) 'template)) cfg) panel snapshot)
     saved (if (and *EL:PerfActive* (not *EL:NetworkReuseDisabled*)) *EL:NetworkMemo*)
     *EL:NetworkMemo* nil)
   ;; Snapshot and configuration comparison is exact, including all candidate

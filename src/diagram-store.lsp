@@ -372,15 +372,16 @@
       (cons 'expected (EL:StoreTokenSummary (car left)))
       (cons 'actual (EL:StoreTokenSummary (car right)))
       (cons 'expected-next (EL:StoreTokenSummary (cadr left)))
-      (cons 'actual-next (EL:StoreTokenSummary (cadr right)))))))
+      (cons 'actual-next (EL:StoreTokenSummary (cadr right))))))
+  ;; Date: 2026-10-13. Return this audited payload for the following exact checks.
+  actual)
 (defun EL:StoreReadback (chunks entity expected / entry native value actual nativepayload)
   (setq entry (dictsearch (namedobjdict) "EL_FIXED_V1"))
-  (EL:StoreAuditPayload chunks entry 'dictsearch)
+  (setq actual (EL:StoreAuditPayload chunks entry 'dictsearch))
   (setq native (entget entity))
-  (EL:StoreAuditPayload chunks native 'entget)
+  (setq nativepayload (EL:StoreAuditPayload chunks native 'entget))
   ;; Date: 2026-10-12. Reuse the pre-write decoded value only after BOTH actual
   ;; DWG representations match every typed field. No hash or sampled check.
-  (setq actual (EL:StorePayload entry) nativepayload (EL:StorePayload native))
   (if (and *EL:StorePreverified*
       (equal (cdr (assoc -1 entry)) entity)
       (equal (cdr (assoc 0 entry)) "XRECORD") (equal (cdr (assoc 0 native)) "XRECORD")

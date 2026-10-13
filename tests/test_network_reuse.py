@@ -1,4 +1,4 @@
-"""Exact fresh-network equivalence and work counts. Date: 2026-10-11.
+"""Exact fresh-network equivalence and work counts. Date: 2026-10-13.
 
 Finite CAD adapters, not native AutoCAD timing or acceptance.
 """
@@ -64,6 +64,17 @@ class NetworkReuseTests(unittest.TestCase):
         self.assertEqual(self.metric('network-build-calls'), 2)
         self.assertNotEqual(before, changed)
         self.assertEqual(changed, self.oracle())
+
+    def test_output_template_change_reuses_verified_network(self):
+        expected = self.network()
+        self.cfg = self.call('EL:Put', Symbol('TEMPLATE'), 'dialog-output-template', self.cfg)
+        self.call('EL:FreshBoundary')
+        actual = self.network()
+        self.assertEqual(actual, expected)
+        self.assertEqual(self.metric('network-build-calls'), 1)
+        self.assertEqual(self.metric('network-verified-reuses'), 1)
+        self.assertGreater(self.metric('network-geometry-checks'), 0)
+        self.assertEqual(actual, self.oracle())
 
     def test_add_delete_move_wire_and_changed_rules_match_full_build(self):
         for change in ('add', 'delete', 'move-wire', 'rules', 'new-block', 'rotation'):

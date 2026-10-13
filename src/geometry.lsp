@@ -730,25 +730,31 @@
 (defun EL:GapEligible (end)
   (and (not (EL:Get 'occupied end)) (not (EL:Get 'wire-attached end))
        (equal (EL:Get 'geometry end) 'straight) (EL:Get 'direction end)))
-(defun EL:SpatialTree (items axis / sorted mid i item pivot left right lo hi bounds invalid)
-  ;; Balanced point/segment tree. Tie-break keys preserve coincident endpoints.
+(defun EL:SpatialTree (items axis / keyed item invalid)
+  ;; Date: 2026-10-13. Compute stable tie-break keys once per item, not once
+  ;; per sort comparison at every tree level (planar drawings share Z=0).
   (if *EL:LogActive*
     (progn
       (setq invalid (vl-remove-if '(lambda (row) (EL:Point (EL:Get 'point row))) items))
       (if invalid (EL:LogEvent "INDEX_INVALID_POINTS" (list axis invalid)))))
+  (foreach item items
+    (setq keyed (cons (cons (EL:Signature (EL:Get 'key item)) item) keyed)))
+  (EL:SpatialTreeBuild (reverse keyed) axis))
+(defun EL:SpatialTreeBuild (items axis / sorted mid i item pivot left right lo hi bounds)
+  ;; Preserve the existing axis order, tie-break order and public tree layout.
   (if items
     (progn
       (setq sorted (vl-sort items '(lambda (a b)
-        (if (= (nth axis (EL:Get 'point a)) (nth axis (EL:Get 'point b)))
-          (< (EL:Signature (EL:Get 'key a)) (EL:Signature (EL:Get 'key b)))
-          (< (nth axis (EL:Get 'point a)) (nth axis (EL:Get 'point b))))))
+        (if (= (nth axis (EL:Get 'point (cdr a))) (nth axis (EL:Get 'point (cdr b))))
+          (< (car a) (car b))
+          (< (nth axis (EL:Get 'point (cdr a))) (nth axis (EL:Get 'point (cdr b)))))))
             mid (/ (length sorted) 2) i 0)
       (foreach item sorted
         (cond ((< i mid) (setq left (cons item left)))
-              ((= i mid) (setq pivot item)) (T (setq right (cons item right))))
+              ((= i mid) (setq pivot (cdr item))) (T (setq right (cons item right))))
         (setq i (1+ i)))
-      (setq left (EL:SpatialTree left (fix (rem (1+ axis) 3)))
-            right (EL:SpatialTree right (fix (rem (1+ axis) 3)))
+      (setq left (EL:SpatialTreeBuild left (fix (rem (1+ axis) 3)))
+            right (EL:SpatialTreeBuild right (fix (rem (1+ axis) 3)))
             bounds (EL:Get 'bounds pivot)
             lo (if bounds (car bounds) (EL:Get 'point pivot))
             hi (if bounds (cadr bounds) lo))

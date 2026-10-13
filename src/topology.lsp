@@ -281,9 +281,15 @@
           (setq issues (cons (EL:Issue 'AMBIGUOUS_CONTACT (EL:Get 'wire a) (EL:Get 'key b)) issues))))))
   (setq edges (vl-remove-if '(lambda (edge) (or (member (car edge) blockedwires) (member (cadr edge) blockedwires))) edges))
   (list (cons 'snapshot (EL:Put 'path-contacts (EL:Unique pathcontacts) (EL:Put 'ends ends snapshot))) (cons 'edges (EL:Unique edges)) (cons 'issues issues)))
-(defun EL:BuildMutualPairs (rows snapshot cfg / pairs issues row cs target other rec a b state)
+(defun EL:BuildMutualPairs (rows snapshot cfg / pairs issues row cs target other rec a b state end-index row-index)
+  ;; Date: 2026-10-13. Native key lookup replaces a full interpreted endpoint
+  ;; scan per row. Cons order preserves EL:By's last-record-wins semantics.
+  (foreach a (EL:Get 'ends snapshot)
+    (setq end-index (cons (cons (EL:Get 'key a) a) end-index)))
   (foreach row rows
-    (setq a (EL:By 'key (EL:Get 'key row) (EL:Get 'ends snapshot)) cs (EL:Get 'candidates row))
+    (setq row-index (cons (cons (EL:Get 'key row) row) row-index)))
+  (foreach row rows
+    (setq a (cdr (assoc (EL:Get 'key row) end-index)) cs (EL:Get 'candidates row))
     (if (not (EL:Get 'occupied a))
       (progn
         (setq state nil)
@@ -292,7 +298,7 @@
               ((not cs) (setq state 'NO_CANDIDATE))
               ((> (length cs) 1) (setq state 'AMBIGUOUS_CANDIDATES))
               (T
-               (setq target (EL:Get 'target (car cs)) other (EL:By 'key target rows))
+               (setq target (EL:Get 'target (car cs)) other (cdr (assoc target row-index)))
                (if (and (= (length (EL:Get 'candidates other)) 1)
                         (equal (EL:Get 'target (car (EL:Get 'candidates other))) (EL:Get 'key row)))
                  (progn

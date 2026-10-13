@@ -1,4 +1,4 @@
-"""Strict gap policy and spatial index regressions. Date: 2026-10-08.
+"""Strict gap policy and spatial index regressions. Date: 2026-10-13.
 
 Runs actual LISP, not AutoCAD. The all-pairs oracle only checks index completeness.
 """
@@ -98,6 +98,44 @@ class GapIndexTests(unittest.TestCase):
         self.assertEqual(len(rows), 128)
         self.assertTrue(all(len(self.get('candidates', r)) == 1 for r in rows))
         self.assertEqual(len(calls), 128)  # All-pairs would visit 128 * 127 = 16256 pairs.
+
+    def test_spatial_tree_serializes_each_tie_break_key_once(self):
+        ends = [self.end(str(i), (float(i % 4), float(i // 4), 0.), (1., 0., 0.))
+                for i in range(32)]
+        # Coincident endpoints with different keys must both survive sorting.
+        ends.append(self.end('duplicate-point', (0., 0., 0.), (-1., 0., 0.)))
+        original = self.h.functions[Symbol('EL:SIGNATURE')]
+        signatures = []
+
+        def signature(value):
+            signatures.append(value)
+            return self.h.call([Symbol('LAMBDA'), original[0], *original[1]], [value])
+
+        self.h.builtins['EL:SIGNATURE'] = signature
+        tree = self.call('EL:SpatialTree', ends, 0)
+        self.assertEqual(len(signatures), len(ends))
+        found = self.call('EL:SpatialRayQuery', tree, [-1., 0., 0.], [1., 0., 0.], 10.)
+        self.assertEqual(sorted(self.get('wire', end) for end in found),
+                         ['0', '1', '2', '3', 'duplicate-point'])
+
+    def test_mutual_pairs_lookup_preserves_order_and_last_endpoint_without_full_scans(self):
+        a = self.end('a', (0., 0., 0.), (1., 0., 0.))
+        b = self.end('b', (1000., 0., 0.), (-1., 0., 0.))
+        free = self.end('free', (0., 500., 0.), (1., 0., 0.))
+        occupied_a = self.put('occupied', True, a)
+        rows = [self.record(key=self.get('key', b), candidates=[self.record(target=self.get('key', a))]),
+                self.record(key=self.get('key', free)),
+                self.record(key=self.get('key', a), candidates=[self.record(target=self.get('key', b))])]
+        snapshot = self.record(ends=[occupied_a, b, free, a])
+        self.h.builtins['EL:BY'] = lambda *args: self.fail('Full interpreted record scan')
+        result = self.call('EL:BuildMutualPairs', rows, snapshot, self.cfg)
+        pairs = self.get('pairs', result)
+        issues = self.get('issues', result)
+        self.assertEqual(len(pairs), 1)
+        self.assertEqual(self.get('a', pairs[0]), self.get('key', a))
+        self.assertEqual(self.get('b', pairs[0]), self.get('key', b))
+        self.assertEqual([self.get('code', issue) for issue in issues], [Symbol('NO_CANDIDATE')])
+        self.assertEqual(self.get('object', issues[0]), 'free')
 
     def test_noncollinear_geometry_ignored_but_collinear_segment_blocks(self):
         a = self.end('a', (0., 0., 0.), (1., 0., 0.))

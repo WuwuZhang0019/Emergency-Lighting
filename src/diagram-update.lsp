@@ -339,7 +339,7 @@
   (EL:PerfSet "wire-count" (length (EL:Get 'wires snapshot)))
   (EL:PerfSet "block-count" (length (EL:Get 'blocks snapshot)))
   (EL:PerfEnd perf 'returned) result)
-(defun EL:FixedFreshSnapshot (cfg panel / snapshot network)
+(defun EL:FixedFreshSnapshotFull (cfg panel / snapshot network)
   ;; Date: 2026-10-11. Identical collect/network/CircuitSnapshot signature,
   ;; without tracing circuits or selecting exits just to compare the source.
   (EL:Require (and (handent panel) (not (EL:ManagedEntity (handent panel)))) "来源配电箱缺失或为受管输出。")
@@ -348,7 +348,40 @@
     snapshot (if (EL:Get 'concentrated-trunk cfg) (EL:TrunkSnapshot snapshot cfg panel) snapshot)
     network (EL:LogCall "SIMPLE_NETWORK" nil 'EL:SimpleNetwork (list snapshot cfg panel)))
   (EL:CircuitSnapshot (EL:Get 'snapshot network) panel))
-(defun EL:FreshResult (result cfg / fresh key good)
+(defun EL:FixedFreshSnapshot (cfg panel)
+  (if *EL:FreshSourceCandidate* (EL:FixedFreshForResult cfg *EL:FreshSourceCandidate*)
+    (EL:FixedFreshSnapshotFull cfg panel)))
+(defun EL:FixedFreshForResult (cfg result / snapshot network proof epoch panel owner answer
+    *EL:DeviceContactCache* *EL:DeviceTemplateCache* *EL:DeviceTemplateEnabled*)
+  (setq owner (namedobjdict) panel (EL:Get 'panel result) epoch *EL:FreshEpoch* *EL:DeviceTemplateEnabled* T
+    proof (EL:Get 'network-proof (EL:Get 'snapshot result)))
+  (EL:Require (and (handent panel) (not (EL:ManagedEntity (handent panel)))) "来源配电箱缺失或为受管输出。")
+  (EL:PerfCount "freshness-scan-calls" 1)
+  (setq snapshot (EL:LogCall "SIMPLE_COLLECT" nil 'EL:SimpleCollect (list cfg))
+    snapshot (if (EL:Get 'concentrated-trunk cfg) (EL:TrunkSnapshot snapshot cfg panel) snapshot))
+  (setq answer (if (and (not *EL:NetworkReuseDisabled*) (equal (EL:Get 'version proof) 2) (equal panel (EL:Get 'panel proof))
+      (equal (EL:StableData (vl-remove-if '(lambda (row) (equal (car row) 'template)) cfg)) (EL:Get 'config proof))
+      (not (EL:Get 'issues snapshot))
+      (equal (EL:StableData snapshot)
+        (EL:NetworkProofInput (cadr (EL:Get 'signature (EL:Get 'snapshot result))) proof))
+      (EL:PerfCall "NETWORK_VERIFY_GEOMETRY" 'EL:NetworkGeometryCurrent (list (EL:Get 'contacts proof) snapshot))
+      (equal epoch *EL:FreshEpoch*))
+    (progn (EL:PerfCount "network-proof-reuses" 1) (EL:Get 'snapshot result))
+    (progn
+      (EL:PerfCount "network-proof-rebuilds" 1)
+      (setq network (EL:LogCall "SIMPLE_NETWORK" nil 'EL:SimpleNetwork (list snapshot cfg panel)))
+      (EL:CircuitSnapshot (EL:Get 'snapshot network) panel))))
+  (EL:Require (and (equal owner (namedobjdict)) (equal epoch *EL:FreshEpoch*))
+    "SOURCE_CHANGED：复核期间发生写入、交互或切图，请重新统计。") answer)
+(defun EL:PersistSourceSignature (result cfg / context signature)
+  (setq context *EL:FreshProofContext* signature (EL:Get 'signature (EL:Get 'snapshot result)))
+  (if (and context (equal (EL:Get 'owner context) (namedobjdict))
+      (equal (EL:Get 'epoch context) *EL:FreshEpoch*)
+      (equal (EL:Get 'panel context) (EL:Get 'panel result))
+      (equal (EL:Get 'config context) cfg) (equal (EL:Get 'original context) signature))
+    (EL:Get 'verified context) signature))
+(defun EL:FreshResult (result cfg / fresh key good *EL:FreshSourceCandidate*)
+  (setq *EL:FreshSourceCandidate* result)
   (setq key (list (EL:Get 'drawing cfg) (getvar "DWGNAME") (getvar "DWGPREFIX")
     (EL:Get 'panel result) (EL:RecognitionRules cfg)
     (EL:Get 'signature (EL:Get 'snapshot result)) *EL:FreshEpoch*))
@@ -362,7 +395,11 @@
   (setq good (and good (EL:LogCall "COMPARE_SOURCE_NUMBER" nil 'EL:NumberInputsCurrent (list result))))
   (if (and good *EL:FreshScopeEnabled* (equal (EL:Get 'engine result) 'fixed))
     (setq *EL:FreshScope* (list key fresh))
-    (setq *EL:FreshScope* nil)) good)
+    (setq *EL:FreshScope* nil))
+  (setq *EL:FreshProofContext* (if good (list (cons 'owner (namedobjdict))
+    (cons 'epoch *EL:FreshEpoch*) (cons 'panel (EL:Get 'panel result)) (cons 'config cfg)
+    (cons 'original (EL:Get 'signature (EL:Get 'snapshot result)))
+    (cons 'verified (EL:Get 'signature fresh))))) good)
 (defun EL:PreparedResult (result record / matched rows c edited key)
   (setq result (EL:DLRestoreRecord result record))
   ;; Date: 2026-10-11. Restore the saved number without overwriting a new pick.
@@ -553,7 +590,7 @@
         (progn
       (setq record (EL:Put 'draft-circuits nil (EL:Put 'draft-capacity nil
         (EL:Put 'capacity-option capacity (EL:Put 'template template (EL:Put 'config cfg
-        (EL:Put 'engine (EL:Get 'engine result) (EL:Put 'source-signature (EL:Get 'signature (EL:Get 'snapshot result))
+        (EL:Put 'engine (EL:Get 'engine result) (EL:Put 'source-signature (EL:PersistSourceSignature result cfg)
           (EL:Put 'power-signature (EL:Signature (EL:Get 'power-config result))
             (EL:Put 'powers powers (EL:Put 'status 'current (EL:Put 'updated-at (getvar "CDATE") record))))))))))))
       ;; Date: 2026-10-13. Preserve members for browsing; reuse the existing

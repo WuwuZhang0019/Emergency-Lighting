@@ -146,7 +146,7 @@
   (and (equal (EL:Get 'owner context) (namedobjdict))
     (EL:Get 'verified-store context)
     (vl-every '(lambda (row) (EL:SplitChunkValid (cdr row))) (EL:Get 'split-contexts context))))
-(defun EL:SplitWrite (store / root old entry staged chunks entity context value ids id record row
+(defun EL:SplitWrite (store / root old entry staged chunks entity context value ids id record row baseline-contexts
     *EL:SplitReadContexts* *EL:SplitPool* *EL:SplitGeneration* *EL:SplitSequence*)
   (EL:Require *EL:TransactionOpen* "拆分存储必须在完整事务中执行。")
   (EL:Require (EL:StoreSchemaValid store) "待保存记录字段无效，未写入。")
@@ -169,19 +169,23 @@
         ;; Verify every old box before applying this save's edits. No browse migration.
         (setq staged (EL:SplitBuild old))
         (EL:StoreCheck old (EL:SplitMaterialize staged) 'split-migration-logical))))
+  (setq baseline-contexts *EL:SplitReadContexts*)
   (if old (EL:StoreCheck (EL:Get 'drawing-uuid old) (EL:Get 'drawing-uuid store) 'split-drawing-owner))
   (if (and root (equal old store))
     (progn (EL:PerfCount "split-noop-writes" 1) (setq value old))
     (progn
-      (setq staged (EL:SplitBuild store))
+      (setq staged (EL:SplitBuild store) *EL:SplitReadContexts* nil)
       (EL:StoreCheck store (EL:SplitMaterialize staged) 'split-staged-logical)
       (setq chunks (EL:StoreEncode (EL:SplitEnvelope 'root staged)))
       (EL:StoreCheck (EL:SplitEnvelope 'root staged) (EL:StoreDecode chunks) 'split-root-pre-write)
-      (EL:Require (vl-every '(lambda (row) (EL:SplitChunkValid (cdr row))) *EL:SplitReadContexts*)
+      (EL:Require (and (vl-every '(lambda (row) (EL:SplitChunkValid (cdr row))) baseline-contexts)
+        (vl-every '(lambda (row) (EL:SplitChunkValid (cdr row))) *EL:SplitReadContexts*))
         "记录在准备期间变化，未发布拆分根。")
       ;; Root remains old until all reachable chunks have passed both native routes.
       (setq entry (dictsearch (namedobjdict) "EL_FIXED_SPLIT_V1") entity (cdr (assoc -1 entry)))
-      (if entity (EL:StoreReplacePayload entity chunks)
+      (EL:PerfCount "master-write-attempts" 1)
+      (EL:PerfCount "split-root-publications" 1)
+      (if entity (EL:LogCall "STORE_REPLACE_PAYLOAD" nil 'EL:StoreReplacePayload (list entity chunks))
         (progn
           (setq entity (entmakex (append '((0 . "XRECORD") (100 . "AcDbXrecord") (280 . 1)) chunks)))
           (EL:Require (and entity (dictadd (namedobjdict) "EL_FIXED_SPLIT_V1" entity)) "拆分根记录发布失败。")))

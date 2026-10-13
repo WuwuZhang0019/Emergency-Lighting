@@ -111,6 +111,19 @@ class SplitStoreTests(unittest.TestCase):
         self.assertFalse(truth(self.call('EL:StoreContextValid', context)))
         with self.assertRaises(RuntimeError): self.call('EL:StoreRead')
 
+    def test_index_open_rejects_document_and_source_rebinding(self):
+        self.save()
+        self.h.load_definitions(ROOT / 'src/panel.lsp')
+        index = self.call('EL:StoreIndex')
+        self.h.frames[0].update({'*EL:HISTORYRECORDS*': self.get('diagrams', index),
+                                '*EL:HISTORYINDEX*': 0, '*EL:HISTORYLISTOWNER*': 'other-document'})
+        with self.assertRaises(RuntimeError): self.call('EL:HistoryOpen')
+        self.h.frames[0]['*EL:HISTORYLISTOWNER*'] = 'NOD'
+        record = self.call('EL:StoreRecord', 'one')
+        rebound = self.call('EL:Put', Symbol('SOURCE-PANEL-HANDLE'), 'P2', record)
+        self.h.builtins['EL:STORERECORD'] = lambda _: rebound
+        with self.assertRaises(RuntimeError): self.call('EL:HistoryOpen')
+
     def test_legacy_export_uses_latest_view_and_disables_split_authority(self):
         self.save()
         proposed = self.call('EL:Put', Symbol('EXTRA'), 'latest', self.h.lookup('STORE'))

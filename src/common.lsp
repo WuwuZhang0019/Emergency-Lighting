@@ -60,10 +60,15 @@
     (setq rows (cons (cons key (EL:Get key cfg)) rows)))
   (cons '(box-policy . 20) (cons '(gap-policy . 10) (reverse rows))))
 ;; Date: 2026-10-11. Report which freshness condition failed.
+(defun EL:SourceSignatureCore (signature)
+  (if (and (listp signature) (equal (car signature) 'EL_FIXED_SOURCE_V1))
+    (list 'EL_FIXED_SOURCE_V1 (vl-remove-if '(lambda (row) (equal (car row) 'network-proof)) (cadr signature)))
+    signature))
 (defun EL:SourceCurrent (result cfg fresh / drawing rules snapshot)
   (setq drawing (equal (EL:Get 'drawing result) (EL:Get 'drawing cfg))
     rules (equal (EL:Get 'rules result) (EL:RecognitionRules cfg))
-    snapshot (equal (EL:Get 'signature fresh) (EL:Get 'signature (EL:Get 'snapshot result))))
+    snapshot (equal (EL:SourceSignatureCore (EL:Get 'signature fresh))
+      (EL:SourceSignatureCore (EL:Get 'signature (EL:Get 'snapshot result)))))
   (if (not (and drawing rules snapshot))
     (EL:LogEvent "SOURCE_COMPARE_FAILED" (list (cons 'drawing-equal drawing)
       (cons 'rules-equal rules) (cons 'snapshot-equal snapshot))))
@@ -103,7 +108,7 @@
     (progn
       (setq tick (vl-catch-all-apply 'getvar (list "MILLISECS")))
       (setq *EL:PerfActive* T *EL:PerfCommand* commandname *EL:PerfStarted* (if (numberp tick) tick 0)
-        *EL:PerfMetrics* nil *EL:PerfStages* nil *EL:PerfPending* nil *EL:PerfMarks* nil *EL:StoreReadCache* nil *EL:NetworkMemo* nil *EL:DLCache* nil *EL:DLSessionSnapshot* nil
+        *EL:PerfMetrics* nil *EL:PerfStages* nil *EL:PerfPending* nil *EL:PerfMarks* nil *EL:StoreReadCache* nil *EL:NetworkMemo* nil *EL:StatisticsMemo* nil *EL:SplitCache* nil *EL:DLCache* nil *EL:DLSessionSnapshot* nil
         *EL:PerfWaitMS* 0 *EL:PerfWaitDepth* 0 *EL:PerfSerial* 0 *EL:PerfOutcome* nil
         *EL:StoreReadScope* (1+ (cond (*EL:StoreReadScope*) (T 0))))
       (setq stamp (vl-catch-all-apply 'getvar (list "CDATE")))
@@ -173,7 +178,7 @@
 (defun EL:FreshBoundary ()
   ;; Date: 2026-10-11. Input, native commands, writes and unknown callbacks
   ;; invalidate the current operation's sampled source; never cache a command.
-  (setq *EL:FreshEpoch* (1+ (cond (*EL:FreshEpoch*) (T 0)))) nil)
+  (setq *EL:FreshProofContext* nil *EL:FreshEpoch* (1+ (cond (*EL:FreshEpoch*) (T 0)))) nil)
 (defun EL:PerfCall (stage function arguments / token result *EL:MonitorLabel*)
   (if (member stage '("USER_INPUT" "PLACEMENT_INPUT" "PANEL_DIALOG")) (EL:FreshBoundary))
   (if (and *EL:PerfActive* (or (member stage
@@ -262,7 +267,7 @@
         *EL:PerfMetrics* nil *EL:PerfStages* nil *EL:PerfMarks* nil *EL:PerfLogOwner* nil *EL:StoreReadCache* nil)
       (vl-catch-all-apply 'EL:PerfReport (list summary))
       (EL:MonitorReport summary)))
-  (setq *EL:StoreReadCache* nil *EL:NetworkMemo* nil *EL:DLCache* nil *EL:DLSessionSnapshot* nil) nil)
+  (setq *EL:StoreReadCache* nil *EL:NetworkMemo* nil *EL:StatisticsMemo* nil *EL:SplitCache* nil *EL:DLCache* nil *EL:DLSessionSnapshot* nil) nil)
 (defun c:ELPERF (/ option)
   (if *EL:PerfActive* (princ "\n请结束当前统计或生成后再调整性能采样。")
     (progn

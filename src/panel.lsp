@@ -100,7 +100,7 @@
       (equal (EL:Get 'library-id row) (EL:Get 'library-id (EL:Get 'catalog snapshot)))) (EL:Get 'entry row)
       (if (not (EL:Get 'entry row)) (EL:DLFindEntry (EL:Get 'name row) snapshot))))
     (if (and (assoc 'device-library result) entry)
-      (setq geometry (vl-catch-all-apply 'EL:PerfCall
+      (setq geometry (EL:MeasuredCatch 'EL:PerfCall
         (list "DEVICE_LEGEND" 'EL:DLLegend (list entry snapshot)))))
     (if (vl-catch-all-error-p geometry) (setq geometry nil))
     (if (and (not geometry) block)
@@ -478,7 +478,8 @@
     (setq rows (cons (EL:Put 'devices (vl-remove-if '(lambda (id) (member id excluded)) ids)
       (EL:Put 'recognized-devices ids c)) rows)))
   (EL:Put 'circuits (reverse rows) result))
-(defun EL:PanelCompute (result powers cfg / prepared)
+(defun EL:PanelCompute (result powers cfg / prepared *EL:StatisticsScopeEnabled*)
+  (setq *EL:StatisticsScopeEnabled* T)
   (setq result (EL:ApplyDeviceExclusions result))
   (if (assoc 'device-library result)
     (progn
@@ -862,11 +863,17 @@
           (EL:Get (if draft 'draft-number-policy-version 'number-policy-version) record)
           (EL:Put 'number-inputs (EL:Get (if draft 'draft-number-inputs 'number-inputs) record) result))))
       result)))
-(defun EL:HistoryOpen (/ record panel cfg result owner cached)
+(defun EL:HistoryOpen (/ record panel cfg result owner cached summary)
   ;; Date: 2026-10-13. Saved content opens directly; legacy records rebuild once for their missing topology.
   (setq record (if *EL:HistoryIndex* (nth *EL:HistoryIndex* *EL:HistoryRecords*)) panel (EL:Get 'source-panel-handle record)
+    summary record
     record (if (assoc 'history-circuit-count record) (EL:StoreRecord (EL:Get 'diagram-id record)) record)
     cfg (EL:Get 'config record))
+  (if (assoc 'history-circuit-count summary)
+    (EL:Require (and (equal *EL:HistoryListOwner* (namedobjdict))
+      (equal panel (EL:Get 'source-panel-handle record))
+      (equal (EL:Get 'diagram-id summary) (EL:Get 'diagram-id record)))
+      "记录列表归属或来源已变化，请刷新保存记录后再打开。"))
   (EL:Require (and record (equal (EL:Get 'engine record) 'fixed) (handent panel))
     "来源配电箱不存在或记录类型不支持，未切换。")
   (setq owner (namedobjdict) cached (EL:Get panel *EL:HistoryResultCache*)

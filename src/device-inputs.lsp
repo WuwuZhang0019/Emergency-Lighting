@@ -99,10 +99,19 @@
     (setq drafts (EL:Put (car pair) draft drafts)))
   (setq *EL:DLUIState* (EL:Put 'drafts drafts (EL:Put 'snapshot snapshot *EL:DLUIState*)))
   (EL:DLUIFields))
-(defun EL:DLPanelPublishPowers (/ edits saved prepared)
+(defun EL:DLPreviewInputs (result snapshot / rows row entry)
+  ;; Date: 2026-10-13. Only remove power/ground metadata; all asset/alias fields remain.
+  (foreach row (EL:DLMaterialRows result nil)
+    (setq entry (EL:Get 'entry row))
+    (setq rows (cons (list (EL:Get 'name row) (EL:Get 'ids row) (EL:Get 'library-id row)
+      (vl-remove-if '(lambda (pair) (member (car pair)
+        '(watts zero-confirmed is-ground ground-confirmed revision))) entry)) rows)))
+  (list (EL:Get 'root snapshot) (reverse rows)))
+(defun EL:DLPanelPublishPowers (/ edits saved prepared preview)
   (if (not (setq edits (EL:Get 'library-power-edits *EL:PanelDraft*))) T
     (progn
-      (setq saved (vl-catch-all-apply 'EL:DLPublishPowerEdits (list *EL:DLSessionSnapshot* edits)))
+      (setq preview (EL:DLPreviewInputs *EL:PanelDraft* *EL:DLSessionSnapshot*))
+      (setq saved (EL:MeasuredCatch 'EL:DLPublishPowerEdits (list *EL:DLSessionSnapshot* edits)))
       (if (or (vl-catch-all-error-p saved) (not saved))
         (progn
           (EL:PanelText "p_error" (strcat "功率未保存到设备库，输入保留："
@@ -115,6 +124,8 @@
             *EL:PanelPowers* (EL:Get 'powers prepared)
             *EL:PanelDraft* (EL:PanelCompute (EL:Get 'result prepared) *EL:PanelPowers* *EL:PanelConfig*))
           ;; Date: 2026-10-13. Library matching can change a row's name/alias after power entry.
-          (EL:ThumbRefresh *EL:PanelDraft*)
+          (if (not (equal preview (EL:DLPreviewInputs *EL:PanelDraft* saved)))
+            (EL:ThumbRefresh *EL:PanelDraft*)
+            (EL:PerfCount "preview-power-reuses" 1))
           (if (and *EL:DLUIEmbedded* *EL:DLUIState*) (EL:DLPanelPowerSnapshot saved edits)) T)))))
 (princ)

@@ -225,13 +225,13 @@
   (if entry
     (progn
       (if (assoc 300 entry)
-        (setq value (vl-catch-all-apply 'EL:PerfCall
+        (setq value (EL:MeasuredCatch 'EL:PerfCall
           (list "STORE_DECODE" 'EL:StoreDecode (list (EL:StorePayload entry)))))
         (progn
           ;; Legacy V1 is read without rewriting; migrate only in a validated transaction.
           (foreach pair entry (if (= (car pair) 1) (setq parts (cons (cdr pair) parts))))
           (setq textdata (EL:StoreJoinStrings (reverse parts)))
-          (setq value (vl-catch-all-apply 'EL:PerfCall (list "STORE_DECODE" 'EL:StoreParse (list textdata))))))
+          (setq value (EL:MeasuredCatch 'EL:PerfCall (list "STORE_DECODE" 'EL:StoreParse (list textdata))))))
       (EL:PerfSet "store-entry-fields" (length entry))
       (if (vl-catch-all-error-p value)
         (progn
@@ -239,7 +239,7 @@
             (cons 'format (cdr (assoc 300 entry))) (cons 'fields (length entry))
             (cons 'message (vl-catch-all-error-message value))))
           (princ (strcat "\nDWG 草稿读回解析失败：" (vl-catch-all-error-message value))) (exit)))
-      (setq valid (vl-catch-all-apply 'EL:PerfCall (list "STORE_SCHEMA" 'EL:StoreSchemaValid (list value))))
+      (setq valid (EL:MeasuredCatch 'EL:PerfCall (list "STORE_SCHEMA" 'EL:StoreSchemaValid (list value))))
       (if (or (vl-catch-all-error-p valid) (not valid))
         (progn
           (EL:LogEvent "STORE_SCHEMA_ERROR" (list (cons 'handle (cdr (assoc 5 entry)))
@@ -267,7 +267,7 @@
           (setq candidate (list (cons 'scope *EL:StoreReadScope*) (cons 'owner (namedobjdict))
             (cons 'entity (cdr (assoc -1 entry))) (cons 'payload (EL:StorePayload entry))
             (cons 'verified-store value))
-            valid (vl-catch-all-apply 'EL:PerfCall
+            valid (EL:MeasuredCatch 'EL:PerfCall
               (list "STORE_CACHE_CHECK" 'EL:StoreContextValid (list candidate))))
           (if (and *EL:PerfActive* (equal (EL:Get 'scope candidate) *EL:StoreReadScope*)
               (not (vl-catch-all-error-p valid)) valid)
@@ -277,7 +277,7 @@
   ;; decoded value or publishing another candidate inside the outer read.
   (setq *EL:StoreReadBusy* T cache *EL:StoreReadCache* scope *EL:StoreReadScope*)
   (if (and cache (equal scope (EL:Get 'scope cache)))
-    (setq valid (vl-catch-all-apply 'EL:PerfCall
+    (setq valid (EL:MeasuredCatch 'EL:PerfCall
       (list "STORE_CACHE_CHECK" (if lookup 'EL:StoreContextValid 'EL:StoreReadCacheValid)
         (if lookup (list cache) (list entry cache))))))
   (if (and *EL:PerfActive* (equal scope *EL:StoreReadScope*)
@@ -304,12 +304,15 @@
     (EL:StoreReadEntry (dictsearch (namedobjdict) "EL_FIXED_V1"))))
   (EL:PerfEnd perf 'returned) value)
 (defun EL:StoreRead ()
-  (if *EL:SplitStorageLoaded* (EL:SplitRead) (EL:StoreReadMonolithic)))
+  (if *EL:SplitStorageLoaded*
+    (progn (EL:PerfCount "store-read-calls" 1) (EL:PerfCall "STORE_READ" 'EL:SplitRead nil))
+    (EL:StoreReadMonolithic)))
 (defun EL:StoreIndex () (EL:StoreRead))
 (defun EL:StoreRecord (id) (EL:By 'diagram-id id (EL:Get 'diagrams (EL:StoreRead))))
 (defun EL:StoreWrite (store)
   (if (and *EL:SplitStorageLoaded* (not *EL:StoreLegacyWrite*))
-    (EL:SplitWrite store) (EL:StoreWriteMonolithic store)))
+    (progn (EL:PerfCount "store-write-calls" 1) (EL:SplitWrite store))
+    (EL:StoreWriteMonolithic store)))
 (defun EL:StoreContextValid (context)
   (if (assoc 'split-contexts context) (EL:SplitContextValid context)
     (EL:StoreContextMonolithicValid context)))

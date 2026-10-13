@@ -451,8 +451,8 @@
         (progn
           (setq flags (cdr (assoc 280 entry)))
           (if (not flags) (setq flags 1))
-          (setq entity (entmakex (append '((0 . "XRECORD") (100 . "AcDbXrecord"))
-            (list (cons 280 flags)) chunks)))
+          (setq entity (EL:LogCall "STORE_BACKUP_CREATE" (list (cons 'fields (length chunks)))
+            'EL:StoreCreatePayload (list chunks flags)))
           (EL:Require (and entity (dictadd (namedobjdict) "EL_FIXED_V1_LEGACY" entity))
             "无法建立旧版记录备份，未迁移。")
           (EL:StoreLegacyBackupVerify chunks entity old)
@@ -468,6 +468,20 @@
   (vlax-safearray-fill values (mapcar '(lambda (pair)
     (vlax-make-variant (cdr pair) (cond ((= (car pair) 40) 5) ((= (car pair) 90) 3) (T 8)))) chunks))
   (vla-SetXRecordData (vlax-ename->vla-object entity) codes values) T)
+(defun EL:StoreCreatePayload (chunks flags / header entity)
+  ;; Date: 2026-10-13. Bound the initial ENTMAKEX argument, including its header.
+  ;; Large records use the same typed replacement route as existing records;
+  ;; never truncate data or weaken either native readback check.
+  (setq header (list '(0 . "XRECORD") '(100 . "AcDbXrecord") (cons 280 flags)))
+  (if (<= (length chunks) 1021)
+    (entmakex (append header chunks))
+    (progn
+      (setq entity (EL:LogCall "STORE_CREATE_HEADER" (list (cons 'fields (length chunks)))
+        'entmakex (list header)))
+      (EL:Require entity "无法建立草稿记录头，未写入数据。")
+      (EL:LogCall "STORE_REPLACE_PAYLOAD" (list (cons 'entity entity)
+          (cons 'fields (length chunks)) '(mode . new-record))
+        'EL:StoreReplacePayload (list entity chunks)) entity)))
 (defun EL:StoreContextValid (context / entry native entity payload)
   ;; Date: 2026-10-11. Check the same document, association and both complete
   ;; native payloads. Reuse avoids decoding, never the actual DWG checks.
@@ -533,20 +547,26 @@
   ;; Both checks remain exact: no numeric tolerance, truncation or dropped fields.
   (setq decoded (EL:LogCall "STORE_PARSE" (list '(format . native-dxf) (cons 'tokens (length chunks)))
     'EL:StoreDecode (list chunks)))
-  (EL:StoreCheck store decoded 'pre-write)
-  (EL:Require (EL:StoreSchemaValid decoded) "写入前解码记录无效，未写入。")
+  (EL:LogCall "STORE_PREWRITE_COMPARE" (list (cons 'fields (length chunks)))
+    'EL:StoreCheck (list store decoded 'pre-write))
+  (EL:Require (EL:LogCall "STORE_PREWRITE_SCHEMA" nil 'EL:StoreSchemaValid (list decoded))
+    "写入前解码记录无效，未写入。")
   (setq *EL:StorePreverified* (list chunks decoded))
-  (setq entry (dictsearch (namedobjdict) "EL_FIXED_V1") entity (cdr (assoc -1 entry)))
-  (if entry (setq current (EL:StoreCurrentEntry entry store)))
+  (setq entry (EL:LogCall "STORE_TARGET_LOOKUP" nil 'dictsearch (list (namedobjdict) "EL_FIXED_V1"))
+    entity (cdr (assoc -1 entry)))
+  (if entry (setq current (EL:LogCall "STORE_CURRENT_READ" nil 'EL:StoreCurrentEntry (list entry store))))
   (setq *EL:StoreReadCache* nil)
-  (if (not *EL:StoreLegacyWrite*) (EL:StoreLegacyBackup entry store current))
+  (if (not *EL:StoreLegacyWrite*)
+    (EL:LogCall "STORE_LEGACY_BACKUP" nil 'EL:StoreLegacyBackup (list entry store current)))
   (EL:PerfCount "master-write-attempts" 1)
   (if entity
     (EL:LogCall "STORE_REPLACE_PAYLOAD" (list (cons 'handle (cdr (assoc 5 entry))))
       'EL:StoreReplacePayload (list entity chunks))
     (progn
-      (setq entity (entmakex (append '((0 . "XRECORD") (100 . "AcDbXrecord") (280 . 1)) chunks)))
-      (if (or (not entity) (not (dictadd (namedobjdict) "EL_FIXED_V1" entity))) (exit))))
+      (setq entity (EL:LogCall "STORE_CREATE_PAYLOAD" (list (cons 'fields (length chunks)))
+        'EL:StoreCreatePayload (list chunks 1)))
+      (EL:Require (and entity (EL:LogCall "STORE_DICT_ATTACH" nil 'dictadd
+        (list (namedobjdict) "EL_FIXED_V1" entity))) "无法关联草稿记录，事务未完成。")))
   (setq value (EL:LogCall "STORE_READBACK" nil 'EL:StoreReadback (list chunks entity store)))
   (if *EL:StoreContextActive*
     (setq *EL:StoreContextCandidate* (list (cons 'owner (namedobjdict))
@@ -760,10 +780,11 @@
     (progn
       (if *EL:StoreContextActive*
         (setq *EL:StoreContextCandidate* nil *EL:StoreContextCommitted* nil))
-      (EL:PerfUnwind checkpoint) (EL:PerfCount "transaction-failures" 1)
+      ;; Date: 2026-10-13. Record the original failing stage before cleanup.
       (EL:LogEvent "TRANSACTION_ERROR" (list (cons 'message
           (if (vl-catch-all-error-p outcome) (vl-catch-all-error-message outcome) "事务写入返回空值，未完成。"))
         (cons 'stack *EL:LogStack*)))
+      (EL:PerfUnwind checkpoint) (EL:PerfCount "transaction-failures" 1)
       (princ (strcat "\n系统图事务失败："
         (if (vl-catch-all-error-p outcome) (vl-catch-all-error-message outcome) "事务写入返回空值，未完成。")))
       (setq rollback (vl-catch-all-apply 'EL:TransactionRollback nil))

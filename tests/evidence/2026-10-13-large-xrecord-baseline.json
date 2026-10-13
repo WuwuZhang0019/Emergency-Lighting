@@ -1,0 +1,41 @@
+{
+  "date": "2026-10-13",
+  "status": "completed",
+  "baseline_ref": "81b3af8",
+  "initial_tests_run": 197,
+  "initial_failures": 7,
+  "baseline_failed_tests": [
+    {
+      "test": "test_diagram_update.UpdateTests.test_identical_update_is_noop_and_manual_text_content_is_repaired",
+      "last_error": "AssertionError: False is not true"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_failed_save_returns_to_panel_with_input_for_retry",
+      "last_error": "AssertionError: unexpectedly None : test action must close the dialog"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_inline_saved_default_refresh_preserves_manual_box_watts",
+      "last_error": "AssertionError: 5 != 9"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_locked_library_save_persists_local_draft_without_generation",
+      "last_error": "AssertionError: None != 1"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_recover_library_return_and_save_preserve_input_and_reuse_preview",
+      "last_error": "AssertionError: unexpectedly None : test action must close the dialog"
+    },
+    {
+      "test": "test_post_stat_workflow.PostStatWorkflowTests.test_save_returns_to_same_page_with_values_and_preview_without_picking",
+      "last_error": "AssertionError: unexpectedly None : test action must close the dialog"
+    },
+    {
+      "test": "test_store_migration.StoreMigrationTests.test_future_and_damaged_v2_reads_refuse_without_rewriting_dwg",
+      "subtest": "marker='EL_COMPACT_TYPED_V3'",
+      "last_error": "AssertionError: RuntimeError not raised",
+      "resolution": "future-format marker fixture updated to EL_COMPACT_TYPED_V4; V3 is an implemented format"
+    }
+  ],
+  "note": "All initial failures also occur with unchanged HEAD diagram-store definitions",
+  "remaining_baseline_failures": 6
+}

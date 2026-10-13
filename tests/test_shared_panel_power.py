@@ -159,6 +159,18 @@ class SharedPanelPowerTests(unittest.TestCase):
             self.assertEqual(path.read_bytes(), original + b'\n')
             self.assertEqual(self.call('EL:Get', 'LAMP', self.h.lookup('*EL:PANELPOWERS*')), 8)
 
+    def test_power_only_publication_keeps_preview_without_loading_legends(self):
+        with tempfile.TemporaryDirectory() as folder:
+            self.panel(folder)
+            legend = ['existing.sld', [800, 600]]
+            self.h.set('*EL:THUMBCACHE*', [Pair('Lamp', legend)])
+            self.h.builtins['EL:THUMBREFRESH'] = lambda *_: self.fail('power-only legend reload')
+            self.tiles['b_watts0'] = '8'
+            self.call('EL:PanelBlockPowerChanged', 0)
+            self.assertEqual(self.call('EL:Get', 'Lamp', self.h.lookup('*EL:THUMBCACHE*')), legend)
+            saved = self.call('EL:DLSnapshotLoad', self.fs(folder))
+            self.assertEqual(self.get('watts', self.call('EL:DLFindEntry', 'Lamp', saved)), 8)
+
     def test_power_publication_refreshes_legend_after_alias_becomes_catalog_name(self):
         with tempfile.TemporaryDirectory() as folder:
             self.panel(folder, draft=True)

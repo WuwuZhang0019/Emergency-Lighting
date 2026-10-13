@@ -34,7 +34,7 @@
       (EL:Put 'powers powers (EL:Put 'config cfg (EL:Put 'engine (EL:Get 'engine result) record))))))
   ;; Date: 2026-10-13. Reopen the saved draft from its own source snapshot.
   ;; Keep the formal signature intact until the diagram is actually updated.
-  (setq signature (EL:Get 'signature (EL:Get 'snapshot result))
+  (setq signature (EL:PersistSourceSignature result cfg)
     record (EL:Put 'draft-source-signature
       (if (and signature (equal signature (EL:Get 'source-signature record))) 'formal-source signature) record))
   (setq record (EL:Put 'panel-number (EL:PanelNumber result) record))

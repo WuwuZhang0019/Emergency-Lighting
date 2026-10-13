@@ -5,6 +5,7 @@ import unittest
 
 from autolisp_host import Host, Symbol, truth
 from test_root_init import lisp_data
+from monitor_io import install_monitor_io
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -13,6 +14,7 @@ class MonitorTests(unittest.TestCase):
     def setUp(self):
         self.h = Host()
         self.h.load_definitions(ROOT / 'src/common.lsp')
+        self.streams = install_monitor_io(self.h)
         self.clock = 0
         self.handles = []
         self.h.builtins.update({
@@ -113,20 +115,39 @@ class MonitorTests(unittest.TestCase):
             self.assertEqual(output.read_text(encoding='utf-8'), text)
             self.assertTrue(all(file.closed for file in self.handles))
 
+    def test_caught_context_error_closes_its_timer_before_later_input(self):
+        self.call('EL:PerfStart', 'ELSTAT')
+        outer = self.call('EL:PerfBegin', 'TX_WRITE')
+        def fail(context):
+            self.clock = 30
+            raise RuntimeError('cancelled')
+        self.h.builtins['EL:STORECONTEXTVALID'] = fail
+        self.clock = 10
+        result = self.call('EL:MeasuredCatch', Symbol('EL:LOGCALL'),
+                           ['STORE_CONTEXT_READ', None, Symbol('EL:STORECONTEXTVALID'), [None]])
+        self.assertTrue(self.call('vl-catch-all-error-p', result))
+        self.clock = 1000
+        self.assertEqual(self.h.lookup('*EL:PERFPENDING*'), [outer])
+        row = self.h.lookup('*EL:MONITORROWS*')[0]
+        self.assertEqual(self.get('elapsed-ms', row), 20)
+        self.assertEqual(self.get('status', row), Symbol('INTERRUPTED'))
+        self.assertFalse(truth(self.h.lookup('*EL:LOGSTACK*')))
+
     def test_write_failure_closes_file_and_keeps_business_result(self):
         with tempfile.TemporaryDirectory() as directory:
             self.h.frames[0]['*EL:ROOT*'] = Path(directory).as_posix() + '/'
             self.call('EL:PerfStart', 'ELSTAT')
             def fail(*args):
                 raise OSError('disk full')
-            self.h.builtins['WRITE-LINE'] = fail
+            self.h.builtins['EL:MONITORSTREAMWRITE'] = fail
             result = self.call('EL:PerfCall', 'TX_WRITE', Symbol('+'), [1, 2])
             self.call('EL:PerfFinish', Symbol('FAILED'))
             self.assertEqual(result, 3)
             self.assertTrue(truth(self.h.lookup('*EL:MONITORLASTROWS*')))
             self.assertFalse(truth(self.h.lookup('*EL:PERFACTIVE*')))
-            self.assertTrue(self.handles)
-            self.assertTrue(all(file.closed for file in self.handles))
+            self.assertTrue(self.streams)
+            self.assertTrue(all(s['closed'] and s['released'] for s in self.streams))
+            self.assertFalse(list(Path(directory).rglob('*.tmp')))
 
 
 if __name__ == '__main__':

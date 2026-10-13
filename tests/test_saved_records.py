@@ -1,5 +1,6 @@
 """Saved-record navigation with finite CAD adapters. Date: 2026-10-13."""
 import unittest
+from fnmatch import fnmatchcase
 import test_post_stat_workflow as workflow
 from autolisp_host import Symbol
 
@@ -17,6 +18,7 @@ class SavedRecordsTests(unittest.TestCase):
 
     def setUp(self):
         workflow.PostStatWorkflowTests.setUp(self)
+        self.h.frames[0]['$KEY'] = 'h_records'
         self.records = self.h.run("'(((source-panel-handle . \"other\") (engine . fixed) (status . stale) (config (name . \"other\"))))")
         self.h.run('(setq *EL:HistoryIndex* 0)')
         self.h.set(Symbol('*EL:HISTORYRECORDS*'), self.records)
@@ -27,6 +29,7 @@ class SavedRecordsTests(unittest.TestCase):
         self.saved = []
         self.h.builtins.update({
             'ALERT': lambda message: None,
+            'WCMATCH': lambda text, pattern: fnmatchcase(text, pattern),
             'HANDENT': lambda value: value,
             'EL:RECOGNIZEFIXED': lambda cfg, panel: self.result,
             'EL:FRESHRESULT': lambda *args: True,

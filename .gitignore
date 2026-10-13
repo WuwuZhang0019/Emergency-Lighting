@@ -81,6 +81,7 @@ config/power-input-*.eld
 
 /output/应急照明-117/
 /output/应急照明-117.zip
+/output/ELMONITOR-*.md.tmp
 
 /output/应急照明-118/
 /output/应急照明-118.zip
@@ -96,3 +97,6 @@ config/power-input-*.eld
 
 /output/应急照明-122/
 /output/应急照明-122.zip
+
+/output/应急照明-123/
+/output/应急照明-123.zip

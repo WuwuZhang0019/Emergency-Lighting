@@ -384,7 +384,32 @@
             (setq good (and (EL:ShapeGeometry shape) (not (EL:Get 'issues shape))
               (equal shape (cdr row)))))
           (setq good nil))))) good)
-(defun EL:SimpleNetwork (snapshot cfg panel / saved key epoch result reused *EL:DeviceContactCache* *EL:DeviceTemplateCache* *EL:DeviceTemplateEnabled*)
+(defun EL:NetworkProofInput (baseline proof / rows key blocks block role)
+  ;; Date: 2026-10-13. Restore only the fields changed by network construction.
+  ;; Everything else references the existing source-signature snapshot.
+  (foreach key (EL:Get 'input-keys proof)
+    (cond
+      ((equal key 'ends) (setq rows (cons (cons key (EL:Get 'input-ends proof)) rows)))
+      ((equal key 'blocks)
+        (setq blocks nil)
+        (foreach block (EL:Get 'blocks baseline)
+          (setq role (EL:Get (EL:Get 'id block) (EL:Get 'input-roles proof)))
+          (setq block (if role (EL:Put 'role (cdr role) block)
+            (vl-remove-if '(lambda (pair) (equal (car pair) 'role)) block)))
+          (setq blocks (cons block blocks)))
+        (setq rows (cons (cons key (reverse blocks)) rows)))
+      (T (setq rows (cons (assoc key baseline) rows))))) (reverse rows))
+(defun EL:NetworkProofMake (input output cfg panel contacts / proof roles block)
+  (setq input (EL:StableData input) output (EL:StableData output))
+  (foreach block (EL:Get 'blocks input)
+    (setq roles (cons (cons (EL:Get 'id block) (assoc 'role block)) roles)))
+  (setq proof (list '(version . 2) (cons 'panel panel)
+    (cons 'config (EL:StableData (vl-remove-if '(lambda (row) (equal (car row) 'template)) cfg)))
+    (cons 'input-keys (mapcar 'car input)) (cons 'input-ends (EL:Get 'ends input))
+    (cons 'input-roles (reverse roles)) (cons 'contacts (EL:StableData contacts))))
+  ;; Any future builder mutation outside the known patch disables reuse safely.
+  (if (equal input (EL:NetworkProofInput output proof)) proof))
+(defun EL:SimpleNetwork (snapshot cfg panel / saved key epoch result reused proof *EL:DeviceContactCache* *EL:DeviceTemplateCache* *EL:DeviceTemplateEnabled*)
   (setq *EL:DeviceTemplateEnabled* T epoch *EL:FreshEpoch*
     ;; Date: 2026-10-13. Dialog template selection changes drawing output only;
     ;; preserve every other config field, including unknown future fields.
@@ -408,6 +433,12 @@
   (if (not (and (equal epoch *EL:FreshEpoch*) (equal (car key) (namedobjdict))))
     (progn (setq *EL:NetworkMemo* nil)
       (EL:Require nil "SOURCE_CHANGED：建网复核期间发生写入、交互或切图，请重新统计。")))
+  ;; The compact proof is a candidate; current inputs/shapes are read again.
+  (if (and result (not (EL:Get 'issues snapshot))
+      (vl-every '(lambda (row) (and (EL:ShapeGeometry (cdr row))
+        (not (EL:Get 'issues (cdr row))))) *EL:DeviceContactCache*)
+      (setq proof (EL:NetworkProofMake snapshot (EL:Get 'snapshot result) cfg panel *EL:DeviceContactCache*)))
+    (setq result (EL:Put 'snapshot (EL:Put 'network-proof proof (EL:Get 'snapshot result)) result)))
   (if (and result *EL:PerfActive* (not *EL:NetworkReuseDisabled*)
       (equal epoch *EL:FreshEpoch*) (not (EL:Get 'issues snapshot))
       (vl-every '(lambda (row) (and (EL:ShapeGeometry (cdr row))

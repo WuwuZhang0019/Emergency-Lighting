@@ -361,14 +361,15 @@
     (vl-catch-all-apply 'EL:ReleasePowerUI nil)
     (if msg (princ (strcat "\n面板已停止：" msg))) (EL:PerfFinish 'failed) (princ))
   (setq perfowner (EL:PerfStart "ELSTAT"))
-  (if (EL:EnsureRoot)
+  (if (EL:PerfCall "LOAD_ROOT" 'EL:EnsureRoot nil)
     (progn
       (setq next (EL:PanelStartDialog))
       (while (or (EL:Get 'pick-panel next) (EL:Get 'switch-result next))
         (setq next (if (EL:Get 'switch-result next)
           (EL:EditPanel (EL:Get 'switch-result next) (EL:Get 'switch-config next))
           (if (equal (EL:Get 'pick-panel next) 'trunk)
-            (EL:FixedTrunkPick) (EL:FixedStatPick)))))))
+            (EL:PerfCall "PICK_TRUNK" 'EL:FixedTrunkPick nil)
+            (EL:PerfCall "PICK_PANEL" 'EL:FixedStatPick nil)))))))
   (if perfowner (EL:PerfFinish 'command-finished)) (princ))
 
 ;; Date: 2026-10-11. Explicit, read-only export of the verified DWG record.

@@ -82,7 +82,7 @@
         (if (not (EL:DLImportConflict row *EL:DLImportRows*)) (setq defaults (strcat defaults (itoa index) " ")))
         (setq index (1+ index))) (end_list) (set_tile "di_rows" defaults)
       (set_tile "di_backup" (strcat "原文件已完整备份：" backup))
-      (action_tile "di_accept" "(EL:DLImportAccept)") (action_tile "di_cancel" "(done_dialog 0)")
+      (EL:MonitorActionTile "di_accept" "(EL:DLImportAccept)") (EL:MonitorActionTile "di_cancel" "(done_dialog 0)")
       (setq status (start_dialog))))
     (if (> dialog 0) (unload_dialog dialog))
     (if (= status 1) (setq *EL:DLError* "已导入编辑草稿；请补图形和地面，核对 0W 后逐项保存。")))))

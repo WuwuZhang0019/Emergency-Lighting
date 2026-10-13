@@ -5,7 +5,7 @@ import shutil
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGE_NO = 115
+PACKAGE_NO = 116
 NAME = f'应急照明-{PACKAGE_NO:03d}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 DEST = ROOT / 'output' / NAME
@@ -73,6 +73,7 @@ def build():
                 text = replace_once(text, '(open path "r" "utf8")', '(open path "r")')
                 text = replace_once(text, '(open tmp "w" "utf8")', '(open tmp "w")')
             if source.name == 'common.lsp':
+                text = replace_once(text, '(open path "w" "utf8")', '(open path "w")')
                 text = replace_once(text, '(open *EL:LogPath* "a" "utf8")', '(open *EL:LogPath* "a")')
                 text = replace_once(text, '(open path "a" "utf8")', '(open path "a")')
                 text = replace_once(text, 'AutoCAD 2021+, LISPSYS=1/2.', 'AutoCAD 2020 trial, GB2312 source and system-codepage data.')
@@ -88,20 +89,28 @@ def build():
     # Keep an existing valid data root; initialize it for a standalone update.
     # All modules are included; readiness requires a complete package directory.
     modules = ('common', 'config', 'geometry', 'topology', 'statistics', 'device-library', 'device-assets', 'device-defaults', 'device-ui', 'device-recognition', 'device-inputs', 'device-migration', 'generation', 'main', 'simple', 'circuit-number', 'fixed', 'panel', 'store-compact', 'diagram-store', 'diagram-update', 'diagram-commands', 'insert-circuit', 'startup')
-    update = (';; Date: 2026-10-10. Validate or initialize the plugin data root.\n'
-              '(vl-load-com)\n' + '\n'.join(
-                  (DEST / 'src' / f'{module}.lsp').read_bytes().decode('gb2312') for module in modules) +
+    module_texts = []
+    for module in modules:
+        text = (DEST / 'src' / f'{module}.lsp').read_bytes().decode('gb2312')
+        if module == 'common':
+            module_texts.append(text + '\n(EL:MonitorLoadBegin *EL:BootstrapTick*)\n')
+        else:
+            module_texts.append(f'(setq *EL:MonitorLabel* "{module}.lsp" *EL:LoadToken* (EL:PerfBegin "LOAD_MODULE"))\n'
+                                + text + '\n(EL:PerfEnd *EL:LoadToken* \'returned)\n(setq *EL:MonitorLabel* nil)\n')
+    update = (';; Date: 2026-10-13. Monitor APPLOAD from its first executable form.\n'
+              '(setq *EL:BootstrapTick* (getvar "MILLISECS"))\n(vl-load-com)\n' + '\n'.join(module_texts) +
               '\n(EL:ClearPickHighlights)\n(setq *EL:Result* nil *EL:DeviceResult* nil)\n'
               f'(setq *EL:PackageMarker* "{marker}")\n'
-              '(if (EL:EnsureRoot)\n'
-              '  (progn (EL:DLDefaultStartup)\n'
+              '(if (setq *EL:MonitorLoadReady* (EL:PerfCall "LOAD_ROOT" \'EL:EnsureRoot nil))\n'
+              '  (progn (EL:PerfCall "LOAD_LIBRARY" \'EL:DLDefaultStartup nil)\n'
               f'    (princ "\\n已加载（CAD2020 v{PACKAGE_NO}）：目录已确认。输入 ELSTAT 开始统计。"))\n'
               f'  (princ "\\nCAD2020 v{PACKAGE_NO} 模块已载入，但未确认插件目录。运行 ELSETUP 或 ELSTAT 后选择完整包内的 src/load.lsp。"))\n'
-              '(princ)\n')
+              '(EL:MonitorLoadEnd (if *EL:MonitorLoadReady* \'load-finished \'load-failed))\n(princ)\n')
     (DEST / UPDATE_NAME).write_bytes(update.encode('gb2312'))
     # Date: 2026-10-10. Resolve APPLOAD folder, then validate version and assets.
-    startup = f'(if (EL:StartupRoot "{marker}")'.join(update.rsplit('(if (EL:EnsureRoot)', 1))
-    startup = startup.replace('(if (EL:StartupRoot', embedded_resources() + '\n(if (EL:StartupRoot', 1)
+    startup = replace_once(update, '(setq *EL:MonitorLoadReady* (EL:PerfCall "LOAD_ROOT" \'EL:EnsureRoot nil))',
+                           f'(setq *EL:MonitorLoadReady* (EL:PerfCall "LOAD_ROOT" \'EL:StartupRoot (list "{marker}")))')
+    startup = startup.replace('(if (setq *EL:MonitorLoadReady*', embedded_resources() + '\n(if (setq *EL:MonitorLoadReady*', 1)
     startup = startup.replace('运行 ELSETUP 或 ELSTAT 后选择完整包内的 src/load.lsp。',
                               '请根据上方具体错误修复后重新加载启动文件。')
     (DEST / 'START-CAD2020.lsp').write_bytes(startup.encode('gb2312', errors='strict'))

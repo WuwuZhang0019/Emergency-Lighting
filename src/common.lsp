@@ -107,6 +107,8 @@
         *EL:PerfWaitMS* 0 *EL:PerfWaitDepth* 0 *EL:PerfSerial* 0 *EL:PerfOutcome* nil
         *EL:StoreReadScope* (1+ (cond (*EL:StoreReadScope*) (T 0))))
       (setq stamp (vl-catch-all-apply 'getvar (list "CDATE")))
+      (setq *EL:MonitorRows* nil *EL:MonitorError* nil *EL:MonitorUIStack* nil
+        *EL:MonitorStamp* (if (numberp stamp) (rtos stamp 2 6) "unavailable"))
       (EL:PerfSet "date" (if (numberp stamp) stamp "unavailable"))
       (EL:PerfSet "clock-available" (if (numberp tick) T nil))
       (foreach key '("recognize-fixed-calls" "store-read-calls" "store-write-calls"
@@ -122,14 +124,21 @@
           "device-library-loads" "device-library-writes" "device-library-matches" "device-library-unknown"
           "device-legend-loads" "device-legend-builds")
         (EL:PerfSet key 0)) T)))
-(defun EL:PerfBegin (stage / token wait parent)
+(defun EL:PerfBegin (stage / token wait parent paused)
   (if *EL:PerfActive*
     (progn
+      ;; Date: 2026-10-13. DCL callbacks do work inside start_dialog.
+      ;; Pause its input clock until the callback returns, including error unwind.
+      (if (and (equal stage "UI_ACTION") (> *EL:PerfWaitDepth* 0))
+        (setq paused *EL:PerfWaitDepth*
+          *EL:PerfWaitMS* (EL:PerfWaiting) *EL:PerfWaitDepth* 0))
       (setq wait (member stage '("USER_INPUT" "PLACEMENT_INPUT"))
         parent (if *EL:PerfPending* (EL:Get 'stage (car *EL:PerfPending*)))
         *EL:PerfSerial* (1+ *EL:PerfSerial*)
         token (list (cons 'id *EL:PerfSerial*) (cons 'stage stage) (cons 'start (EL:Tick))
-          (cons 'wait-before (EL:PerfWaiting)) (cons 'interactive (if wait T nil)) (cons 'parent parent)))
+          (cons 'wait-before (EL:PerfWaiting)) (cons 'interactive (if wait T nil)) (cons 'parent parent)
+          (cons 'parent-id (if *EL:PerfPending* (EL:Get 'id (car *EL:PerfPending*)) 0))
+          (cons 'label *EL:MonitorLabel*) (cons 'resume-wait paused)))
       (if wait
         (progn
           (if (= *EL:PerfWaitDepth* 0) (setq *EL:PerfWaitStart* (EL:Get 'start token)))
@@ -153,7 +162,11 @@
       (if (and (EL:Get 'parent token) (not (member (EL:Get 'parent token) parents)))
         (setq row (EL:Put 'parents (cons (EL:Get 'parent token) parents) row)))
       (setq *EL:PerfStages* (EL:Put stage row *EL:PerfStages*)
-        *EL:PerfPending* (vl-remove token *EL:PerfPending*)))) nil)
+        *EL:MonitorRows* (cons (append token (list (cons 'elapsed-ms elapsed)
+          (cons 'program-ms (max 0 (- elapsed waited))) (cons 'status status))) *EL:MonitorRows*)
+        *EL:PerfPending* (vl-remove token *EL:PerfPending*))
+      (if (EL:Get 'resume-wait token)
+        (setq *EL:PerfWaitDepth* (EL:Get 'resume-wait token) *EL:PerfWaitStart* (EL:Tick))))) nil)
 (defun EL:PerfUnwind (checkpoint)
   (while (and *EL:PerfPending* (not (equal checkpoint *EL:PerfPending*)))
     (EL:PerfEnd (car *EL:PerfPending*) 'interrupted)) nil)
@@ -161,10 +174,14 @@
   ;; Date: 2026-10-11. Input, native commands, writes and unknown callbacks
   ;; invalidate the current operation's sampled source; never cache a command.
   (setq *EL:FreshEpoch* (1+ (cond (*EL:FreshEpoch*) (T 0)))) nil)
-(defun EL:PerfCall (stage function arguments / token result)
+(defun EL:PerfCall (stage function arguments / token result *EL:MonitorLabel*)
   (if (member stage '("USER_INPUT" "PLACEMENT_INPUT" "PANEL_DIALOG")) (EL:FreshBoundary))
   (if (and *EL:PerfActive* (or (member stage
-      '("USER_INPUT" "PLACEMENT_INPUT" "PANEL_DIALOG" "RECOGNIZE_FIXED_RUN"
+      '("USER_INPUT" "PLACEMENT_INPUT" "PANEL_DIALOG" "RECOGNIZE_FIXED_RUN" "LOAD_ROOT" "LOAD_LIBRARY" "PICK_PANEL" "PICK_TRUNK"
+        "PANEL_START_LOAD" "PANEL_START_NEW" "PANEL_START_INIT" "PANEL_START_BUTTONS" "PANEL_START_WAIT"
+        "PANEL_HISTORY_READ" "PANEL_HISTORY_RESTORE" "PANEL_FILL" "PREPARE_PANEL" "NEW_RECORD" "READ_STORE"
+        "RECOGNIZE_FIXED" "RECOGNIZE_TRUNK" "SAVE_GENERATION_DRAFT" "STORE_REPLACE_PAYLOAD"
+        "UNDO_BEGIN" "UNDO_END" "TX_MARKER_CREATE" "RECOVERY_UNDO_END"
         "SIMPLE_COLLECT" "SIMPLE_NETWORK" "NETWORK_VERIFY_GEOMETRY" "NETWORK_BUILD" "SPLIT_NETWORK" "CIRCUIT_NUMBER_SCOPE"
         "COMPARE_SOURCE_NUMBER" "PRE_GENERATE_FRESH" "FRESH_SOURCE_SCAN"
         "CCKK2" "TX_WRITE" "STORE_READ" "STORE_DECODE" "STORE_CACHE_CHECK" "STORE_SERIALIZE"
@@ -173,7 +190,11 @@
       (and *EL:PerfDetail* (member stage
         '("STORE_SCHEMA" "STORE_REPLACE_PAYLOAD" "CCKK2_INSERT_BLOCK" "CCKK_POWER_TEXT"
           "TAG_ENTITY" "UNDO_BEGIN" "UNDO_END" "COMPARE_SOURCE" "SNAPSHOT_SIGNATURE" "CIRCUIT_TRACE")))))
-    (setq token (EL:PerfBegin stage)))
+    (progn
+      (setq *EL:MonitorLabel* (if (equal (type function) 'SYM) (vl-symbol-name function) stage))
+      (if (and (equal stage "USER_INPUT") (equal (type (car arguments)) 'STR))
+        (setq *EL:MonitorLabel* (strcat *EL:MonitorLabel* " " (car arguments))))
+      (setq token (EL:PerfBegin stage))))
   ;; Keep native return values and exceptions. Caught transactions unwind their frames.
   (setq result (apply function arguments))
   ;; A callback may sample the source and then change it during this input.
@@ -239,7 +260,8 @@
       ;; Snapshot before reporting: summary I/O is outside all business measurements.
       (setq *EL:PerfLastSummary* summary *EL:PerfActive* nil *EL:PerfPending* nil
         *EL:PerfMetrics* nil *EL:PerfStages* nil *EL:PerfMarks* nil *EL:PerfLogOwner* nil *EL:StoreReadCache* nil)
-      (vl-catch-all-apply 'EL:PerfReport (list summary))))
+      (vl-catch-all-apply 'EL:PerfReport (list summary))
+      (EL:MonitorReport summary)))
   (setq *EL:StoreReadCache* nil *EL:NetworkMemo* nil *EL:DLCache* nil *EL:DLSessionSnapshot* nil) nil)
 (defun c:ELPERF (/ option)
   (if *EL:PerfActive* (princ "\n请结束当前统计或生成后再调整性能采样。")
@@ -354,6 +376,7 @@
   (setq *EL:LogActive* nil *EL:LogStack* nil)
   (if *EL:PerfLogOwner* (EL:PerfFinish status)))
 (defun EL:LogFailure (message / laststate stack)
+  (setq *EL:MonitorError* message)
   (setq laststate *EL:LogLast* stack *EL:LogStack*)
   (EL:LogEvent "ERROR" (list (cons 'message message) (cons 'stack stack) (cons 'last-event laststate)))
   (princ (strcat "\n原始错误：" (EL:LogText message)
@@ -397,3 +420,152 @@
             (EL:StringDifference
               (if (equal (type a) 'STR) a (EL:Signature a))
               (if (equal (type b) 'STR) b (EL:Signature b))))))))))
+
+;; Date: 2026-10-13. Bounded business-stage timeline; no per-entity file I/O.
+(defun EL:MonitorTitle (stage / name)
+  (setq name (cdr (assoc stage
+    '(("USER_INPUT" . "等待拾取或面板操作") ("PLACEMENT_INPUT" . "等待系统图放置")
+      ("UI_ACTION" . "处理面板动作") ("LOAD_MODULE" . "加载源码模块")
+      ("LOAD_ROOT" . "确认目录及释放内置资源") ("LOAD_LIBRARY" . "初始化默认设备库")
+      ("LOAD_BOOTSTRAP" . "加载启动入口及公共函数")
+      ("PICK_PANEL" . "拾取配电箱并处理回路") ("PICK_TRUNK" . "拾取集中引出线并处理回路")
+      ("PANEL_START_LOAD" . "读取面板文件") ("PANEL_START_NEW" . "创建面板")
+      ("PANEL_START_INIT" . "初始化面板") ("PANEL_START_BUTTONS" . "绘制拾取按钮")
+      ("PANEL_START_WAIT" . "首屏面板会话") ("PANEL_DIALOG" . "回路设置面板会话")
+      ("PANEL_FILL" . "填充回路及图块") ("PANEL_HISTORY_READ" . "加载保存记录")
+      ("PANEL_HISTORY_RESTORE" . "恢复保存记录中的回路与图块")
+      ("READ_STORE" . "读取本图记录") ("STORE_READ" . "读取本图记录")
+      ("STORE_DECODE" . "解码记录") ("STORE_CACHE_CHECK" . "核对记录缓存")
+      ("NEW_RECORD" . "创建配电箱记录") ("PREPARE_PANEL" . "准备面板数据")
+      ("RECOGNIZE_FIXED" . "识别配电箱回路") ("RECOGNIZE_TRUNK" . "识别集中引出线")
+      ("RECOGNIZE_FIXED_RUN" . "执行整箱识别") ("SIMPLE_COLLECT" . "收集图纸候选对象")
+      ("COLLECT_ENTITY_READ" . "读取候选实体") ("COLLECT_CANDIDATES" . "过滤候选对象")
+      ("SIMPLE_NETWORK" . "准备连接网络") ("NETWORK_BUILD" . "建立连接网络")
+      ("NETWORK_WIRE_CONTACT" . "检查导线接触") ("NETWORK_CANDIDATE_SCOPE" . "筛选设备范围")
+      ("NETWORK_DEVICE_CONTACT" . "检查设备接触") ("NETWORK_GAPS" . "检查断线连接")
+      ("NETWORK_SIGNATURE" . "生成网络签名") ("NETWORK_VERIFY_GEOMETRY" . "核对网络几何")
+      ("SPLIT_NETWORK" . "拆分回路") ("CIRCUIT_NUMBER_SCOPE" . "识别回路编号范围")
+      ("COMPARE_SOURCE_NUMBER" . "核对回路编号") ("PRE_GENERATE_FRESH" . "生成前核对源图")
+      ("FRESH_SOURCE_SCAN" . "重采样源图") ("CCKK2" . "生成或更新配电箱系统图")
+      ("TX_WRITE" . "写入系统图及保存记录") ("STORE_SERIALIZE" . "序列化保存记录")
+      ("STORE_PARSE" . "解析并核对序列化数据") ("STORE_REPLACE_PAYLOAD" . "写入图纸记录载荷")
+      ("STORE_READBACK" . "回读核对保存内容") ("STORE_CONTEXT_COMMIT" . "核对提交后的上下文")
+      ("STORE_CONTEXT_READ" . "读取提交后的上下文") ("SAVE_GENERATION_DRAFT" . "保存生成草稿")
+      ("UNDO_BEGIN" . "开始撤销组") ("UNDO_END" . "结束撤销组")
+      ("TX_MARKER_CREATE" . "建立事务标记") ("DIAGRAM_VIEW" . "定位完整系统图")
+      ("DEVICE_LIBRARY_LOAD" . "读取设备库") ("DEVICE_LEGEND" . "加载设备图例")
+      ("DIAGNOSTIC_EXPORT" . "导出诊断数据")))))
+  (if name name stage))
+(defun EL:MonitorActionTile (key code)
+  ;; Keep original callback expressions in the same DCL scope, including $value.
+  (action_tile key (strcat "(EL:MonitorUIBegin $key $value) " code " (EL:MonitorUIEnd)")))
+(defun EL:MonitorUIBegin (key value / *EL:MonitorLabel* title)
+  (setq title (cdr (assoc key
+    '(("p_pick" . "拾取配电箱") ("p_trunk" . "拾取集中引出线")
+      ("h_load" . "加载保存记录") ("h_records" . "选择保存记录")
+      ("h_open" . "保存当前并打开记录") ("accept" . "保存或确定")
+      ("cancel" . "取消或退出") ("p_generate" . "生成或更新")
+      ("f_prev" . "上一页") ("f_next" . "下一页") ("f_preview" . "查看全部回路")
+      ("b_library" . "打开设备库") ("b_apply_library" . "应用当前库值")
+      ("b_restore" . "恢复排除") ("p_capacity" . "修改配电箱容量")
+      ("dl_save" . "保存到设备库") ("dl_close" . "关闭设备库")))))
+  (if (not title)
+    (setq title (cond ((wcmatch key "b_watts*") "修改单个功率")
+      ((wcmatch key "b_ground*") "修改地面状态") ((wcmatch key "b_remove*") "排除图块")
+      ((wcmatch key "f_image*") "选择图例") (T "修改控件或执行按钮"))))
+  (setq *EL:MonitorLabel* (strcat title " [" key "]=" (if value (substr value 1 160) ""))
+    *EL:MonitorUIStack* (cons (EL:PerfBegin "UI_ACTION") *EL:MonitorUIStack*)))
+(defun EL:MonitorUIEnd ()
+  (EL:PerfEnd (car *EL:MonitorUIStack*) 'returned)
+  (setq *EL:MonitorUIStack* (cdr *EL:MonitorUIStack*)))
+(defun EL:MonitorSeconds (milliseconds / fraction)
+  ;; DIMZIN must not strip the leading/trailing zeroes in timing columns.
+  (setq fraction (strcat "00" (itoa (fix (rem milliseconds 1000)))))
+  (strcat (rtos (fix (/ milliseconds 1000.0)) 2 0) "." (substr fraction (- (strlen fraction) 2))))
+(defun EL:MonitorCell (value / text)
+  (setq text (cond ((equal (type value) 'STR) value) (value (vl-prin1-to-string value)) (T "-")))
+  (vl-string-translate "|\r\n" "/  " text))
+(defun EL:MonitorTable (file rows origin / row start duration)
+  (write-line "|序号|父动作|开始秒|结束秒|耗时秒|程序秒|交互秒|动作内容|阶段|结果|" file)
+  (write-line "|---:|---:|---:|---:|---:|---:|---:|---|---|---|" file)
+  (foreach row (vl-sort rows '(lambda (a b) (< (EL:Get 'id a) (EL:Get 'id b))))
+    (setq start (EL:PerfDelta origin (EL:Get 'start row)) duration (EL:Get 'elapsed-ms row))
+    (write-line (strcat "|" (itoa (EL:Get 'id row)) "|" (itoa (EL:Get 'parent-id row))
+      "|" (EL:MonitorSeconds start) "|" (EL:MonitorSeconds (+ start duration))
+      "|" (EL:MonitorSeconds duration) "|" (EL:MonitorSeconds (EL:Get 'program-ms row))
+      "|" (EL:MonitorSeconds (- duration (EL:Get 'program-ms row)))
+      "|" (EL:MonitorTitle (EL:Get 'stage row)) " " (EL:MonitorCell (EL:Get 'label row))
+      "|" (EL:Get 'stage row) "|" (if (equal (EL:Get 'status row) 'returned) "已返回" "中断") "|") file)))
+(defun EL:MonitorWriteBody (file summary / stamp row)
+  (setq stamp *EL:MonitorStamp*)
+  (write-line "# 应急照明全过程动作耗时" file)
+  (write-line (strcat "日期：" (substr stamp 1 4) "-" (substr stamp 5 2) "-" (substr stamp 7 2)) file)
+  (write-line (strcat "状态：" (EL:MonitorCell (EL:Get 'status summary))
+    "；业务结果：" (EL:MonitorCell (EL:Get 'last-outcome summary))) file)
+  (write-line (strcat "启动时间 CDATE：" stamp "；命令：" (EL:Get 'command summary)
+    "；交付版本：" (EL:MonitorCell (EL:Get 'package summary))) file)
+  (write-line "" file)
+  (write-line "单位为秒，保留三位小数。父动作包含子动作，不可将各行相加。交互秒是输入等待区间，已扣除本插件面板回调处理；原生鼠标放置包含 CAD 自身处理。未单独设点的工作保留在父动作及总时间中。" file)
+  (write-line "记录用户动作和业务阶段；导线、实体、顶点等循环按批次计时，不逐对象写文件。开始代表进入函数，已返回只表示函数返回，业务成功与否以业务结果为准。" file)
+  (if (and *EL:MonitorLoadSummary* (not (equal (EL:Get 'command summary) "APPLOAD")))
+    (progn
+      (write-line "" file) (write-line "## 最近一次插件加载" file)
+      (write-line (strcat "加载时间 CDATE：" *EL:MonitorLoadStamp* "；加载耗时："
+        (EL:MonitorSeconds (EL:Get 'total-ms *EL:MonitorLoadSummary*)) " 秒。加载结束至输入命令的空闲间隔不计入程序耗时。") file)
+      (EL:MonitorTable file *EL:MonitorLoadRows* *EL:MonitorLoadOrigin*)))
+  (write-line "" file) (write-line "## 本次执行至退出" file)
+  (write-line (strcat "总耗时 " (EL:MonitorSeconds (EL:Get 'total-ms summary))
+    " 秒；程序 " (EL:MonitorSeconds (EL:Get 'program-ms summary)) " 秒；交互 "
+    (EL:MonitorSeconds (EL:Get 'interaction-ms summary)) " 秒。") file)
+  (if *EL:MonitorError* (write-line (strcat "错误或取消原因：" (EL:MonitorCell *EL:MonitorError*)) file))
+  (write-line "动作 0：命令开始，相对时间 0.000 秒。" file)
+  (EL:MonitorTable file *EL:MonitorRows* *EL:PerfStarted*)
+  (write-line (strcat "退出：" (EL:MonitorSeconds (EL:Get 'total-ms summary)) " 秒。") file)
+  (write-line "" file) (write-line "## 工作量及计数" file)
+  (foreach row (EL:Get 'metrics summary)
+    (write-line (strcat "- " (car row) "：" (EL:MonitorCell (cdr row))) file)))
+(defun EL:MonitorWrite (path summary / file result closed started)
+  (setq started (EL:Tick))
+  (if (setq file (open path "w" "utf8"))
+    (progn
+      (setq result (vl-catch-all-apply 'EL:MonitorWriteBody (list file summary)))
+      (if (not (vl-catch-all-error-p result))
+        (setq result (vl-catch-all-apply 'write-line (list
+          (strcat "文档生成至末行耗时：" (EL:MonitorSeconds (EL:PerfDelta started (EL:Tick)))
+            " 秒；不含文件关闭耗时。性能日志及本文写出位于上述业务计时之外。") file))))
+      (setq closed (vl-catch-all-apply 'close (list file)))
+      (and (not (vl-catch-all-error-p result)) (not (vl-catch-all-error-p closed))))))
+(defun EL:MonitorReport (summary / folder path result suffix)
+  ;; One write per completed command; retain memory on I/O failure.
+  (setq *EL:MonitorLastRows* *EL:MonitorRows*)
+  (if (equal (EL:Get 'command summary) "APPLOAD")
+    (setq *EL:MonitorLoadRows* *EL:MonitorRows* *EL:MonitorLoadSummary* summary
+      *EL:MonitorLoadOrigin* *EL:PerfStarted* *EL:MonitorLoadStamp* *EL:MonitorStamp*))
+  (setq result (vl-catch-all-apply 'EL:MonitorSave (list summary nil)))
+  (if (or (vl-catch-all-error-p result) (not result))
+    (setq result (vl-catch-all-apply 'EL:MonitorSave (list summary T))))
+  (if (and result (not (vl-catch-all-error-p result)))
+    (princ (strcat "\n全过程耗时文档：" *EL:MonitorPath*))
+    (princ "\n全过程文档写入失败；动作保留在 *EL:MonitorLastRows*，汇总保留在 *EL:PerfLastSummary*。")) nil)
+(defun EL:MonitorSave (summary fallback / folder path suffix base)
+  (setq folder (if (or fallback (not *EL:Root*)) (getvar "TEMPPREFIX") (strcat *EL:Root* "output/")))
+  (vl-mkdir folder)
+  (setq base (strcat folder "ELMONITOR-" *EL:MonitorStamp* "-" (EL:Get 'command summary)) suffix 0
+    path (strcat base ".md"))
+  (while (findfile path)
+    (setq suffix (1+ suffix) path (strcat base "-" (itoa suffix) ".md")))
+  (if (EL:MonitorWrite path summary) (setq *EL:MonitorPath* path)))
+(defun EL:MonitorLoadBegin (started / token)
+  (EL:PerfStart "APPLOAD")
+  (setq *EL:PerfStarted* started token (EL:PerfBegin "LOAD_BOOTSTRAP"))
+  (setq *EL:PerfPending* (vl-remove token *EL:PerfPending*) token (EL:Put 'start started token)
+    *EL:PerfPending* (cons token *EL:PerfPending*))
+  (EL:PerfEnd token 'returned)
+  (setq *EL:MonitorOldError* *error*)
+  (defun *error* (message)
+    (setq *EL:MonitorError* message *error* *EL:MonitorOldError*)
+    (EL:PerfFinish 'load-failed)
+    (princ (strcat "\n插件加载失败：" message)) (princ)))
+(defun EL:MonitorLoadEnd (status)
+  (setq *error* *EL:MonitorOldError*)
+  (EL:PerfFinish status))

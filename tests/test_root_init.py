@@ -66,11 +66,13 @@ class RootFixture(unittest.TestCase):
         self.picks = []
         self.opens = []
         self.drawing = {'DWGTITLED': 1, 'DWGPREFIX': 'C:/drawings/',
-                        'DWGNAME': '照明.dwg', 'CDATE': 20261008.1}
+                        'DWGNAME': '照明.dwg', 'CDATE': 20261008.1, 'MILLISECS': 0,
+                        'TEMPPREFIX': self.root + 'output/'}
         self.h.builtins.update({
             'GETVAR': lambda name: self.drawing[name],
             'STRCAT': self.strcat,
             'VL-STRING-RIGHT-TRIM': lambda chars, text: text.rstrip(chars),
+            'VL-STRING-TRANSLATE': lambda old, new, text: text.translate(str.maketrans(old, new)),
             'FINDFILE': lambda path: path if pathlib.Path(path).is_file() else None,
             'VL-FILE-DIRECTORY-P': lambda path: pathlib.Path(path).is_dir(),
             'VL-FILENAME-DIRECTORY': lambda path: pathlib.Path(path).parent.as_posix(),
@@ -379,6 +381,13 @@ class PackagedUpdateTests(RootFixture):
         self.assertEqual(self.dialogs,[])
         self.assertNotIn('输入 CCKK',''.join(self.messages))
         self.assertIn('输入 ELSTAT',''.join(self.messages))
+        report = pathlib.Path(self.h.lookup('*EL:MONITORPATH*'))
+        monitor = report.read_bytes().decode('gb2312')
+        self.assertIn('加载源码模块', monitor)
+        self.assertIn('确认目录及释放内置资源', monitor)
+        self.assertIn('初始化默认设备库', monitor)
+        self.assertIn('LOAD-FINISHED', monitor)
+        self.assertFalse(truth(self.h.lookup('*EL:PERFACTIVE*')))
         self.h.run('(EL:FixedStatPick)')
         self.assertEqual(self.dialogs,[])
         self.assertEqual(len(self.picks),1)
@@ -497,7 +506,8 @@ class PackagedUpdateTests(RootFixture):
         self.assertEqual(len(self.dialogs), 1)
         self.assertEqual(len(self.picks), 1)
         self.assertIn('拾取配电箱图块样本', self.picks[0])
-        self.assertEqual(self.opens, [])
+        self.assertTrue(all(pathlib.Path(path).name.startswith(('ELMONITOR-', 'ELPERF.'))
+                            for path, _, _ in self.opens))
 
     def test_update_preserves_old_root_and_config_then_stat_reaches_panel_pick(self):
         self.h.frames[0]['*EL:ROOT*'] = self.root
@@ -526,7 +536,8 @@ class PackagedUpdateTests(RootFixture):
         self.h.run('(c:ELSETUP)')
         self.assertEqual(len(self.dialogs), 2)
         self.assertEqual(len(self.picks), 1)
-        self.assertEqual(self.opens, [])
+        self.assertTrue(all(pathlib.Path(path).name.startswith(('ELMONITOR-', 'ELPERF.'))
+                            for path, _, _ in self.opens))
 
     def test_packaged_setup_uses_fixed_mm_and_numeric_choices_with_real_data_io(self):
         self.h.frames[0]['*EL:ROOT*'] = self.root

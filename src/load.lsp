@@ -1,6 +1,7 @@
 ;; APPLOAD this file; keep the entire repository on an AutoCAD trusted path.
+(setq *EL:BootstrapTick* (getvar "MILLISECS"))
 (vl-load-com)
-(defun EL:LoadModules (/ path el-file missing)
+(defun EL:LoadModules (/ path el-file missing token *EL:MonitorLabel*)
   (if (not *EL:Root*)
     (progn
       (setq path (findfile "load.lsp"))
@@ -13,8 +14,13 @@
       (if missing (princ "\n插件文件不完整；检查 *EL:Root* 和 src 目录。")
         (progn
           (foreach el-file '("common" "config" "geometry" "topology" "statistics" "device-library" "device-assets" "device-defaults" "device-ui" "device-recognition" "device-inputs" "device-migration" "generation" "main" "simple" "circuit-number" "fixed" "panel" "store-compact" "diagram-store" "diagram-update" "diagram-commands" "insert-circuit")
-            (load (strcat *EL:Root* "src/" el-file ".lsp")))
-          (EL:DLDefaultStartup)
+            (if (equal el-file "common")
+              (progn (load (strcat *EL:Root* "src/" el-file ".lsp"))
+                (EL:MonitorLoadBegin *EL:BootstrapTick*))
+              (progn (setq *EL:MonitorLabel* (strcat el-file ".lsp") token (EL:PerfBegin "LOAD_MODULE"))
+                (load (strcat *EL:Root* "src/" el-file ".lsp")) (EL:PerfEnd token 'returned))))
+          (EL:PerfCall "LOAD_LIBRARY" 'EL:DLDefaultStartup nil)
+          (EL:MonitorLoadEnd 'load-finished)
           (princ "\n已加载：ELSETUP / ELPRESET / ELDEVPICK / ELDEVLIB / ELGAPTEST / ELSTAT / ELPOWER / ELTEMPLATE / ELGEN / ELUPDATE / ELSTORELEGACY / CCKK。"))))
     (princ "\n需要 AutoCAD 2021+ Windows、LISPSYS=1/2（更改后重启）及完整插件目录。")))
 (EL:LoadModules)

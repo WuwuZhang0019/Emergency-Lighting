@@ -1,4 +1,4 @@
-"""Actual circuit-number functions, bounded DWG adapters. Date: 2026-10-11."""
+"""Actual circuit-number functions, bounded DWG adapters. Date: 2026-10-13."""
 from pathlib import Path
 import copy
 import unittest
@@ -270,6 +270,65 @@ class NumberAllocationTests(unittest.TestCase):
         c = self.get('circuits', result)[0]
         self.assertEqual(self.get('number-source', c), Symbol('LEGACY'))
         self.assertEqual(self.get('circuit-number', c), 'ZE1')
+
+class NumberSortTests(unittest.TestCase):
+    call = NumberReadTests.call
+    get = NumberReadTests.get
+    circuits = NumberAllocationTests.circuits
+
+    def setUp(self):
+        NumberAllocationTests.setUp(self)
+        for name in ('panel', 'device-recognition', 'diagram-update'):
+            self.h.load_definitions(ROOT / 'src' / f'{name}.lsp')
+
+    def prepare(self, numbers):
+        return self.call('EL:PreparedResult', [pair('circuits', self.circuits(numbers))],
+                         [pair('diagram-id', 'diagram')])
+
+    def test_numeric_order_keeps_power_devices_uid_and_manual_settings(self):
+        rows = self.circuits(['ZE3', 'ZE1', 'ZE10', 'ZE2'])
+        for i, row in enumerate(rows, 1):
+            for key, value in (('watts', i * 7), ('devices', [f'lamp{i}']),
+                               ('is-ground', i % 2 == 0), ('ground-source', Symbol('MANUAL'))):
+                row = self.call('EL:Put', Symbol(key.upper()), value, row)
+            rows[i - 1] = row
+        saved = [[pair('seed-key', self.get('key', self.get('seed', row))),
+                  pair('circuit-uid', f'saved-u{i}'), pair('output-order', i),
+                  pair('is-ground', i % 2 == 0), pair('ground-source', Symbol('MANUAL'))]
+                 for i, row in enumerate(rows, 1)]
+        record = [pair('diagram-id', 'diagram'), pair('rows', saved)]
+        result = self.call('EL:PreparedResult', [pair('circuits', rows)], record)
+        circuits = self.get('circuits', result)
+        self.assertEqual([self.get('circuit-number', c) for c in circuits], ['ZE1', 'ZE2', 'ZE3', 'ZE10'])
+        for c, original in zip(circuits, [2, 4, 1, 3]):
+            self.assertEqual(self.get('circuit-uid', c), f'saved-u{original}')
+            self.assertEqual(self.get('output-order', c), original)
+            self.assertEqual(self.get('watts', c), original * 7)
+            self.assertEqual(self.get('devices', c), [f'lamp{original}'])
+            self.assertEqual(truth(self.get('is-ground', c)), original % 2 == 0)
+        self.assertEqual(self.call('EL:PreparedResult', result, record), result)
+
+    def test_missing_metadata_default_stays_stable_when_reprepared(self):
+        result = self.prepare(['ZE10', None, 'ZE1'])
+        expected = ['ZE1', 'ZE2', 'ZE10']
+        self.assertEqual([self.get('circuit-number', c) for c in self.get('circuits', result)], expected)
+        record = [pair('diagram-id', 'diagram'), pair('rows', self.get('circuits', result))]
+        for _ in range(3):
+            result = self.call('EL:PreparedResult', result, record)
+            self.assertEqual([self.get('circuit-number', c) for c in self.get('circuits', result)], expected)
+        self.assertEqual(self.reads, ['H1', 'H2', 'H3'])
+
+    def test_custom_and_unresolved_slots_unchanged_and_equal_numbers_not_dropped(self):
+        rows = [[pair('circuit-number', number), pair('number-status', status), pair('circuit-uid', f'u{i}')]
+                for i, (number, status) in enumerate([
+                    ('ZE10', Symbol('READY')), ('WL7', Symbol('READY')), ('ZE2', Symbol('READY')),
+                    ('ZE1', Symbol('CONFLICT')), ('ze02', Symbol('READY')), ('ZE2', Symbol('READY'))])]
+        result = self.call('EL:SortCircuitNumbers', [pair('circuits', rows)])
+        circuits = self.get('circuits', result)
+        self.assertEqual([self.get('circuit-number', c) for c in circuits],
+                         ['ZE2', 'WL7', 'ze02', 'ZE1', 'ZE2', 'ZE10'])
+        self.assertEqual([self.get('circuit-uid', c) for c in circuits], ['u2', 'u1', 'u4', 'u3', 'u5', 'u0'])
+        self.assertEqual(self.get('circuits', self.call('EL:SortCircuitNumbers', [pair('circuits', None)])), None)
 
 class NumberPresentationTests(unittest.TestCase):
     call = NumberReadTests.call
@@ -582,6 +641,7 @@ class NumberWorkflowTests(unittest.TestCase):
         result = self.seen[0]
         circuits = self.get('circuits', result)
         self.assertEqual(len(circuits), 5)
+        self.assertEqual([self.get('circuit-number', c) for c in circuits], [f'ZE{i}' for i in range(1, 6)])
         for index, c in enumerate(circuits):
             source = self.get('sources', self.get('number-scope', c))
             self.assertEqual(len(source), 1)

@@ -1,0 +1,36 @@
+{
+  "date": "2026-10-13",
+  "status": "completed",
+  "package": 121,
+  "passed": true,
+  "source_tests_run": 42,
+  "lisp_dcl_count": 31,
+  "checked_entries": [
+    "START-CAD2020.lsp",
+    "UPDATE-121.lsp",
+    "src/load.lsp"
+  ],
+  "checked_functions": [
+    "EL:ZENumberIndex",
+    "EL:SortCircuitNumbers",
+    "EL:PreparedResult"
+  ],
+  "checks": [
+    "ZIP CRC",
+    "all archive files equal package directory files",
+    "strict GB2312 roundtrip",
+    "all LISP parsing",
+    "changed definitions equal source AST",
+    "ELSTAT five circuits sorted in panel and system plan in three entries"
+  ],
+  "archive_sha256": "a1c6e4572c02a69392f209caf5f68ad58135590370f45c1d0fa65b0a3abee993",
+  "source_sha256": {
+    "src/circuit-number.lsp": "0e290acafe2e5969e23dbe397f169def1fcddd0f2a06aa9f7afa87cf3dc4887c",
+    "src/diagram-update.lsp": "1626f4299688454b26fcfbccfbd997709dd286a56c8cd87cd3563fe22fe21f15",
+    "tests/test_circuit_number.py": "24dfabb4e1db99fc930a575e460efd817da8fd64991c2a21b29ec0032d5d9785",
+    "tests/check_circuit_sort_package.py": "6ac98ecd4c6d2a22f71b52ff78a73cb25dd83335ee3f06d97cb9e4a5719eb27e",
+    "tools/build_cad2020.py": "b3ce1b788ff0b17aea104b764c4f79d8ad8fb7bd0fee95647643ccb3c3e81e8a",
+    ".gitignore": "8b2e8209d9b885c84b0e136aaf788c03bc84bf67537b8272a3dda24c6e1611ab"
+  },
+  "native_cad_status": "pending; bounded adapters do not establish original DWG acceptance"
+}

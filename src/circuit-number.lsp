@@ -208,6 +208,33 @@
   (setq text (strcat "ZE" (itoa index)))
   (while (member (EL:NumberKey text) used)
     (setq index (1+ index) text (strcat "ZE" (itoa index)))) text)
+;; Date: 2026-10-13. Sort ZE slots numerically after resolving their native numbers.
+(defun EL:ZENumberIndex (c / text index code good)
+  (setq text (EL:Get 'circuit-number c))
+  (if (and (equal (EL:Get 'number-status c) 'ready) (EL:NumberTextValid text)
+      (> (strlen text) 2) (equal (substr (strcase text) 1 2) "ZE"))
+    (progn
+      (setq index 3 good T)
+      (while (and good (<= index (strlen text)))
+        (setq code (ascii (substr text index 1)) good (and (>= code 48) (<= code 57))
+          index (1+ index)))
+      (if good (atoi (substr text 3))))))
+(defun EL:SortCircuitNumbers (result / circuits c key index numbered out)
+  (setq circuits (EL:Get 'circuits result) index 0)
+  (foreach c circuits
+    (if (setq key (EL:ZENumberIndex c))
+      (setq numbered (cons (list key index c) numbered)))
+    (setq index (1+ index)))
+  ;; The original index breaks ties so vl-sort cannot discard equal-number rows.
+  (setq numbered (vl-sort numbered '(lambda (a b)
+    (if (= (car a) (car b)) (< (cadr a) (cadr b)) (< (car a) (car b))))))
+  (foreach c circuits
+    (if (EL:ZENumberIndex c)
+      (setq c (caddr (car numbered)) numbered (cdr numbered)))
+    (setq out (cons c out)))
+  ;; Keep UID, saved allocation order, power and all per-circuit settings attached.
+  ;; Custom numbers and unresolved rows retain their original slots.
+  (EL:Put 'circuits (reverse out) result))
 (defun EL:ResolveCircuitNumbers (result / inputs rows c text used counts sources owners handle key conflicts out index problems)
   ;; Repreparing a displayed draft must keep its original metadata baseline.
   ;; Only a newly recognized result reads inputs; FreshResult checks later changes.

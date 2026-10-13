@@ -569,7 +569,7 @@
       (EL:Require (and (tblsearch "STYLE" "ICDA-STYLE1") (EL:OutputLayerReady "SYS_系统标注_E")
         (EL:OutputLayerReady "TEL_TEXT")) "请补齐 ICDA-STYLE1 样式，并打开、解冻和解锁输出图层。")
       (EL:Require (and (EL:FixedTemplate template) (EL:TemplateRuntimeValid template cfg)) "模板未适配或已变化，请运行 ELTEMPLATE。")
-      (EL:Require (EL:UniqueDiagram store record) "发现复制系统图或外来标识，需显式修复关联，未更新。")
+      (EL:Require (EL:UniqueDiagram store record) "原系统图成员归属不符或保存的身份重复，未更新；具体对象见 DIAGRAM_ASSOCIATION_CONFLICT。")
       (if (and generate interactive (EL:Get 'panel-output-handle record)
           (equal (EL:OutputState (EL:Get 'panel-output-handle record) store record "panel" "panel") 'missing))
         (progn

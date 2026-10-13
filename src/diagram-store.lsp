@@ -689,13 +689,38 @@
       (if (and (equal (cdr (assoc 0 data)) (if (equal kind "text") "TEXT" "INSERT"))
           (equal tag (list (cons 1000 (EL:Get 'drawing-uuid store))
             (cons 1000 (EL:Get 'diagram-id record)) (cons 1000 kind) (cons 1000 uid) (cons 1000 handle)))) e))))
-(defun EL:UniqueDiagram (store record / ss i e tag good)
-  (setq ss (ssget "_X" '((-3 ("EL_FIXED_V1")))) i 0 good T)
-  (if ss (repeat (sslength ss)
-    (setq e (ssname ss i) tag (EL:DiagramTag e) i (1+ i))
-    (if (equal (cdr (nth 1 tag)) (EL:Get 'diagram-id record))
-      (if (or (not (equal (cdr (car tag)) (EL:Get 'drawing-uuid store)))
-          (not (equal (cdr (nth 4 tag)) (cdr (assoc 5 (entget e)))))) (setq good nil))))) good)
+(defun EL:UniqueDiagram (store record / ref handle identity handles identities e data reason good)
+  ;; Date: 2026-10-13. The saved handles identify the update targets. Copies
+  ;; elsewhere keep their old tags but must neither block nor inherit this
+  ;; record. Never search by tag to replace a missing original member.
+  (setq good (and (equal (type (EL:Get 'drawing-uuid store)) 'STR)
+    (/= (EL:Get 'drawing-uuid store) "")
+    (equal (type (EL:Get 'diagram-id record)) 'STR) (/= (EL:Get 'diagram-id record) "")))
+  (if (not good)
+    (EL:LogEvent "DIAGRAM_ASSOCIATION_CONFLICT" (list '(reason . invalid-record-identity)
+      (cons 'drawing-uuid (EL:Get 'drawing-uuid store)) (cons 'diagram-id (EL:Get 'diagram-id record)))))
+  (foreach ref (EL:DiagramOutputRefs record)
+    (if (setq handle (car ref))
+      (progn
+        (setq identity (cdr ref) e nil data nil)
+        (EL:PerfCount "diagram-association-targets" 1)
+        (setq reason (cond
+          ((or (not (equal (type handle) 'STR)) (equal handle "")
+              (not (equal (type (caddr ref)) 'STR)) (equal (caddr ref) "")) 'invalid-member-reference)
+          ((member handle handles) 'duplicate-handle)
+          ((member identity identities) 'duplicate-member-identity)
+          ;; HANDENT can still resolve an erased entity; ENTGET decides whether
+          ;; it exists. Existing rebuild/layout guards handle missing members.
+          ((and (setq e (handent handle)) (setq data (entget e))
+              (or (not (equal handle (cdr (assoc 5 data))))
+                (not (EL:OwnedEntity handle store record (cadr ref) (caddr ref))))) 'ownership-mismatch)))
+        (if reason
+          (progn (setq good nil)
+            (EL:LogEvent "DIAGRAM_ASSOCIATION_CONFLICT" (list (cons 'reason reason)
+              (cons 'diagram-id (EL:Get 'diagram-id record)) (cons 'drawing-uuid (EL:Get 'drawing-uuid store))
+              (cons 'handle handle) (cons 'kind (cadr ref)) (cons 'uid (caddr ref))
+              (cons 'actual-handle (cdr (assoc 5 data))) (cons 'actual-tag (if data (EL:DiagramTag e)))))))
+        (setq handles (cons handle handles) identities (cons identity identities))))) good)
 (defun EL:DiagramTransform (entity / d sx sy sz normal)
   (setq d (entget entity) sx (cdr (assoc 41 d)) sy (cdr (assoc 42 d)) sz (cdr (assoc 43 d))
     normal (cdr (assoc 210 d)))

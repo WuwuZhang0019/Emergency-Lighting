@@ -1,4 +1,4 @@
-"""Actual update functions against a finite DWG adapter. Date: 2026-10-10."""
+"""Actual update functions against a finite DWG adapter. Date: 2026-10-13."""
 import copy
 import math
 import unittest
@@ -211,6 +211,8 @@ class UpdateTests(unittest.TestCase):
 
     def test_identical_update_is_noop_and_manual_text_content_is_repaired(self):
         self.h.run("(setq record (EL:Put 'template template (EL:Put 'status 'current (EL:Put 'capacity-option 'cap300 (EL:Put 'power-signature (EL:Signature (EL:Get 'power-config result)) record)))))")
+        # The current record format requires retained source circuit members.
+        self.h.run("(setq record (EL:Put 'panel-circuits (EL:Get 'circuits result) record))")
         self.assertTrue(truth(self.h.run('(EL:DiagramUnchanged record result plan store)')))
         self.h.builtins['VLA-PUT-TEXTSTRING']('t0','manual')
         self.assertFalse(truth(self.h.run('(EL:DiagramUnchanged record result plan store)')))

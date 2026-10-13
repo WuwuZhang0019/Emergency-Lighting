@@ -1,0 +1,62 @@
+{
+  "date": "2026-10-13",
+  "status": "completed",
+  "package": 122,
+  "passed": true,
+  "source_tests_run": 121,
+  "module_test_counts": {
+    "test_repick_update": 14,
+    "test_circuit_number": 42,
+    "test_concentrated_trunk": 14,
+    "test_panel_number": 6,
+    "test_diagram_update": 45
+  },
+  "lisp_dcl_count": 31,
+  "checked_entries": [
+    "START-CAD2020.lsp",
+    "UPDATE-122.lsp",
+    "src/load.lsp"
+  ],
+  "checked_functions": [
+    "EL:RecognitionRules",
+    "EL:NumberBranchCircuits",
+    "EL:SplitNativeNumberBranches",
+    "EL:RecordForResult",
+    "EL:RepickRecord",
+    "EL:RepickConfig",
+    "EL:FixedStatPick",
+    "EL:RecognizeFixed",
+    "EL:EditPanelOnce",
+    "EL:SaveDraft",
+    "EL:SyncDiagramScoped",
+    "EL:ApplyUpdate"
+  ],
+  "packaged_scenarios": [
+    "test_log_two_shared_feeders_become_six_sorted_numbered_circuits",
+    "test_regular_repick_reaches_panel_with_native_branches_and_saved_target",
+    "test_real_sync_writes_replacement_under_same_id_without_new_panel",
+    "test_replacement_write_failure_rolls_back_old_output_and_binding"
+  ],
+  "checks": [
+    "ZIP CRC",
+    "all archive files equal package directory files",
+    "strict GB2312 roundtrip",
+    "all LISP parsing",
+    "changed definitions equal source AST",
+    "four scenarios in three loading entries"
+  ],
+  "archive_sha256": "92fdd66abe0fe1d345559ffee350c1ac994cc6fbfad8a7e631694cbdd7f9a082",
+  "source_sha256": {
+    "src/common.lsp": "6bc5dbc7e11392b7f0953a3838f7d04d2b29c1e3d2995ab771ccd1efb029d0ec",
+    "src/circuit-number.lsp": "5b4c4ba5d9f1006bd8cbb5b1d3278a354752656325549a2392725b73047909b3",
+    "src/diagram-store.lsp": "8da8d75146495b76a759abee5c6670486e6cf91dfa9c58baa0c52a9a677a6f6a",
+    "src/diagram-commands.lsp": "185493fc18bf825d38f533bd567b15c80ab742786873129affe67022d651f5cf",
+    "src/diagram-update.lsp": "da8981c549b833a68814d22fe8c985a04b7ea865b5833f40b473dcd8a647595b",
+    "tests/test_repick_update.py": "0ca773849e520360bebe5701412a35dffc6763b694dadf75572e952673ebb559",
+    "tests/check_repick_update_package.py": "0107d6f5c7756dd7cd8d7592bfd0d42bbcbacccbde13882d4b4381f917af66ac",
+    "tests/test_diagram_update.py": "a2ffaf85b61c1d16eb132f6e05e2105047c2c85f3909977c51b33d9629094fd1",
+    "tools/build_cad2020.py": "9f92ffe5fa2c362cbb96b2b0d4cd224875dfe683d01cc53aa012109720cd19a6",
+    ".gitignore": "a717d3ac0f8abdeed0fd188d83231ed7b7f1f5ffc8316c4962deeb8513006e01"
+  },
+  "native_cad_status": "pending; log-derived topology fixtures do not establish original DWG acceptance"
+}

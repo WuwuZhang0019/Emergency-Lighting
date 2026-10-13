@@ -29,7 +29,7 @@
   (setq capacity (EL:CapacityDefault capacity))
   (if (not (EL:Get 'capacity-source result)) (setq result (EL:Put 'capacity-source 'default result)))
   (setq store (cond ((EL:StoreRead)) (T (EL:StoreInitial)))
-    record (cond ((EL:DiagramForPanel (EL:Get 'panel result) store)) (T (EL:NewRecord (EL:Get 'panel result) store)))
+    record (cond ((EL:RecordForResult result store)) (T (EL:NewRecord (EL:Get 'panel result) store)))
     record (EL:Put 'draft-circuits (EL:Get 'circuits result) (EL:Put 'draft-capacity capacity
       (EL:Put 'powers powers (EL:Put 'config cfg (EL:Put 'engine (EL:Get 'engine result) record))))))
   ;; Date: 2026-10-13. Reopen the saved draft from its own source snapshot.
@@ -108,7 +108,7 @@
   (if ownlog (EL:LogStart))
   (EL:LogEvent "EDIT_PANEL" (list (cons 'panel (EL:Get 'panel result))))
   (setq store (cond ((EL:LogCall "READ_STORE" nil 'EL:StoreRead nil)) (T (EL:StoreInitial)))
-    record (cond ((EL:DiagramForPanel (EL:Get 'panel result) store))
+    record (cond ((EL:RecordForResult result store))
       (T (EL:LogCall "NEW_RECORD" (list (cons 'panel (EL:Get 'panel result))
         (cons 'drawing-uuid (EL:Get 'drawing-uuid store))) 'EL:NewRecord (list (EL:Get 'panel result) store)))))
   ;; Date: 2026-10-13. Repaint the list from this read, not another full XRecord read.
@@ -196,7 +196,7 @@
   (if (or (EL:Get 'switch-result edited) (EL:Get 'pick-panel edited) (EL:Get 'library-panel edited)
     (EL:Get 'preview-panel edited)) edited))
 (defun EL:PublishDiagram (result cfg / store record powers capacity)
-  (setq store (EL:StoreRead) record (EL:DiagramForPanel (EL:Get 'panel result) store))
+  (setq store (EL:StoreRead) record (EL:RecordForResult result store))
   (if record
     (progn
       (setq capacity (cond ((EL:Get 'capacity-option record)) (T 'cap300)) powers (EL:Get 'powers record))
@@ -213,7 +213,33 @@
       (EL:LogEvent "NO_CONNECTED_DEVICES" (list (cons 'panel (EL:Get 'panel result))
         (cons 'circuits (length (EL:Get 'circuits result))) (cons 'message message)))
       (princ (strcat "\n" message)) (EL:PerfInput 'alert (list message)) nil)))
-(defun EL:FixedStatPick (/ *error* panel pd cfg result record powers next number)
+;; Date: 2026-10-13. Do not silently create a second diagram when old source binding is absent.
+(defun EL:RepickRecord (panel store / record pick tag candidate done)
+  (setq record (EL:DiagramForPanel panel store))
+  (if (and (not record) (vl-some '(lambda (r) (EL:Get 'panel-output-handle r)) (EL:Get 'diagrams store)))
+    (progn
+      (princ "\n未找到此来源箱体的旧关联。要替换已有系统图，请点选原系统图箱体；不按编号或距离猜测。")
+      (while (not done)
+        (if (setq pick (EL:PickModel 'panel "\n拾取要更新的原系统图箱体（Enter 新建）："))
+          (progn
+            (setq tag (EL:DiagramTag (car pick))
+              candidate (EL:By 'diagram-id (cdr (nth 1 tag)) (EL:Get 'diagrams store)))
+            (if (and candidate (equal (EL:Get 'panel-output-handle candidate) (cdr (assoc 5 (entget (car pick)))))
+                (EL:OwnedEntity (EL:Get 'panel-output-handle candidate) store candidate "panel" "panel"))
+              (setq record candidate done T)
+              (princ "\n此对象不是本工具保存的系统图箱体，请重新点选。")))
+          (setq done T)))))
+  (EL:LogEvent "REPICK_RECORD" (list (cons 'source-panel panel) (cons 'diagram-id (EL:Get 'diagram-id record))
+    (cons 'saved-source-panel (EL:Get 'source-panel-handle record)) (cons 'output (EL:Get 'panel-output-handle record))))
+  record)
+(defun EL:RepickConfig (cfg record panel / trunk)
+  (if (setq trunk (EL:Get 'concentrated-trunk (EL:Get 'config record)))
+    (progn
+      (EL:Require (handent trunk) "已保存的集中引出线不存在，请重新拾取集中引出线；原系统图保留。")
+      (setq cfg (EL:Put 'concentrated-trunk trunk (EL:Put 'auto-panel panel cfg)))))
+  (if (EL:Get 'template (EL:Get 'config record))
+    (setq cfg (EL:Put 'template (EL:Get 'template (EL:Get 'config record)) cfg))) cfg)
+(defun EL:FixedStatPick (/ *error* panel pd cfg result record powers next number store)
   (defun *error* (msg)
     (EL:LogFailure msg)
     (vl-catch-all-apply 'EL:ClearPickHighlights nil)
@@ -227,16 +253,22 @@
       (setq pd (entget (car panel)))
       (EL:Require (not (EL:ManagedEntity (car panel))) "请选择平面图配电箱，不能统计系统图输出。")
       (setq number (EL:PickPanelNumber))
+      (setq store (EL:StoreRead) record (EL:RepickRecord (cdr (assoc 5 pd)) store))
+      (if (and (equal number "暂无编号") (EL:Get 'panel-number record))
+        (setq number (EL:Get 'panel-number record)))
       (setq cfg (EL:Put 'template (EL:Get 'template (EL:LoadConfig))
         (EL:Put 'params (EL:GapParams (EL:SuggestedParams)) (EL:PresetConfig (EL:DefaultConfig (EL:DrawingID))))))
+      (setq cfg (EL:RepickConfig cfg record (cdr (assoc 5 pd))))
       (if (setq cfg (EL:PresetReady (car panel) cfg))
         (if (setq cfg (EL:PanelWireConfig (car panel) cfg))
           (progn
             (EL:LogEvent "PICKS" (list (cons 'panel (EL:LogEntity (car panel)))))
             (setq
               result (EL:LogCall "RECOGNIZE_FIXED" (list (cons 'panel (cdr (assoc 5 pd)))
-                (cons 'styles (EL:Get 'wire-styles cfg))) 'EL:RecognizeFixed (list cfg (cdr (assoc 5 pd))))
-              record (EL:DiagramForPanel (cdr (assoc 5 pd)) (EL:StoreRead)))
+                (cons 'styles (EL:Get 'wire-styles cfg))) 'EL:RecognizeFixed (list cfg (cdr (assoc 5 pd)))))
+            (if (EL:Get 'diagram-id record)
+              (setq result (EL:Put 'update-diagram-id (EL:Get 'diagram-id record)
+                (EL:Put 'update-source-panel (EL:Get 'source-panel-handle record) result))))
             ;; Review and powers now share one modal dialog.
             (setq result (EL:Put 'panel-number number
               (EL:Put 'excluded-seeds (EL:Get 'excluded-seeds record) result)))
@@ -305,7 +337,7 @@
   (setq perfowner (EL:PerfStart "ELGEN"))
   (if (and *EL:Result* (EL:EnsureRoot))
     (progn
-      (setq result *EL:Result* record (EL:DiagramForPanel (EL:Get 'panel result) (EL:StoreRead)))
+      (setq result *EL:Result* record (EL:RecordForResult result (EL:StoreRead)))
       (if (equal (EL:Get 'engine result) 'fixed)
         (progn
           (setq cfg *EL:FixedConfig* powers (EL:FixedPowers record) result (EL:PanelCompute result powers cfg))

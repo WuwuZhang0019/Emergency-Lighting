@@ -309,7 +309,8 @@
   ;; Date: 2026-10-11. Native property writes can run source-editing callbacks.
   (EL:Require (EL:NumberInputsCurrent result) "SOURCE_NUMBER_CHANGED：更新期间平面编号变化，已停止本次更新。")
   (if (or (EL:Get 'operations changes) (EL:Get 'record-changed changes))
-    (EL:StoreWrite (EL:StorePutDiagram record store))) record)
+    (EL:Require (equal T (EL:StoreWrite (EL:StorePutDiagram record store)))
+      "系统图记录保存失败，已停止更新并回滚原系统图。")) record)
 (defun EL:MarkStale (panel reason / store record)
   (if (and panel (setq store (EL:StoreRead)) (setq record (EL:DiagramForPanel panel store)))
     (progn
@@ -335,7 +336,8 @@
     snapshot (if (EL:Get 'concentrated-trunk cfg) (EL:TrunkSnapshot snapshot cfg panel) snapshot)
     network (EL:LogCall "SIMPLE_NETWORK" (list (cons 'panel panel) (cons 'wires (length (EL:Get 'wires snapshot)))
       (cons 'blocks (length (EL:Get 'blocks snapshot)))) 'EL:SimpleNetwork (list snapshot cfg panel)))
-  (setq result (EL:SelectFixedExits (EL:LogCall "SPLIT_NETWORK" (list (cons 'panel panel)) 'EL:SplitNetwork (list network cfg)) nil))
+  (setq result (EL:SelectFixedExits (EL:SplitNativeNumberBranches
+    (EL:LogCall "SPLIT_NETWORK" (list (cons 'panel panel)) 'EL:SplitNetwork (list network cfg)) network cfg) nil))
   (EL:PerfSet "wire-count" (length (EL:Get 'wires snapshot)))
   (EL:PerfSet "block-count" (length (EL:Get 'blocks snapshot)))
   (EL:PerfEnd perf 'returned) result)
@@ -488,7 +490,7 @@
   (setq *EL:FreshScope* scope *EL:FreshScopeEnabled* T *EL:UpdateScopeActive* T)
   (setq capacity (EL:CapacityDefault capacity))
   (setq store (cond ((EL:StoreRead)) (T (EL:StoreInitial)))
-    record (cond ((EL:DiagramForPanel (EL:Get 'panel result) store)) (T (EL:NewRecord (EL:Get 'panel result) store)))
+    record (cond ((EL:RecordForResult result store)) (T (EL:NewRecord (EL:Get 'panel result) store)))
     template (cond ((EL:Get 'template cfg)) ((EL:Get 'template record)))
     result (EL:PreparedResult result record))
   (cond
@@ -547,6 +549,8 @@
       (EL:Require (EL:DLSubmissionCurrent result) "设备库已变化，当前输入保留；请重新核对后生成。")
       (if (EL:Get 'panel-output-handle record) (EL:UpdatePreflight record store template plan))
       (if (and (EL:Get 'panel-output-handle record) (equal template (EL:Get 'template record))
+          (equal (EL:Get 'source-panel-handle record)
+            (EL:Get 'source-panel-handle (EL:By 'diagram-id (EL:Get 'diagram-id record) (EL:Get 'diagrams store))))
           (equal cfg (EL:Get 'config record)) (equal powers (EL:Get 'powers record))
           (EL:DiagramUnchanged record result plan store))
         (progn (princ "\n系统图数据与图形均未变化，无需写入。") (setq outcome record))

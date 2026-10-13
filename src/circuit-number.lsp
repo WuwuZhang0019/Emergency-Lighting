@@ -187,6 +187,80 @@
       (if (not (EL:By 'handle handle inputs))
         (setq inputs (cons (EL:ReadWireNumberData handle) inputs)))))
   (EL:PerfSet "number-source-handles" (length inputs)) (reverse inputs))
+;; Date: 2026-10-13. A common unnumbered feeder can supply independently numbered arms.
+;; Remove numbered wires from the pre-device graph. An unnumbered component belongs
+;; to one arm only when it touches exactly one native number; shared parts are boundary.
+(defun EL:NumberBranchCircuits (c network cfg inputs / scope snapshot wires sources ids marked labels key row wire id
+    edges plain components visited component neighbours names root shared good branches allowed blocked seed branch group devices)
+  (setq scope (EL:Get 'number-scope c) snapshot (EL:Get 'snapshot network)
+    wires (EL:Get 'wires snapshot) sources (EL:Get 'sources scope) good (equal (EL:Get 'status scope) 'ready))
+  (foreach wire wires
+    (setq id (EL:Get 'id wire) row (EL:By 'handle (cond ((EL:Get 'source-wire wire)) (T id)) inputs))
+    (if (member (EL:Get 'handle row) sources)
+      (progn
+        (setq ids (cons id ids))
+        (cond ((equal (EL:Get 'status row) 'ready)
+            (setq key (EL:NumberKey (car (EL:Get 'values row))) marked (EL:Put id key marked)
+              labels (EL:Put key (cons id (EL:Get key labels)) labels)))
+          ((not (equal (EL:Get 'status row) 'missing)) (setq good nil))))))
+  (setq root (EL:Get 'wire (EL:Get 'seed c)))
+  (if (and good (> (length labels) 1) (member root ids) (not (EL:Get root marked))
+      (not (EL:Get 'trunk-segments snapshot)))
+    (progn
+      (setq edges (vl-remove-if-not '(lambda (e) (and (member (car e) ids) (member (cadr e) ids)))
+        (EL:Get 'edges network))
+        plain (vl-remove-if '(lambda (e) (or (EL:Get (car e) marked) (EL:Get (cadr e) marked))) edges))
+      (foreach id ids
+        (if (and (not (EL:Get id marked)) (not (member id visited)))
+          (progn
+            (setq component (EL:Component id plain) visited (append component visited) names nil)
+            (foreach wire component
+              (foreach key (EL:Neighbours wire edges)
+                (if (setq group (EL:Get key marked)) (setq names (cons group names)))))
+            (setq names (EL:Unique names) components (cons (list component names) components))
+            (if (member root component) (setq shared names)))))
+      ;; Every native number must be a parallel arm directly off the same feeder.
+      ;; Serial conflicting labels never satisfy this condition.
+      (if (= (length shared) (length labels))
+        (foreach group labels
+          (setq allowed (cdr group))
+          (foreach component components
+            (if (equal (cadr component) (list (car group)))
+              (setq allowed (append allowed (car component)))))
+          (setq blocked (vl-remove-if '(lambda (wire) (member wire allowed)) ids)
+            id (car (vl-sort (cdr group) '<))
+            wire (EL:By 'id id wires)
+            seed (list (cons 'id (EL:Get 'id c)) (cons 'wire id)
+              (cons 'key (list (cond ((EL:Get 'source-wire wire)) (T id)) 'outlet)))
+            branch (EL:TraceCircuit seed (EL:CircuitSnapshot snapshot (EL:Get 'panel network))
+              (vl-remove-if '(lambda (e) (or (member (EL:Get 'panel network) e)
+                (member (car e) blocked) (member (cadr e) blocked))) (EL:Get 'edges network))
+              (EL:Get 'gap-issues network)))
+          (setq branch (EL:Put 'number-scope (list '(status . ready)
+            (cons 'sources (EL:Unique (mapcar '(lambda (wire)
+              (cond ((EL:Get 'source-wire (EL:By 'id wire wires))) (T wire))) allowed)))
+            (cons 'shared-feeder (EL:Get 'sources scope))) branch)
+            branches (cons branch branches)))
+        (setq branches nil))))
+  ;; A missing/unmarked arm must not disappear just to resolve the number error.
+  (foreach branch branches (setq devices (append devices (EL:Get 'devices branch))))
+  (if (vl-some '(lambda (id) (not (member id devices))) (EL:Get 'devices c)) (setq branches nil))
+  (if branches (EL:LogEvent "CIRCUIT_NUMBER_BRANCH_SPLIT" (list (cons 'seed (EL:Get 'key (EL:Get 'seed c)))
+    (cons 'numbers (mapcar 'car labels)) (cons 'branch-count (length branches)))))
+  (reverse branches))
+(defun EL:SplitNativeNumberBranches (result network cfg / inputs out c branches index candidate)
+  (setq inputs (EL:NumberSourceInputs (EL:Get 'circuits result)))
+  (foreach c (EL:Get 'circuits result)
+    (setq candidate (EL:NumberCandidate c inputs)
+      branches (if (and (equal (EL:Get 'status (EL:Get 'number-scope c)) 'ready)
+        (> (length (EL:Get 'candidates (EL:Get 'number-evidence candidate))) 1))
+        (EL:NumberBranchCircuits c network cfg inputs)))
+    (foreach c (cond (branches) (T (list c))) (setq out (cons c out))))
+  (setq out (reverse out) index 0)
+  (setq out (mapcar '(lambda (c) (setq index (1+ index)) (EL:Put 'id (strcat "R" (itoa index)) c)) out))
+  (EL:Put 'number-policy-version 1 (EL:Put 'number-inputs inputs (EL:Put 'circuits out
+    (EL:Put 'complete (and out (not (EL:Get 'issues (EL:Get 'snapshot result)))
+      (vl-every '(lambda (c) (EL:Get 'complete c)) out)) result)))))
 (defun EL:NumberCandidate (c inputs / scope handle row values keys text status evidence source)
   (setq scope (EL:Get 'number-scope c) status (cond ((EL:Get 'status scope)) (T 'ready)))
   (foreach handle (EL:Get 'sources scope)

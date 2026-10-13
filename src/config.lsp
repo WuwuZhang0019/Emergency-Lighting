@@ -339,7 +339,7 @@
 (defun EL:RoleShape (row)
   (and (EL:OnlyKeys row '(identity role confirmed)) (equal (EL:Get 'confirmed row) T)
     (EL:IdentityValid (EL:Get 'identity row))
-    (member (EL:Get 'role row) '(device panel leader ignore))))
+    (member (EL:Get 'role row) '(device panel leader ignore junction))))
 (defun EL:ExitShape (row / valid key)
   (setq valid (and (EL:OnlyKeys row '(panel signature layers roles keys scope-excluded policy))
     (equal (EL:Get 'policy row) 1) (equal (type (EL:Get 'panel row)) 'STR)
@@ -372,6 +372,54 @@
   (setq row (list (cons 'identity identity) (cons 'role role) (cons 'confirmed T))
         old (EL:By 'identity identity (EL:Get 'roles cfg)))
   (EL:Put 'roles (if old (subst row old (EL:Get 'roles cfg)) (cons row (EL:Get 'roles cfg))) cfg))
+
+;; Date: 2026-10-13. Fixed circuits share the existing name-based identity.
+(defun EL:FixedBlockIdentity (name) (list name nil "block-name-v1"))
+(defun EL:JunctionName (name cfg)
+  (equal (EL:Get 'role (EL:By 'identity (EL:FixedBlockIdentity name) (EL:Get 'roles cfg))) 'junction))
+(defun EL:FixedBlockRole (block panel cfg)
+  (cond ((equal (EL:Get 'id block) panel) 'panel)
+    ((or (EL:JunctionName (EL:Get 'name block) cfg) (and (not cfg) (equal (EL:Get 'role block) 'junction))) 'junction)
+    (T 'device)))
+(defun EL:JunctionSamples (cfg names remove-role / name identity)
+  (foreach name (EL:Unique names)
+    (setq identity (EL:FixedBlockIdentity name))
+    (if remove-role
+      (setq cfg (EL:Put 'roles (vl-remove-if '(lambda (row)
+        (and (equal (EL:Get 'identity row) identity) (equal (EL:Get 'role row) 'junction))) (EL:Get 'roles cfg)) cfg))
+      (setq cfg (EL:PutRole cfg identity 'junction)))) cfg)
+;; Date: 2026-10-13. Drawing classification overrides old saved system config.
+(defun EL:CurrentJunctionConfig (cfg / path saved checked junctions)
+  (if (and *EL:Root* (setq path (EL:ConfigPath (EL:Get 'drawing cfg))) (findfile path))
+    (progn
+      (setq saved (EL:ReadData path) checked (vl-catch-all-apply 'EL:ConfigValid (list saved (EL:Get 'drawing cfg))))
+      (EL:Require (and (not (vl-catch-all-error-p checked)) checked) "本图配置无法读取，接线盒分类未确认，请修复配置后重新统计。")
+      (setq junctions (vl-remove-if-not '(lambda (row) (equal (EL:Get 'role row) 'junction)) (EL:Get 'roles saved)))
+      (setq cfg (EL:Put 'roles (append junctions (vl-remove-if '(lambda (row)
+        (or (equal (EL:Get 'role row) 'junction) (EL:By 'identity (EL:Get 'identity row) junctions))) (EL:Get 'roles cfg))) cfg)))) cfg)
+(defun EL:JunctionCommandWork (/ cfg action ss i entity data definition names name)
+  (if (setq cfg (EL:LoadConfig))
+    (progn
+      (initget "Set Remove")
+      (setq action (getkword "\n接线盒分类 [设置(Set)/取消(Remove)] <Set>: "))
+      (princ "\n选择接线盒图块样本，同类型均适用；Enter 完成，Esc 放弃本次修改。")
+      (setq ss (ssget '((0 . "INSERT") (410 . "Model"))) i 0)
+      (if ss
+        (repeat (sslength ss)
+          (setq entity (ssname ss i) data (entget entity) i (1+ i)
+            definition (tblsearch "BLOCK" (cdr (assoc 2 data))))
+          (if (and (equal (cdr (assoc 0 data)) "INSERT") (equal (cdr (assoc 410 data)) "Model")
+              (not (EL:ManagedEntity entity)) definition (= 0 (logand 12 (cdr (assoc 70 definition)))))
+            (setq names (cons (EL:EffectiveName entity) names)))))
+      (if names
+        (if (EL:SaveConfig (EL:JunctionSamples cfg names (equal action "Remove")))
+          (progn
+            (foreach name (EL:Unique names) (princ (strcat "\n" name (if (equal action "Remove") "：已取消接线盒分类" "：已设为接线盒"))))
+            (princ "\n请重新运行 ELSTAT；接线盒只连接线路，不计负载。")))
+        (princ "\n未选择有效的本地图块，配置未改动。")))))
+(defun c:ELJBOX (/ result)
+  (setq result (vl-catch-all-apply 'EL:JunctionCommandWork nil))
+  (if (vl-catch-all-error-p result) (princ (strcat "\n接线盒分类未完成：" (vl-catch-all-error-message result)))) (princ))
 
 ;; Date: 2026-10-12. Shared recognition preset; data only, never LOAD/EVAL.
 (defun EL:PresetDefault ()
@@ -408,6 +456,7 @@
   (and (equal (type value) 'STR) (member (strcase value) (mapcar 'strcase values))))
 (defun EL:PresetBlockAllowed (entity data cfg)
   (or (not (EL:Get 'preset-scoped cfg))
+    (EL:JunctionName (EL:EffectiveName entity) cfg)
     (and (EL:PresetMember (cdr (assoc 8 data)) (EL:Get 'panel-layers cfg))
       (EL:PresetMember (EL:EffectiveName entity) (EL:Get 'panel-names cfg)))
     (and (EL:PresetMember (cdr (assoc 8 data)) (EL:Get 'device-layers cfg))
@@ -439,6 +488,10 @@
       (foreach key keys (setq layers (append layers (EL:Get key cfg))))
       (setq filter (append filter (list '(-4 . "<OR"))))
       (foreach name (EL:Unique layers) (setq filter (append filter (list (cons 8 (EL:PresetEscape name))))))
+      ;; Registered junctions can be on their own layer; names are checked after selection.
+      (if (and (member types '("INSERT" "INSERT,LINE,LWPOLYLINE"))
+          (vl-some '(lambda (row) (equal (EL:Get 'role row) 'junction)) (EL:Get 'roles cfg)))
+        (setq filter (append filter (list '(0 . "INSERT")))))
       (setq filter (append filter (list '(-4 . "OR>"))))))
   (ssget "_X" filter))
 (defun EL:PresetEditWork (/ data key value)

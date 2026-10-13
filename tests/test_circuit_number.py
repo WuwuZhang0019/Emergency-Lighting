@@ -700,6 +700,8 @@ class NumberWorkflowTests(unittest.TestCase):
     def test_number_change_during_native_placement_aborts_and_rolls_back(self):
         f = command_fixture.PanelCommandTests()
         f.setUp()
+        # Date: 2026-10-13. This placement fixture has no drawing config file.
+        f.h.builtins['FINDFILE'] = lambda *args: None
         f.h.builtins.pop('EL:FRESHRESULT')
         f.h.load_definitions(ROOT / 'src/simple.lsp')
         f.entities['H1'] = [Pair(0, 'LINE'), Pair(5, 'H1'), Pair(410, 'Model'),

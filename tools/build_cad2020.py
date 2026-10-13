@@ -5,7 +5,7 @@ import shutil
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGE_NO = 116
+PACKAGE_NO = 117
 NAME = f'应急照明-{PACKAGE_NO:03d}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 DEST = ROOT / 'output' / NAME
@@ -73,7 +73,6 @@ def build():
                 text = replace_once(text, '(open path "r" "utf8")', '(open path "r")')
                 text = replace_once(text, '(open tmp "w" "utf8")', '(open tmp "w")')
             if source.name == 'common.lsp':
-                text = replace_once(text, '(open path "w" "utf8")', '(open path "w")')
                 text = replace_once(text, '(open *EL:LogPath* "a" "utf8")', '(open *EL:LogPath* "a")')
                 text = replace_once(text, '(open path "a" "utf8")', '(open path "a")')
                 text = replace_once(text, 'AutoCAD 2021+, LISPSYS=1/2.', 'AutoCAD 2020 trial, GB2312 source and system-codepage data.')

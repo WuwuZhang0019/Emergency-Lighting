@@ -488,7 +488,7 @@
   (if (and *EL:StoreContextActive* *EL:StoreContextCandidate*)
     (progn
       (EL:PerfCount "store-context-commit-verifies" 1)
-      (setq valid (vl-catch-all-apply '(lambda ()
+      (setq valid (EL:MeasuredCatch '(lambda ()
         (and (= 0 (logand 8 (getvar "UNDOCTL")))
           (not *EL:TransactionOpen*)
           (EL:LogCall "STORE_CONTEXT_COMMIT" nil 'EL:StoreContextValid (list *EL:StoreContextCandidate*)))) nil))
@@ -509,7 +509,7 @@
   ;; A caller uses this immediately after the transaction. Still check raw
   ;; data here: unknown callbacks, document changes or later writes invalidate.
   (if (and (EL:Get 'outcome context) (EL:Get 'committed context))
-    (setq valid (vl-catch-all-apply 'EL:LogCall
+    (setq valid (EL:MeasuredCatch 'EL:LogCall
       (list "STORE_CONTEXT_READ" nil 'EL:StoreContextValid (list context)))))
   (if (and (not (vl-catch-all-error-p valid)) valid)
     (progn (EL:PerfCount "store-context-reuses" 1) (EL:Get 'verified-store context))

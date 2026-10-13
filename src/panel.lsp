@@ -956,7 +956,7 @@
         (EL:LogEvent "PANEL_DIALOG_RETURN" (list (cons 'status status) (cons 'action *EL:PanelAction*)))
         (if (= status 13)
           (progn
-            (setq switched (vl-catch-all-apply 'EL:HistoryLoad nil))
+            (setq switched (EL:MeasuredCatch 'EL:HistoryLoad nil))
             (if (vl-catch-all-error-p switched)
               (alert (strcat "加载保存记录未完成：" (vl-catch-all-error-message switched))))
             (setq switched nil status 7)))
@@ -1041,7 +1041,7 @@
       (EL:LogEvent "PANEL_START_RETURN" (list (cons 'status status)))
       (if (= status 13)
         (progn
-          (setq loaded (vl-catch-all-apply 'EL:HistoryLoad nil) status 3)
+          (setq loaded (EL:MeasuredCatch 'EL:HistoryLoad nil) status 3)
           (if (vl-catch-all-error-p loaded)
             (alert (strcat "加载保存记录未完成：" (vl-catch-all-error-message loaded)))
             (progn

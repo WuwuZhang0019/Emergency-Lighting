@@ -57,6 +57,8 @@ class RootFixture(unittest.TestCase):
         self.root = self.package.as_posix() + '/'
         self.selected = (self.package / 'src/load.lsp').as_posix()
         self.h = Host()
+        from monitor_io import install_monitor_io
+        install_monitor_io(self.h)
         for module in MODULES:
             self.h.load_definitions(ROOT / 'src' / f'{module}.lsp')
         self.messages = []
@@ -382,7 +384,7 @@ class PackagedUpdateTests(RootFixture):
         self.assertNotIn('输入 CCKK',''.join(self.messages))
         self.assertIn('输入 ELSTAT',''.join(self.messages))
         report = pathlib.Path(self.h.lookup('*EL:MONITORPATH*'))
-        monitor = report.read_bytes().decode('gb2312')
+        monitor = report.read_bytes().decode('utf-8-sig')
         self.assertIn('加载源码模块', monitor)
         self.assertIn('确认目录及释放内置资源', monitor)
         self.assertIn('初始化默认设备库', monitor)

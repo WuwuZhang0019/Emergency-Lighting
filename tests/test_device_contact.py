@@ -46,7 +46,7 @@ class DeviceContactTests(unittest.TestCase):
                 self.assertEqual(self.ids(self.network()), ['a', 'b'])
 
     def test_gap_and_different_elevation_do_not_connect(self):
-        for pos in ((10., 2.01, 0.), (10., 2., 0.01), (100., 100., 0.)):
+        for pos in ((10., 2.0101, 0.), (10., 2., 0.01), (100., 100., 0.)):
             with self.subTest(pos=pos):
                 self.setUp()
                 self.fixture(pos)

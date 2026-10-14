@@ -1,0 +1,62 @@
+{
+  "date": "2026-10-14",
+  "status": "completed",
+  "passed": true,
+  "package": 132,
+  "checkcount": 1467,
+  "source_sha256": {
+    "src/simple.lsp": "0318c8a0f157e422520bc76f9e0483c67cc0b78c9ea02beebebbb0a608bdaa49",
+    "src/geometry.lsp": "5b6d1079dabcee1d67e7e31e9732b502fe85c6e8905071ec8f5ec4f788860a5b",
+    "src/topology.lsp": "a787491de308f5732b59fcc42889ed4fe2a4b34db945f48dbe20c1b4dd3b8c3a",
+    "src/diagram-update.lsp": "f91aee685d1ee127732b3aa0a79e9a258d02ecf9f7c0d32e5cfa8683bac0b8da",
+    "src/diagram-commands.lsp": "69ff84518a94e3a4db516a311e93856d6878ec8635f61200c2008ff2b1b10b15",
+    "src/common.lsp": "ae7fac983936ed672bf198cab08249cc1126d370332386544cb6f33f23a2b4e1",
+    "src/config.lsp": "ee72a7f6604bc46144b4229951fd3e36d6adc295cf4cc8043d8e691fe2ffe5cd"
+  },
+  "builder_sha256": "7f0d4c65ab42b951a4beb95e5475d02d2745c89a9845228c0432c2b10e03780c",
+  "fixture_sha256": {
+    "tests/fixtures/device-contact-132.json": "97e3983678ab0fb6fe457dedea6fff73aa6cc579875b6660bd55fa3c4ff963a0"
+  },
+  "archive_sha256": "5daec59e05096435993a0b5ff1fec3b0f0d0d3c580921e2d47a237f4fda337ed",
+  "checked_entries": [
+    "START-CAD2020.lsp",
+    "UPDATE-132.lsp",
+    "src/load.lsp"
+  ],
+  "checked_source_modules": [
+    "simple",
+    "geometry",
+    "topology",
+    "diagram-update",
+    "diagram-commands"
+  ],
+  "checked_common_functions": [
+    "EL:ParamsValid",
+    "EL:RecognitionRules",
+    "EL:MonitorTitle"
+  ],
+  "checked_config_functions": [
+    "EL:SuggestedParams",
+    "EL:GapParams",
+    "EL:ParamLabel",
+    "EL:ShowParams",
+    "EL:SameParams",
+    "EL:InputParamValues",
+    "EL:FixedRecognitionParams",
+    "EL:CurrentJunctionConfig"
+  ],
+  "checks": [
+    "strict GB2312 roundtrip for every LISP/DCL",
+    "parse every packaged LISP",
+    "ZIP CRC",
+    "exact archive/directory file set and file bytes",
+    "all changed module DEFUNs equal source and all three loading entries",
+    "selected common/config DEFUNs equal source, individual module and loading entries"
+  ],
+  "native_cad_status": "pending original DWG timing and acceptance",
+  "archive_file_count": 324,
+  "lisp_dcl_count": 32,
+  "lisp_parsed": 30,
+  "source_defun_count": 256,
+  "entry_function_count": 267
+}

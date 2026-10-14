@@ -366,7 +366,7 @@
   (setq snapshot (EL:LogCall "SIMPLE_COLLECT" nil 'EL:SimpleCollect (list cfg))
     snapshot (cond ((EL:Get 'circuit-starts cfg) (EL:StartSnapshot snapshot cfg panel))
       ((EL:Get 'concentrated-trunk cfg) (EL:TrunkSnapshot snapshot cfg panel)) (T snapshot)))
-  (setq answer (if (and (not *EL:NetworkReuseDisabled*) (equal (EL:Get 'version proof) 3) (equal panel (EL:Get 'panel proof))
+  (setq answer (if (and (not *EL:NetworkReuseDisabled*) (equal (EL:Get 'version proof) 4) (equal panel (EL:Get 'panel proof))
       (equal (EL:StableData (vl-remove-if '(lambda (row) (equal (car row) 'template)) cfg)) (EL:Get 'config proof))
       (not (EL:Get 'issues snapshot))
       (equal (EL:StableData snapshot)

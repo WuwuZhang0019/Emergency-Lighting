@@ -158,13 +158,12 @@ class ContactEvidenceFreshnessTests(unittest.TestCase):
         self.assertIn('missed', [handle for circuit in self.get('circuits', changed)
                                 for handle in self.get('devices', circuit) or []])
 
-    def test_version_two_proof_forces_full_build_before_freshness_success(self):
+    def test_version_three_proof_forces_full_build_before_freshness_success(self):
         result = self.f.result()
         snapshot = self.get('snapshot', result)
         proof = self.get('network-proof', snapshot)
-        self.assertEqual(self.get('version', proof), 3)
-        old_proof = self.call('EL:Put', Symbol('VERSION'), 2, proof)
-        old_proof = self.call('EL:Put', Symbol('CONTACTS'), [['legacy-full-shape']], old_proof)
+        self.assertEqual(self.get('version', proof), 4)
+        old_proof = self.call('EL:Put', Symbol('VERSION'), 3, proof)
         old_signature = copy.deepcopy(self.get('signature', snapshot))
         old_signature[1] = self.call('EL:Put', Symbol('NETWORK-PROOF'), old_proof, old_signature[1])
         old_snapshot = self.call('EL:Put', Symbol('NETWORK-PROOF'), old_proof, snapshot)
@@ -175,7 +174,7 @@ class ContactEvidenceFreshnessTests(unittest.TestCase):
         self.assertEqual(self.metric('network-proof-reuses'), 0)
         self.assertEqual(self.metric('network-build-calls'), 1)
         upgraded = self.call('EL:PersistSourceSignature', old_result, self.f.f.cfg)
-        self.assertEqual(self.get('version', self.get('network-proof', upgraded[1])), 3)
+        self.assertEqual(self.get('version', self.get('network-proof', upgraded[1])), 4)
 
 
 if __name__ == '__main__':

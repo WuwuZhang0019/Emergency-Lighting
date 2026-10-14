@@ -31,7 +31,8 @@
   (setq ok T)
   (foreach key '(eps_touch eps_boundary eps_perp eps_z theta_max R0 Dmax)
     (if (not (EL:NonNegative (EL:Get key p))) (setq ok nil)))
-  (and ok (< (EL:Get 'theta_max p) (/ pi 2.0))
+  (and ok (or (not (assoc 'eps_device p)) (EL:NonNegative (EL:Get 'eps_device p)))
+       (< (EL:Get 'theta_max p) (/ pi 2.0))
        (> (EL:Get 'R0 p) 0) (<= (EL:Get 'R0 p) (EL:Get 'Dmax p))
        (> (EL:Get 'Dmax p) (EL:Get 'eps_touch p))))
 (defun EL:LayerAllowed (a b config)
@@ -59,7 +60,7 @@
       layer-pairs params calibrated gap-pairs leader-pairs roles exits)
     (setq rows (cons (cons key (EL:Get key cfg)) rows)))
   ;; Date: 2026-10-13. Older recognition must be rebuilt for exact reachable traversal.
-  (cons '(reachable-contact-policy . 1) (cons '(junction-policy . 1) (cons '(number-branch-policy . 1)
+  (cons '(reachable-contact-policy . 2) (cons '(junction-policy . 1) (cons '(number-branch-policy . 1)
     (cons '(simple-gap-policy . 1) (cons '(box-policy . 20) (cons '(gap-policy . 10) (reverse rows))))))))
 ;; Date: 2026-10-11. Report which freshness condition failed.
 (defun EL:SourceSignatureCore (signature)
@@ -465,6 +466,7 @@
       ("NETWORK_WIRE_CONTACT" . "检查导线接触") ("NETWORK_CANDIDATE_SCOPE" . "筛选设备范围")
       ("NETWORK_DEVICE_CONTACT" . "检查设备接触") ("NETWORK_GAPS" . "检查断线连接")
       ("NETWORK_REACHABLE_TRACE" . "沿起始导线搜索真实连接")
+      ("NETWORK_CONTACT_NODES" . "合并同一接点的重复连接")
       ("NETWORK_SIGNATURE" . "整理去重后的几何证据") ("NETWORK_VERIFY_GEOMETRY" . "核对网络几何")
       ("SPLIT_NETWORK" . "拆分回路") ("CIRCUIT_NUMBER_SCOPE" . "识别回路编号范围")
       ("COMPARE_SOURCE_NUMBER" . "核对回路编号") ("PRE_GENERATE_FRESH" . "生成前核对源图")

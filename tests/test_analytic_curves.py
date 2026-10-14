@@ -8,6 +8,8 @@ import test_contact_reuse as reuse
 class AnalyticCurveTests(unittest.TestCase):
     def setUp(self):
         reuse.ContactReuseTests.setUp(self)
+        # Date: 2026-10-14. Preserve strict analytic tests; drafting tolerance is tested separately.
+        self.cfg = self.call('EL:Put', Symbol('PARAMS'), self.call('EL:Put', Symbol('EPS_DEVICE'), 0., self.get('params', self.cfg)), self.cfg)
         self.h.builtins['EQ'] = lambda a,b: a is b
         self.h.builtins['HANDENT'] = lambda value: value
     call = reuse.ContactReuseTests.call

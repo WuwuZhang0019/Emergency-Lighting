@@ -1,0 +1,31 @@
+{
+  "date": "2026-10-14",
+  "status": "completed",
+  "package": 132,
+  "passed": true,
+  "tests_run": 201,
+  "failures": 0,
+  "errors": 0,
+  "elapsed_seconds": 110.425,
+  "test_modules": [
+    "test_contact_parameters",
+    "test_device_tolerance",
+    "test_contact_junction_cycles",
+    "test_actual_contact_132",
+    "test_cad_adapter",
+    "test_analytic_curves",
+    "test_contact_reuse",
+    "test_reachable_network",
+    "test_contact_evidence",
+    "test_simple_flow",
+    "test_junction_box",
+    "test_device_contact",
+    "test_network_proof",
+    "test_network_reuse",
+    "test_circuit_starts",
+    "test_concentrated_trunk",
+    "test_source_contracts"
+  ],
+  "scope": "Focused contact/normalization/source regression with original-DXF subset and finite CAD adapters",
+  "native_cad_status": "pending original DWG ELSTAT contact, circuit and generation acceptance"
+}

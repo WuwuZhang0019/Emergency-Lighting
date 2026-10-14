@@ -224,14 +224,21 @@
         (progn (princ "\n样本类型错误，未保存。") nil)))))
 (defun EL:SuggestedParams ()
   ;; Strict gap policy; contact tolerances are separate from gap alignment.
-  '((eps_touch . 0.1) (eps_boundary . 0.1) (eps_perp . 0.0)
+  '((eps_touch . 0.1) (eps_boundary . 0.1) (eps_device . 0.01) (eps_perp . 0.0)
       (eps_z . 0.0) (theta_max . 0.0) (R0 . 20.0) (Dmax . 2000.0) (gap_rule . 10)))
 (defun EL:GapParams (p)
   (if (not (EL:ParamsValid p)) (EL:SuggestedParams)
     (progn
+      ;; Date: 2026-10-14. Legacy configs gain a separate device XY tolerance.
+      (if (not (assoc 'eps_device p)) (setq p (EL:Put 'eps_device 0.01 p)))
       (if (not (equal (EL:Get 'gap_rule p) 10))
         (setq p (EL:Put 'Dmax 2000.0 (EL:Put 'R0 20.0 p))))
       (EL:Put 'gap_rule 10 (EL:Put 'eps_perp 0.0 (EL:Put 'theta_max 0.0 (EL:Put 'eps_z 0.0 p)))))))
+(defun EL:FixedRecognitionParams (cfg / p saved)
+  ;; Date: 2026-10-14. Keep automatic wire/gap defaults, inherit drawing contact setting.
+  (setq p (EL:GapParams (EL:SuggestedParams)) saved (EL:Get 'params cfg))
+  (if (and (assoc 'eps_device saved) (EL:NonNegative (EL:Get 'eps_device saved)))
+    (setq p (EL:Put 'eps_device (EL:Get 'eps_device saved) p))) p)
 (defun EL:UpgradeGapConfig (cfg / p)
   (if (and (setq p (EL:Get 'params cfg)) (not (equal (EL:Get 'gap_rule p) 10)))
     (progn
@@ -240,7 +247,8 @@
   cfg)
 (defun EL:ParamLabel (key)
   (cond ((equal key 'eps_touch) "线端允许接触偏差")
-        ((equal key 'eps_boundary) "线端到设备轮廓允许偏差")
+        ((equal key 'eps_boundary) "配电箱与候选轮廓允许偏差")
+        ((equal key 'eps_device) "设备真实轮廓接触容差")
         ((equal key 'eps_perp) "断口横向允许偏差")
         ((equal key 'eps_z) "导线高程允许偏差")
         ((equal key 'theta_max) "断口方向允许偏差")
@@ -249,7 +257,7 @@
 (defun EL:ParamUnit (key) (if (equal key 'theta_max) "rad（弧度）" "mm"))
 (defun EL:ShowParams (p / key)
   (princ "\n接线与断口识别参数：")
-  (foreach key '(eps_touch eps_boundary Dmax)
+  (foreach key '(eps_touch eps_boundary eps_device Dmax)
     (princ (strcat "\n  " (EL:ParamLabel key) " = " (rtos (EL:Get key p) 2 4)
       " " (EL:ParamUnit key))))
   (princ "\n接触偏差只用于识别实际接线；断口固定按共线、相向、同高程匹配。")
@@ -258,12 +266,12 @@
   (if (and (EL:ParamsValid a) (EL:ParamsValid b))
     (progn
       (setq same T)
-      (foreach key '(eps_touch eps_boundary eps_perp eps_z theta_max R0 Dmax gap_rule)
+      (foreach key '(eps_touch eps_boundary eps_device eps_perp eps_z theta_max R0 Dmax gap_rule)
         (if (not (equal (EL:Get key a) (EL:Get key b))) (setq same nil)))
       same)))
 (defun EL:InputParamValues (defaults / p x key)
   (setq p (EL:GapParams defaults))
-  (foreach key '(eps_touch eps_boundary Dmax)
+  (foreach key '(eps_touch eps_boundary eps_device Dmax)
     (setq x (getreal (strcat "\n" (EL:ParamLabel key) "（" (EL:ParamUnit key) "） <"
       (rtos (EL:Get key p) 2 4) ">，回车保留此值: ")))
     (if x (setq p (EL:Put key x p))))
@@ -397,6 +405,10 @@
     (progn
       (setq saved (EL:ReadData path) checked (vl-catch-all-apply 'EL:ConfigValid (list saved (EL:Get 'drawing cfg))))
       (EL:Require (and (not (vl-catch-all-error-p checked)) checked) "本图配置无法读取，接线盒分类未确认，请修复配置后重新统计。")
+      ;; Date: 2026-10-14. Current drawing contact tolerance also overrides old system records.
+      (if (assoc 'eps_device (EL:Get 'params saved))
+        (setq cfg (EL:Put 'params (EL:Put 'eps_device (EL:Get 'eps_device (EL:Get 'params saved))
+          (EL:Get 'params cfg)) cfg)))
       (setq junctions (vl-remove-if-not '(lambda (row) (equal (EL:Get 'role row) 'junction)) (EL:Get 'roles saved)))
       (setq cfg (EL:Put 'roles (append junctions (vl-remove-if '(lambda (row)
         (or (equal (EL:Get 'role row) 'junction) (EL:By 'identity (EL:Get 'identity row) junctions))) (EL:Get 'roles cfg))) cfg)))) cfg)

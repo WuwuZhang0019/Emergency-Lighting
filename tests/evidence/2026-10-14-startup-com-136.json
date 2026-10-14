@@ -1,0 +1,15 @@
+{
+  "date": "2026-10-14",
+  "status": "windows_com_passed",
+  "package": 136,
+  "resource_count": 132,
+  "code_ui_count": 31,
+  "device_resource_count": 101,
+  "resource_bytes": 2459180,
+  "canonical_full_readback": true,
+  "independent_byte_check": true,
+  "corruption_cases_rejected": 2,
+  "native_com_seconds": 0.626,
+  "native_cad_status": "pending_user_validation",
+  "boundary": "Windows MSXML/ADO only; excludes AutoLISP evaluation, Base64 chunk joining, COM release and CAD loading. This is not APPLOAD timing or proof of the two-second target."
+}

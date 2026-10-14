@@ -5,10 +5,11 @@ import shutil
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGE_NO = 135
+PACKAGE_NO = 136
 NAME = f'应急照明-{PACKAGE_NO:03d}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
-DEST = ROOT / 'output' / NAME
+OUTPUT_ROOT = ROOT / 'output'
+DEST = OUTPUT_ROOT / NAME
 
 
 def replace_once(text, old, new):
@@ -20,18 +21,10 @@ def lisp_string(text):
     return '"' + text.replace('\\', '\\\\').replace('"', '\\"') + '"'
 
 
-def embedded_resources():
-    """Date: 2026-10-12. Fallback carries the same immutable default assets."""
-    assets = sorted((DEST / 'src').glob('*.lsp')) + sorted((DEST / 'ui').glob('*'))
+def embedded_writer(name, assets):
+    """Date: 2026-10-14. Batch immutable bytes, including GB2312 LISP/DCL."""
     writes = []
     for path in assets:
-        if not path.is_file():
-            continue
-        lines = path.read_bytes().decode('gb2312').splitlines()
-        payload = '\n'.join(lisp_string(line) for line in lines)
-        relative = lisp_string(path.relative_to(DEST).as_posix())
-        writes.append(f'(if (and ok (not (EL:StartupResource \'EL:StartupWriteLines (strcat root {relative})\n\'({payload})))) (setq ok nil))')
-    for path in sorted((DEST / 'assets/default-device-library').rglob('*')):
         if not path.is_file():
             continue
         encoded = base64.b64encode(path.read_bytes()).decode('ascii')
@@ -39,21 +32,36 @@ def embedded_resources():
         chunks = '\n'.join(lisp_string(encoded[i:i + 192]) for i in range(0, len(encoded), 192))
         relative = lisp_string(path.relative_to(DEST).as_posix())
         writes.append(f'(if (and ok (not (EL:StartupResource \'EL:StartupWriteBase64 (strcat root {relative})\n\'({chunks})))) (setq ok nil))')
-    return ('(defun EL:StartupEmbeddedRoot (/ base root folder ok)\n'
+    return (f'(defun {name} (root / ok)\n  (setq ok T)\n' + '\n'.join(writes) + '\n  ok)\n')
+
+
+def embedded_resources():
+    """Date: 2026-10-14. Separate lookup, code/UI and default-asset timings."""
+    text = embedded_writer('EL:StartupEmbeddedText',
+        sorted((DEST / 'src').glob('*.lsp')) + sorted((DEST / 'ui').glob('*')))
+    assets = embedded_writer('EL:StartupEmbeddedAssets',
+        sorted((DEST / 'assets/default-device-library').rglob('*')))
+    return (text + assets + '(defun EL:StartupEmbeddedRoot (/ base root folder marker ok)\n'
             '  (if (setq base (EL:NormalizeRoot (getenv "LOCALAPPDATA")))\n'
             '    (progn\n'
             '      (setq base (strcat base "Emergency-Lighting/"))\n'
             '      (vl-mkdir base)\n'
-            f'      (setq root (strcat base "runtime-{PACKAGE_NO:03d}/") ok T)\n'
+            f'      (setq root (strcat base "runtime-{PACKAGE_NO:03d}/")\n'
+            f'        marker (strcat root "package-{PACKAGE_NO:03d}.marker"))\n'
             '      (vl-mkdir root)\n'
+            '      (setq ok (or (not (findfile marker)) (vl-file-delete marker)))\n'
+            '      (if (not ok) (setq *EL:StartupError* (strcat marker " : 无法清除旧完成标记")))\n'
             '      (foreach folder \'("src" "ui" "config" "output" "templates")\n'
-            '        (vl-mkdir (strcat root folder)))\n' + '\n'.join(writes) +
+            '        (vl-mkdir (strcat root folder)))\n'
+            '      (setq ok (and ok\n'
+            '        (EL:PerfCall "LOAD_RUNTIME_TEXT" \'EL:StartupEmbeddedText (list root))\n'
+            '        (EL:PerfCall "LOAD_RUNTIME_ASSETS" \'EL:StartupEmbeddedAssets (list root))))\n' +
             f'\n      (if (and ok (EL:RootValid root)\n'
-            f'        (EL:StartupWriteLines (strcat root "package-{PACKAGE_NO:03d}.marker") \'("Emergency-Lighting {PACKAGE_NO}"))) root))))\n')
+            f'        (EL:StartupWriteLines marker \'("Emergency-Lighting {PACKAGE_NO}"))) root))))\n')
 
 
 def build():
-    output_root = (ROOT / 'output').resolve()
+    output_root = OUTPUT_ROOT.resolve()
     assert DEST.resolve().parent == output_root and DEST.name == NAME
     if DEST.exists():
         shutil.rmtree(DEST)
@@ -176,6 +184,8 @@ def build():
     for source in sorted((ROOT / 'tests/evidence').glob('????-??-??-recognition-preset-*.json')):
         shutil.copy2(source, DEST / 'tests/evidence' / source.name)
     for source in sorted((ROOT / 'tests/evidence').glob(f'????-??-??-default-library-com-{PACKAGE_NO:03d}.json')):
+        shutil.copy2(source, DEST / 'tests/evidence' / source.name)
+    for source in sorted((ROOT / 'tests/evidence').glob(f'????-??-??-startup-com-{PACKAGE_NO:03d}.json')):
         shutil.copy2(source, DEST / 'tests/evidence' / source.name)
     shutil.copy2(ROOT / 'tests/evidence/2026-10-12-default-library-source.json',
                  DEST / 'tests/evidence/2026-10-12-default-library-source.json')

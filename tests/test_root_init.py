@@ -1,4 +1,4 @@
-"""Root/config and packaged-update regressions. Date: 2026-10-13.
+"""Root/config and packaged-update regressions. Date: 2026-10-14.
 
 Executes actual LISP with file/input adapters; does not start AutoCAD.
 """
@@ -106,8 +106,6 @@ class RootFixture(unittest.TestCase):
     def write_embedded_binary(path, chunks):
         path = pathlib.Path(path)
         expected = base64.b64decode(''.join(chunks), validate=True)
-        if path.exists():
-            return path.read_bytes() == expected
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(expected)
         return path.read_bytes() == expected
@@ -190,15 +188,32 @@ class RootInitTests(RootFixture):
             self.assertEqual(name, 'ADODB.Stream')
             return stream
 
+        def put_property(obj, key, value):
+            if obj is not node:
+                return
+            key = str(key)
+            if key == 'TEXT':
+                obj['BYTES'] = list(base64.b64decode(value, validate=True))
+                obj['TEXT'] = value
+            elif key == 'NODETYPEDVALUE':
+                obj['BYTES'] = value
+                # Native MSXML wraps encoded lines; compare two canonical values.
+                obj['TEXT'] = base64.encodebytes(bytes(value)).decode('ascii')
+            else:
+                obj[key] = value
+
+        def get_property(obj, key):
+            return obj['BYTES'] if str(key) == 'NODETYPEDVALUE' else obj[str(key)]
+
         self.h.builtins.update({
             'VLAX-CREATE-OBJECT': create,
-            'VLAX-PUT-PROPERTY': lambda obj, key, value: obj.__setitem__(str(key), value) if obj is node else None,
-            'VLAX-GET-PROPERTY': lambda obj, key: list(base64.b64decode(obj['TEXT'], validate=True)),
+            'VLAX-PUT-PROPERTY': put_property,
+            'VLAX-GET-PROPERTY': get_property,
             'VLAX-INVOKE-METHOD': invoke,
             'VLAX-MAKE-SAFEARRAY': lambda typ, bounds: [0],
             'VLAX-SAFEARRAY-FILL': lambda array, data: array.__setitem__(slice(None), data),
             'VLAX-MAKE-VARIANT': lambda array: array,
-            'VLAX-SAFEARRAY->LIST': lambda array: array,
+            'VLAX-SAFEARRAY->LIST': lambda array: self.fail('expanded binary bytes into a LISP list'),
             'VLAX-RELEASE-OBJECT': lambda obj: released.append(obj),
         })
         for size in (1, 2, 3, 256, 100015):
@@ -212,6 +227,16 @@ class RootInitTests(RootFixture):
             self.assertTrue(stream.closed)
         self.assertEqual(writes, [1, 2, 3, 256, 100015])
         self.assertEqual(len(released), 15)
+        for damaged in ([0, 2], [0]):
+            stream = io.BytesIO()
+            def corrupt_read(obj, method, *args):
+                if str(method).upper() == 'READ': return damaged
+                return invoke(obj, method, *args)
+            self.h.builtins['VLAX-INVOKE-METHOD'] = corrupt_read
+            self.assertFalse(self.h.call(Symbol('EL:STARTUPWRITEBASE64'), [str(target), ['AAE=']]))
+            self.assertIn('[BINARY_READBACK]', self.h.lookup('*EL:STARTUPERROR*'))
+            self.assertTrue(stream.closed)
+        self.assertEqual(len(released), 21)
         stream = io.BytesIO()
         def fail_write(obj, method, *args):
             if str(method).upper() == 'WRITE': raise RuntimeError('binary write denied')
@@ -221,7 +246,7 @@ class RootInitTests(RootFixture):
         self.assertTrue(stream.closed)
         self.assertIn('binary write denied', self.h.lookup('*EL:STARTUPERROR*'))
         self.assertIn('[BINARY_WRITE]', self.h.lookup('*EL:STARTUPERROR*'))
-        self.assertEqual(len(released), 18)
+        self.assertEqual(len(released), 24)
 
     def test_startup_resource_keeps_actual_failure_and_path(self):
         self.h.load_definitions(ROOT / 'src/startup.lsp')
@@ -357,7 +382,9 @@ class PackagedUpdateTests(RootFixture):
         cls.build_temp = tempfile.TemporaryDirectory(dir=CHECK_ROOT)
         cls.addClassCleanup(cls.build_temp.cleanup)
         cls.built = pathlib.Path(cls.build_temp.name) / cls.builder.NAME
-        with patch.object(cls.builder, 'DEST', cls.built), contextlib.redirect_stdout(io.StringIO()):
+        with patch.object(cls.builder, 'DEST', cls.built), \
+                patch.object(cls.builder, 'OUTPUT_ROOT', cls.built.parent), \
+                contextlib.redirect_stdout(io.StringIO()):
             cls.builder.build()
         cls.update = (cls.built / cls.builder.UPDATE_NAME).read_bytes().decode('gb2312')
 
@@ -457,6 +484,54 @@ class PackagedUpdateTests(RootFixture):
         self.h.run('(EL:FixedStatPick)')
         self.assertEqual(len(self.dialogs), 0)
         self.assertEqual(len(self.picks), 1)
+
+    def test_embedded_code_and_ui_use_exact_binary_writes_and_report_separate_timings(self):
+        self.environment['LOCALAPPDATA'] = self.temp.name
+        written = []
+        def binary(path, chunks):
+            written.append(pathlib.Path(path).as_posix())
+            return self.write_embedded_binary(path, chunks)
+        self.h.builtins['EL:STARTUPWRITEBASE64'] = binary
+        self.run_startup(registry_error=True)
+        root = pathlib.Path(self.h.lookup('*EL:ROOT*'))
+        for folder, pattern in (('src', '*.lsp'), ('ui', '*')):
+            for packed in (self.built / folder).glob(pattern):
+                if not packed.is_file() or packed.name == 'load.lsp':
+                    continue
+                released = root / packed.relative_to(self.built)
+                self.assertEqual(released.read_bytes(), packed.read_bytes())
+                self.assertIn(released.as_posix(), written)
+        # Text-line writing remains only for the small completion marker.
+        self.assertFalse(any(mode == 'w' and pathlib.Path(path).suffix in ('.lsp', '.dcl')
+                             for path, mode, _ in self.opens))
+        stages = {self.get('stage', row) for row in self.h.lookup('*EL:MONITORLOADROWS*')}
+        self.assertTrue({'LOAD_ROOT_SEARCH', 'LOAD_RUNTIME', 'LOAD_RUNTIME_TEXT',
+                         'LOAD_RUNTIME_ASSETS'} <= stages)
+
+    def test_failed_runtime_repair_removes_old_completion_marker_and_can_retry(self):
+        self.environment['LOCALAPPDATA'] = self.temp.name
+        self.run_startup(registry_error=True)
+        root = pathlib.Path(self.h.lookup('*EL:ROOT*'))
+        marker = root / f'package-{self.builder.PACKAGE_NO:03d}.marker'
+        (root / 'ui/power.dcl').unlink()
+        config = root / 'config/keep.eld'
+        config.write_bytes(b'keep user data')
+        delete = self.h.builtins['VL-FILE-DELETE']
+        self.h.builtins['VL-FILE-DELETE'] = lambda path: None
+        self.run_startup(registry_error=True)
+        self.assertIsNone(self.h.lookup('*EL:ROOT*'))
+        self.assertFalse((root / 'ui/power.dcl').exists())
+        self.assertIn('无法清除旧完成标记', self.h.lookup('*EL:STARTUPERROR*'))
+        self.h.builtins['VL-FILE-DELETE'] = delete
+        original = self.h.builtins['EL:STARTUPWRITEBASE64']
+        self.h.builtins['EL:STARTUPWRITEBASE64'] = lambda *a: None
+        self.run_startup(registry_error=True)
+        self.assertIsNone(self.h.lookup('*EL:ROOT*'))
+        self.assertFalse(marker.exists())
+        self.h.builtins['EL:STARTUPWRITEBASE64'] = original
+        self.run_startup(registry_error=True)
+        self.assertTrue(marker.exists())
+        self.assertEqual(config.read_bytes(), b'keep user data')
 
     def test_startup_embedded_write_failure_does_not_report_ready_or_prompt(self):
         self.h.builtins['GETENV'] = lambda name: self.temp.name

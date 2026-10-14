@@ -1,0 +1,18 @@
+{
+  "date": "2026-10-14",
+  "status": "passed",
+  "package": 136,
+  "files": 329,
+  "gb2312_lisp_dcl": 32,
+  "parsed_lisp": 30,
+  "archive_sha256": "719713573d51d56cd664213e3f38d2df8cdee9a00b21e91dfd29c93aeb486123",
+  "checks": [
+    "ZIP CRC",
+    "all archive and extracted bytes match",
+    "strict GB2312 without BOM",
+    "all LISP parsing",
+    "startup function definitions match all loading entries"
+  ],
+  "focused_regression_cases": 22,
+  "native_cad_status": "pending original environment APPLOAD timing; two-second target not yet verified"
+}

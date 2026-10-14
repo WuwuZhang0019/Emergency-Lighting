@@ -1,4 +1,4 @@
-;; Date: 2026-10-11. Resolve the current package without changing CAD security.
+;; Date: 2026-10-14. Resolve the current package without changing CAD security.
 (defun EL:StartupCandidate (directory marker / root)
   ;; MainDialog may contain the selected filename, not only its directory.
   (if (and (equal (type directory) 'STR) (findfile directory)
@@ -16,7 +16,7 @@
 (defun EL:StartupEmbeddedRoot () nil)
 (defun EL:StartupUnwrap (value)
   (while (equal (type value) 'VARIANT) (setq value (vlax-variant-value value))) value)
-(defun EL:StartupBinaryWork (path chunks / bytes actual)
+(defun EL:StartupBinaryWork (path chunks / bytes expected)
   (if (EL:DLMkdir (vl-filename-directory path))
     (progn
       ;; Date: 2026-10-12. Native decode avoids millions of interpreted byte operations.
@@ -25,7 +25,12 @@
         *EL:StartupNode* (EL:StartupUnwrap (vlax-invoke-method *EL:StartupXML* 'createElement "binary")))
       (vlax-put-property *EL:StartupNode* 'dataType "bin.base64")
       (vlax-put-property *EL:StartupNode* 'text (EL:StoreJoinStrings chunks))
-      (setq bytes (vlax-get-property *EL:StartupNode* 'nodeTypedValue)
+      (setq bytes (vlax-get-property *EL:StartupNode* 'nodeTypedValue))
+      ;; Date: 2026-10-14. Canonical Base64 is an exact byte comparison, including
+      ;; MSXML's line wrapping. Keep SAFEARRAYs native instead of making two
+      ;; multi-million-element LISP lists for the bundled DWGs and slides.
+      (vlax-put-property *EL:StartupNode* 'nodeTypedValue bytes)
+      (setq expected (vlax-get-property *EL:StartupNode* 'text)
         *EL:StartupStream* (vlax-create-object "ADODB.Stream"))
       (vlax-put-property *EL:StartupStream* 'Type 1)
       ;; Date: 2026-10-12. Visual LISP needs all five ADO optional slots.
@@ -38,9 +43,9 @@
       (vlax-invoke-method *EL:StartupStream* 'SaveToFile path 2)
       (setq *EL:StartupStage* "BINARY_READBACK")
       (vlax-invoke-method *EL:StartupStream* 'LoadFromFile path)
-      (setq actual (vlax-invoke-method *EL:StartupStream* 'Read -1))
-      (equal (vlax-safearray->list (EL:StartupUnwrap bytes))
-        (vlax-safearray->list (EL:StartupUnwrap actual))))))
+      (vlax-put-property *EL:StartupNode* 'nodeTypedValue
+        (vlax-invoke-method *EL:StartupStream* 'Read -1))
+      (equal expected (vlax-get-property *EL:StartupNode* 'text)))))
 (defun EL:StartupWriteBase64 (path chunks / result object *EL:StartupStream* *EL:StartupStage* *EL:StartupXML* *EL:StartupNode*)
   (setq *EL:StartupStage* "STREAM_CREATE")
   (setq result (vl-catch-all-apply 'EL:StartupBinaryWork (list path chunks)))
@@ -48,7 +53,9 @@
   (foreach object (list *EL:StartupStream* *EL:StartupNode* *EL:StartupXML*)
     (if object (vl-catch-all-apply 'vlax-release-object (list object))))
   (if (vl-catch-all-error-p result)
-    (setq *EL:StartupError* (strcat path " [" *EL:StartupStage* "] : " (vl-catch-all-error-message result))))
+    (setq *EL:StartupError* (strcat path " [" *EL:StartupStage* "] : " (vl-catch-all-error-message result)))
+    (if (not result)
+      (setq *EL:StartupError* (strcat path " [" *EL:StartupStage* "] : 文件写入或完整回读校验失败"))))
   (and (not (vl-catch-all-error-p result)) result))
 (defun EL:StartupResource (writer path data / result)
   (setq result (vl-catch-all-apply writer (list path data)))
@@ -89,8 +96,7 @@
                 (if (not (equal line (read-line stream))) (setq result nil)))
               (if (read-line stream) (setq result nil))
               (close stream) result)))))))
-(defun EL:StartupRoot (marker / directory root path filename)
-  (setq *EL:StartupError* nil)
+(defun EL:StartupFindRoot (marker / directory root path filename)
   ;; APPLOAD's last folder is only a candidate: require this version's marker
   ;; and the complete package before using it. No stale-root fallback.
   (setq directory (vl-catch-all-apply 'EL:StartupRegistryDirectory nil))
@@ -104,11 +110,15 @@
       (setq root (EL:StartupCandidate path marker))))
   (if (not root)
     (setq root (EL:StartupCandidate (getenv (strcat "EL_PACKAGE_ROOT_" marker)) marker)))
+  root)
+(defun EL:StartupRoot (marker / root)
+  (setq *EL:StartupError* nil
+    root (EL:PerfCall "LOAD_ROOT_SEARCH" 'EL:StartupFindRoot (list marker)))
   ;; Never prompt during startup. Manual relocation belongs to c:ELROOT only.
-  (if root (EL:StartupRememberRoot root marker))
   (if (not root)
     (progn
-      (setq root (vl-catch-all-apply 'EL:StartupEmbeddedRoot nil))
+      (setq root (vl-catch-all-apply 'EL:PerfCall
+        (list "LOAD_RUNTIME" 'EL:StartupEmbeddedRoot nil)))
       (if (vl-catch-all-error-p root)
         (setq *EL:StartupError* (vl-catch-all-error-message root) root nil))
       (if root (princ "\n未确认交付目录，暂用本地运行目录；输入 ELROOT 可改回交付包目录。"))))

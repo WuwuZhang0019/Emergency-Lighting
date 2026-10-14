@@ -138,7 +138,7 @@ el_panel : dialog {
   }
   : column {
     : button { key = "accept"; label = "保存"; is_default = true; }
-    : button { key = "p_generate"; label = "生成或更新"; }
+    : button { key = "p_generate"; label = "生成新系统图"; }
     : button { key = "cancel"; label = "取消"; is_cancel = true; }
   }
     }

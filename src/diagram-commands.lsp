@@ -25,15 +25,23 @@
         (if (numberp (cdr row)) (setq merged (EL:Put (car row) (cdr row) merged))))
       (EL:WriteData (strcat *EL:Root* "config/block-powers.eld") (list '(version . 1) (cons 'powers merged))))))
 (defun EL:SaveDraft (result cfg powers capacity / store record context signature)
+  (setq *EL:LastSavedDraftId* nil)
   (if (assoc 'effective-powers result) (setq powers (EL:Get 'effective-powers result)))
   (setq capacity (EL:CapacityDefault capacity))
   (if (not (EL:Get 'capacity-source result)) (setq result (EL:Put 'capacity-source 'default result)))
   (setq store (cond ((EL:StoreForResult result)) (T (EL:StoreInitial)))
-    record (cond ((EL:RecordForResult result store)) (T (EL:NewRecord (EL:Get 'panel result) store)))
+    record (cond ((EL:RecordForResult result store)) (T (EL:NewRecord (EL:Get 'panel result) store))))
+  ;; Date: 2026-10-14. Saving inputs must not revise an earlier output's
+  ;; record. A new draft becomes the latest entry for the source box.
+  (if (EL:Get 'panel-output-handle record)
+    (setq record (EL:Put 'source-signature (EL:Get 'source-signature record)
+      (EL:Put 'template (EL:Get 'template record)
+        (EL:NewRecord (EL:Get 'panel result) store)))))
+  (setq
     record (EL:Put 'draft-circuits (EL:Get 'circuits result) (EL:Put 'draft-capacity capacity
       (EL:Put 'powers powers (EL:Put 'config cfg (EL:Put 'engine (EL:Get 'engine result) record))))))
   ;; Date: 2026-10-13. Reopen the saved draft from its own source snapshot.
-  ;; Keep the formal signature intact until the diagram is actually updated.
+  ;; Keep the formal signature intact until a new diagram is generated.
   (setq signature (EL:PersistSourceSignature result cfg)
     record (EL:Put 'draft-source-signature
       (if (and signature (equal signature (EL:Get 'source-signature record))) 'formal-source signature) record))
@@ -62,8 +70,9 @@
       (EL:Get 'load-error (EL:Get 'device-library result))) (EL:DLSubmissionCurrent result))
     "设备库已变化，当前输入保留；请刷新库并重新核对后保存。")
   (setq context (EL:TransactionVerifiedStore 'EL:StoreWrite (list (EL:StorePutDiagram record store))))
-  (and (equal T (EL:Get 'outcome context))
-    (equal record (EL:DiagramForPanel (EL:Get 'panel result) (EL:TransactionVerifiedRead context)))))
+  (if (and (equal T (EL:Get 'outcome context))
+      (equal record (EL:DiagramForPanel (EL:Get 'panel result) (EL:TransactionVerifiedRead context))))
+    (progn (setq *EL:LastSavedDraftId* (EL:Get 'diagram-id record)) T)))
 (defun EL:InvokeCCKK2 (result cfg powers capacity / *EL:CCKK2Request*)
   (setq *EL:CCKK2Request* (list result cfg powers capacity))
   (c:CCKK2))
@@ -100,7 +109,7 @@
             result (EL:Get 'result context) cfg (EL:Get 'config context))))
       (setq result (EL:Get 'switch-result next) cfg (EL:Get 'switch-config next)))))
   next)
-(defun EL:EditPanelOnce (result cfg / *error* store record powers capacity edited prepared saved ownlog syncable template resolved resumed preflight-owner *EL:FreshScope* *EL:FreshScopeEnabled* *EL:GenerationPreflight*)
+(defun EL:EditPanelOnce (result cfg / *error* store record powers capacity edited prepared saved ownlog syncable template resolved resumed preflight-owner *EL:FreshScope* *EL:FreshScopeEnabled* *EL:GenerationPreflight* *EL:LastSavedDraftId* *EL:LastGeneratedId*)
   (defun *error* (msg)
     (EL:LogFailure msg)
     (vl-catch-all-apply 'EL:ClearGapPreview nil)
@@ -156,10 +165,10 @@
         (progn
           ;; Keep accepted setup and draft outside the preview undo group.
           (setq *EL:Result* result *EL:FixedConfig* cfg preflight-owner (namedobjdict))
-          (if (and syncable (EL:Get 'generate edited)
-              (not (EL:Get 'panel-output-handle record)))
+          (if (and syncable (EL:Get 'generate edited))
             (progn
-              (EL:Require (EL:LogCall "SAVE_GENERATION_DRAFT" nil 'EL:SaveDraft (list result cfg powers capacity)) "生成前保存草稿失败，请重试。")
+              (if (not (EL:Get 'panel-output-handle record))
+                (EL:Require (EL:LogCall "SAVE_GENERATION_DRAFT" nil 'EL:SaveDraft (list result cfg powers capacity)) "生成前保存草稿失败，请重试。"))
               ;; Date: 2026-10-13. The new native placement checks the source
               ;; again before any circuit rows. Defer the intervening scan;
               ;; this receipt never makes an invalidated snapshot reusable.
@@ -169,7 +178,7 @@
             (if syncable
               (EL:InvokeCCKK2 result cfg powers capacity)
               (progn
-                (princ "\n生成未执行：回路、功率或模板校验未通过；已保存为待更新草稿，请重新统计并核对。")
+                (princ "\n生成未执行：回路、功率或模板校验未通过；已保存为待生成草稿，请重新统计并核对。")
                 (EL:MarkStale (EL:Get 'panel result) 'review-or-template-pending) T))))
           (if saved
             (progn
@@ -180,6 +189,9 @@
                 (setq saved (EL:SaveDraft result cfg powers capacity)))
               (if saved
                 (progn
+                  (if (and (EL:Get 'generate edited) *EL:LastGeneratedId*)
+                    (setq result (EL:Put 'update-diagram-id *EL:LastGeneratedId*
+                      (EL:Put 'update-source-panel (EL:Get 'panel result) result))))
                   (setq *EL:Result* result *EL:FixedConfig* cfg)
                   (if (and (not (assoc 'device-library result)) (not (EL:SaveNamePowers powers))) (princ "\nDWG 已保存；共享图块功率库写入失败，其他图纸暂不复用本次值。"))
                   (princ (if (EL:Get 'load-error (EL:Get 'device-library result))
@@ -199,9 +211,14 @@
   (if ownlog (EL:LogFinish (if edited 'panel-accepted 'panel-cancelled)))
   ;; Date: 2026-10-12. Save stays in the same editor; no pick or diagram sync.
   (if (and edited (EL:Get 'result edited) (not (EL:Get 'generate edited)))
-    (setq *EL:DLResume* (list (cons 'result result) (cons 'config cfg)
+    (progn
+      (if *EL:LastSavedDraftId*
+        (setq result (EL:Put 'update-diagram-id *EL:LastSavedDraftId*
+          (EL:Put 'update-source-panel (EL:Get 'panel result) result))))
+      (setq *EL:Result* result
+        *EL:DLResume* (list (cons 'result result) (cons 'config cfg)
       (cons 'powers powers) (cons 'capacity capacity) (cons 'position (EL:Get 'position edited)))
-      edited (list (cons 'switch-result result) (cons 'switch-config cfg))))
+        edited (list (cons 'switch-result result) (cons 'switch-config cfg)))))
   (if (or (EL:Get 'switch-result edited) (EL:Get 'pick-panel edited) (EL:Get 'library-panel edited)
     (EL:Get 'preview-panel edited)) edited))
 (defun EL:PublishDiagram (result cfg / store record powers capacity)
@@ -212,7 +229,9 @@
       (if (equal (EL:Get 'engine result) 'fixed)
         (setq powers (EL:FixedPowers record) result (EL:PanelCompute result powers cfg))
         (setq result (EL:BoxStatistics result cfg (EL:LoadLibrary) nil)))
-      (EL:SyncDiagram result cfg powers capacity nil nil))) result)
+      ;; Date: 2026-10-14. Background statistics retain a draft. Only an
+      ;; explicit Generate action places a new system diagram.
+      (EL:SaveDraft result cfg powers capacity))) result)
 ;; Date: 2026-10-10. Empty recognition is a user-visible outcome, not a panel error.
 (defun EL:PickedDevicesReady (result / ids circuit message)
   (foreach circuit (EL:Get 'circuits result) (setq ids (append ids (EL:Get 'devices circuit))))
@@ -222,22 +241,15 @@
       (EL:LogEvent "NO_CONNECTED_DEVICES" (list (cons 'panel (EL:Get 'panel result))
         (cons 'circuits (length (EL:Get 'circuits result))) (cons 'message message)))
       (princ (strcat "\n" message)) (EL:PerfInput 'alert (list message)) nil)))
-;; Date: 2026-10-13. Do not silently create a second diagram when old source binding is absent.
-(defun EL:RepickRecord (panel store / record pick tag candidate done)
+;; Date: 2026-10-14. A newly picked source has no replacement target. Older
+;; diagrams remain available through their saved records and ELUPDATE.
+(defun EL:RepickRecord (panel store / record)
   (setq record (EL:DiagramForPanel panel store))
-  (if (and (not record) (vl-some '(lambda (r) (EL:Get 'panel-output-handle r)) (EL:Get 'diagrams store)))
+  (if (and record (assoc 'history-circuit-count record))
     (progn
-      (princ "\n未找到此来源箱体的旧关联。要替换已有系统图，请点选原系统图箱体；不按编号或距离猜测。")
-      (while (not done)
-        (if (setq pick (EL:PickModel 'panel "\n拾取要更新的原系统图箱体（Enter 新建）："))
-          (progn
-            (setq tag (EL:DiagramTag (car pick))
-              candidate (EL:By 'diagram-id (cdr (nth 1 tag)) (EL:Get 'diagrams store)))
-            (if (and candidate (equal (EL:Get 'panel-output-handle candidate) (cdr (assoc 5 (entget (car pick)))))
-                (EL:OwnedEntity (EL:Get 'panel-output-handle candidate) store candidate "panel" "panel"))
-              (setq record candidate done T)
-              (princ "\n此对象不是本工具保存的系统图箱体，请重新点选。")))
-          (setq done T)))))
+      (setq record (EL:StoreRecord (EL:Get 'diagram-id record)))
+      (EL:Require (equal panel (EL:Get 'source-panel-handle record))
+        "保存记录的来源箱体已变化，请重新拾取。")))
   (EL:LogEvent "REPICK_RECORD" (list (cons 'source-panel panel) (cons 'diagram-id (EL:Get 'diagram-id record))
     (cons 'saved-source-panel (EL:Get 'source-panel-handle record)) (cons 'output (EL:Get 'panel-output-handle record))))
   record)
@@ -444,7 +456,7 @@
   (defun *error* (msg)
     (redraw) (EL:ClearPickHighlights)
     (if *EL:Result* (vl-catch-all-apply 'EL:MarkStale (list (EL:Get 'panel *EL:Result*) 'update-failed)))
-    (if msg (princ (strcat "\n生成或更新停止：" msg))) (EL:PerfFinish 'failed) (princ))
+    (if msg (princ (strcat "\n生成新系统图停止：" msg))) (EL:PerfFinish 'failed) (princ))
   (setq perfowner (EL:PerfStart "ELGEN"))
   (if (and *EL:Result* (EL:EnsureRoot))
     (progn
@@ -492,7 +504,7 @@
       (setq *EL:Result* result)
       (if (equal (EL:Get 'engine result) 'fixed)
         (EL:EditPanel result cfg)
-        (EL:SyncDiagram result cfg (EL:Get 'powers record) (EL:Get 'capacity-option record) nil T))))
+        (EL:SyncDiagram result cfg (EL:Get 'powers record) (EL:Get 'capacity-option record) T T))))
   (EL:ClearPickHighlights) (if perfowner (EL:PerfFinish 'command-finished)) (princ))
 
 ;; Date: 2026-10-10. ELSTAT opens the panel before requesting model selection.

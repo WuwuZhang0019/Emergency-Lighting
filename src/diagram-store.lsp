@@ -650,21 +650,20 @@
       (EL:LogEvent "STORE_LEGACY_ERROR" (list (cons 'message (vl-catch-all-error-message outcome))))
       (princ (strcat "\n旧格式转换未完成：" (vl-catch-all-error-message outcome)))))
   (princ))
-(defun EL:DiagramForPanel (panel store / found rows)
-  (setq rows (vl-remove-if-not '(lambda (r) (equal panel (EL:Get 'source-panel-handle r))) (EL:Get 'diagrams store)))
-  (if (> (length rows) 1) (progn (princ "\n来源箱体存在重复系统图关联，需修复。") (exit)))
-  (car rows))
-;; Date: 2026-10-13. An explicitly picked old output identifies a replacement target.
-(defun EL:RecordForResult (result store / id record current)
+(defun EL:DiagramForPanel (panel store / found row)
+  ;; Date: 2026-10-14. Each new output is appended. The latest record is the
+  ;; default editor target; older diagrams and their ownership remain intact.
+  (foreach row (EL:Get 'diagrams store)
+    (if (equal panel (EL:Get 'source-panel-handle row)) (setq found row))) found)
+;; Date: 2026-10-14. A picked old output supplies review data; generating a
+;; successor never rebinds or overwrites that saved output.
+(defun EL:RecordForResult (result store / id record)
   (if (setq id (EL:Get 'update-diagram-id result))
     (progn
       (setq record (EL:By 'diagram-id id (EL:Get 'diagrams store)))
-      (setq current (EL:DiagramForPanel (EL:Get 'panel result) store))
-      (EL:Require (or (not current) (equal (EL:Get 'diagram-id current) id))
-        "此来源箱体已有另一份系统图关联，未覆盖；请重新拾取要更新的系统图。")
       (EL:Require (and record (member (EL:Get 'source-panel-handle record)
         (list (EL:Get 'panel result) (EL:Get 'update-source-panel result))))
-        "原系统图记录已变化，请重新拾取；未新建或覆盖其他系统图。")
+        "所选系统图记录已变化，请重新拾取；未覆盖其他系统图。")
       (EL:Put 'source-panel-handle (EL:Get 'panel result) record))
     (EL:DiagramForPanel (EL:Get 'panel result) store)))
 (defun EL:StorePutDiagram (record store / rows old)

@@ -769,7 +769,7 @@
       (EL:PanelText "p_error" "请至少保留一条实际出线。"))))
 ;; Date: 2026-10-11. List clicks open records; list initialization stays read-only.
 (defun EL:HistoryState (record)
-  (cond ((equal (EL:Get 'status record) 'stale) "待更新")
+  (cond ((equal (EL:Get 'status record) 'stale) "待生成")
     ((EL:Get 'panel-output-handle record) "已生成") (T "草稿")))
 ;; Date: 2026-10-11. Current record previews the picked number without writing the DWG.
 (defun EL:HistoryNumberPending (record)
@@ -808,19 +808,35 @@
 (defun EL:HistoryLoad ()
   ;; Only called after closing DCL. Leave the prior list intact on read failure.
   (EL:HistoryRememberStore (EL:LogCall "PANEL_HISTORY_READ" nil 'EL:StoreIndex nil)))
-(defun EL:HistoryFill (/ record index selected panel loaded)
+(defun EL:HistoryFill (/ record index selected panel loaded current-id current current-index ordinals ordinal)
   (setq loaded (EL:HistoryStoreReady)
     *EL:HistoryRecords* (if loaded (EL:Get 'diagrams *EL:HistoryListStore*))
     index 0 selected 0)
+  (if (and loaded *EL:PanelDraft*)
+    (setq current (EL:DiagramForPanel (EL:Get 'panel *EL:PanelDraft*) *EL:HistoryListStore*)
+      current-id (cond ((EL:Get 'update-diagram-id *EL:PanelDraft*))
+        ((EL:Get 'diagram-id current)))))
+  (foreach record *EL:HistoryRecords*
+    (if (if current-id (equal current-id (EL:Get 'diagram-id record))
+        (and *EL:PanelDraft* (equal (EL:Get 'panel *EL:PanelDraft*)
+          (EL:Get 'source-panel-handle record))))
+      (setq current-index index))
+    (setq index (1+ index)))
+  (setq index 0)
   (start_list "h_records")
   (foreach record *EL:HistoryRecords*
     (setq panel (EL:Get 'source-panel-handle record))
-    (if (equal panel (EL:Get 'panel *EL:PanelDraft*)) (setq selected index))
-    (add_list (strcat (if (equal panel (EL:Get 'panel *EL:PanelDraft*)) "[当前] " "")
+    (if (EL:Get 'panel-output-handle record)
+      (setq ordinal (1+ (cond ((EL:Get panel ordinals)) (T 0)))
+        ordinals (EL:Put panel ordinal ordinals)))
+    (if (equal index current-index) (setq selected index))
+    (add_list (strcat (if (equal index current-index) "[当前] " "")
       "配电箱 " (EL:HistoryNumber record) " | "
       (itoa (cond ((EL:Get 'history-circuit-count record))
         (T (length (cond ((EL:Get 'draft-circuits record)) (T (EL:ActualRows record)))))))
-      " 回路 | " (EL:HistoryState record) (EL:HistoryNumberNote record)))
+      " 回路 | " (EL:HistoryState record)
+      (if (EL:Get 'panel-output-handle record) (strcat " | 第" (itoa ordinal) "张") "")
+      (EL:HistoryNumberNote record)))
     (setq index (1+ index)))
   (end_list)
   (set_tile "h_load" (if loaded "刷新保存记录" "加载保存记录"))
@@ -901,7 +917,8 @@
       (princ "\n此旧记录尚未保存完整回路内容，正在补充统计；保存后再次打开可直接加载。")
       (setq result (EL:RecognizeFixed cfg panel))))
   (EL:Require (EL:Get 'circuits result) "目标配电箱未识别到有效回路，未切换。")
-  (setq result (EL:Put 'history-opened T result))
+  (setq result (EL:Put 'update-diagram-id (EL:Get 'diagram-id record)
+    (EL:Put 'update-source-panel panel (EL:Put 'history-opened T result))))
   (setq *EL:HistoryResultCache* (EL:Put panel (list (cons 'owner owner)
     (cons 'record record) (cons 'result result)) *EL:HistoryResultCache*))
   (if *EL:PanelDraft*
@@ -912,7 +929,7 @@
         "当前功率缓存写入失败，请检查目录权限；未切换。")
       (EL:Require (EL:SaveDraft (EL:Put 'can-generate nil *EL:PanelDraft*)
         *EL:PanelConfig* *EL:PanelPowers* *EL:PanelCapacity*) "当前草稿保存失败，未切换。")
-      (princ "\n当前草稿已保存到本图；系统图需生成或更新，关闭前请保存 DWG。")))
+      (princ "\n当前草稿已保存到本图；系统图需另行生成，关闭前请保存 DWG。")))
   (list (cons 'switch-result result) (cons 'switch-config cfg)))
 ;; Date: 2026-10-10. All picked circuits enter the panel without exit selection.
 (defun EL:PanelDialog (result cfg powers capacity / dialog status i key row captured switched *EL:PanelAction*

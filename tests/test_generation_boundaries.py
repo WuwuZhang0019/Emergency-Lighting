@@ -231,7 +231,7 @@ class AcceptedGenerationBoundaryTests(unittest.TestCase):
             self.f.invoke()
         self.assertEqual(self.f.commands, [])
 
-    def test_existing_or_erased_output_handle_keeps_original_source_guard(self):
+    def test_existing_or_erased_output_checks_source_after_new_placement(self):
         for handle in ('panel', 'erased-output'):
             with self.subTest(handle=handle):
                 self.setUp()
@@ -239,8 +239,8 @@ class AcceptedGenerationBoundaryTests(unittest.TestCase):
                     (EL:StoreWrite (EL:StorePutDiagram record store))''')
                 self.h.builtins['EL:FRESHRESULT'] = lambda *args: self.current(*args) and False
                 self.assertFalse(truth(self.f.invoke()))
-                self.assertEqual(self.checked, [0])
-                self.assertEqual(self.f.commands, [])
+                self.assertEqual(self.checked, [1])
+                self.assertEqual(len(self.f.commands),1)
 
 
 if __name__ == '__main__':

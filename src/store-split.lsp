@@ -109,16 +109,20 @@
   (equal (EL:Get 'tag (EL:Get 'split-view store)) 'EL_INTERNAL_VIEW_V1))
 (defun EL:SplitMetadata (store)
   (EL:SplitPairsWithout (if (EL:SplitViewP store) '(diagrams split-view) '(diagrams)) store))
-(defun EL:SplitViewFromRoot (root result / metadata rows item summary selected lazy-ids value key)
-  ;; Date: 2026-10-13. Only the current box is hydrated. Other boxes carry
-  ;; exact root references; these internal references are never persisted.
+(defun EL:SplitViewFromRoot (root result / metadata rows item summary selected selected-id lazy-ids value key)
+  ;; Date: 2026-10-14. Hydrate only the selected history entry or the newest
+  ;; entry for this box. Older outputs retain their exact immutable references.
   (setq metadata (EL:SplitReadChunk (EL:Get 'metadata root) 'metadata))
   (if (assoc 'split-view metadata) (EL:SplitMaterialize root) (progn
+  (setq selected-id (EL:Get 'update-diagram-id result))
+  (if (not selected-id)
+    (foreach item (EL:Get 'items root)
+      (setq summary (EL:Get 'summary item))
+      (if (equal (EL:Get 'source-panel-handle summary) (EL:Get 'panel result))
+        (setq selected-id (EL:Get 'diagram-id summary)))))
   (foreach item (EL:Get 'items root)
     (setq summary (EL:Get 'summary item)
-      selected (if (EL:Get 'update-diagram-id result)
-        (equal (EL:Get 'diagram-id summary) (EL:Get 'update-diagram-id result))
-        (equal (EL:Get 'source-panel-handle summary) (EL:Get 'panel result))))
+      selected (and selected-id (equal (EL:Get 'diagram-id summary) selected-id)))
     (if (not selected) (setq lazy-ids (cons (EL:Get 'diagram-id summary) lazy-ids)))
     (setq rows (cons (if selected (EL:SplitRestoreRecord item)
       (EL:Put 'split-reference item summary)) rows)))

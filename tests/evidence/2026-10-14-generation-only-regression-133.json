@@ -1,0 +1,18 @@
+{
+  "date": "2026-10-14",
+  "status": "completed",
+  "package": 133,
+  "passed": true,
+  "tests_run": 43,
+  "failures": 0,
+  "errors": 0,
+  "elapsed_seconds": 47.586,
+  "scope": [
+    "连续生成和旧图保留",
+    "取消与事务回滚",
+    "历史记录与草稿",
+    "拆分存储只读取最新记录",
+    "源码契约与监控标签"
+  ],
+  "native_autocad_2020_verified": false
+}

@@ -84,7 +84,7 @@ class PanelCommandTests(unittest.TestCase):
         for handle in removed: self.entities.pop(handle)
         return record,handles
 
-    def test_deleted_four_circuit_output_reenters_native_placement(self):
+    def test_deleted_four_circuit_output_stays_in_history_when_new_one_is_placed(self):
         self.install_view()
         old,handles=self.deleted_output_fixture(True)
         # In native AutoCAD, HANDENT can still resolve an erased entity name.
@@ -96,22 +96,23 @@ class PanelCommandTests(unittest.TestCase):
         self.assertEqual(self.commands[before][-1],'pause')
         self.assertEqual(len(self.commands)-before,7)
         self.assertNotEqual(self.get('panel-output-handle',record),self.get('panel-output-handle',old))
-        self.assertEqual(self.get('diagram-id',record),self.get('diagram-id',old))
+        self.assertNotEqual(self.get('diagram-id',record),self.get('diagram-id',old))
+        self.assertEqual(self.call('EL:StoreRecord',self.get('diagram-id',old)),old)
         rows=self.get('rows',record)
         self.assertEqual([self.get('circuit-uid',r) for r in rows],
                          [self.get('circuit-uid',r) for r in self.get('rows',old)])
         self.assertEqual([self.get('watts',r) for r in rows[:4]],[85,20,20,20])
         self.assertEqual(len(self.get('cckk-labels',record)),11)
         self.assertEqual(self.get('status',record),Symbol('CURRENT'))
-        self.assertIn('DIAGRAM_REBUILD',[e[0] for e in self.view_events])
+        self.assertNotIn('DIAGRAM_REBUILD',[e[0] for e in self.view_events])
         self.assertIn('DIAGRAM_VIEW_SHOWN',[e[0] for e in self.view_events])
 
-    def test_deleted_box_rebuild_cleans_only_owned_remnants(self):
+    def test_new_generation_leaves_old_remnants_and_unrelated_entities(self):
         old,handles=self.deleted_output_fixture(False)
         self.entity('unrelated','TEXT',[12.,34.,0.],'keep')
         unrelated=copy.deepcopy(self.entities['unrelated'])
         self.assertTrue(truth(self.invoke()))
-        self.assertTrue(all(h not in self.entities for h in handles))
+        self.assertTrue(any(h in self.entities for h in handles))
         self.assertEqual(self.entities['unrelated'],unrelated)
         self.assertNotIn('EL_FIXED_TX',self.dictionary)
 
@@ -127,33 +128,30 @@ class PanelCommandTests(unittest.TestCase):
         self.assertEqual(self.get('rows',record),self.get('rows',old))
         self.assertNotIn('EL_FIXED_TX',self.dictionary)
 
-    def test_deleted_box_with_foreign_remnant_is_not_rebuilt_or_deleted(self):
+    def test_foreign_old_remnant_does_not_block_new_generation(self):
         old,handles=self.deleted_output_fixture(False)
         handle=self.get('block-handle',self.get('rows',old)[0])
         self.entities[handle]=[p for p in self.entities[handle]
                                if not (isinstance(p,list) and p[0]==-3)]
-        before=copy.deepcopy(self.entities);commands=len(self.commands)
-        with self.assertRaises(RuntimeError): self.invoke()
-        self.assertEqual(self.entities,before)
-        self.assertEqual(len(self.commands),commands)
+        before=copy.deepcopy(self.entities[handle]);commands=len(self.commands)
+        self.assertTrue(truth(self.invoke()))
+        self.assertEqual(self.entities[handle],before)
+        self.assertGreater(len(self.commands),commands)
 
-    def test_existing_box_ownership_and_locked_layer_are_distinguished(self):
+    def test_old_box_ownership_or_lock_does_not_block_new_generation(self):
         self.install_view();self.assertTrue(truth(self.invoke()))
         record=self.h.run('(EL:DiagramForPanel "source" (EL:StoreRead))')
         handle=self.get('panel-output-handle',record)
         original=copy.deepcopy(self.entities[handle])
         self.entities[handle]=[p for p in original if not (isinstance(p,list) and p[0]==-3)]
-        with self.assertRaises(RuntimeError): self.invoke()
-        states=[self.get('state',d) for n,d in self.view_events if n=='DIAGRAM_OUTPUT_CHECK']
-        self.assertIn(Symbol('OWNERSHIP-MISMATCH'),states)
+        self.assertTrue(truth(self.invoke()))
+        self.assertEqual(self.entities[handle],[p for p in original if not (isinstance(p,list) and p[0]==-3)])
         self.entities[handle]=[Pair(8,'locked-output') if isinstance(p,Pair) and p.car==8 else p for p in original]
         tblsearch=self.h.builtins['TBLSEARCH']
         self.h.builtins['TBLSEARCH']=lambda table,name:[Pair(70,4),Pair(62,7)] if name=='locked-output' else tblsearch(table,name)
         before=len(self.commands)
-        with self.assertRaises(RuntimeError): self.invoke()
-        states=[self.get('state',d) for n,d in self.view_events if n=='DIAGRAM_OUTPUT_CHECK']
-        self.assertIn(Symbol('LOCKED-LAYER'),states)
-        self.assertEqual(len(self.commands),before)
+        self.assertTrue(truth(self.invoke()))
+        self.assertGreater(len(self.commands),before)
 
     def four_circuits(self):
         self.h.run('''(setq result (EL:Put 'engine 'fixed result))
@@ -182,13 +180,14 @@ class PanelCommandTests(unittest.TestCase):
         self.h.builtins.update({'INITGET':lambda *args:None, 'GETKWORD':lambda *args:'Replace'})
         handles=check(5)
         self.assertTrue(truth(self.invoke()))
-        self.assertEqual(check(5),handles)
+        self.assertNotEqual(check(5),handles)
+        self.assertTrue(all(handle in self.entities for handle in handles))
         self.h.run("(setq result (EL:Put 'circuits (list (car (EL:Get 'circuits result))) result))")
         self.assertTrue(truth(self.invoke()))
         check(3)
-        self.assertEqual(sum(str(field(d,1)).startswith('ZE') for e,d in self.entities.items() if e not in original_entities),3)
+        self.assertEqual(sum(str(field(d,1)).startswith('ZE') for e,d in self.entities.items() if e not in original_entities),13)
 
-    def test_two_to_four_updates_existing_output_and_shows_all_owned_entities(self):
+    def test_two_to_four_creates_new_output_and_shows_only_new_entities(self):
         self.install_view()
         self.placement=[1279956.,449786.,0.]  # remote output, matching the field case
         self.two_circuits()
@@ -204,12 +203,11 @@ class PanelCommandTests(unittest.TestCase):
         self.assertEqual([self.get('watts',r) for r in rows[:4]],[85,20,20,20])
         self.assertEqual([field(self.entities[self.get('text-handle',r)],1) for r in rows[:4]],
                          ['85W','20W','20W','20W'])
-        self.assertEqual(len(self.commands),5)  # only the original two-row native insertion
-        self.assertEqual(self.get('panel-output-handle',record),self.get('panel-output-handle',old))
-        self.assertEqual([self.get('block-handle',r) for r in rows[:2]],
-                         [self.get('block-handle',r) for r in self.get('rows',old)[:2]])
-        self.assertEqual([self.get('block-handle',r) for r in rows[-2:]],
-                         [self.get('block-handle',r) for r in self.get('rows',old)[-2:]])
+        self.assertEqual(len(self.commands),12)  # first 5 entities, then a complete new 7-entity diagram
+        self.assertNotEqual(self.get('panel-output-handle',record),self.get('panel-output-handle',old))
+        self.assertNotEqual(self.get('diagram-id',record),self.get('diagram-id',old))
+        self.assertEqual(self.call('EL:StoreRecord',self.get('diagram-id',old)),old)
+        self.assertTrue(all(self.get('block-handle',r) in self.entities for r in self.get('rows',old)))
         self.assertTrue(all(self.get('text-handle',r) is None for r in rows[-2:]))
         expected={self.get('panel-output-handle',record)}
         expected.update(self.get('block-handle',r) for r in rows)
@@ -225,13 +223,29 @@ class PanelCommandTests(unittest.TestCase):
             self.assertLess(lo[0],p[0]-200.); self.assertLess(lo[1],p[1]-300.)
             self.assertGreater(hi[0],p[0]+6000.); self.assertGreater(hi[1],p[1]+500.)
         self.assertIn('DIAGRAM_VIEW_SHOWN',[e[0] for e in self.view_events])
-        self.assertTrue(any('原位置更新' in str(m) for m in self.messages))
+        self.assertTrue(any('已生成新系统图' in str(m) for m in self.messages))
         self.assertFalse(truth(self.h.lookup('*EL:TRANSACTIONOPEN*')))
-        # Clicking again with no changes still locates output without new entities.
+        # Repeating the same click creates another independently managed output.
         before=copy.deepcopy(self.entities)
         self.assertTrue(truth(self.invoke()))
-        self.assertEqual(self.entities,before)
+        self.assertGreater(len(self.entities),len(before))
+        for handle,*_ in self.call('EL:DiagramOutputRefs',record):
+            self.assertEqual(self.entities[handle],before[handle])
         self.assertEqual(len(self.zoomed),2)
+
+    def test_selecting_old_output_generates_successor_without_rebinding_history(self):
+        self.two_circuits()
+        self.assertTrue(truth(self.invoke()))
+        first=self.h.run('(EL:DiagramForPanel "source" (EL:StoreRead))')
+        self.assertTrue(truth(self.invoke()))
+        second=self.h.run('(EL:DiagramForPanel "source" (EL:StoreRead))')
+        self.h.run(f'''(setq result (EL:Put 'update-diagram-id
+          "{self.get('diagram-id',first)}" (EL:Put 'update-source-panel "source" result)))''')
+        self.assertTrue(truth(self.invoke()))
+        third=self.h.run('(EL:DiagramForPanel "source" (EL:StoreRead))')
+        self.assertEqual(len({self.get('diagram-id',row) for row in (first,second,third)}),3)
+        self.assertEqual(self.call('EL:StoreRecord',self.get('diagram-id',first)),first)
+        self.assertEqual(self.call('EL:StoreRecord',self.get('diagram-id',second)),second)
 
     def test_first_four_circuit_placement_shows_output_but_save_does_not_move_view(self):
         self.install_view(); self.two_circuits(); self.four_circuits()
@@ -346,8 +360,8 @@ class PanelCommandTests(unittest.TestCase):
         self.assert_two_circuit_output()
         count=len(self.entities)
         self.h.run('(EL:EditPanel result cfg)')
-        self.assertEqual(len(self.commands),5)
-        self.assertEqual(len(self.entities),count)
+        self.assertEqual(len(self.commands),10)
+        self.assertGreater(len(self.entities),count)
         self.assertEqual(len(prompts),0)
         self.assert_two_circuit_output()
 
@@ -437,7 +451,7 @@ class PanelCommandTests(unittest.TestCase):
             (EL:Put 'ground-source 'manual c)) (EL:Get 'circuits result)) result))''')
         self.h.builtins['GETKWORD']=lambda *args:self.fail('adding a reviewed circuit must not prompt')
         self.assertTrue(truth(self.invoke()))
-        self.assertEqual(len(self.commands),4)  # existing box is updated in place
+        self.assertEqual(len(self.commands),9)  # complete second system diagram
         self.assert_two_circuit_output()
         record=self.h.run('(EL:DiagramForPanel "source" (EL:StoreRead))')
         self.assertEqual([field(self.entities[self.get('block-handle',r)],10)
@@ -479,23 +493,23 @@ class PanelCommandTests(unittest.TestCase):
         self.assertEqual(self.variables,self.original)
         self.assertIsNone(self.h.lookup('*EL:CCKK2REQUEST*'))
         self.assertTrue(truth(self.invoke()))
-        self.assertEqual(len(self.commands),4)  # existing diagram is updated, never duplicated
+        self.assertEqual(len(self.commands),8)  # same click produces a new box and rows
 
-    def test_missing_v53_captions_repaired_without_reinserting_blocks(self):
+    def test_missing_old_captions_remain_untouched_when_new_output_is_generated(self):
         self.h.run('(setq result (EL:Put \'panel-number "CK-B1AL1" result))')
         self.assertTrue(truth(self.invoke()))
         record=self.h.run('(EL:DiagramForPanel "source" (EL:StoreRead))')
         for label in self.get('cckk-labels',record):
             del self.entities[self.get('handle',label)]
         self.assertTrue(truth(self.invoke()))
-        self.assertEqual(len(self.commands),4)
+        self.assertEqual(len(self.commands),8)
         record=self.h.run('(EL:DiagramForPanel "source" (EL:StoreRead))')
         self.assertEqual([field(self.entities[self.get('handle',label)],1)
                           for label in self.get('cckk-labels',record)],
                          ['CK-B1AL1','ZE1','商铺疏散指示及应急照明','ZE2','ZE3'])
         count=len(self.entities)
         self.assertTrue(truth(self.invoke()))
-        self.assertEqual(len(self.entities),count)
+        self.assertGreater(len(self.entities),count)
 
     def test_caption_creation_failure_rolls_back_instead_of_silent_omission(self):
         original=self.h.builtins['ENTMAKE']

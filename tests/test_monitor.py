@@ -105,7 +105,7 @@ class MonitorTests(unittest.TestCase):
             text = output.read_text(encoding='utf-8')
             self.assertIn('日期：2026-10-13', text)
             self.assertIn('最近一次插件加载', text)
-            self.assertIn('生成或更新 [p_generate]=1', text)
+            self.assertIn('生成新系统图 [p_generate]=1', text)
             self.assertIn('总耗时 0.150 秒；程序 0.020 秒；交互 0.130 秒', text)
             self.assertIn('退出：0.150 秒', text)
             self.assertIn('|2|1|0.100|0.120|0.020|0.020|0.000|', text)

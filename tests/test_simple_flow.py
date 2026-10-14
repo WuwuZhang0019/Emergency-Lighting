@@ -208,14 +208,20 @@ class SimpleFlowTests(unittest.TestCase):
         self.plan();result=self.network();rows=self.call('EL:SimpleRows',self.get('devices',result),None)
         self.h.frames[0]['TEST:RESULT']=result;self.h.frames[0]['TEST:ROWS']=rows
         self.h.frames[0]['*EL:ROOT*']='package/'
-        tiles={};callbacks={};modal=[False];opens=[];draws=[];zooms=[]
+        tiles={};callbacks={};modal=[False];opens=[];draws=[];zooms=[];dialog_status=[None]
         def start():
             modal[0]=True;opens.append(1)
             if len(opens)==1:
-                tiles['s_edit']='6';return self.h.run(callbacks['s_locate'])
+                tiles['s_edit']='6'
+                self.h.frames[0].update({'$KEY':'s_locate','$VALUE':'1'})
+                self.h.run(callbacks['s_locate'])
+                return dialog_status[0]
             self.assertEqual(tiles['s_edit'],'6')
-            return self.h.run(callbacks['accept'])
-        def done(code): modal[0]=False;return code
+            self.h.frames[0].update({'$KEY':'accept','$VALUE':'1'})
+            self.h.run(callbacks['accept'])
+            return dialog_status[0]
+        # Native start_dialog returns done_dialog's status, not callback's last form.
+        def done(code): modal[0]=False;dialog_status[0]=code;return code
         def draw(*args):
             self.assertFalse(modal[0]);draws.append(args)
         def zoom(app,lo,hi):
@@ -227,7 +233,9 @@ class SimpleFlowTests(unittest.TestCase):
             'ACTION_TILE':lambda k,v:callbacks.update({k:v}),'GETSTRING':lambda *a:'',
             'GETVAR':lambda *a:60.,'REDRAW':draw,'GRDRAW':draw,'TRANS':lambda p,*a:p,
             'VLA-ZOOMWINDOW':zoom,'VLAX-GET-ACAD-OBJECT':lambda:'app','VLAX-3D-POINT':lambda p:p,
-            'HANDENT':lambda x:x,'PRINC':lambda *a:None,'GRTEXT':lambda *a:None})
+            'HANDENT':lambda x:x,'PRINC':lambda *a:None,'GRTEXT':lambda *a:None,
+            # Date: 2026-10-13. Monitor titles use prefix wildcards in this fixture.
+            'WCMATCH':lambda text,pattern:text.startswith(pattern[:-1]) if pattern.endswith('*') else text==pattern})
         edited=self.h.run('(EL:SimpleDialog test:result test:rows)')
         self.assertEqual(self.get('watts',edited[0]),6)
         self.assertTrue(draws);self.assertIsNone(self.h.lookup('*EL:DIALOGID*'))

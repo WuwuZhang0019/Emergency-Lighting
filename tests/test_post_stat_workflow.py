@@ -681,7 +681,7 @@ class PostStatWorkflowTests(unittest.TestCase):
         self.call('EL:EditPanel', self.result, self.cfg)
         self.assertEqual(self.actions, [])
 
-    def test_save_existing_diagram_marks_draft_pending_with_one_write(self):
+    def test_save_existing_diagram_creates_new_draft_without_changing_old_output(self):
         store = self.call('EL:StoreInitial')
         record = self.call('EL:NewRecord', 'panel', store)
         record = self.call('EL:Put', Symbol('PANEL-OUTPUT-HANDLE'), 'old-output', record)
@@ -699,9 +699,12 @@ class PostStatWorkflowTests(unittest.TestCase):
         self.call('EL:EditPanel', self.result, self.cfg)
         self.assertEqual(len(writes), 1)
         saved = self.call('EL:DiagramForPanel', 'panel', persisted[0])
-        self.assertEqual(self.get('panel-output-handle', saved), 'old-output')
-        self.assertEqual(self.get('status', saved), Symbol('STALE'))
-        self.assertEqual(self.get('stale-reason', saved), Symbol('DRAFT-SAVED'))
+        old=self.call('EL:By',Symbol('DIAGRAM-ID'),self.get('diagram-id',record),
+                      self.get('diagrams',persisted[0]))
+        self.assertEqual(self.get('panel-output-handle',old),'old-output')
+        self.assertIsNone(self.get('panel-output-handle',saved))
+        self.assertNotEqual(self.get('diagram-id',saved),self.get('diagram-id',old))
+        self.assertEqual(len(self.get('draft-circuits',saved)),len(self.get('circuits',self.result)))
 
     def test_shared_sync_accepts_default_ground_without_confirmation(self):
         self.h.builtins['EL:STOREREAD'] = lambda: None

@@ -183,7 +183,7 @@ class TapeAndEntryTests(unittest.TestCase):
         self.assertTrue(all(f.get('parent-id', row) == 0 for row in reports[1][1]))
         self.assertTrue(all(f.get('elapsed-ms', row) <= 30 for row in reports[1][1]))
 
-    def test_native_generation_and_update_with_split_current_box_view(self):
+    def test_native_repeated_generation_uses_latest_split_current_box_view(self):
         f = panel.PanelCommandTests()
         f.setUp()
         f.two_circuits()
@@ -192,9 +192,18 @@ class TapeAndEntryTests(unittest.TestCase):
         self.assertTrue(truth(f.invoke()))
         f.assert_two_circuit_output()
         count = len(f.commands)
+        old=f.h.run('(EL:DiagramForPanel "source" (EL:StoreRead))')
         self.assertTrue(truth(f.invoke()))
-        self.assertEqual(len(f.commands), count)
+        self.assertEqual(len(f.commands), count*2)
         f.assert_two_circuit_output()
+        current=f.h.run('(EL:DiagramForPanel "source" (EL:StoreRead))')
+        self.assertNotEqual(f.get('diagram-id',old),f.get('diagram-id',current))
+        self.assertEqual(f.call('EL:StoreRecord',f.get('diagram-id',old)),old)
+        view=f.h.run('(EL:StoreForResult (list (cons \'panel "source")))')
+        records=f.get('diagrams',view)
+        self.assertEqual(len(records),2)
+        self.assertTrue(f.get('split-reference',records[0]))
+        self.assertFalse(f.get('split-reference',records[1]))
 
 
 class ComponentIndexTests(unittest.TestCase):

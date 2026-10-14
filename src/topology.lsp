@@ -3,6 +3,113 @@
   (foreach e edges
     (cond ((equal id (car e)) (setq out (cons (cadr e) out)))
           ((equal id (cadr e)) (setq out (cons (car e) out))))) (EL:Unique out))
+;; Date: 2026-10-14. A shared physical contact is not a second electrical route.
+;; Keep exact wire/device handles; remove only a proven redundant wire edge.
+(defun EL:SingleWireContactPoint (a b / pair ep point points)
+  (foreach pair (list (list a b) (list b a))
+    (foreach ep (EL:Get 'ends (car pair))
+      (setq point (EL:Get 'point ep))
+      (if (and (EL:Point point) (EL:Touches point (EL:Get 'segments (cadr pair)) (EL:GapEpsilon) (EL:GapEpsilon))
+          (not (vl-some '(lambda (p) (equal p point (EL:GapEpsilon))) points)))
+        (setq points (cons point points)))))
+  (if (= (length points) 1) (car points)))
+(defun EL:ConvexContactRegion (shape / ring points seg point value sign convex)
+  ;; Bound the all-vertex proof; complex or uncertain shapes keep diagnostics.
+  (setq ring (car (EL:Get 'regions shape)))
+  (if (and (= (length (EL:Get 'regions shape)) 1) (not (EL:Get 'holes shape))
+      (not (EL:Get 'curves shape)) (not (EL:Get 'sampled-curves shape))
+      (<= 3 (length ring)) (<= (length ring) 64) (<= (length (EL:Get 'segments shape)) 64)
+      (vl-every '(lambda (s) (or (member s ring) (member (reverse s) ring))) (EL:Get 'segments shape)))
+    (progn
+      (setq convex T points (mapcar 'car ring))
+      (foreach seg ring
+        (foreach point points
+          (if (> (abs (- (caddr point) (caddr (caar ring)))) (EL:GapEpsilon)) (setq convex nil))
+          (setq value (EL:Cross (EL:V- (cadr seg) (car seg)) (EL:V- point (car seg))))
+          (if (> (abs value) (EL:GapEpsilon))
+            (if sign (if (< (* sign value) 0.0) (setq convex nil)) (setq sign value)))))
+      (and convex sign T))))
+(defun EL:ContactGeometryBounds (shape / bounds curve center radius lo hi)
+  ;; Visible geometry only. A full-circle envelope also safely covers any arc.
+  (if (and (not (EL:Get 'sampled-curves shape))
+      (<= (+ (length (EL:Get 'segments shape)) (length (EL:Get 'curves shape))) 256))
+    (progn
+      (setq bounds (EL:SegmentBounds (EL:Get 'segments shape)))
+      (foreach curve (EL:Get 'curves shape)
+        (setq center (car curve) radius (cadr curve)
+          lo (list (- (car center) radius) (- (cadr center) radius) (caddr center))
+          hi (list (+ (car center) radius) (+ (cadr center) radius) (caddr center))
+          bounds (if bounds (list (mapcar 'min (car bounds) lo) (mapcar 'max (cadr bounds) hi)) (list lo hi))))
+      bounds)))
+(defun EL:OutsideContactEnvelope (endpoint point bounds / axis outside moved eps delta)
+  (setq eps (EL:GapEpsilon))
+  (if bounds
+    (if (equal endpoint point eps) T
+      (progn
+        (setq outside T)
+        ;; Every varying XY coordinate must head outward. A nearly tangential
+        ;; ray could otherwise meet a remote port within the device tolerance.
+        (foreach axis '(0 1)
+          (setq delta (- (nth axis endpoint) (nth axis point)))
+          (if (> (abs delta) eps)
+            (progn
+              (setq moved T)
+              (if (not (or (and (< delta 0.0)
+                  (<= (abs (- (nth axis point) (nth axis (car bounds)))) eps))
+                (and (> delta 0.0)
+                  (<= (abs (- (nth axis point) (nth axis (cadr bounds)))) eps)))) (setq outside nil)))))
+        (and outside moved)))))
+(defun EL:WireDeviceContactLocal (wire shape point cfg / local ep seg convex bounds cursor station previous)
+  ;; A wire which returns to another port must retain its cycle evidence.
+  (setq local T cursor 0.0 convex (EL:ConvexContactRegion shape)
+    bounds (if (not convex) (EL:ContactGeometryBounds shape)))
+  (foreach ep (EL:Get 'ends wire)
+    (if (and local (not (equal point (EL:Get 'point ep) (EL:GapEpsilon)))
+        (EL:ContourPointHit (EL:Get 'point ep) shape cfg)) (setq local nil)))
+  (foreach seg (EL:Get 'segments wire)
+    (if local
+      (if (EL:Touches point (list seg) (EL:GapEpsilon) (EL:GapEpsilon))
+        (progn
+          ;; Distinct stations also catch immediate out-and-back visits to P.
+          (setq station (+ cursor (EL:Norm (EL:V- point (car seg)))))
+          (if (or (and (numberp previous) (> (abs (- station previous)) (EL:GapEpsilon)))
+              (not (or convex
+              (and (EL:OutsideContactEnvelope (car seg) point bounds)
+                   (EL:OutsideContactEnvelope (cadr seg) point bounds))))) (setq local nil))
+          (setq previous station))
+        (progn
+          (if (EL:ContourPathHit (list (cons 'segments (list seg))) shape cfg) (setq local nil)))))
+    (setq cursor (+ cursor (EL:Norm (EL:V- (cadr seg) (car seg))))))
+  local)
+(defun EL:NormalizeContactEdges (snapshot edges cfg / wires blocks gaps row edge a b point neighbours id block shape drop out contactcfg)
+  (foreach row (EL:Get 'wires snapshot) (setq wires (cons (cons (EL:Get 'id row) row) wires)))
+  (foreach row (EL:Get 'blocks snapshot) (setq blocks (cons (cons (EL:Get 'id row) row) blocks)))
+  ;; A pair can have both a local physical join and a remote virtual return.
+  (foreach row (EL:Get 'gap-pairs snapshot)
+    (setq gaps (cons (EL:Edge (car (EL:Get 'a row)) (car (EL:Get 'b row))) gaps)))
+  (setq contactcfg (EL:Put 'params (EL:Put 'eps_boundary (EL:DeviceContactTolerance cfg)
+    (EL:Get 'params cfg)) cfg))
+  (foreach edge edges
+    (setq drop nil a (cdr (assoc (car edge) wires)) b (cdr (assoc (cadr edge) wires)))
+    (if (and a b (not (member edge gaps)) (not (EL:Get 'issues a)) (not (EL:Get 'issues b))
+        (setq point (EL:SingleWireContactPoint a b)))
+      (progn
+        (setq neighbours (EL:Neighbours (EL:Get 'id b) edges))
+        (foreach id (EL:Neighbours (EL:Get 'id a) edges)
+          (if (and (not drop) (member id neighbours)
+              (setq block (cdr (assoc id blocks))) (equal (EL:Get 'role block) 'device))
+            (progn
+              (setq shape (EL:DeviceContactShape block))
+              (if (and (EL:ShapeGeometry shape) (not (EL:Get 'issues shape))
+                  (EL:ContourPointHit point shape contactcfg)
+                  (EL:WireDeviceContactLocal a shape point contactcfg)
+                  (EL:WireDeviceContactLocal b shape point contactcfg))
+                (progn
+                  (setq drop T)
+                  (EL:LogEvent "CONTACT_JUNCTION_NORMALIZED"
+                    (list (cons 'wires edge) (cons 'device id) (cons 'point point))))))))))
+    (if (not drop) (setq out (cons edge out))))
+  (reverse out))
 (defun EL:ComponentIndex (edges / rows edge serial sorted id neighbours groups *EL:ComponentCursor*)
   ;; Date: 2026-10-13. Sort directed rows once, then build a balanced lookup.
   ;; Edge ordinal preserves the original reverse-edge neighbour visit order.

@@ -1,4 +1,7 @@
-"""Contact stall regression. Date: 2026-10-10; finite CAD adapters only."""
+"""Definition contour reuse and contact stall regression. Date: 2026-10-13.
+
+Finite CAD adapters only; original drawing acceptance remains pending.
+"""
 import unittest
 
 from autolisp_host import Pair, Symbol, truth
@@ -39,15 +42,18 @@ class ContactReuseTests(unittest.TestCase):
 
     def test_twelve_translated_instances_expand_and_find_rings_once(self):
         handles = [self.block('LAMP', 'D', str(i), [i*20., i*3., 0.]) for i in range(12)]
-        contours = self.count('EL:BlockContour')
+        contours = self.count('EL:DeviceDefinitionContour')
+        uncached_reads = self.count('EL:DeviceContour')
         rings = self.count('EL:ClosedRings')
         preparations = self.count('EL:PrepareContourContact')
         expected = self.batch(handles, None)
-        self.assertEqual(len(contours), 12)
+        self.assertEqual(len(uncached_reads), 12)
+        self.assertEqual(len(contours), 0)
         self.assertEqual(len(rings), 12)
-        contours.clear(); rings.clear(); preparations.clear()
+        contours.clear(); uncached_reads.clear(); rings.clear(); preparations.clear()
         actual = self.batch(handles, True)
         self.assertEqual(len(contours), 1)
+        self.assertEqual(len(uncached_reads), 0)
         self.assertEqual(len(rings), 1)
         self.assertEqual(len(preparations), 1)
         for old, new in zip(expected, actual):
@@ -62,17 +68,31 @@ class ContactReuseTests(unittest.TestCase):
     def test_dense_shared_index_matches_uncached_contacts(self):
         import math
         handles = [self.block('LAMP', 'D', str(i), [i*20., 0., 0.]) for i in range(3)]
+        points = [[math.cos(i*math.tau/128), math.sin(i*math.tau/128), 0.] for i in range(128)]
+        segments = [[points[i], points[(i+1)%128]] for i in range(128)]
+        # The uncached path reads matching real definition entities. The mock
+        # supplies only local points, independent of which INSERT is first.
+        for i, segment in enumerate(segments):
+            child = f'LAMP-edge-{i}'
+            self.line(child, *segment)
+            self.next_entity[child] = f'LAMP-edge-{i+1}' if i < 127 else 'LAMP-end'
+        definition_reads = []
         def contour(entity, *args):
-            x = float(entity)*20.
-            points = [[x+math.cos(i*math.tau/128), math.sin(i*math.tau/128), 0.] for i in range(128)]
-            return [Pair(Symbol('SEGMENTS'), [[points[i], points[(i+1)%128]] for i in range(128)])]
-        self.h.builtins['EL:BLOCKCONTOUR'] = contour
+            definition_reads.append(entity)
+            return [Pair(Symbol('SEGMENTS'), list(reversed(segments)))]
+        self.h.builtins['EL:DEVICEDEFINITIONCONTOUR'] = contour
         expected = self.batch(handles, None)
+        self.assertEqual(definition_reads, [])
         prepared = self.count('EL:PrepareContourContact')
         actual = self.batch(handles, True)
+        self.assertEqual(len(definition_reads), 1)
         self.assertEqual(len(prepared), 1)
         self.assertTrue(self.get('contact-tree', actual[0]))
+        self.assertTrue(self.get('contact-template', actual[1]))
         for old, new in zip(expected, actual):
+            self.assertEqual(len(self.get('segments', new)), 128)
+            for field in ('segments', 'curves', 'regions', 'holes', 'segment-bounds'):
+                self.assertEqual(self.get(field, old), self.get(field, new))
             for x in (0., 1., 2., 20., 21., 22., 40., 41.):
                 point = [x, 0., 0.]
                 self.assertEqual(truth(self.call('EL:ContourPointHit', point, old, self.cfg)),
@@ -96,17 +116,28 @@ class ContactReuseTests(unittest.TestCase):
 
     def test_rotation_scale_and_anonymous_definitions_are_not_interchanged(self):
         handles = [self.block('LAMP', 'D', h, [i*20., 0., 0.])
-                   for i, h in enumerate(('a', 'b', 'mirror', 'rotated'))]
+                   for i, h in enumerate(('a', 'b', 'mirror', 'rotated', 'scaled'))]
         self.entities['mirror'].append(Pair(41, -1.))
         self.entities['rotated'].append(Pair(50, 0.5))
+        self.entities['scaled'].extend([Pair(41, 2.), Pair(42, 0.5)])
         handles.append(self.block('*U2', 'D', 'dynamic', [100., 0., 0.]))
-        contours = self.count('EL:BlockContour')
+        for name, points in [('LAMP', [[-2., -1., 0.], [1., -1., 0.], [1., 2., 0.], [-2., 2., 0.]]),
+                             ('*U2', [[-0.5, -0.5, 0.], [0.5, -0.5, 0.], [0., 0.5, 0.]])]:
+            for i, point in enumerate(points):
+                child = f'{name}-edge-{i}'
+                self.line(child, point, points[(i+1)%len(points)])
+                self.next_entity[child] = f'{name}-edge-{i+1}' if i < len(points)-1 else f'{name}-end'
+        contours = self.count('EL:DeviceDefinitionContour')
         expected = self.batch(handles, None)
         contours.clear()
         actual = self.batch(handles, True)
-        self.assertEqual(len(contours), 4)
+        self.assertEqual(len(contours), 2)
         for old, new in zip(expected, actual):
-            self.assertEqual(self.get('segments', old), self.get('segments', new))
+            for field in ('segments', 'curves', 'regions', 'holes', 'segment-bounds'):
+                self.assertEqual(self.get(field, old), self.get(field, new))
+        self.assertIn([[39., -1., 0.], [39., 2., 0.]], self.get('segments', actual[2]))
+        self.assertIn([[82., -0.5, 0.], [82., 1., 0.]], self.get('segments', actual[4]))
+        self.assertEqual(len(self.get('segments', actual[-1])), 3)
 
     def test_holes_and_elevation_translate_and_each_pass_reloads_geometry(self):
         handles = [self.block('LAMP', 'D', h, p) for h, p in

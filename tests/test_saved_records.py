@@ -121,8 +121,9 @@ class SavedRecordsTests(unittest.TestCase):
 
     def test_switch_saves_current_as_stale_and_returns_target(self):
         edited = self.call('EL:HistoryOpen')
-        self.assertEqual(self.get('switch-result', edited),
-                         self.call('EL:Put', Symbol('HISTORY-OPENED'), True, self.result))
+        opened=self.get('switch-result', edited)
+        self.assertTrue(self.get('history-opened', opened))
+        self.assertEqual(self.get('update-source-panel', opened), 'other')
         self.assertEqual(self.get('name', self.get('switch-config', edited)), 'other')
         self.assertEqual(len(self.saved), 1)
         self.assertFalse(self.get('can-generate', self.saved[0][0]))
@@ -179,6 +180,25 @@ class SavedRecordsTests(unittest.TestCase):
         self.assertEqual(len(labels), 10)
         self.assertIn('[当前]', labels[4])
         self.assertEqual(self.tiles['h_records'], '4')
+
+    def test_same_source_history_numbers_outputs_and_opens_selected_old_record(self):
+        first=self.call('EL:Put',Symbol('DIAGRAM-ID'),'old-1',
+            self.call('EL:Put',Symbol('PANEL-OUTPUT-HANDLE'),'output-1',
+              self.call('EL:Put',Symbol('SOURCE-PANEL-HANDLE'),'panel',self.records[0])))
+        second=self.call('EL:Put',Symbol('DIAGRAM-ID'),'new-2',
+            self.call('EL:Put',Symbol('PANEL-OUTPUT-HANDLE'),'output-2',first))
+        store=self.call('EL:Put',Symbol('DIAGRAMS'),[first,second],None)
+        labels=[]
+        self.h.builtins['ADD_LIST']=labels.append
+        self.call('EL:HistoryRememberStore',store)
+        self.call('EL:HistoryFill')
+        self.assertIn('第1张',labels[0])
+        self.assertIn('第2张',labels[1])
+        self.assertNotIn('[当前]',labels[0])
+        self.assertIn('[当前]',labels[1])
+        self.h.set(Symbol('*EL:HISTORYINDEX*'),0)
+        opened=self.get('switch-result',self.call('EL:HistoryOpen'))
+        self.assertEqual(self.get('update-diagram-id',opened),'old-1')
 
     def test_list_repaint_uses_session_data_without_reading_the_store(self):
         labels = self.initial_store()
@@ -306,7 +326,9 @@ class SavedRecordRestoreTests(unittest.TestCase):
         restored = self.get('switch-result', self.call('EL:HistoryOpen'))
         self.call('EL:HistoryOpen')
         self.assertEqual(calls, [(self.cfg, 'panel')])
-        self.assertEqual(restored, self.call('EL:Put', Symbol('HISTORY-OPENED'), True, self.result))
+        self.assertTrue(self.get('history-opened', restored))
+        self.assertEqual(self.get('update-diagram-id', restored), self.get('diagram-id', legacy))
+        self.assertEqual(self.get('update-source-panel', restored), 'panel')
         changed = self.call('EL:Put', Symbol('PANEL-NUMBER'), '新编号', legacy)
         self.h.set(Symbol('*EL:HISTORYRECORDS*'), [changed])
         self.call('EL:HistoryOpen')

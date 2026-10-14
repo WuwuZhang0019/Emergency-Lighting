@@ -366,7 +366,7 @@
   (setq snapshot (EL:LogCall "SIMPLE_COLLECT" nil 'EL:SimpleCollect (list cfg))
     snapshot (cond ((EL:Get 'circuit-starts cfg) (EL:StartSnapshot snapshot cfg panel))
       ((EL:Get 'concentrated-trunk cfg) (EL:TrunkSnapshot snapshot cfg panel)) (T snapshot)))
-  (setq answer (if (and (not *EL:NetworkReuseDisabled*) (equal (EL:Get 'version proof) 2) (equal panel (EL:Get 'panel proof))
+  (setq answer (if (and (not *EL:NetworkReuseDisabled*) (equal (EL:Get 'version proof) 4) (equal panel (EL:Get 'panel proof))
       (equal (EL:StableData (vl-remove-if '(lambda (row) (equal (car row) 'template)) cfg)) (EL:Get 'config proof))
       (not (EL:Get 'issues snapshot))
       (equal (EL:StableData snapshot)
@@ -530,12 +530,12 @@
 (defun EL:SyncDiagram (result cfg powers capacity generate interactive)
   (EL:SyncDiagramScoped result cfg powers capacity generate interactive *EL:FreshScope*))
 (defun EL:CCKK2DeferredSource (result cfg record generate interactive)
-  ;; Date: 2026-10-13. Only an accepted, saved new-panel submission may defer
-  ;; the second scan to CreateDiagram's mandatory post-placement guard.
-  ;; Existing/missing managed outputs and direct invocations keep all guards.
+  ;; Date: 2026-10-14. An accepted panel submission may defer the second scan
+  ;; to CreateDiagram's mandatory post-placement guard, including when an old
+  ;; output remains in the drawing as a separate historical diagram.
   (and generate interactive *EL:CCKK2Request* *EL:GenerationPreflight*
     (equal (EL:Get 'engine result) 'fixed)
-    (not (EL:Get 'panel-output-handle record)) (not (EL:Get 'identity-ambiguous result))
+    (not (EL:Get 'identity-ambiguous result))
     (equal (list (namedobjdict) result cfg) *EL:GenerationPreflight*)))
 (defun EL:GenerationSourceCurrent (result cfg deferred)
   (if deferred
@@ -543,9 +543,11 @@
       (equal cfg (EL:CurrentJunctionConfig cfg))
       (EL:LogCall "COMPARE_SOURCE_NUMBER" nil 'EL:NumberInputsCurrent (list result)))
     (EL:FreshResult result cfg)))
-(defun EL:SyncDiagramScoped (result cfg powers capacity generate interactive scope / store record template transform plan point structural outcome rotation scale rebuild context deferred *EL:NativePreview* *EL:FreshScope* *EL:FreshScopeEnabled* *EL:UpdateOperations* *EL:UpdateScopeActive*)
+(defun EL:SyncDiagramScoped (result cfg powers capacity generate interactive scope / store record template transform plan point structural outcome rotation scale rebuild context deferred new-output *EL:NativePreview* *EL:FreshScope* *EL:FreshScopeEnabled* *EL:UpdateOperations* *EL:UpdateScopeActive*)
   (if (assoc 'effective-powers result) (setq powers (EL:Get 'effective-powers result)))
-  (setq *EL:FreshScope* scope *EL:FreshScopeEnabled* T *EL:UpdateScopeActive* T)
+  (setq *EL:FreshScope* scope *EL:FreshScopeEnabled* T *EL:UpdateScopeActive* T
+    new-output (and generate interactive))
+  (if new-output (setq *EL:LastGeneratedId* nil))
   (setq capacity (EL:CapacityDefault capacity))
   (setq store (cond ((EL:StoreForResult result)) (T (EL:StoreInitial)))
     record (cond ((EL:RecordForResult result store)) (T (EL:NewRecord (EL:Get 'panel result) store)))
@@ -568,12 +570,17 @@
       (EL:MarkStale (EL:Get 'panel result) 'identity-conflict))
     ((not (or generate (EL:Get 'panel-output-handle record))) T)
     (T
+      ;; Date: 2026-10-14. User-triggered generation always gets its own ID
+      ;; and placement. A saved draft can become this output; an earlier output
+      ;; keeps its original record, tags, and all entities.
+      (if (and new-output (EL:Get 'panel-output-handle record))
+        (setq record (EL:NewRecord (EL:Get 'panel result) store)))
       (EL:Require (and (<= 1 (length (EL:Get 'circuits result))) (<= (length (EL:Get 'circuits result)) 8)) "本图块最多容纳8条实际回路，请拆箱后统计。")
       (EL:Require (and (tblsearch "STYLE" "ICDA-STYLE1") (EL:OutputLayerReady "SYS_系统标注_E")
         (EL:OutputLayerReady "TEL_TEXT")) "请补齐 ICDA-STYLE1 样式，并打开、解冻和解锁输出图层。")
       (EL:Require (and (EL:FixedTemplate template) (EL:TemplateRuntimeValid template cfg)) "模板未适配或已变化，请运行 ELTEMPLATE。")
       (EL:Require (EL:UniqueDiagram store record) "原系统图成员归属不符或保存的身份重复，未更新；具体对象见 DIAGRAM_ASSOCIATION_CONFLICT。")
-      (if (and generate interactive (EL:Get 'panel-output-handle record)
+      (if (and generate interactive (not new-output) (EL:Get 'panel-output-handle record)
           (equal (EL:OutputState (EL:Get 'panel-output-handle record) store record "panel" "panel") 'missing))
         (progn
           (EL:RebuildPreflight record store)
@@ -650,9 +657,11 @@
           (EL:Get 'panel-output-handle outcome)
           (equal outcome (EL:DiagramForPanel (EL:Get 'panel result) (EL:TransactionVerifiedRead context))))
         (progn
+          (if new-output (setq *EL:LastGeneratedId* (EL:Get 'diagram-id outcome)))
           ;; Date: 2026-10-11. Full diagnostic copies are exported by ELDIAG.
           ;; Successful generation/update finishes after the verified DWG save.
-          (princ (strcat "\n系统图已同步：" (itoa (length (EL:Get 'circuits result))) " 条实际回路，"
+          (princ (strcat (if new-output "\n已生成新系统图：" "\n系统图已同步：")
+            (itoa (length (EL:Get 'circuits result))) " 条实际回路，"
             (itoa (- (length (EL:Get 'rows plan)) (length (EL:Get 'circuits result)))) " 条预留，无预留功率文字。"))
           (if (and generate interactive) (EL:ShowDiagram outcome store)) T)
         (progn

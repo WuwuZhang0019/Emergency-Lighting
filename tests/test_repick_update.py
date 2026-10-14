@@ -126,21 +126,14 @@ class RepickTargetTests(unittest.TestCase):
         self.h.builtins['EL:PICKMODEL'] = lambda *args: self.fail('exact source must not repick output')
         self.assertEqual(self.call('EL:RepickRecord', self.get('source-panel-handle', self.record), self.store), self.record)
 
-    def test_explicit_owned_output_target_rebinds_only_the_selected_record(self):
+    def test_new_source_pick_does_not_rebind_an_old_output(self):
         picks = []
         self.h.builtins['EL:PICKMODEL'] = lambda *args: picks.append(args) or ['panel', [0., 0., 0.]]
         record = self.call('EL:RepickRecord', 'new-source', self.store)
-        self.assertEqual(record, self.record)
-        self.assertEqual(len(picks), 1)
-        result = [pair('panel', 'new-source'), pair('update-diagram-id', self.get('diagram-id', record)),
-                  pair('update-source-panel', self.get('source-panel-handle', record))]
-        bound = self.call('EL:RecordForResult', result, self.store)
-        self.assertEqual(self.get('source-panel-handle', bound), 'new-source')
-        self.assertEqual(self.get('panel-output-handle', bound), 'panel')
+        self.assertIsNone(record)
+        self.assertEqual(picks, [])
         self.assertEqual(self.get('source-panel-handle', self.record), 'source')
-        stored = self.call('EL:StorePutDiagram', bound, self.store)
-        self.assertEqual(len(self.get('diagrams', stored)), 1)
-        self.assertEqual(self.get('diagram-id', self.get('diagrams', stored)[0]), self.get('diagram-id', record))
+        self.assertEqual(len(self.get('diagrams', self.store)), 1)
 
     def test_foreign_output_is_rejected_and_enter_explicitly_creates_new(self):
         picks = iter([['b0', [0., 0., 0.]], None])
@@ -154,13 +147,14 @@ class RepickTargetTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             self.call('EL:RecordForResult', result, self.store)
 
-    def test_concurrent_new_source_binding_cannot_be_overwritten(self):
+    def test_explicit_old_record_cannot_overwrite_current_new_source_record(self):
         other = [pair('diagram-id', 'other'), pair('source-panel-handle', 'new-source')]
         store = self.call('EL:StorePutDiagram', other, self.store)
         result = [pair('panel', 'new-source'), pair('update-diagram-id', self.get('diagram-id', self.record)),
                   pair('update-source-panel', 'source')]
-        with self.assertRaises(RuntimeError):
-            self.call('EL:RecordForResult', result, store)
+        selected=self.call('EL:RecordForResult', result, store)
+        self.assertEqual(self.get('source-panel-handle',selected),'new-source')
+        self.assertEqual(self.get('diagram-id',self.call('EL:DiagramForPanel','new-source',store)),'other')
 
     def test_actual_update_retains_old_panel_and_changes_power_at_original_position(self):
         result = self.call('EL:Put', Symbol('PANEL'), 'new-source', self.h.lookup('RESULT'))

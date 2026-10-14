@@ -43,19 +43,30 @@ class HistoryPersistenceTests(unittest.TestCase):
         host = fixture.h
         host.run("(setq result (EL:Put 'snapshot (EL:CircuitSnapshot '((drawing . \"fixture\") (wires)) \"source\") result))")
         self.assertTrue(truth(host.run("(EL:SaveDraft result nil nil 'cap300)")))
-        self.assertTrue(truth(fixture.sync()))
+        original_getvar=host.builtins['GETVAR']
+        host.builtins.update({
+            'GETVAR':lambda key:1 if key=='TILEMODE' else 2 if key=='CVPORT' else original_getvar(key),
+            'GETPOINT':lambda *args:[100.,200.,0.],
+            'TRANS':lambda point,*args:point,
+            'VLA-REGEN':lambda *args:None,
+            'EL:SHOWDIAGRAM':lambda *args:True,
+            'EL:ALLOWEDVALUES':lambda entity:['CAP300','CAP600','CAP1000',
+                'NORMAL','GROUND','RESERVE'],
+        })
+        self.assertTrue(truth(host.run("(EL:SyncDiagram result nil nil 'cap300 T T)")))
         host.run('(setq reopened (EL:DiagramForPanel "source" (EL:StoreRead)))')
         self.assertEqual(host.run("(EL:Get 'panel-circuits reopened)"), host.run("(EL:Get 'circuits result)"))
         self.assertEqual(host.run("(EL:Get 'source-signature reopened)"), host.run("(EL:Get 'signature (EL:Get 'snapshot result))"))
         self.assertIsNone(host.run("(EL:Get 'draft-source-signature reopened)"))
         self.assertIsNone(host.run("(EL:Get 'draft-circuits reopened)"))
         before = copy.deepcopy(fixture.fixture.entities)
-        fixture.native.clear()
-        fixture.master.clear()
-        self.assertTrue(truth(fixture.sync()))
-        self.assertEqual(fixture.native, [])
-        self.assertEqual(fixture.master, [])
-        self.assertEqual(fixture.fixture.entities, before)
+        first=host.run('(EL:Get \'diagram-id reopened)')
+        self.assertTrue(truth(host.run("(EL:SyncDiagram result nil nil 'cap300 T T)")))
+        second=host.run('(EL:Get \'diagram-id (EL:DiagramForPanel "source" (EL:StoreRead)))')
+        self.assertNotEqual(first,second)
+        self.assertEqual(fixture.fixture.call('EL:StoreRecord',first),host.lookup('REOPENED'))
+        for handle,*_ in fixture.fixture.call('EL:DiagramOutputRefs',host.lookup('REOPENED')):
+            self.assertEqual(fixture.fixture.entities[handle],before[handle])
 
     def test_unchanged_older_record_gets_members_with_one_record_write(self):
         fixture = incremental.IncrementalTests()

@@ -70,7 +70,7 @@ class SimplifiedFlowTests(unittest.TestCase):
         for handle, data in old_entities.items():
             self.assertEqual(f.entities[handle], data)
 
-    def test_elstat_starts_with_pick_without_history_dialog(self):
+    def test_elstat_opens_panel_before_pick(self):
         h = Host()
         h.load_definitions(storage.ROOT / "src" / "diagram-commands.lsp")
         stages = []
@@ -79,15 +79,59 @@ class SimplifiedFlowTests(unittest.TestCase):
             "EL:PERFCALL": lambda stage, function, args:
                 stages.append(stage) or h.call(function, args or []),
             "EL:PERFFINISH": lambda *args: True,
+            "EL:ENSUREROOT": lambda: True,
+            "EL:PANELDIALOG": lambda *args: stages.append("panel") or
+                h.run("'((pick-panel . T))"),
             "EL:FIXEDSTATPICK": lambda: stages.append("picked") or None,
+            "EL:GET": lambda key, row: True if key == Symbol("PICK-PANEL") and row else None,
+        })
+        h.call(Symbol("EL:FIXEDSTAT"), [])
+        self.assertEqual(stages, ["ELSTAT", "PANEL_HOME", "panel", "PICK_PANEL", "picked"])
+
+    def test_home_panel_opens_without_recognition(self):
+        f = workflow.PostStatWorkflowTests()
+        f.setUp()
+        callbacks = {}
+        f.h.builtins["ACTION_TILE"] = lambda tile, action: callbacks.__setitem__(tile, action)
+        f.h.builtins["EL:RECOGNIZEFIXED"] = lambda *args: self.fail("recognized before pick")
+        f.actions = [lambda: (f.tiles.__setitem__("dl_display", "待保存设备名"),
+                              f.invoke_action(callbacks, "p_pick"))]
+        result = f.call("EL:PanelDialog", None, None, None, None)
+        self.assertTrue(f.get("pick-panel", result))
+        self.assertIn("dl_rows", callbacks)
+        self.assertIn("dl_save", callbacks)
+        self.assertEqual(f.get("display", f.call("EL:DLUIDraft")), "待保存设备名")
+
+    def test_elstat_cancel_does_not_start_pick(self):
+        h = Host()
+        h.load_definitions(storage.ROOT / "src" / "diagram-commands.lsp")
+        stages = []
+        h.builtins.update({
+            "EL:PERFSTART": lambda stage: stages.append(stage) or "timer",
+            "EL:PERFCALL": lambda stage, function, args:
+                stages.append(stage) or None,
+            "EL:PERFFINISH": lambda *args: True,
+            "EL:ENSUREROOT": lambda: True,
             "EL:GET": lambda key, row: None,
         })
         h.call(Symbol("EL:FIXEDSTAT"), [])
-        self.assertEqual(stages, ["ELSTAT", "PICK_PANEL", "picked"])
+        self.assertEqual(stages, ["ELSTAT", "PANEL_HOME"])
 
-    def test_review_preview_and_library_do_not_reidentify_or_precompute_legends(self):
+    def test_library_pick_returns_to_unified_panel(self):
+        f = workflow.PostStatWorkflowTests()
+        f.setUp()
+        callbacks = {}
+        f.h.builtins["ACTION_TILE"] = lambda tile, action: callbacks.__setitem__(tile, action)
+        f.h.builtins["EL:DLPICKDEVICES"] = lambda: None
+        f.h.builtins["EL:RECOGNIZEFIXED"] = lambda *args: self.fail("reidentified")
+        f.actions = [lambda: f.invoke_action(callbacks, "dl_pick"),
+                     lambda: f.invoke_action(callbacks, "cancel")]
+        f.dialog()
+        self.assertEqual(f.dialogs, ["el_panel", "el_panel"])
+
+    def test_review_preview_and_library_query_do_not_reidentify(self):
         for key, expected in (("f_preview", ["compute", "preview"]),
-                              ("b_library", ["compute"])):
+                              ("dl_query", ["compute"])):
             with self.subTest(action=key):
                 f = workflow.PostStatWorkflowTests()
                 f.setUp()
@@ -106,14 +150,15 @@ class SimplifiedFlowTests(unittest.TestCase):
 
                 h.builtins["EL:PANELCOMPUTE"] = compute
                 h.builtins["EL:ALLCIRCUITCOLORPREVIEW"] = lambda result: calls.append("preview")
-                f.actions = [lambda: f.invoke_action(callbacks, key)]
-                if key == "f_preview":
-                    f.actions.append(lambda: f.invoke_action(callbacks, "cancel"))
+                if key == "dl_query":
+                    f.actions = [lambda: (f.invoke_action(callbacks, key),
+                                          f.invoke_action(callbacks, "cancel"))]
+                else:
+                    f.actions = [lambda: f.invoke_action(callbacks, key),
+                                 lambda: f.invoke_action(callbacks, "cancel")]
                 result = f.dialog()
                 self.assertEqual(calls, expected)
                 self.assertEqual(len(f.dialogs), 2 if key == "f_preview" else 1)
-                if key == "b_library":
-                    self.assertTrue(f.get("library-panel", result))
 
     def test_legacy_hidden_exclusions_do_not_drop_explicitly_picked_devices(self):
         f = workflow.PostStatWorkflowTests()

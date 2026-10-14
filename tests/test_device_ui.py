@@ -1,4 +1,4 @@
-"""Library draft and CRUD callbacks. Date: 2026-10-11. No native DCL acceptance."""
+"""Library draft and CRUD callbacks. Date: 2026-10-14. No native DCL acceptance."""
 from pathlib import Path
 import re
 import tempfile
@@ -15,6 +15,16 @@ class DeviceUITests(unittest.TestCase):
     put = backend.DeviceLibraryTests.put
     entry = backend.DeviceLibraryTests.entry
     fs = backend.DeviceLibraryTests.fs
+
+    def test_panel_capture_returns_to_unified_panel(self):
+        self.state()
+        called = []
+        self.h.set('*EL:DLUIHOST*', Symbol('PANEL'))
+        self.h.set('*EL:DLPARENTCONTINUE*', Symbol('EL:TESTRETURNPANEL'))
+        self.h.builtins['EL:TESTRETURNPANEL'] = lambda: called.append('panel')
+        self.h.builtins['EL:DLUIRUN'] = lambda: self.fail('opened separate library')
+        self.call('EL:DLUIResume', None)
+        self.assertEqual(called, ['panel'])
 
     def lock_dialog(self, folder, confirmed=True):
         root = self.fs(folder)

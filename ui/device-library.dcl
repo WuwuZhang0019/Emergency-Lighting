@@ -1,4 +1,4 @@
-// Date: 2026-10-12. Status: implemented; native layout acceptance pending.
+// Date: 2026-10-14. Status: integrated editor; direct ELDEVLIB entry retained.
 el_device_library_locked : dialog {
   label = "独立设备库 - 占用恢复";
   : text { key = "dl_lock_root"; width = 104; }
@@ -51,7 +51,7 @@ el_device_library : dialog {
     }
   }
   : text { key = "dl_status"; width = 104; }
-  : text { label = "重新统计时刷新库默认值，保留手填值；原系统图在保存或更新后才变化。"; }
+  : text { label = "重新统计时刷新库默认值，保留手填值；新图仅在点击生成后创建。"; }
   : row {
     : button { key = "dl_close"; label = "关闭（保留未保存输入）"; is_cancel = true; }
   }

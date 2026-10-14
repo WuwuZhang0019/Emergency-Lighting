@@ -68,10 +68,11 @@ el_devices : dialog {
   }
 }
 
-// Date: 2026-10-14. One review panel; device-library editing has its own entry.
+// Date: 2026-10-14. Review and edit the device library in one dialog.
 el_panel : dialog {
-  label = "应急照明：核对并生成新系统图";
-  : column {
+  label = "应急照明：回路核对与设备库";
+  : row {
+  : column { fixed_width = true;
     : row { fixed_width = true; alignment = left;
       : image_button { key = "p_pick"; width = 14; height = 1.8; fixed_width = true; fixed_height = true; color = 3; is_tab_stop = true; }
       : image_button { key = "p_trunk"; width = 28; height = 1.8; fixed_width = true; fixed_height = true; color = 3; is_tab_stop = true; }
@@ -106,11 +107,50 @@ el_panel : dialog {
     : text { key = "p_error"; width = 46; fixed_width = true; }
     : text { key = "p_error1"; width = 46; fixed_width = true; }
     : text { key = "p_error2"; width = 46; fixed_width = true; }
-    : button { key = "b_library"; label = "打开独立设备库（ELDEVLIB）"; }
     : row {
       : button { key = "accept"; label = "保存当前输入"; is_default = true; }
       : button { key = "p_generate"; label = "生成新系统图"; }
       : button { key = "cancel"; label = "取消"; is_cancel = true; }
     }
+  }
+  : boxed_column {
+    label = "设备库";
+    : text { key = "dl_root"; width = 76; }
+    : row {
+      : column {
+        : edit_box { key = "dl_query"; label = "搜索图块名 / 设备名"; edit_width = 20; }
+        : toggle { key = "dl_deleted"; label = "显示已删除"; }
+        : list_box { key = "dl_rows"; label = "图块名 / 设备名 / 状态"; width = 34; height = 17; }
+        : button { key = "dl_pick"; label = "拾取设备入库"; }
+        : row {
+          : button { key = "dl_new"; label = "新增"; }
+          : button { key = "dl_delete"; label = "删除"; }
+          : button { key = "dl_restore"; label = "恢复"; }
+        }
+        : row {
+          : button { key = "dl_refresh"; label = "刷新"; }
+          : button { key = "dl_reload"; label = "重载选中项"; }
+        }
+        : button { key = "dl_directory"; label = "更改库目录"; }
+        : button { key = "dl_import"; label = "导入旧资料"; }
+      }
+      : column {
+        : image { key = "dl_image"; width = 34; height = 7; fixed_width = true; fixed_height = true; color = 0; }
+        : text { key = "dl_asset"; width = 38; }
+        : edit_box { key = "dl_block"; label = "图块名"; edit_width = 24; }
+        : edit_box { key = "dl_aliases"; label = "别名（分号分隔）"; edit_width = 24; }
+        : toggle { key = "dl_keep_old"; label = "改名时保留旧名"; value = "1"; }
+        : edit_box { key = "dl_display"; label = "设备名"; edit_width = 24; }
+        : edit_box { key = "dl_watts"; label = "单个功率（整数 W）"; edit_width = 12; }
+        : toggle { key = "dl_zero"; label = "确认此设备为 0W"; }
+        : popup_list { key = "dl_ground"; label = "是否地面"; }
+        : toggle { key = "dl_active"; label = "启用名称匹配"; value = "1"; }
+        : button { key = "dl_repair"; label = "修复图例"; }
+        : button { key = "dl_save"; label = "保存设备"; }
+      }
+    }
+    : text { key = "dl_status"; width = 76; }
+    : text { label = "设备资料修改后点保存；拾取图形后返回此面板。"; }
+  }
   }
 }

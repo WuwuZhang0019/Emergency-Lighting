@@ -56,7 +56,8 @@ def check():
         assert "el_panel : dialog" in dcl
         assert "el_fixed_exits : dialog" not in dcl
         panel = dcl.split("el_panel : dialog", 1)[1]
-        assert "b_library" in panel and "p_generate" in panel
+        assert "dl_rows" in panel and "dl_save" in panel and "p_generate" in panel
+        assert "b_library" not in panel
         assert "h_records" not in panel and "b_watts" not in panel
     print(f"PASS: {len(names)} package files; GB2312, current flow, ZIP bytes")
 

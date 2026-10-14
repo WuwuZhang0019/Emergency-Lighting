@@ -80,23 +80,17 @@
   (EL:LogCall "CCKK2" (list (cons 'circuits (length (EL:Get 'circuits result)))
       (cons 'watts (mapcar '(lambda (row) (EL:Get 'watts row)) (EL:Get 'circuits result))))
     'EL:SyncDiagram (append request '(T T))))
-(defun EL:EditPanel (result cfg / next context managed)
-  ;; Date: 2026-10-14. Review one source; device editing opens its own dialog.
+(defun EL:EditPanel (result cfg / next context)
+  ;; Date: 2026-10-14. Device editing remains in the circuit panel.
   (while result
     (EL:RememberStartPanel (EL:Get 'panel result) (EL:PanelNumber result))
     (setq *EL:StartPickContext* (EL:Put 'record
       (EL:DiagramForPanel (EL:Get 'panel result) (EL:StoreForResult result)) *EL:StartPickContext*))
     (setq *EL:Result* result *EL:FixedConfig* cfg)
     (setq next (EL:EditPanelOnce result cfg))
-    (if (setq context (EL:Get 'library-panel next))
-      (progn (setq *EL:DLParentContext* context *EL:DLParentContinue* 'EL:DLResumePanel)
-        (setq managed (vl-catch-all-apply 'EL:DLUIOpen nil) *EL:DLSessionSnapshot* nil *EL:DLCache* nil)
-        (if (vl-catch-all-error-p managed)
-          (EL:LogEvent "DEVICE_LIBRARY_OPEN_FAILED" (list (cons 'message (vl-catch-all-error-message managed)))))
-        (if (equal managed 'suspended) (setq result nil)
-          (setq *EL:DLResume* context *EL:DLParentContext* nil *EL:DLParentContinue* nil
-            result (EL:Get 'result context) cfg (EL:Get 'config context))))
-      (setq result nil)))
+    (if (setq context (EL:Get 'library-suspended next))
+      (setq *EL:DLParentContext* context *EL:DLParentContinue* 'EL:DLResumePanel))
+    (setq result nil))
   next)
 (defun EL:EditPanelOnce (result cfg / *error* store record powers capacity edited prepared saved ownlog syncable template resolved *EL:GenerationPreflight* *EL:LastSavedDraftId* *EL:LastGeneratedId*)
   (defun *error* (msg)
@@ -133,7 +127,7 @@
     prepared (EL:Get 'result resolved) powers (EL:Get 'powers resolved))
   (setq edited (EL:LogCall "PANEL_DIALOG" (list (cons 'panel (EL:Get 'panel result)))
     'EL:PanelDialog (list prepared cfg powers capacity)))
-  (if (and edited (not (EL:Get 'pick-panel edited)) (not (EL:Get 'library-panel edited)))
+  (if (and edited (not (EL:Get 'pick-panel edited)) (not (EL:Get 'library-suspended edited)))
     (progn
       (setq result (EL:Get 'result edited) powers (EL:Get 'powers edited)
         capacity (EL:Get 'capacity edited) cfg (EL:Get 'config edited)
@@ -173,7 +167,7 @@
             "设备库已变化，请打开设备库并重新核对；当前功率已尝试单独记住。")))))))
   (EL:ClearPickHighlights)
   (if ownlog (EL:LogFinish (if edited 'panel-accepted 'panel-cancelled)))
-  (if (or (EL:Get 'pick-panel edited) (EL:Get 'library-panel edited)) edited))
+  (if (or (EL:Get 'pick-panel edited) (EL:Get 'library-suspended edited)) edited))
 (defun EL:PublishDiagram (result cfg / store record powers capacity)
   (setq store (EL:StoreForResult result) record (EL:RecordForResult result store))
   (if record
@@ -418,20 +412,28 @@
     (princ "\n请先运行 ELSTAT 或 ELTRACE。"))
   (if perfowner (EL:PerfFinish 'command-finished)) (princ))
 
-(defun EL:FixedStat (/ *error* next perfowner)
+(defun EL:FixedStat (/ *error* next perfowner context)
   (defun *error* (msg)
     (EL:LogFailure msg)
     (vl-catch-all-apply 'EL:ReleasePowerUI nil)
     (if msg (princ (strcat "\n统计已停止：" msg)))
     (EL:PerfFinish 'failed) (princ))
   (setq perfowner (EL:PerfStart "ELSTAT"))
-  ;; Date: 2026-10-14. The picker resolves the root once it starts.
-  (setq next (EL:PerfCall "PICK_PANEL" 'EL:FixedStatPick nil))
+  ;; Date: 2026-10-14. Open the unified panel before asking for a CAD pick.
+  (if (EL:EnsureRoot)
+    (setq next (EL:PerfCall "PANEL_HOME" 'EL:PanelDialog (list nil nil nil nil))))
+  (if (setq context (EL:Get 'library-suspended next))
+    (progn (setq *EL:DLParentContext* context *EL:DLParentContinue* 'EL:DLResumeHome)
+      (setq next nil)))
   (while (EL:Get 'pick-panel next)
     (setq next (if (equal (EL:Get 'pick-panel next) 'trunk)
       (EL:PerfCall "PICK_STARTS" 'EL:FixedStartPick nil)
       (EL:PerfCall "PICK_PANEL" 'EL:FixedStatPick nil))))
   (if perfowner (EL:PerfFinish 'command-finished)) (princ))
+;; Date: 2026-10-14. Continue the same opening panel after an async graphic pick.
+(defun EL:DLResumeHome ()
+  (setq *EL:DLParentContext* nil *EL:DLParentContinue* nil *EL:DLSessionSnapshot* nil)
+  (EL:FixedStat))
 (defun EL:DiagnosticRecord (store / record pick tag handle)
   (if *EL:Result*
     (setq record (EL:DiagramForPanel (EL:Get 'panel *EL:Result*) store)))

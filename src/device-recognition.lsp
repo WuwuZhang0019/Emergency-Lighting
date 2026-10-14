@@ -170,9 +170,6 @@
           (EL:PanelFill)
           (EL:PanelText "p_error" "设备库已变化，库默认值已刷新，手填值保留；请核对后再次保存或生成。"))
         (EL:PanelText "p_error" (cond (*EL:DLError*) (T "设备库无法读取，请修复后重新统计；当前输入保留。")))) nil)))
-;; Date: 2026-10-11. Navigation must reach the manager's recovery UI even when locked.
-(defun EL:DLPanelOpen ()
-  (done_dialog 11))
 (defun EL:DLPanelSaveReady (/ snapshot metadata)
   (if (EL:DLSubmissionCurrent *EL:PanelDraft*) T
     (progn

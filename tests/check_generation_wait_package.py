@@ -12,7 +12,7 @@ from autolisp_host import Symbol, parse
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCES = ('diagram-store', 'store-split', 'diagram-commands', 'diagram-update',
-           'existing-power-text', 'existing-power', 'panel')
+           'panel')
 FUNCTIONS = ('EL:StorePayload', 'EL:SplitAudit', 'EL:SplitChunkValid',
              'EL:EditPanelOnce', 'EL:CCKK2DeferredSource',
              'EL:GenerationSourceCurrent', 'EL:SyncDiagramScoped',

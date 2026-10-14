@@ -1,4 +1,4 @@
-"""Re-pick shared numbered feeders and update an owned old diagram. Date: 2026-10-13."""
+"""Re-pick shared numbered feeders without rebinding old diagrams. Date: 2026-10-14."""
 import copy
 import unittest
 from pathlib import Path
@@ -92,7 +92,7 @@ class NumberedFeederTests(unittest.TestCase):
         result = self.recognize()
         self.assertFalse(truth(self.call('EL:CircuitNumbersReady', result)))
 
-    def test_regular_repick_reaches_panel_with_native_branches_and_saved_target(self):
+    def test_regular_repick_reaches_panel_with_native_branches(self):
         seen = []
         picks = iter([['panel', [0., 0., 0.]]] + [[key, [10., y, 0.]] for key, y in [('D969', -12.), ('D97E', 0.), ('D980', 12.)]] + [[key, [-10., y, 0.]] for key, y in [('ECC1', -12.), ('ECC2', 0.), ('ECC5', 12.)]] + [None])
         record = [pair('diagram-id', 'old-diagram'), pair('source-panel-handle', 'panel'), pair('panel-number', 'ALE1')]
@@ -105,7 +105,7 @@ class NumberedFeederTests(unittest.TestCase):
         self.assertEqual([self.get('circuit-number', c) for c in self.get('circuits', result)],
                          [f'ZE{i}' for i in range(1, 7)])
         self.assertEqual(self.get('panel-number', result), 'ALE1')
-        self.assertEqual(self.get('update-diagram-id', result), 'old-diagram')
+        self.assertIsNone(self.get('update-diagram-id', result))
         self.assertEqual(self.f.writes, [])
 
 
@@ -141,11 +141,10 @@ class RepickTargetTests(unittest.TestCase):
         self.assertIsNone(self.call('EL:RepickRecord', 'new-source', self.store))
         self.assertEqual(len(self.get('diagrams', self.store)), 1)
 
-    def test_changed_target_record_is_not_replaced_or_fallback_created(self):
+    def test_changed_target_reference_is_ignored(self):
         result = [pair('panel', 'new-source'), pair('update-diagram-id', self.get('diagram-id', self.record)),
                   pair('update-source-panel', 'wrong-source')]
-        with self.assertRaises(RuntimeError):
-            self.call('EL:RecordForResult', result, self.store)
+        self.assertIsNone(self.call('EL:RecordForResult', result, self.store))
 
     def test_explicit_old_record_cannot_overwrite_current_new_source_record(self):
         other = [pair('diagram-id', 'other'), pair('source-panel-handle', 'new-source')]
@@ -155,50 +154,6 @@ class RepickTargetTests(unittest.TestCase):
         selected=self.call('EL:RecordForResult', result, store)
         self.assertEqual(self.get('source-panel-handle',selected),'new-source')
         self.assertEqual(self.get('diagram-id',self.call('EL:DiagramForPanel','new-source',store)),'other')
-
-    def test_actual_update_retains_old_panel_and_changes_power_at_original_position(self):
-        result = self.call('EL:Put', Symbol('PANEL'), 'new-source', self.h.lookup('RESULT'))
-        result = self.call('EL:Put', Symbol('UPDATE-DIAGRAM-ID'), self.get('diagram-id', self.record), result)
-        result = self.call('EL:Put', Symbol('UPDATE-SOURCE-PANEL'), 'source', result)
-        record = self.call('EL:RecordForResult', result, self.store)
-        before = copy.deepcopy(self.f.entities['panel'])
-        self.h.set(Symbol('RESULT'), result)
-        self.h.set(Symbol('RECORD'), record)
-        self.h.run("""(setq result (EL:Put 'circuits (cons (EL:Put 'watts 47 (car cs)) (cdr cs)) result)
-          plan (EL:FixedPlan result template 'cap300 '(0.0 0.0 0.0) 0.0 1.0))""")
-        updated = self.f.update()
-        self.assertEqual(self.get('panel-output-handle', updated), 'panel')
-        self.assertEqual(self.f.entities['panel'], before)
-        self.assertEqual(self.get('source-panel-handle', updated), 'new-source')
-        self.assertIn(('t0', '47W'), self.f.writes)
-        self.assertFalse(any(e.startswith('new-block-') for e in self.f.entities))
-
-    def prepare_sync(self):
-        self.f.install_sync()
-        self.h.run("""(setq result (EL:Put 'panel "new-source" (EL:Put 'update-diagram-id "d1"
-          (EL:Put 'update-source-panel "source" result))))
-          (setq result (EL:Put 'circuits (cons (EL:Put 'watts 47 (car (EL:Get 'circuits result)))
-            (cdr (EL:Get 'circuits result))) result))""")
-
-    def test_real_sync_writes_replacement_under_same_id_without_new_panel(self):
-        self.prepare_sync()
-        before = copy.deepcopy(self.f.entities['panel'])
-        self.assertTrue(truth(self.h.run("(EL:SyncDiagram result nil nil 'cap300 T nil)")))
-        store = self.call('EL:StoreRead')
-        self.assertEqual(len(self.get('diagrams', store)), 1)
-        record = self.call('EL:DiagramForPanel', 'new-source', store)
-        self.assertEqual(self.get('diagram-id', record), 'd1')
-        self.assertEqual(self.get('panel-output-handle', record), 'panel')
-        self.assertEqual(self.f.entities['panel'], before)
-        self.assertIn(('t0', '47W'), self.f.writes)
-        self.assertFalse(any(e.startswith('new-block-') for e in self.f.entities))
-
-    def test_replacement_write_failure_rolls_back_old_output_and_binding(self):
-        self.prepare_sync()
-        before = copy.deepcopy((self.f.entities, self.f.dictionary, self.f.dynamic))
-        self.h.builtins['EL:STOREWRITE'] = lambda *args: None
-        self.assertFalse(truth(self.h.run("(EL:SyncDiagram result nil nil 'cap300 T nil)")))
-        self.assertEqual((self.f.entities, self.f.dictionary, self.f.dynamic), before)
 
     def test_saved_trunk_is_replaced_by_explicit_starts_with_old_target(self):
         f = trunk.TrunkTests()
@@ -216,7 +171,7 @@ class RepickTargetTests(unittest.TestCase):
         f.assert_five(seen[0][0])
         self.assertIsNone(f.get('concentrated-trunk', seen[0][1]))
         self.assertEqual(len(f.get('circuit-starts', seen[0][1])), 5)
-        self.assertEqual(f.get('update-diagram-id', seen[0][0]), 'd')
+        self.assertIsNone(f.get('update-diagram-id', seen[0][0]))
 
 
 if __name__ == '__main__':

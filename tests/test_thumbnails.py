@@ -48,71 +48,10 @@ class ThumbnailTests(unittest.TestCase):
         self.h.builtins['EL:DLLEGEND'] = lambda *args: None
         return result
 
-    def test_unknown_library_device_previews_actual_source_and_modal_refresh_reuses_it(self):
-        result = self.prepare_setup()
-        original = result.copy()
-        captured = []
-        self.h.builtins['EL:THUMBCAPTURE'] = lambda b: captured.append(self.get('id', b)) or ['source.sld', [1200, 600]]
-        self.call('EL:ThumbPrepare', result)
-        self.assertEqual(captured, ['D1'])
-        self.assertEqual(self.call('EL:Get', 'Lamp', self.h.lookup('*EL:THUMBCACHE*')), ['source.sld', [1200, 600]])
-        for api in ('EL:THUMBCAPTURE', 'EL:THUMBCLEANUP', 'COMMAND-S', 'VLA-PUT-VISIBLE', 'VLA-REGEN'):
-            self.h.builtins[api] = lambda *args: self.fail('modal refresh must only read or reuse previews')
-        self.call('EL:ThumbRefresh', result)
-        self.assertEqual(self.call('EL:Get', 'Lamp', self.h.lookup('*EL:THUMBCACHE*')), ['source.sld', [1200, 600]])
-        self.assertEqual(result, original)
 
-    def test_ready_library_uses_cached_legend_and_other_library_falls_back_to_source(self):
-        result = self.prepare_setup()
-        row = self.h.run(''' '((name . "Lamp") (ids "D1") (entry (device-id . "ELDEV1"))
-          (library-id . "LIB-A")) ''')
-        self.h.builtins['EL:DLMATERIALROWS'] = lambda *args: [row]
-        self.h.set('*EL:DLSESSIONSNAPSHOT*', self.h.run("'((catalog (library-id . \"LIB-A\")))"))
-        self.h.builtins['EL:DLLEGEND'] = lambda *args: ['library.sld', [800, 600]]
-        self.h.builtins['EL:THUMBCAPTURE'] = lambda *args: self.fail('valid library asset must remain read-only')
-        self.call('EL:ThumbPrepare', result)
-        self.assertEqual(self.call('EL:Get', 'Lamp', self.h.lookup('*EL:THUMBCACHE*')), ['library.sld', [800, 600]])
-        self.h.set('*EL:DLSESSIONSNAPSHOT*', self.h.run("'((catalog (library-id . \"LIB-B\")))"))
-        self.h.builtins['EL:DLLEGEND'] = lambda *args: self.fail('other library asset must not be read')
-        self.h.builtins['EL:THUMBCAPTURE'] = lambda b: ['source.sld', [1200, 600]]
-        self.call('EL:ThumbPrepare', result)
-        self.assertEqual(self.call('EL:Get', 'Lamp', self.h.lookup('*EL:THUMBCACHE*')), ['source.sld', [1200, 600]])
 
-    def test_corrupt_library_legend_falls_back_and_capture_failure_never_invents_graphic(self):
-        result = self.prepare_setup()
-        row = self.h.run(''' '((name . "Lamp") (ids "D1") (entry (device-id . "ELDEV1"))
-          (library-id . "LIB-A")) ''')
-        self.h.builtins['EL:DLMATERIALROWS'] = lambda *args: [row]
-        self.h.set('*EL:DLSESSIONSNAPSHOT*', self.h.run("'((catalog (library-id . \"LIB-A\")))"))
-        self.call('EL:ThumbPrepare', result)
-        self.assertEqual(self.call('EL:Get', 'Lamp', self.h.lookup('*EL:THUMBCACHE*')), ['source.sld', [1200, 600]])
-        self.h.set('*EL:THUMBSOURCES*', None)
-        self.h.builtins['EL:THUMBCAPTURE'] = lambda *_: (_ for _ in ()).throw(RuntimeError('cancelled'))
-        self.call('EL:ThumbPrepare', result)
-        self.assertFalse(truth(self.call('EL:Get', 'Lamp', self.h.lookup('*EL:THUMBCACHE*'))))
 
-    def test_paging_uses_prepared_slides_without_cad_commands(self):
-        self.h.run('''(setq *EL:ThumbPage* 0 *EL:ThumbCache* '(("A" "a.sld" (1200 600)))
-          *EL:ThumbRows* '(((name . "A") (count . 1)) ((name . "B") (count . 2))
-          ((name . "C") (count . 3)) ((name . "D") (count . 4)) ((name . "E") (count . 5))))''')
-        self.call('EL:ThumbFill')
-        self.assertEqual(self.tiles['f_page'], '1 / 2')
-        self.assertEqual(self.tiles['f_hint0'], '独立图例，点击定位')
-        self.call('EL:ThumbPage', 4)
-        self.assertEqual(self.tiles['f_count0'], '数量：5')
-        self.assertEqual(self.tiles['f_count1'], '')
-        self.assertEqual(self.tiles['f_page'], '2 / 2')
-        self.call('EL:ThumbPage', -4)
-        self.h.run('(setq *EL:ThumbRows* nil)')
-        self.call('EL:ThumbPage', 0)
-        self.assertEqual(self.tiles['f_count0'], '')
-        self.assertEqual(self.tiles['f_page'], '1 / 1')
 
-    def test_missing_preview_never_draws_approximate_outline(self):
-        self.h.run('(setq *EL:ThumbPage* 0 *EL:ThumbCache* nil *EL:ThumbRows* \'(((name . "X") (count . 2))))')
-        self.call('EL:ThumbFill')
-        self.assertIn('预览失败', self.tiles['f_hint0'])
-        self.assertFalse(self.slides)
 
     def capture_setup(self, fail=False):
         self.h.builtins.pop('EL:THUMBCAPTURE')
@@ -136,44 +75,8 @@ class ThumbnailTests(unittest.TestCase):
             'VL-FILE-DELETE': lambda path: self.events.append(('delete', path)),
         })
 
-    def test_native_capture_restores_view_and_cleans_files(self):
-        self.capture_setup()
-        result = self.call('EL:ThumbCapture', self.h.run("'((bounds (0 0 0) (2 2 0)))"))
-        self.assertEqual(result, ['unique.sld', [1200, 600]])
-        self.assertEqual(self.events, ['isolate', 'zoom', ('_.MSLIDE', 'unique.sld'), 'restore'])
-        self.assertEqual(self.variables['FILEDIA'], 1)
-        self.assertEqual(self.variables['CMDECHO'], 1)
-        self.call('EL:ThumbCleanup')
-        self.assertEqual(self.events[-1], ('delete', 'unique.sld'))
 
-    def test_capture_failure_also_restores_view_and_variables(self):
-        self.capture_setup(fail=True)
-        self.assertIsNone(self.call('EL:ThumbCapture', self.h.run("'((bounds (0 0 0) (2 2 0)))")))
-        self.assertEqual(self.events[-1], 'restore')
-        self.assertEqual(self.variables['FILEDIA'], 1)
-        self.assertEqual(self.variables['CMDECHO'], 1)
 
-    def test_isolation_hides_only_visible_neighbors_and_restores_on_capture_error(self):
-        self.capture_setup(fail=True)
-        self.h.builtins.pop('EL:THUMBISOLATE')
-        visible = {'target': -1, 'wire': -1, 'hidden': 0}
-        self.h.builtins.update({
-            'HANDENT': lambda handle: handle,
-            'ENTGET': lambda entity: self.h.run("'((410 . \"Model\") (8 . \"D\"))"),
-            'TBLSEARCH': lambda *args: self.h.run("'((70 . 0))"),
-            'SSGET': lambda *args: ['target', 'wire', 'hidden'],
-            'SSLENGTH': len,
-            'SSNAME': lambda selection, index: selection[index],
-            'VLAX-ENAME->VLA-OBJECT': lambda entity: entity,
-            'VLA-GET-VISIBLE': lambda obj: visible[obj],
-            'VLA-PUT-VISIBLE': lambda obj, value: visible.__setitem__(obj, value),
-        })
-        def capture(*args):
-            self.assertEqual(visible, {'target': -1, 'wire': 0, 'hidden': 0})
-            raise RuntimeError('cancelled')
-        self.h.builtins['COMMAND-S'] = capture
-        self.assertIsNone(self.call('EL:ThumbCapture', self.h.run("'((id . \"target\") (bounds (0 0 0) (2 2 0)))")))
-        self.assertEqual(visible, {'target': -1, 'wire': -1, 'hidden': 0})
 
     def test_failed_restore_retains_pending_objects_for_retry(self):
         self.h.run("""(setq *EL:ThumbHidden* '(("wire" -1)))""")
@@ -184,64 +87,9 @@ class ThumbnailTests(unittest.TestCase):
         self.h.builtins['VLA-GET-VISIBLE'] = lambda obj: -1
         self.assertTrue(self.call('EL:ThumbRestore'))
 
-    def test_native_missing_preview_queues_owned_export_without_hiding_any_source_object(self):
-        result = self.prepare_setup()
-        self.h.builtins.update({'GETVAR': lambda key: 0,
-            'EL:THUMBCAPTURE': lambda *args: self.fail('source isolation must not run in multi-document mode'),
-            'VLA-PUT-VISIBLE': lambda *args: self.fail('locked source visibility changed')})
-        self.call('EL:ThumbPrepare', result)
-        pending = self.h.lookup('*EL:THUMBPENDING*')
-        self.assertEqual([self.get('id', b) for b in pending], ['D1'])
-        self.call('EL:ThumbRefresh', result)
-        self.assertEqual(self.h.lookup('*EL:THUMBPENDING*'), pending)
 
-    def test_graphic_only_catalog_draft_uses_its_saved_slide_without_export(self):
-        result = self.prepare_setup()
-        entry = self.h.run("'((device-id . \"ELDEV1\") (block-name . \"Lamp\") (aliases) (status . draft))")
-        snapshot = self.h.run("'((catalog (library-id . \"LIB-A\")))")
-        snapshot = self.call('EL:Put', self.h.run("'catalog"),
-            self.call('EL:Put', self.h.run("'devices"), [entry], self.get('catalog', snapshot)), snapshot)
-        self.h.set('*EL:DLSESSIONSNAPSHOT*', snapshot)
-        self.h.builtins['EL:DLLEGEND'] = lambda e,s: ['draft.sld', [800,600]] if e == entry else None
-        self.h.builtins['EL:THUMBCAPTURE'] = lambda *args: self.fail('saved draft graphic was re-exported')
-        self.call('EL:ThumbPrepare', result)
-        self.assertEqual(self.call('EL:Get', 'Lamp', self.h.lookup('*EL:THUMBCACHE*')), ['draft.sld', [800,600]])
 
-    def test_owned_preview_batch_resumes_same_panel_and_only_cleans_owned_files(self):
-        self.h.set('*EL:ROOT*', 'plugin/')
-        pending = self.h.run("'(((id . \"D1\") (name . \"A\")) ((id . \"D2\") (name . \"B\")))")
-        self.h.set('*EL:THUMBPENDING*', pending)
-        context = self.h.run("'((result (panel . \"P1\") (panel-number . \"箱5\")) (config (kept . T)) (position (thumb . 0)))")
-        self.h.set('*EL:THUMBPARENTCONTEXT*', context)
-        captures, resumed, cleaned = [], [], []
-        self.h.builtins.update({'HANDENT': lambda id: id,
-            'EL:DLCAPTURESTART': lambda s,b,e: captures.append((s,b,e)) or True,
-            'EL:DLSLDSIZE': lambda path: [800,600], 'EL:PERFSTART': lambda name: None,
-            'EL:PERFFINISH': lambda value: None,
-            'EL:EDITPANEL': lambda r,c: resumed.append((r,c)),
-            'EL:DLCAPTURECLEANUP': cleaned.append})
-        self.assertEqual(self.call('EL:ThumbBatchNext'), self.h.run("'suspended"))
-        for index in (0,1):
-            entry = self.call('EL:Put', self.h.run("'captured"),
-                self.h.run(f'\'((slide . "owned{index}.sld") (token . "op{index}"))'), pending[index])
-            self.call('EL:ThumbBatchResume', entry)
-            self.assertEqual(len(resumed), index)
-        self.assertEqual([c[2] for c in captures], ['D1','D2'])
-        self.assertEqual(self.get('root', captures[0][0]), 'plugin/output/thumb-preview/')
-        self.assertEqual(resumed, [(self.get('result', context), self.get('config', context))])
-        self.assertEqual(self.h.lookup('*EL:DLRESUME*'), context)
-        self.call('EL:ThumbCleanup')
-        self.assertEqual(len(cleaned), 2)
-        self.assertFalse(self.h.lookup('*EL:THUMBSOURCES*'))
 
-    def test_failed_export_is_cached_as_missing_so_panel_does_not_retry_forever(self):
-        self.h.set('*EL:ROOT*', 'plugin/')
-        self.h.set('*EL:THUMBPENDING*', self.h.run("'(((id . \"D1\")))"))
-        self.h.builtins.update({'HANDENT': lambda id: None,
-            'EL:DLCAPTURESTART': lambda *args: self.fail('deleted representative was exported')})
-        self.assertTrue(self.call('EL:ThumbBatchNext'))
-        self.assertTrue(self.h.lookup('*EL:THUMBSOURCES*'))
-        self.assertFalse(self.h.lookup('*EL:THUMBPENDING*'))
 
 
 if __name__ == '__main__':

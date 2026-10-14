@@ -84,7 +84,7 @@ class PanelCommandTests(unittest.TestCase):
         for handle in removed: self.entities.pop(handle)
         return record,handles
 
-    def test_deleted_four_circuit_output_stays_in_history_when_new_one_is_placed(self):
+    def test_deleted_four_circuit_output_record_is_pruned_when_new_one_is_placed(self):
         self.install_view()
         old,handles=self.deleted_output_fixture(True)
         # In native AutoCAD, HANDENT can still resolve an erased entity name.
@@ -97,7 +97,7 @@ class PanelCommandTests(unittest.TestCase):
         self.assertEqual(len(self.commands)-before,7)
         self.assertNotEqual(self.get('panel-output-handle',record),self.get('panel-output-handle',old))
         self.assertNotEqual(self.get('diagram-id',record),self.get('diagram-id',old))
-        self.assertEqual(self.call('EL:StoreRecord',self.get('diagram-id',old)),old)
+        self.assertIsNone(self.call('EL:StoreRecord',self.get('diagram-id',old)))
         rows=self.get('rows',record)
         self.assertEqual([self.get('circuit-uid',r) for r in rows],
                          [self.get('circuit-uid',r) for r in self.get('rows',old)])
@@ -206,7 +206,7 @@ class PanelCommandTests(unittest.TestCase):
         self.assertEqual(len(self.commands),12)  # first 5 entities, then a complete new 7-entity diagram
         self.assertNotEqual(self.get('panel-output-handle',record),self.get('panel-output-handle',old))
         self.assertNotEqual(self.get('diagram-id',record),self.get('diagram-id',old))
-        self.assertEqual(self.call('EL:StoreRecord',self.get('diagram-id',old)),old)
+        self.assertIsNone(self.call('EL:StoreRecord',self.get('diagram-id',old)))
         self.assertTrue(all(self.get('block-handle',r) in self.entities for r in self.get('rows',old)))
         self.assertTrue(all(self.get('text-handle',r) is None for r in rows[-2:]))
         expected={self.get('panel-output-handle',record)}
@@ -233,7 +233,7 @@ class PanelCommandTests(unittest.TestCase):
             self.assertEqual(self.entities[handle],before[handle])
         self.assertEqual(len(self.zoomed),2)
 
-    def test_selecting_old_output_generates_successor_without_rebinding_history(self):
+    def test_old_output_target_is_ignored_and_history_is_pruned(self):
         self.two_circuits()
         self.assertTrue(truth(self.invoke()))
         first=self.h.run('(EL:DiagramForPanel "source" (EL:StoreRead))')
@@ -244,8 +244,8 @@ class PanelCommandTests(unittest.TestCase):
         self.assertTrue(truth(self.invoke()))
         third=self.h.run('(EL:DiagramForPanel "source" (EL:StoreRead))')
         self.assertEqual(len({self.get('diagram-id',row) for row in (first,second,third)}),3)
-        self.assertEqual(self.call('EL:StoreRecord',self.get('diagram-id',first)),first)
-        self.assertEqual(self.call('EL:StoreRecord',self.get('diagram-id',second)),second)
+        self.assertIsNone(self.call('EL:StoreRecord',self.get('diagram-id',first)))
+        self.assertIsNone(self.call('EL:StoreRecord',self.get('diagram-id',second)))
 
     def test_first_four_circuit_placement_shows_output_but_save_does_not_move_view(self):
         self.install_view(); self.two_circuits(); self.four_circuits()
@@ -254,7 +254,7 @@ class PanelCommandTests(unittest.TestCase):
         self.assertEqual(len(self.zoomed),1)
         self.assertEqual(len(self.view_entities),22)
         self.assertTrue(truth(self.h.run("(EL:SyncDiagram result cfg nil 'cap300 nil T)")))
-        self.assertTrue(truth(self.h.run("(EL:SyncDiagram result cfg nil 'cap300 T nil)")))
+        self.assertTrue(truth(self.h.run("(EL:SyncDiagram result cfg nil 'cap300 nil nil)")))
         self.assertEqual(len(self.zoomed),1)
 
     def test_view_failure_does_not_rollback_successful_generation(self):

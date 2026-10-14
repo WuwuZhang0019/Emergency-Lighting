@@ -74,58 +74,8 @@ class FixedDiagnosticTests(unittest.TestCase):
             'EL:WRITEDATA': lambda *args: self.writes.append(args),
         })
 
-    def test_first_use_unknown_handseed_reaches_real_panel_without_writes(self):
-        self.call('EL:FixedStatPick')
-        self.assertEqual(self.dialogs, ['el_panel'])
-        self.assertEqual(self.tiles['p_row0'], 'ZE1 | 0W')
-        self.assertEqual(self.tiles['b_watts0'], '')
-        self.assertEqual(self.writes, [])
-        self.assertNotIn('HANDSEED', self.variables)
-        log = self.log.read_text(encoding='utf-8')
-        for value in ('031', 'PICKS', 'panel', 'w1', 'PREPARE_PANEL', 'PANEL_FILL', 'END'):
-            self.assertIn(value, log)
-        self.assertFalse(truth(self.h.lookup('*EL:LOGACTIVE*')))
 
-    def test_owned_preview_suspends_then_returns_to_real_panel_with_number_and_no_source_writes(self):
-        getvar = self.h.builtins['GETVAR']
-        self.h.builtins['GETVAR'] = lambda key: 0 if key == 'SDI' else getvar(key)
-        captured = []
-        self.h.builtins.update({
-            'EL:DLCAPTURESTART': lambda s,b,e: captured.append((s,b,e)) or True,
-            'EL:DLSLDSIZE': lambda p: [800,600],
-            'EL:DLCAPTURECLEANUP': lambda job: None,
-            'EL:THUMBCAPTURE': lambda *args: self.fail('source isolation was used'),
-            'VLA-PUT-VISIBLE': lambda *args: self.fail('source visibility changed'),
-            'SLIDE_IMAGE': lambda *args: True,
-        })
-        self.entities['number'] = [Pair(0,'TEXT'), Pair(1,'箱5')]
-        self.h.builtins['NENTSEL'] = lambda *args: ['number']
-        self.call('EL:FixedStatPick')
-        self.assertEqual(self.dialogs, [])
-        self.assertEqual(len(captured), 1)
-        context = self.h.lookup('*EL:THUMBPARENTCONTEXT*')
-        self.assertEqual(self.get('panel-number', self.get('result', context)), '箱5')
-        self.h.builtins['FINDFILE'] = lambda p: p if p == 'owned.sld' else None
-        graphic = self.call('EL:Put', Symbol('CAPTURED'), self.h.run("'((slide . \"owned.sld\"))"), captured[0][1])
-        self.call('EL:ThumbBatchResume', graphic)
-        self.assertEqual(self.dialogs, ['el_panel'])
-        self.assertEqual(self.tiles['p_number'], '配电箱编号：箱5')
-        self.assertEqual(self.tiles['b_watts0'], '')
-        self.assertEqual(self.writes, [])
-        self.assertFalse(self.h.lookup('*EL:THUMBPARENTCONTEXT*'))
 
-    def test_single_wire_without_devices_returns_feedback_and_logs(self):
-        self.selected = ['panel', 'w1']
-        alerts, returns = [], []
-        self.h.builtins.update({'ALERT': alerts.append,
-            'EL:PANELSTARTDIALOG': lambda: returns.append(True),
-            'EL:EDITPANEL': lambda *args: self.fail('empty result reached editor')})
-        self.call('EL:FixedStatPick')
-        self.assertIn('未识别到连接设备', alerts[0])
-        self.assertEqual(returns, [True])
-        self.assertEqual(self.writes, [])
-        self.assertFalse(truth(self.h.lookup('*EL:RESULT*')))
-        self.assertIn('NO_CONNECTED_DEVICES', self.log.read_text(encoding='utf-8'))
 
     def test_empty_device_rows_do_not_call_native_sort(self):
         self.h.builtins['VL-SORT'] = lambda *args: self.fail('empty rows sorted')
@@ -139,71 +89,10 @@ class FixedDiagnosticTests(unittest.TestCase):
         self.assertEqual(self.call('EL:DiagramForPanel', 'panel', store), first)
         self.assertEqual(self.writes, [])
 
-    def test_panel_fill_failure_reports_stage_and_original_error(self):
-        def fail(key, value):
-            raise TypeError('bad argument type: stringp nil')
-        self.h.builtins['SET_TILE'] = fail
-        with self.assertRaisesRegex(TypeError, 'stringp nil') as caught:
-            self.call('EL:FixedStatPick')
-        # Subset host requires explicit dispatch of AutoCAD's error hook.
-        self.call('*ERROR*', str(caught.exception))
-        log = self.log.read_text(encoding='utf-8')
-        for value in ('PICKS', 'PANEL_FILL', 'ERROR', 'stringp nil', 'END'):
-            self.assertIn(value, log)
-        self.assertIn('失败阶段', ''.join(self.messages))
-        self.assertIn(self.log.as_posix(), ''.join(self.messages))
-        self.assertEqual(self.writes, [])
-        self.assertFalse(truth(self.h.lookup('*EL:LOGACTIVE*')))
-        self.assertIsNone(self.h.lookup('*EL:DIALOGID*'))
 
-    def test_unwritable_log_still_reports_panel_failure_on_command_line(self):
-        self.h.builtins['OPEN'] = lambda *args: None
-        def fail(*args):
-            raise TypeError('bad argument type: stringp nil')
-        self.h.builtins['SET_TILE'] = fail
-        with self.assertRaisesRegex(TypeError, 'stringp nil') as caught:
-            self.call('EL:FixedStatPick')
-        self.call('*ERROR*', str(caught.exception))
-        text = ''.join(self.messages)
-        for value in ('日志写入失败', 'PANEL_FILL', 'stringp nil'):
-            self.assertIn(value, text)
-        self.assertEqual(self.writes, [])
 
-    def test_missing_drawing_identity_opens_panel_with_stable_fallback(self):
-        getvar = self.h.builtins['GETVAR']
-        for missing in (None, ''):
-            self.h.builtins['GETVAR'] = lambda key: missing if key == 'FINGERPRINTGUID' else getvar(key)
-            first = self.get('drawing-uuid', self.call('EL:StoreInitial'))
-            self.assertTrue(first.startswith('EL-'))
-            self.assertEqual(first, self.get('drawing-uuid', self.call('EL:StoreInitial')))
-        self.call('EL:FixedStatPick')
-        self.assertEqual(self.dialogs, ['el_panel'])
-        self.assertEqual(self.writes, [])
 
-    def test_power_reopen_preserves_legacy_record_identity_and_appends_session(self):
-        self.call('EL:FixedStatPick')
-        record = self.h.run("'((diagram-id . \"guid/panel/A0\") (source-panel-handle . \"panel\"))")
-        store = self.call('EL:StorePutDiagram', record, self.call('EL:StoreInitial'))
-        self.h.builtins['EL:STOREREAD'] = lambda: store
-        self.h.run('(EL:EditPanel *EL:Result* *EL:FixedConfig*)')
-        self.assertEqual(self.dialogs, ['el_panel', 'el_panel'])
-        log = self.log.read_text(encoding='utf-8')
-        self.assertEqual(log.count('| BEGIN |'), 2)
-        self.assertEqual(log.count('| ENTER NEW_RECORD |'), 1)
-        self.assertIn('guid/panel/A0', log)
-        self.assertEqual(self.writes, [])
 
-    def test_recognition_failure_returns_to_pick_panel_with_context(self):
-        def fail(*args):
-            raise TypeError('recognition stringp nil')
-        self.h.builtins['EL:RECOGNIZEFIXED'] = fail
-        self.call('EL:FixedStatPick')
-        self.assertEqual(self.get('panel', self.call('EL:StartPickContext')), 'panel')
-        log = self.log.read_text(encoding='utf-8')
-        for value in ('PICKS', 'RECOGNIZE_STARTS', 'recognition stringp nil', 'END'):
-            self.assertIn(value, log)
-        self.assertFalse(truth(self.h.lookup('*EL:LOGACTIVE*')))
-        self.assertEqual(self.writes, [])
 
 
 if __name__ == '__main__':

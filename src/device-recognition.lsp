@@ -167,22 +167,12 @@
           prepared (EL:DLPrepare *EL:PanelDraft* *EL:PanelPowers* snapshot nil)
           *EL:PanelDraft* (EL:Get 'result prepared) *EL:PanelPowers* (EL:Get 'powers prepared)
           *EL:PanelDraft* (EL:PanelCompute *EL:PanelDraft* *EL:PanelPowers* *EL:PanelConfig*))
-          (EL:ThumbRefresh *EL:PanelDraft*) (EL:PanelFill)
+          (EL:PanelFill)
           (EL:PanelText "p_error" "设备库已变化，库默认值已刷新，手填值保留；请核对后再次保存或生成。"))
         (EL:PanelText "p_error" (cond (*EL:DLError*) (T "设备库无法读取，请修复后重新统计；当前输入保留。")))) nil)))
-(defun EL:DLPanelApply (/ snapshot prepared)
-  (if (EL:PanelStore)
-    (if (setq snapshot (EL:DLSnapshotLoad (EL:DLRoot)))
-      (progn (setq *EL:DLSessionSnapshot* snapshot *EL:DLCache* nil
-        prepared (EL:DLPrepare *EL:PanelDraft* *EL:PanelPowers* snapshot T)
-        *EL:PanelDraft* (EL:Get 'result prepared) *EL:PanelPowers* (EL:Get 'powers prepared)
-        *EL:PanelDraft* (EL:PanelCompute *EL:PanelDraft* *EL:PanelPowers* *EL:PanelConfig*))
-        (EL:ThumbRefresh *EL:PanelDraft*) (EL:PanelFill)
-        (EL:PanelText "p_error" "已应用当前库的功率和地面默认值；点击保存后写入本图。"))
-      (EL:PanelText "p_error" (cond (*EL:DLError*) (T "设备库无法读取。"))))))
 ;; Date: 2026-10-11. Navigation must reach the manager's recovery UI even when locked.
 (defun EL:DLPanelOpen ()
-  (if (EL:PanelStore) (done_dialog 11)))
+  (done_dialog 11))
 (defun EL:DLPanelSaveReady (/ snapshot metadata)
   (if (EL:DLSubmissionCurrent *EL:PanelDraft*) T
     (progn

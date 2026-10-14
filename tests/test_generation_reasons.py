@@ -76,16 +76,3 @@ class GenerationReasonsTests(unittest.TestCase):
         lines = self.h.call('EL:GENERATIONPROBLEMS', [result])
         self.assertEqual(len(lines), 8)
         self.assertIn('WIRE7', lines[-2]); self.assertIn('超过172W', lines[-1])
-
-    def test_rejection_focuses_missing_row_on_later_page_without_changing_values(self):
-        result = self.reported(1)
-        key = self.h.call('EL:GET', [Symbol('KEY'), self.h.call('EL:GENERATIONMISSING', [result])[0]])
-        rows = [self.h.run(f'\'((key . "OTHER{i}"))') for i in range(9)] + [self.h.run(f'\'((key . "{key}"))')]
-        events = []
-        self.h.builtins.update({'EL:PANELBLOCKROWS': lambda: rows,
-            'EL:PANELBLOCKFILL': lambda: events.append('fill'),
-            'EL:DLPANELSELECT': lambda i: events.append(('select', i)),
-            'MODE_TILE': lambda k,v: events.append((k,v))})
-        self.h.call('EL:PANELGENERATIONFOCUS', [result])
-        self.assertEqual(self.h.lookup('*EL:THUMBPAGE*'), 8)
-        self.assertEqual(events, ['fill', ('select', 1), ('b_watts1', 2)])

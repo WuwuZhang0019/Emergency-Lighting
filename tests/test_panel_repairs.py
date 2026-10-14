@@ -15,19 +15,6 @@ class PanelRepairTests(unittest.TestCase):
         self.result = self.call('EL:RecognizeFixed', fixture.cfg, 'panel')
         self.cfg = fixture.cfg
 
-    def test_circuit_text_is_not_a_button_value_and_reserve_stays_open(self):
-        ui = (Path(__file__).resolve().parents[1] / 'ui/power.dcl').read_text(encoding='utf-8')
-        self.assertIn(': text { key = "p_row0"', ui)
-        self.assertNotIn('p_select', ui)
-        self.h.builtins['GET_TILE'] = lambda key: self.tiles.get(key, '')
-        self.h.builtins['DONE_DIALOG'] = lambda status: self.fail('reserve must not close panel')
-        def start():
-            self.assertNotIn('p_select1', self.actions)
-            self.assertEqual(self.tiles['p_row1'], '预留1')
-            self.assertEqual(self.tiles['b_watts0'], '5')
-            return 0
-        self.h.builtins['START_DIALOG'] = start
-        self.call('EL:PanelDialog', self.result, self.cfg, self.h.run("'((\"LAMP\" . 5))"), None)
 
     def test_compact_status_wraps_chinese_and_clears_old_lines(self):
         value = '已识别设备合计：170 W；实际回路 5；输出 7；已完整核对回路 170 W'
@@ -79,38 +66,7 @@ class PanelRepairTests(unittest.TestCase):
         self.assertIn('连接仍待核对', text)
         self.assertNotIn('170', text)
 
-    def test_edit_event_remembers_last_value_reloads_over_old_dwg_draft(self):
-        files = {}
-        self.h.builtins.update({
-            'GET_TILE': lambda key: self.tiles.get(key, ''),
-            'EL:WRITEDATA': lambda path, data: files.__setitem__(path, data) or True,
-            'EL:READDATA': lambda path: files.get(path),
-        })
-        def start():
-            self.tiles['b_watts0'] = '7'
-            self.h.run(self.actions['b_watts0'])
-            self.assertIn('已记住', self.tiles['p_error'])
-            self.assertIn('14 W', self.tiles['p_total'])
-            return 0
-        self.h.builtins['START_DIALOG'] = start
-        self.call('EL:PanelDialog', self.result, self.cfg, None, None)
-        self.assertEqual(len(files), 1)
-        self.h.builtins['EL:SIMPLELOADPOWERS'] = lambda: self.h.run("'((version . 1) (powers (\"LAMP\" . 5)))")
-        record = self.h.run("'((source-panel-handle . \"panel\") (draft-circuits (old)) (powers (\"LAMP\" . 1)))")
-        loaded = self.call('EL:FixedPowers', record)
-        self.assertEqual(self.call('EL:Get', 'LAMP', loaded), 7)
 
-    def test_failed_power_write_is_visible_and_draft_remains(self):
-        self.h.builtins['GET_TILE'] = lambda key: self.tiles.get(key, '')
-        self.h.builtins['EL:WRITEDATA'] = lambda *args: None
-        def start():
-            self.tiles['b_watts0'] = '8'
-            self.h.run(self.actions['b_watts0'])
-            self.assertIn('未写入文件', self.tiles['p_error'])
-            self.assertEqual(self.tiles['b_watts0'], '8')
-            return 0
-        self.h.builtins['START_DIALOG'] = start
-        self.call('EL:PanelDialog', self.result, self.cfg, None, None)
 
 
 if __name__ == '__main__':

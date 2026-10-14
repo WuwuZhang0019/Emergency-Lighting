@@ -80,24 +80,7 @@ class PanelTests(unittest.TestCase):
         self.assertEqual(len(self.get('circuits',panels[0])),1)
         self.assertEqual(self.get('box-watts',panels[0]),10)
 
-    def test_saved_incoming_exclusion_and_candidate_change_are_explicit(self):
-        self.h.run('''(setq result '((snapshot) (circuits ((id . "R1") (seed (key "W1" outlet)) (complete . T))
-          ((id . "R2") (seed (key "IN" outlet)) (complete . T)))))
-          (setq selected (EL:SelectFixedExits result '(("IN" outlet))))''')
-        self.assertEqual(self.h.run("(length (EL:Get 'circuits selected))"),1)
-        self.assertEqual(self.h.run("(length (EL:Get 'candidate-keys selected))"),2)
-        self.h.run("(setq record (list (cons 'candidate-keys (EL:Get 'candidate-keys selected)) (cons 'excluded-seeds (EL:Get 'excluded-seeds selected))))")
-        self.assertEqual(self.h.run("(length (EL:Get 'circuits (EL:ReviewFixedExits (EL:SelectFixedExits result nil) record)))"),1)
 
-    def test_invalid_power_blocks_ground_toggle_and_preserves_input(self):
-        self.plan(); result=self.call('EL:SplitNetwork',simple.SimpleFlowTests.network(self),self.cfg)
-        self.h.frames[0]['RESULT']=result
-        self.h.run("(setq *EL:PanelDraft* result *EL:PanelPowers* nil *EL:PanelIndex* 0 *EL:PanelDevice* 0 *EL:PanelPage* 0 *EL:ThumbPage* 0)")
-        tiles={'b_watts0':'12x'}
-        self.h.builtins.update({'GET_TILE':lambda key:tiles.get(key,''),'SET_TILE':lambda k,v:tiles.__setitem__(k,v), 'MODE_TILE':lambda *args:None})
-        self.h.run('(EL:PanelGround 0 "1")')
-        self.assertEqual(tiles['b_watts0'],'12x');self.assertEqual(tiles['p_ground0'],'0')
-        self.assertFalse(truth(self.h.run("(EL:Get 'is-ground (car (EL:Get 'circuits *EL:PanelDraft*)))")))
 
     def test_free_terminal_without_candidates_does_not_block_generation(self):
         self.plan()

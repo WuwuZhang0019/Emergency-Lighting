@@ -5,7 +5,7 @@ import shutil
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGE_NO = 133
+PACKAGE_NO = 134
 NAME = f'应急照明-{PACKAGE_NO:03d}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 DEST = ROOT / 'output' / NAME
@@ -53,7 +53,11 @@ def embedded_resources():
 
 
 def build():
-    DEST.mkdir(exist_ok=True)
+    output_root = (ROOT / 'output').resolve()
+    assert DEST.resolve().parent == output_root and DEST.name == NAME
+    if DEST.exists():
+        shutil.rmtree(DEST)
+    DEST.mkdir(parents=True)
     for folder in ('src', 'ui', 'config', 'output', 'templates', 'docs', 'tests/fixtures'):
         (DEST / folder).mkdir(parents=True, exist_ok=True)
     # Formal seed assets are versioned source, separate from the mutable user library.
@@ -87,7 +91,7 @@ def build():
     (DEST / marker).write_text(f"Emergency-Lighting {PACKAGE_NO}\n", encoding="ascii")
     # Keep an existing valid data root; initialize it for a standalone update.
     # All modules are included; readiness requires a complete package directory.
-    modules = ('common', 'config', 'geometry', 'topology', 'statistics', 'device-library', 'device-assets', 'device-defaults', 'device-ui', 'device-recognition', 'device-inputs', 'device-migration', 'generation', 'main', 'simple', 'circuit-number', 'fixed', 'panel', 'store-compact', 'diagram-store', 'store-split', 'diagram-update', 'existing-power-text', 'existing-power', 'diagram-commands', 'insert-circuit', 'startup')
+    modules = ('common', 'config', 'geometry', 'topology', 'statistics', 'device-library', 'device-assets', 'device-defaults', 'device-ui', 'device-recognition', 'device-inputs', 'device-migration', 'generation', 'main', 'simple', 'circuit-number', 'fixed', 'panel', 'store-compact', 'diagram-store', 'store-split', 'diagram-update', 'diagram-commands', 'insert-circuit', 'startup')
     module_texts = []
     for module in modules:
         text = (DEST / 'src' / f'{module}.lsp').read_bytes().decode('gb2312')
@@ -96,7 +100,7 @@ def build():
         else:
             module_texts.append(f'(setq *EL:MonitorLabel* "{module}.lsp" *EL:LoadToken* (EL:PerfBegin "LOAD_MODULE"))\n'
                                 + text + '\n(EL:PerfEnd *EL:LoadToken* \'returned)\n(setq *EL:MonitorLabel* nil)\n')
-    update = (';; Date: 2026-10-13. Monitor APPLOAD from its first executable form.\n'
+    update = (';; Date: 2026-10-14. Monitor APPLOAD from its first executable form.\n'
               '(setq *EL:BootstrapTick* (getvar "MILLISECS"))\n(vl-load-com)\n' + '\n'.join(module_texts) +
               '\n(EL:ClearPickHighlights)\n(setq *EL:Result* nil *EL:DeviceResult* nil)\n'
               f'(setq *EL:PackageMarker* "{marker}")\n'
@@ -129,7 +133,7 @@ def build():
     for filename in ('2026-10-08-header-alignment.md', '2026-10-08-header-alignment.json',
                      '2026-10-08-free-end-gaps.md', '2026-10-08-free-end-gaps.json'):
         shutil.copy2(ROOT / 'tests/evidence' / filename, DEST / 'tests/evidence' / filename)
-    for filename in ('05_常见错误原因与修复速查.md', '06_固定图块系统图与功率标注自动更新方案.md', '00_面板保存记录.md'):
+    for filename in ('05_常见错误原因与修复速查.md', '06_固定图块系统图与功率标注自动更新方案.md'):
         shutil.copy2(ROOT / 'docs' / filename, DEST / 'docs' / filename)
     for filename in ('2026-10-09-fixed-diagram.md', '2026-10-09-fixed-diagram.json',
                      '2026-10-09-panel-stringp-nil.md', '2026-10-09-template-choices.md',

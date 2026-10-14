@@ -48,22 +48,19 @@
   (setq record (EL:Put 'panel-number (EL:PanelNumber result) record))
   (setq record (EL:RecordNumberInputs record result T))
   (setq record (EL:DLPersist result record))
-  (setq record (EL:PowerOnlyPersist record result))
-  ;; Date: 2026-10-10. Persist block-table ground choices with the draft.
-  (if (assoc 'excluded-devices result)
-    (setq record (EL:Put 'excluded-devices (EL:Get 'excluded-devices result) record)))
+  ;; Date: 2026-10-14. Preserve legacy ground choices, but no hidden
+  ;; device/exit exclusions in the new directed-pick flow.
   (if (assoc 'block-ground result)
     (setq record (EL:Put 'block-ground (EL:Get 'block-ground result) record)))
   (setq record (EL:Put 'candidate-keys (EL:Get 'candidate-keys result)
-    (EL:Put 'excluded-seeds (EL:Get 'excluded-seeds result)
-      (EL:Put 'draft-capacity-source (EL:Get 'capacity-source result) record))))
+    (EL:Put 'draft-capacity-source (EL:Get 'capacity-source result) record)))
   (if (not (EL:Get 'panel-output-handle record))
     (setq record (EL:RecordNumberInputs (EL:Put 'rows (EL:Get 'circuits result)
       (EL:Put 'capacity-source (EL:Get 'capacity-source result) (EL:Put 'capacity-option capacity record))) result nil)))
   (if (or (not (EL:Get 'can-generate result)) (not (EL:CircuitNumbersReady result)) (not (EL:SelectionsReady result capacity)))
     (setq record (EL:Put 'status 'stale record)))
-  ;; Date: 2026-10-13. A saved draft has not yet updated an existing diagram.
-  (if (or (EL:Get 'panel-output-handle record) (EL:Get 'power-only-target record))
+  ;; Date: 2026-10-14. A saved draft has not yet generated its own diagram.
+  (if (EL:Get 'panel-output-handle record)
     (setq record (EL:Put 'stale-reason 'draft-saved (EL:Put 'status 'stale record))))
   (if (EL:TemplateReady (EL:Get 'template cfg) cfg)
     (setq store (EL:Put 'fixed-template (EL:Get 'template cfg) store)))
@@ -75,9 +72,7 @@
       (equal record (EL:DiagramForPanel (EL:Get 'panel result) (EL:TransactionVerifiedRead context))))
     (progn (setq *EL:LastSavedDraftId* (EL:Get 'diagram-id record)) T)))
 (defun EL:InvokeCCKK2 (result cfg powers capacity / *EL:CCKK2Request*)
-  (if (EL:Get 'power-only-target result)
-    (EL:UpdateExistingPower result cfg powers capacity)
-    (progn (setq *EL:CCKK2Request* (list result cfg powers capacity)) (c:CCKK2))))
+  (setq *EL:CCKK2Request* (list result cfg powers capacity)) (c:CCKK2))
 (defun EL:CCKK2FromPanel (request / result)
   (setq result (car request))
   (princ (strcat "\n调用 CCKK2：" (itoa (length (EL:Get 'circuits result)))
@@ -86,21 +81,13 @@
       (cons 'watts (mapcar '(lambda (row) (EL:Get 'watts row)) (EL:Get 'circuits result))))
     'EL:SyncDiagram (append request '(T T))))
 (defun EL:EditPanel (result cfg / next context managed)
-  ;; Date: 2026-10-10. Iterate saved-record navigation without nested dialogs.
+  ;; Date: 2026-10-14. Review one source; device editing opens its own dialog.
   (while result
     (EL:RememberStartPanel (EL:Get 'panel result) (EL:PanelNumber result))
-    (setq *EL:StartPickContext* (EL:Put 'record (if (EL:Get 'update-diagram-id result)
-      (EL:By 'diagram-id (EL:Get 'update-diagram-id result) (EL:Get 'diagrams (EL:StoreForResult result)))
-      (EL:DiagramForPanel (EL:Get 'panel result) (EL:StoreForResult result))) *EL:StartPickContext*))
+    (setq *EL:StartPickContext* (EL:Put 'record
+      (EL:DiagramForPanel (EL:Get 'panel result) (EL:StoreForResult result)) *EL:StartPickContext*))
     (setq *EL:Result* result *EL:FixedConfig* cfg)
     (setq next (EL:EditPanelOnce result cfg))
-    (if (setq context (EL:Get 'preview-panel next))
-      (progn
-        (princ (strcat "\n正在准备 " (itoa (length *EL:ThumbPending*)) " 种设备的图例，完成后返回原统计面板。"))
-        (setq *EL:ThumbParentContext* context managed (EL:ThumbBatchNext))
-        (if (equal managed 'suspended) (setq result nil)
-          (setq *EL:DLResume* context *EL:ThumbParentContext* nil
-            result (EL:Get 'result context) cfg (EL:Get 'config context))))
     (if (setq context (EL:Get 'library-panel next))
       (progn (setq *EL:DLParentContext* context *EL:DLParentContinue* 'EL:DLResumePanel)
         (setq managed (vl-catch-all-apply 'EL:DLUIOpen nil) *EL:DLSessionSnapshot* nil *EL:DLCache* nil)
@@ -109,33 +96,30 @@
         (if (equal managed 'suspended) (setq result nil)
           (setq *EL:DLResume* context *EL:DLParentContext* nil *EL:DLParentContinue* nil
             result (EL:Get 'result context) cfg (EL:Get 'config context))))
-      (setq result (EL:Get 'switch-result next) cfg (EL:Get 'switch-config next)))))
+      (setq result nil)))
   next)
-(defun EL:EditPanelOnce (result cfg / *error* store record powers capacity edited prepared saved ownlog syncable template resolved resumed preflight-owner *EL:FreshScope* *EL:FreshScopeEnabled* *EL:GenerationPreflight* *EL:LastSavedDraftId* *EL:LastGeneratedId*)
+(defun EL:EditPanelOnce (result cfg / *error* store record powers capacity edited prepared saved ownlog syncable template resolved *EL:GenerationPreflight* *EL:LastSavedDraftId* *EL:LastGeneratedId*)
   (defun *error* (msg)
     (EL:LogFailure msg)
     (vl-catch-all-apply 'EL:ClearGapPreview nil)
     (vl-catch-all-apply 'EL:ClearPickHighlights nil)
     (vl-catch-all-apply 'EL:ReleasePowerUI nil)
-    (if msg (princ (strcat "\n主面板已停止；未提交草稿保留原值：" msg)))
+    (if msg (princ (strcat "\n主面板已停止；已保存的输入仍在本图：" msg)))
     (EL:PerfFinish 'failed) (princ))
-  (setq *EL:FreshScopeEnabled* T ownlog (not *EL:LogActive*))
+  (setq ownlog (not *EL:LogActive*))
   (if ownlog (EL:LogStart))
   (EL:LogEvent "EDIT_PANEL" (list (cons 'panel (EL:Get 'panel result))))
   (setq store (cond ((EL:LogCall "READ_STORE" nil 'EL:StoreForResult (list result))) (T (EL:StoreInitial)))
-    record (cond ((EL:RecordForResult result store))
-      (T (EL:LogCall "NEW_RECORD" (list (cons 'panel (EL:Get 'panel result))
-        (cons 'drawing-uuid (EL:Get 'drawing-uuid store))) 'EL:NewRecord (list (EL:Get 'panel result) store)))))
-  ;; Date: 2026-10-13. Repaint the list from this read, not another full XRecord read.
-  (EL:HistoryRememberStore store)
+    record (cond ((EL:RecordForResult result store)) (T (EL:NewRecord (EL:Get 'panel result) store))))
   (if (and *EL:DLResume* (equal (EL:Get 'panel (EL:Get 'result *EL:DLResume*)) (EL:Get 'panel result)))
     (setq prepared (EL:Get 'result *EL:DLResume*) powers (EL:Get 'powers *EL:DLResume*)
       cfg (EL:Get 'config *EL:DLResume*) capacity (EL:Get 'capacity *EL:DLResume*)
-      *EL:DLPanelPosition* (EL:Get 'position *EL:DLResume*) *EL:DLResume* nil)
+      *EL:DLResume* nil)
     (progn
       (setq powers (EL:FixedPowers record)
-        prepared (EL:LogCall "PREPARE_PANEL" (list (cons 'diagram-id (EL:Get 'diagram-id record))) 'EL:PreparedResult (list result
-          (if (EL:Get 'draft-circuits record) (EL:Put 'rows (EL:Get 'draft-circuits record) record) record))))
+        prepared (EL:LogCall "PREPARE_PANEL" (list (cons 'diagram-id (EL:Get 'diagram-id record)))
+          'EL:PreparedResult (list result
+            (if (EL:Get 'draft-circuits record) (EL:Put 'rows (EL:Get 'draft-circuits record) record) record))))
       (setq capacity (EL:CapacityDefault
         (if (EL:Get 'draft-circuits record) (EL:Get 'draft-capacity record) (EL:Get 'capacity-option record)))
         template (EL:Get 'template cfg))
@@ -144,17 +128,17 @@
           (EL:Get 'template (EL:Get 'config record)) (EL:Get 'template record))))
       (if (not (EL:TemplateReady template cfg)) (setq template (EL:Get 'fixed-template store)))
       (setq cfg (EL:Put 'template template cfg))))
-  (setq *EL:DLSessionSnapshot* (EL:DLSnapshot) resolved (EL:DLPrepare prepared powers *EL:DLSessionSnapshot* nil)
+  (setq *EL:DLSessionSnapshot* (EL:DLSnapshot)
+    resolved (EL:DLPrepare prepared powers *EL:DLSessionSnapshot* nil)
     prepared (EL:Get 'result resolved) powers (EL:Get 'powers resolved))
-  (if (setq edited (EL:LogCall "PANEL_DIALOG" (list (cons 'panel (EL:Get 'panel result)))
-      'EL:PanelDialog (list prepared cfg powers capacity)))
-    (if (not (or (EL:Get 'switch-result edited) (EL:Get 'pick-panel edited) (EL:Get 'library-panel edited)
-        (EL:Get 'preview-panel edited))) (progn
-      (setq result (EL:Get 'result edited) powers (EL:Get 'powers edited) capacity (EL:Get 'capacity edited)
-        cfg (cond ((EL:Get 'config edited)) (T cfg))
-        syncable (if (EL:Get 'power-only-target result) (EL:PowerOnlyReady result)
-          (and (EL:Get 'can-generate result) (EL:CircuitNumbersReady result) (EL:SelectionsReady result capacity)
-            (EL:TemplateReady (EL:Get 'template cfg) cfg))))
+  (setq edited (EL:LogCall "PANEL_DIALOG" (list (cons 'panel (EL:Get 'panel result)))
+    'EL:PanelDialog (list prepared cfg powers capacity)))
+  (if (and edited (not (EL:Get 'pick-panel edited)) (not (EL:Get 'library-panel edited)))
+    (progn
+      (setq result (EL:Get 'result edited) powers (EL:Get 'powers edited)
+        capacity (EL:Get 'capacity edited) cfg (EL:Get 'config edited)
+        syncable (and (EL:Get 'can-generate result) (EL:CircuitNumbersReady result)
+          (EL:SelectionsReady result capacity) (EL:TemplateReady (EL:Get 'template cfg) cfg)))
       (EL:LogEvent "PANEL_SUBMIT" (list (cons 'generate (EL:Get 'generate edited))
         (cons 'syncable syncable) (cons 'panel (EL:Get 'panel result))))
       (EL:PerfMark "panel-submit") (EL:PerfCount "panel-submits" 1)
@@ -162,76 +146,34 @@
       (EL:RememberPanelPowers result powers)
       (if (and (not (assoc 'device-library result)) (not (EL:SaveNamePowers powers)))
         (princ "\n功率库写入失败，请保留当前窗口数值并检查插件目录写入权限。"))
-      (if (and (or (and (not (EL:Get 'generate edited)) (not syncable)
-          (EL:Get 'load-error (EL:Get 'device-library result))) (EL:DLSubmissionCurrent result))
-          (or (and syncable (EL:Get 'generate edited) (EL:Get 'power-only-target result))
-            (EL:LogCall "PRE_GENERATE_FRESH" nil 'EL:FreshResult (list result cfg))))
+      (if (and (EL:DLSubmissionCurrent result)
+          (or (not (EL:Get 'generate edited)) (EL:NumberInputsCurrent result)))
         (progn
-          ;; Keep accepted setup and draft outside the preview undo group.
-          (setq *EL:Result* result *EL:FixedConfig* cfg preflight-owner (namedobjdict))
-          (if (and syncable (EL:Get 'generate edited)
-              (not (EL:Get 'power-only-target result)))
-            (progn
-              (if (not (EL:Get 'panel-output-handle record))
-                (EL:Require (EL:LogCall "SAVE_GENERATION_DRAFT" nil 'EL:SaveDraft (list result cfg powers capacity)) "生成前保存草稿失败，请重试。"))
-              ;; Date: 2026-10-13. The new native placement checks the source
-              ;; again before any circuit rows. Defer the intervening scan;
-              ;; this receipt never makes an invalidated snapshot reusable.
-              (setq *EL:GenerationPreflight* (list preflight-owner result cfg))))
-          (setq saved (if (not (EL:Get 'generate edited))
-            (EL:SaveDraft result cfg powers capacity)
+          ;; Date: 2026-10-14. Keep one draft before placement. The mandatory
+          ;; post-placement check verifies actual source geometry and contact.
+          (setq *EL:Result* result *EL:FixedConfig* cfg
+            saved (EL:SaveDraft result cfg powers capacity))
+          (if (and saved (EL:Get 'generate edited))
             (if syncable
-              (if (EL:Get 'power-only-target result)
-                (EL:PowerOnlyTry result cfg powers capacity)
-                (EL:InvokeCCKK2 result cfg powers capacity))
               (progn
-                (princ "\n生成未执行：回路、功率或模板校验未通过；已保存为待生成草稿，请重新统计并核对。")
-                (EL:MarkStale (EL:Get 'panel result) 'review-or-template-pending) T))))
+                (setq *EL:GenerationPreflight* (list (namedobjdict) result cfg))
+                (setq saved (EL:InvokeCCKK2 result cfg powers capacity)))
+              (progn
+                (princ "\n生成未执行：回路、功率或模板校验未通过；当前输入已保存，请核对后重试。")
+                (EL:MarkStale (EL:Get 'panel result) 'review-or-template-pending))))
           (if saved
-            (progn
-              (if (and (EL:Get 'power-only-target result) (listp saved)
-                  (EL:Get 'power-only-target saved))
-                (setq result (EL:PowerOnlyPersist result saved)))
-              ;; Date: 2026-10-13. Successful CCKK2 already verifies its committed record.
-              ;; Only a non-generating fallback needs a draft, not another full StoreRead.
-              (if (and (EL:Get 'generate edited)
-                  (not syncable))
-                (setq saved (EL:SaveDraft result cfg powers capacity)))
-              (if saved
-                (progn
-                  (if (and (EL:Get 'generate edited) *EL:LastGeneratedId*)
-                    (setq result (EL:Put 'update-diagram-id *EL:LastGeneratedId*
-                      (EL:Put 'update-source-panel (EL:Get 'panel result) result))))
-                  (setq *EL:Result* result *EL:FixedConfig* cfg)
-                  (if (and (not (assoc 'device-library result)) (not (EL:SaveNamePowers powers))) (princ "\nDWG 已保存；共享图块功率库写入失败，其他图纸暂不复用本次值。"))
-                  (princ (if (EL:Get 'load-error (EL:Get 'device-library result))
-                    "\n当前输入已保存为本图待完善草稿；设备库恢复前不生成系统图。关闭图纸前请保存 DWG。"
-                    "\n主面板已保存到本图；关闭图纸前请保存 DWG。"))))))
-          (if (not saved) (princ "\n本次保存或生成未完成，未报告成功；请查看上方原因后重试。")))
-        (progn (EL:MarkStale (EL:Get 'panel result) 'source-changed)
+            (princ (if (EL:Get 'load-error (EL:Get 'device-library result))
+              "\n当前输入已保存；设备库恢复前不生成系统图。关闭图纸前请保存 DWG。"
+              "\n当前输入已保存到本图；关闭图纸前请保存 DWG。"))
+            (princ "\n本次保存或生成未完成；请查看上方原因后重试。")))
+        (progn
+          (EL:MarkStale (EL:Get 'panel result) 'source-changed)
           (EL:PerfInput 'alert (list (if (EL:DLSubmissionCurrent result)
-            "源图状态已变化，回路草稿未保存，请重新统计。已填写功率已尝试单独记住。"
-            "设备库已变化，回路草稿未保存；输入已尝试单独记住，请打开设备库并重新核对。"))))))))
-  ;; Date: 2026-10-13. Closing a saved-record view is read-only, including legacy views.
-  (if (and (not edited) (not (EL:Get 'history-opened result)) (EL:Get 'panel-output-handle record)
-      (not (and (equal (EL:Get 'status record) 'stale)
-        (equal (EL:Get 'stale-reason record) 'draft-saved))))
-    (EL:MarkStale (EL:Get 'panel result) 'review-cancelled))
+            "平面编号已变化，请重新拾取；当前功率已尝试单独记住。"
+            "设备库已变化，请打开设备库并重新核对；当前功率已尝试单独记住。")))))))
   (EL:ClearPickHighlights)
   (if ownlog (EL:LogFinish (if edited 'panel-accepted 'panel-cancelled)))
-  ;; Date: 2026-10-12. Save stays in the same editor; no pick or diagram sync.
-  (if (and edited (EL:Get 'result edited) (or (not (EL:Get 'generate edited))
-      (and (EL:Get 'power-only-target result) (not saved))))
-    (progn
-      (if *EL:LastSavedDraftId*
-        (setq result (EL:Put 'update-diagram-id *EL:LastSavedDraftId*
-          (EL:Put 'update-source-panel (EL:Get 'panel result) result))))
-      (setq *EL:Result* result
-        *EL:DLResume* (list (cons 'result result) (cons 'config cfg)
-      (cons 'powers powers) (cons 'capacity capacity) (cons 'position (EL:Get 'position edited)))
-        edited (list (cons 'switch-result result) (cons 'switch-config cfg)))))
-  (if (or (EL:Get 'switch-result edited) (EL:Get 'pick-panel edited) (EL:Get 'library-panel edited)
-    (EL:Get 'preview-panel edited)) edited))
+  (if (or (EL:Get 'pick-panel edited) (EL:Get 'library-panel edited)) edited))
 (defun EL:PublishDiagram (result cfg / store record powers capacity)
   (setq store (EL:StoreForResult result) record (EL:RecordForResult result store))
   (if record
@@ -253,37 +195,12 @@
         (cons 'circuits (length (EL:Get 'circuits result))) (cons 'message message)))
       (princ (strcat "\n" message)) (EL:PerfInput 'alert (list message)) nil)))
 ;; Date: 2026-10-13. Do not silently create a second diagram when old source binding is absent.
-(defun EL:RepickRecord (panel store / record pick tag candidate done target mode)
+(defun EL:RepickRecord (panel store / record)
+  ;; Date: 2026-10-14. The current source draft alone supplies prior inputs.
   (if (not store) (setq store (EL:StoreInitial)))
   (setq record (EL:DiagramForPanel panel store))
-  (if record (setq record (EL:StoreRecord (EL:Get 'diagram-id record))))
-  (if (not record)
-    (progn
-      (princ "\n可关联已经画好的系统图，按平面回路编号只更新功率；Enter 则新建系统图。")
-      (while (not done)
-        (if (setq pick (EL:PickModel 'panel "\n拾取要更新的原系统图箱体（Enter 新建）："))
-          (progn
-            (setq target (cdr (assoc 5 (entget (car pick)))) tag (EL:DiagramTag (car pick))
-              candidate (EL:By 'diagram-id (cdr (nth 1 tag)) (EL:Get 'diagrams store)))
-            (if (and (/= target panel) (EL:PowerOnlyTargetValid target))
-              (progn
-                (if (and candidate (equal (EL:Get 'panel-output-handle candidate) target)
-                    (EL:OwnedEntity target store candidate "panel" "panel"))
-                  (progn
-                    (initget "Power Full")
-                    (setq mode (EL:PerfInput 'getkword (list "\n更新范围 [仅功率(Power)/完整更新(Full)] <Power>："))
-                      record (EL:StoreRecord (EL:Get 'diagram-id candidate))))
-                  (setq record (EL:NewRecord panel store) mode "Power"))
-                (if (not (equal mode "Full"))
-                  (setq record (EL:Put 'power-only-target target (EL:Put 'power-only-scope nil
-                    (EL:Put 'power-only-bindings nil record))))
-                  (setq record (EL:Put 'power-only-target nil (EL:Put 'power-only-scope nil
-                    (EL:Put 'power-only-bindings nil record)))))
-                (setq done T))
-              (princ "\n请选择本图系统图箱体，不能选择平面来源箱体或外部参照。")))
-          (setq done T)))))
-  (EL:LogEvent "REPICK_RECORD" (list (cons 'source-panel panel) (cons 'diagram-id (EL:Get 'diagram-id record))
-    (cons 'saved-source-panel (EL:Get 'source-panel-handle record)) (cons 'output (EL:Get 'panel-output-handle record))))
+  (EL:LogEvent "SOURCE_DRAFT" (list (cons 'source-panel panel)
+    (cons 'diagram-id (EL:Get 'diagram-id record))))
   record)
 (defun EL:RepickConfig (cfg record panel / trunk)
   (if (setq trunk (EL:Get 'concentrated-trunk (EL:Get 'config record)))
@@ -318,8 +235,7 @@
       (equal (EL:Get 'panel (EL:Get 'result *EL:StartPickResume*))
         (EL:Get 'panel (EL:StartPickContext))))
     (progn (setq *EL:DLResume* *EL:StartPickResume* *EL:StartPickResume* nil)
-      (EL:EditPanel (EL:Get 'result *EL:DLResume*) (EL:Get 'config *EL:DLResume*)))
-    (EL:PanelStartDialog)))
+      (EL:EditPanel (EL:Get 'result *EL:DLResume*) (EL:Get 'config *EL:DLResume*)))))
 (defun EL:FixedStatPick (/ *error* outcome)
   (defun *error* (msg)
     (EL:LogFailure msg) (vl-catch-all-apply 'EL:ClearGapPreview nil)
@@ -395,11 +311,6 @@
       (EL:LogEvent "PICKS" (list (cons 'panel panel) (cons 'circuit-starts (EL:Get 'circuit-starts cfg))))
       (setq result (EL:LogCall "RECOGNIZE_STARTS" (list panel) 'EL:RecognizeFixed (list cfg panel))
         result (EL:Put 'panel-number (EL:Get 'number context) result))
-      (setq result (EL:PowerOnlyResult result record))
-      (if (and (EL:Get 'diagram-id record) (not (equal panel (EL:Get 'source-panel-handle record))))
-        (setq result (EL:Put 'update-diagram-id (EL:Get 'diagram-id record)
-          (EL:Put 'update-source-panel (EL:Get 'source-panel-handle record) result))))
-      (setq result (EL:Put 'excluded-seeds (EL:Get 'excluded-seeds record) result))
       (if (EL:PickedDevicesReady result) (list result cfg)))))
 (defun EL:StartPickResumeResult (result cfg / context old record key store)
   (if (and (setq context *EL:StartPickResume*)
@@ -410,9 +321,8 @@
           (T (EL:NewRecord (EL:Get 'panel result) store)))
         record (EL:Put 'draft-circuits (EL:Get 'circuits old)
           (EL:Put 'powers (EL:Get 'powers context) (EL:DLPersist old record))))
-      (foreach key '(block-ground excluded-devices capacity-source)
+      (foreach key '(block-ground capacity-source)
         (if (assoc key old) (setq result (EL:Put key (EL:Get key old) result))))
-      (setq result (EL:PowerOnlyPersist result old))
       (setq result (EL:PreparedResult result record)
         *EL:DLResume* (EL:Put 'result result (EL:Put 'config cfg context))))) result)
 (defun EL:FixedStartPick (/ *error* outcome next)
@@ -482,8 +392,8 @@
                 " 条出线，箱侧连接段已排除；请用查看全部回路核对。"))
               (setq *EL:Result* result *EL:FixedConfig* cfg)
               (if (EL:PickedDevicesReady result) (setq next (EL:EditPanel result cfg))
-                (setq *EL:Result* nil next (EL:PanelStartDialog))))
-            (progn (EL:ClearPickHighlights) (setq next (EL:PanelStartDialog))))))))
+                (setq *EL:Result* nil next nil)))
+            (progn (EL:ClearPickHighlights) (setq next nil)))))))
   (EL:ClearPickHighlights) (EL:LogFinish 'command-finished) next)
 (defun c:ELGEN (/ *error* cfg result record powers capacity perfowner)
   (defun *error* (msg)
@@ -507,60 +417,21 @@
         (EL:SyncDiagram result cfg powers capacity T T)))
     (princ "\n请先运行 ELSTAT 或 ELTRACE。"))
   (if perfowner (EL:PerfFinish 'command-finished)) (princ))
-(defun c:ELUPDATE (/ *error* pick tag store record cfg panel result context seeds review perfowner *EL:ExitSnapshot* *EL:ExitDefaults* *EL:OutsidePorts*)
-  (defun *error* (msg)
-    (EL:ClearPickHighlights)
-    (if panel (vl-catch-all-apply 'EL:MarkStale (list panel 'update-failed)))
-    (if msg (princ (strcat "\n重新统计更新停止：" msg))) (EL:PerfFinish 'failed) (princ))
-  (setq perfowner (EL:PerfStart "ELUPDATE"))
-  (if (and (EL:EnsureRoot) (setq pick (EL:PickEntity "\n选择受管系统图的箱体、回路或功率文字：")))
-    (progn
-      (setq tag (EL:DiagramTag (car pick)) store (EL:StoreRead)
-        record (EL:By 'diagram-id (cdr (nth 1 tag)) (EL:Get 'diagrams store)))
-      (EL:Require (and record (equal (cdr (car tag)) (EL:Get 'drawing-uuid store))
-        (equal (cdr (nth 4 tag)) (cdr (assoc 5 (entget (car pick)))))) "不是本图原始受管对象；复制或跨图对象不能自动继承关联。")
-      (setq panel (EL:Get 'source-panel-handle record) cfg (EL:Get 'config record))
-      (if (equal (EL:Get 'engine record) 'fixed)
-        (progn
-          ;; Date: 2026-10-11. Updating uses every recognized circuit directly.
-          (setq result (EL:SelectFixedExits (EL:RecognizeFixed cfg panel) nil))
-          (EL:Require (EL:Get 'circuits result) "未识别到有效回路，请检查源图连接。")
-          (setq result (EL:PanelCompute result (EL:FixedPowers record) cfg) *EL:FixedConfig* cfg))
-        (progn
-          (setq context (EL:CurrentContext cfg panel) seeds (cadr context)
-            *EL:ExitSnapshot* (car context) *EL:ExitDefaults*
-              (list (cons 'keys (mapcar '(lambda (r) (EL:Get 'seed-key r)) (EL:ActualRows record)))))
-          (setq review (EL:ReviewExits seeds))
-          (EL:Require (and review (not (equal review 'add))) "高级出线核对取消；补充图层请运行 ELTRACE。")
-          (setq seeds (car review))
-          (setq result (EL:BoxStatistics (EL:AnalyzeSnapshot (car context) cfg panel seeds) cfg (EL:LoadLibrary) nil))))
-      (setq *EL:Result* result)
-      (if (equal (EL:Get 'engine result) 'fixed)
-        (EL:EditPanel result cfg)
-        (EL:SyncDiagram result cfg (EL:Get 'powers record) (EL:Get 'capacity-option record) T T))))
-  (EL:ClearPickHighlights) (if perfowner (EL:PerfFinish 'command-finished)) (princ))
 
-;; Date: 2026-10-10. ELSTAT opens the panel before requesting model selection.
-(defun EL:FixedStat (/ *error* next perfowner *EL:HistoryListStore* *EL:HistoryListOwner*
-    *EL:HistoryListLoaded* *EL:HistoryResultCache*)
+(defun EL:FixedStat (/ *error* next perfowner)
   (defun *error* (msg)
-    ;; Date: 2026-10-11. Preserve the initial panel stage before unloading DCL.
     (EL:LogFailure msg)
     (vl-catch-all-apply 'EL:ReleasePowerUI nil)
-    (if msg (princ (strcat "\n面板已停止：" msg))) (EL:PerfFinish 'failed) (princ))
+    (if msg (princ (strcat "\n统计已停止：" msg)))
+    (EL:PerfFinish 'failed) (princ))
   (setq perfowner (EL:PerfStart "ELSTAT"))
-  (if (EL:PerfCall "LOAD_ROOT" 'EL:EnsureRoot nil)
-    (progn
-      (setq next (EL:PanelStartDialog))
-      (while (or (EL:Get 'pick-panel next) (EL:Get 'switch-result next))
-        (setq next (if (EL:Get 'switch-result next)
-          (EL:EditPanel (EL:Get 'switch-result next) (EL:Get 'switch-config next))
-          (if (equal (EL:Get 'pick-panel next) 'trunk)
-            (EL:PerfCall "PICK_STARTS" 'EL:FixedStartPick nil)
-            (EL:PerfCall "PICK_PANEL" 'EL:FixedStatPick nil)))))))
+  ;; Date: 2026-10-14. The picker resolves the root once it starts.
+  (setq next (EL:PerfCall "PICK_PANEL" 'EL:FixedStatPick nil))
+  (while (EL:Get 'pick-panel next)
+    (setq next (if (equal (EL:Get 'pick-panel next) 'trunk)
+      (EL:PerfCall "PICK_STARTS" 'EL:FixedStartPick nil)
+      (EL:PerfCall "PICK_PANEL" 'EL:FixedStatPick nil))))
   (if perfowner (EL:PerfFinish 'command-finished)) (princ))
-
-;; Date: 2026-10-11. Explicit, read-only export of the verified DWG record.
 (defun EL:DiagnosticRecord (store / record pick tag handle)
   (if *EL:Result*
     (setq record (EL:DiagramForPanel (EL:Get 'panel *EL:Result*) store)))

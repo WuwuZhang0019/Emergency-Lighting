@@ -651,24 +651,46 @@
       (princ (strcat "\n旧格式转换未完成：" (vl-catch-all-error-message outcome)))))
   (princ))
 (defun EL:DiagramForPanel (panel store / found row)
-  ;; Date: 2026-10-14. Each new output is appended. The latest record is the
-  ;; default editor target; older diagrams and their ownership remain intact.
+  ;; Date: 2026-10-14. Legacy drawings may still contain several records until
+  ;; their next verified save; use only the latest one for current inputs.
   (foreach row (EL:Get 'diagrams store)
     (if (equal panel (EL:Get 'source-panel-handle row)) (setq found row))) found)
-;; Date: 2026-10-14. A picked old output supplies review data; generating a
-;; successor never rebinds or overwrites that saved output.
-(defun EL:RecordForResult (result store / id record)
-  (if (setq id (EL:Get 'update-diagram-id result))
+;; Date: 2026-10-14. Only the current source draft supplies review data.
+(defun EL:RecordForResult (result store)
+  (EL:DiagramForPanel (EL:Get 'panel result) store))
+(defun EL:DiagramSerial (id panel store / prefix suffix serial index digit valid)
+  (if (and (equal (type panel) 'STR) (equal (type (EL:Get 'drawing-uuid store)) 'STR))
+    (setq prefix (strcat (EL:Get 'drawing-uuid store) "/" panel "/")))
+  (if (and prefix (equal (type id) 'STR) (> (strlen id) (strlen prefix))
+      (equal (substr id 1 (strlen prefix)) prefix))
     (progn
-      (setq record (EL:By 'diagram-id id (EL:Get 'diagrams store)))
-      (EL:Require (and record (member (EL:Get 'source-panel-handle record)
-        (list (EL:Get 'panel result) (EL:Get 'update-source-panel result))))
-        "所选系统图记录已变化，请重新拾取；未覆盖其他系统图。")
-      (EL:Put 'source-panel-handle (EL:Get 'panel result) record))
-    (EL:DiagramForPanel (EL:Get 'panel result) store)))
-(defun EL:StorePutDiagram (record store / rows old)
-  (setq rows (EL:Get 'diagrams store) old (EL:By 'diagram-id (EL:Get 'diagram-id record) rows))
-  (EL:Put 'diagrams (if old (subst record old rows) (append rows (list record))) store))
+      (setq suffix (substr id (1+ (strlen prefix))) index 1 valid T)
+      (while (and valid (<= index (strlen suffix)))
+        (setq digit (ascii (substr suffix index 1))
+          valid (and (<= 48 digit) (<= digit 57)) index (1+ index)))
+      (if valid (progn (setq serial (atoi suffix))
+        (if (and (> serial 0) (equal suffix (itoa serial))) serial 0)) 0)) 0))
+(defun EL:StorePutDiagram (record store / rows row source seen kept latest serials serial)
+  ;; Date: 2026-10-14. Keep one editable record per source panel. Earlier
+  ;; generated entities stay in the DWG with their tags, but their history
+  ;; payload is dropped on the next verified store write.
+  (setq rows (EL:Get 'diagrams store) serials (EL:Get 'diagram-serials store))
+  (foreach row (append rows (list record))
+    (setq source (EL:Get 'source-panel-handle row)
+      serial (EL:DiagramSerial (EL:Get 'diagram-id row) source store))
+    (if (> serial (cond ((EL:Get source serials)) (T 0)))
+      (setq serials (EL:Put source serial serials)))
+    (setq latest (EL:Put source row latest)))
+  (foreach row rows
+    (setq source (EL:Get 'source-panel-handle row))
+    (if (not (member source seen))
+      (setq kept (cons (EL:Get source latest) kept) seen (cons source seen))))
+  (setq kept (reverse kept))
+  (if (not (member (EL:Get 'source-panel-handle record) seen))
+    (setq kept (append kept (list record))))
+  (setq store (EL:Put 'diagrams kept store))
+  (if (or serials (assoc 'diagram-serials store))
+    (EL:Put 'diagram-serials serials store) store))
 (defun EL:TagEntity (object store record kind uid / e data tag)
   (regapp "EL_FIXED_V1")
   (setq e (vlax-vla-object->ename object) data (entget e)
@@ -933,55 +955,13 @@
     (equal (EL:TextPoint entity) point 1.0e-6)) "CCKK 箱号或用途文字回读不符，停止生成。")
   (EL:LogEvent "CCKK_LABEL_CREATED" (list (cons 'uid (EL:Get 'uid label))
     (cons 'text (EL:Get 'text label)) (cons 'handle (cdr (assoc 5 (entget entity)))) (cons 'point point))) object)
-(defun EL:CCKKLabelEntity (label record store / e)
-  (if (setq e (handent (EL:Get 'handle label)))
-    (EL:Require (and (EL:OwnedEntity (EL:Get 'handle label) store record "text" (EL:Get 'uid label))
-      (EL:Writable e)) "用途或箱号文字关联失配或锁层，未更新。")) e)
-(defun EL:CCKKLabelsConflict (record store transform / label e conflict)
-  (foreach label (EL:Get 'cckk-labels record)
-    (if (setq e (EL:CCKKLabelEntity label record store))
-      (if (not (equal (EL:TextPoint e)
-          (EL:RebasePoint (EL:Get 'text-position label) (EL:Get 'plan record) transform) 1.0e-5))
-        (setq conflict T)))) conflict)
-(defun EL:CCKKLabelsCurrent (plan record store / good label old e)
-  (setq good (equal (length (EL:CCKKLabels plan)) (length (EL:Get 'cckk-labels record))))
+;; Date: 2026-10-14. Captions are created only for the new output.
+(defun EL:CreateCCKKLabels (plan record store / result label object)
   (foreach label (EL:CCKKLabels plan)
-    (setq old (EL:By 'uid (EL:Get 'uid label) (EL:Get 'cckk-labels record)))
-    (if (not (and old (setq e (EL:CCKKLabelEntity old record store))
-        (equal (EL:Get 'cckk-text-version old) 1) (EL:CCKKLabelMatches e label plan))) (setq good nil))) good)
-(defun EL:SyncCCKKLabels (plan record store structural / labels label old e object result keptpoint)
-  (setq labels (EL:CCKKLabels plan))
-  (foreach label labels
-    (setq old (EL:By 'uid (EL:Get 'uid label) (EL:Get 'cckk-labels record))
-      e (if old (EL:CCKKLabelEntity old record store)) keptpoint nil)
-    ;; Date: 2026-10-11. Caption text changes retain valid native formatting.
-    ;; Renumbering a retained UID must write text, not delete and rebuild TEXT.
-    (if (and e (or (not (equal (EL:Get 'cckk-text-version old) 1))
-        (not (EL:CCKKLabelMatches e
-          (EL:Put 'text (cdr (assoc 1 (entget e))) label) plan))))
-      (progn
-        (if (not structural) (setq keptpoint (EL:TextPoint e)))
-        (EL:Require (EL:PerfWrite 'entdel (list e)) "旧版箱号或用途文字替换失败。") (setq e nil)))
-    (if e
-      (progn
-        (if (not (equal (cdr (assoc 1 (entget e))) (EL:Get 'text label)))
-          (EL:PerfWrite 'vla-put-TextString (list (vlax-ename->vla-object e) (EL:Get 'text label))))
-        (if structural (EL:MoveManaged e (EL:Get 'text-position label))
-          ;; Keep the expected baseline, including any whole-diagram transform.
-          (setq label (EL:Put 'text-position (EL:RebasePoint (EL:Get 'text-position old) (EL:Get 'plan record) plan) label)))
-        (setq label (EL:Put 'handle (EL:Get 'handle old) label)))
-      (progn
-        (setq object (EL:CCKKCreateLabel label plan record store))
-        (if keptpoint (EL:MoveManaged (vlax-vla-object->ename object) keptpoint))
-        (setq label (EL:Put 'handle (EL:TagEntity object store record "text" (EL:Get 'uid label)) label))))
-    (if (and old (not structural))
-      (setq label (EL:Put 'text-position (EL:RebasePoint (EL:Get 'text-position old) (EL:Get 'plan record) plan) label)))
-    (setq result (cons (EL:Put 'cckk-text-version 1 label) result)))
-  (foreach old (EL:Get 'cckk-labels record)
-    (if (and (not (EL:By 'uid (EL:Get 'uid old) labels)) (setq e (EL:CCKKLabelEntity old record store)))
-      (EL:Require (EL:PerfWrite 'entdel (list e)) "旧用途文字删除失败。")))
-  (setq record (EL:Put 'cckk-labels (reverse result) record))
-  (EL:Require (EL:CCKKLabelsCurrent plan record store) "箱号或用途文字不完整，未保存系统图。") record)
+    (setq object (EL:CCKKCreateLabel label plan record store)
+      label (EL:Put 'handle (EL:TagEntity object store record "text" (EL:Get 'uid label)) label)
+      result (cons (EL:Put 'cckk-text-version 1 label) result)))
+  (EL:Put 'cckk-labels (reverse result) record))
 (defun EL:CCKK2ManagedBlock (name point definition value / entity object)
   (EL:PerfCount "block-create-attempts" 1)
   (setq entity (EL:LogCall "CCKK2_INSERT_BLOCK" (list (cons 'name name) (cons 'point point) (cons 'value value))
@@ -1055,13 +1035,14 @@
   (setq record (EL:Put 'panel-output-handle (EL:TagEntity object store record "panel" "panel") record))
   (if *EL:CCKK2Panel*
     (progn
-      ;; Date: 2026-10-11. The native mouse placement can run extension
-      ;; callbacks. Tag the panel first so it is excluded from source scans.
+      ;; Date: 2026-10-14. Native placement can run callbacks. Check the
+      ;; template and number now; the mandatory full contact/source check
+      ;; runs after regeneration and before the verified DWG write.
       (EL:FreshBoundary)
       (EL:Require (EL:TemplateRuntimeValid template (EL:Get 'config record))
         "TEMPLATE_CHANGED：放置期间模板变化，已停止生成。")
-      (EL:Require (EL:FreshResult result (EL:Get 'config record))
-        "SOURCE_CHANGED：放置期间源图变化，已停止生成。")))
+      (EL:Require (EL:NumberInputsCurrent result)
+        "SOURCE_NUMBER_CHANGED：放置期间平面编号变化，已停止生成。")))
   (foreach row (EL:Get 'rows plan)
     (EL:LogEvent "CCKK_ROW_BEGIN" (list (cons 'uid (EL:Get 'circuit-uid row))
       (cons 'mode (EL:Get 'mode row)) (cons 'watts (EL:Get 'watts row)) (cons 'position (EL:Get 'position row))))
@@ -1079,7 +1060,7 @@
     (setq handles (cons h handles))
     (EL:LogEvent "CCKK_ROW_CREATED" h))
   (setq record (EL:Put 'rows (EL:RecordRows result plan handles) (EL:Put 'plan plan record)))
-  (setq record (EL:SyncCCKKLabels plan record store T))
+  (setq record (EL:CreateCCKKLabels plan record store))
   (princ "\n回路图形已生成，正在核对并保存记录，请稍候...")
   (if *EL:NativePreview*
     (progn

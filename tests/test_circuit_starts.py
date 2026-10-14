@@ -142,7 +142,7 @@ class CircuitStartTests(unittest.TestCase):
         self.assertEqual(len(self.get('circuit-starts',cfg)),2)
         self.assertGreater(len(self.arrows),0)
 
-    def test_rebound_old_target_survives_cancel_and_second_pick(self):
+    def test_old_target_is_not_rebound_after_second_pick(self):
         record = [Pair(Symbol('DIAGRAM-ID'),'old-diagram'), Pair(Symbol('SOURCE-PANEL-HANDLE'),'old-source')]
         self.h.builtins['EL:REPICKRECORD'] = lambda *a: record
         self.h.builtins['EL:STORERECORD'] = lambda diagram_id: record if diagram_id == 'old-diagram' else None
@@ -152,8 +152,8 @@ class CircuitStartTests(unittest.TestCase):
         self.picks([['w1',[1.,0.,0.]],None])
         self.call('EL:FixedStartPick')
         result = self.opened[0][0]
-        self.assertEqual(self.get('update-diagram-id',result),'old-diagram')
-        self.assertEqual(self.get('update-source-panel',result),'old-source')
+        self.assertIsNone(self.get('update-diagram-id',result))
+        self.assertIsNone(self.get('update-source-panel',result))
         self.assertEqual(self.writes,[])
 
     def test_duplicate_pick_changes_direction_without_adding_circuit(self):
@@ -177,7 +177,7 @@ class CircuitStartTests(unittest.TestCase):
         self.h.builtins['NENTSEL']=lambda *a:['number']
         self.picks([['panel',[0.,0.,0.]],None])
         self.call('EL:FixedStatPick')
-        self.assertEqual(self.returned,[True])
+        self.assertEqual(self.returned,[])
         self.assertEqual(self.get('number',self.call('EL:StartPickContext')),'箱二')
         self.h.builtins['NENTSEL']=lambda *a:self.fail('number was requested again')
         self.picks([['w1',[1.,0.,0.]],None])
@@ -191,7 +191,7 @@ class CircuitStartTests(unittest.TestCase):
         self.call('EL:FixedStartPick')
         self.assertEqual(self.get('number',self.call('EL:StartPickContext')),'箱三')
         self.assertEqual(self.writes,[])
-        self.assertEqual(self.returned,[True])
+        self.assertEqual(self.returned,[])
 
     def test_context_does_not_cross_drawings(self):
         self.call('EL:RememberStartPanel','panel','箱四')
@@ -212,7 +212,7 @@ class CircuitStartTests(unittest.TestCase):
     def test_second_button_without_panel_does_not_pick_wires(self):
         self.h.builtins['EL:PICKMODEL']=lambda *a:self.fail('wire picked before panel')
         self.call('EL:FixedStartPick')
-        self.assertEqual(self.returned,[True])
+        self.assertEqual(self.returned,[])
         self.assertEqual(self.writes,[])
 
     def test_reselect_adds_circuit_and_preserves_manual_inputs_and_uids(self):

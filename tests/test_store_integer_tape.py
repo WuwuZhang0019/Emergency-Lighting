@@ -1,4 +1,4 @@
-"""Date: 2026-10-13. Lossless integer tape packing; native CAD timing remains unmeasured."""
+"""Date: 2026-10-14. Lossless integer tape packing; native CAD timing remains unmeasured."""
 import unittest
 import re
 from autolisp_host import Pair, Symbol, equal
@@ -23,13 +23,46 @@ class StoreIntegerTapeTests(unittest.TestCase):
         self.assertTrue(all(len(x) <= 224 for x in packed if isinstance(x, str)))
         self.assertLess(len(packed), len(body) // 10)
 
-    def test_bad_integer_chunks_rejected_without_read_or_eval(self):
-        self.h.builtins['READ'] = lambda *_: self.fail('integer tape must not execute READ')
+    def test_bad_integer_chunks_rejected_without_evaluation(self):
+        self.h.builtins['EVAL'] = lambda *_: self.fail('integer tape must not execute EVAL')
         for chunks in [['1'], [''], [' '], ['+1 '], ['01 '], ['1.0 '], ['-0 '],
                        ['1  2 '], ['2147483648 '], ['-2147483649 '], ['(exit) '],
                        ['1 ' * 113], [Symbol('BAD')]]:
             with self.subTest(chunks=chunks), self.assertRaises(RuntimeError):
                 self.call('EL:CompactUnpackIntegers', chunks)
+
+    def test_non_integer_alphabet_is_rejected_before_native_reader(self):
+        reads = []
+        self.h.builtins['READ'] = lambda text: reads.append(text)
+        for chunk in ('(exit) ', '1) (exit) (2 ', '+1 ', '1.0 ', '1e2 ',
+                      '1\n2 ', '1\t2 ', '1\x002 ', 'nil ', '中文 ', '1;2 ', '1\\2 ', "'1 "):
+            with self.subTest(chunk=chunk), self.assertRaises(RuntimeError):
+                self.call('EL:CompactUnpackIntegers', [chunk])
+        self.assertEqual(reads, [], 'unsafe text reached native reader')
+
+    def test_native_reader_is_bounded_and_real_fields_never_enter_text_path(self):
+        reader = self.h.builtins['READ']
+        reads = []
+        def bounded(text):
+            reads.append(text)
+            self.assertLessEqual(len(text), 225)
+            self.assertTrue(text.startswith('(') and text.endswith(')'))
+            self.assertFalse(set(text[1:-1]) - set(' -0123456789'))
+            return reader(text)
+        self.h.builtins['READ'] = bounded
+        body = [-2147483648, 2147483647, -1, 0, 1] * 80 + [1.e-98, -0.0, 1.0000000000000002]
+        packed = self.call('EL:CompactPackIntegers', body)
+        self.assertEqual(self.call('EL:CompactUnpackIntegers', packed), body)
+        self.assertEqual(len(reads), sum(type(value) is str for value in packed))
+        self.assertLess(len(reads), len(body) // 10)
+
+    def test_native_reader_error_partial_result_and_overflow_are_rejected(self):
+        def fail(*_): raise RuntimeError('native reader failed')
+        for reader in (fail, lambda _: [1], lambda _: [1, 2147483648], lambda _: [1, 2.0],
+                       lambda _: [1, Symbol('BAD')]):
+            self.h.builtins['READ'] = reader
+            with self.subTest(reader=reader), self.assertRaises(RuntimeError):
+                self.call('EL:CompactUnpackIntegers', ['1 2 '])
 
     def test_public_store_codec_keeps_all_types_and_legacy_v2_readability(self):
         data = self.h.run("'" + '''((tiny . 1.203456789012345e-98) (int -2147483648 2147483647)

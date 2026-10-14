@@ -1,0 +1,87 @@
+{
+  "date": "2026-10-14",
+  "status": "passed",
+  "baseline_commit": "89bcd71",
+  "scope": "Python adapter executes actual uncached LISP StoreDecode; synthetic fixtures, not original DWG or CAD seconds",
+  "stage_note": "Inclusive child stages must not be added to their parent",
+  "fixtures": {
+    "mixed_geometry": {
+      "baseline": {
+        "lisp_function_calls": 31624,
+        "lambda_calls": 0,
+        "native_read_calls": 29,
+        "host_seconds": 0.601,
+        "host_evaluation_steps": 540252,
+        "inclusive_stage_steps": {
+          "EL:COMPACTUNPACKINTEGERS": 191514,
+          "EL:STOREEXPAND": 418549
+        }
+      },
+      "candidate": {
+        "lisp_function_calls": 12577,
+        "lambda_calls": 2936,
+        "native_read_calls": 192,
+        "host_seconds": 0.564,
+        "host_evaluation_steps": 376297,
+        "inclusive_stage_steps": {
+          "EL:COMPACTUNPACKINTEGERS": 68848,
+          "EL:STOREEXPAND": 254594
+        }
+      },
+      "exact_wire_and_typed_logical_values_equal": true,
+      "step_reduction_percent": 30.3
+    },
+    "integer_dense": {
+      "baseline": {
+        "lisp_function_calls": 27974,
+        "lambda_calls": 0,
+        "native_read_calls": 26,
+        "host_seconds": 0.781,
+        "host_evaluation_steps": 546409,
+        "inclusive_stage_steps": {
+          "EL:COMPACTUNPACKINTEGERS": 299258,
+          "EL:STOREEXPAND": 489919
+        }
+      },
+      "candidate": {
+        "lisp_function_calls": 8446,
+        "lambda_calls": 4936,
+        "native_read_calls": 121,
+        "host_seconds": 0.61,
+        "host_evaluation_steps": 310530,
+        "inclusive_stage_steps": {
+          "EL:COMPACTUNPACKINTEGERS": 82648,
+          "EL:STOREEXPAND": 254040
+        }
+      },
+      "exact_wire_and_typed_logical_values_equal": true,
+      "step_reduction_percent": 43.2
+    },
+    "real_dense": {
+      "baseline": {
+        "lisp_function_calls": 14890,
+        "lambda_calls": 0,
+        "native_read_calls": 26,
+        "host_seconds": 0.428,
+        "host_evaluation_steps": 192702,
+        "inclusive_stage_steps": {
+          "EL:COMPACTUNPACKINTEGERS": 21380,
+          "EL:STOREEXPAND": 84841
+        }
+      },
+      "candidate": {
+        "lisp_function_calls": 8594,
+        "lambda_calls": 54,
+        "native_read_calls": 28,
+        "host_seconds": 0.364,
+        "host_evaluation_steps": 164399,
+        "inclusive_stage_steps": {
+          "EL:COMPACTUNPACKINTEGERS": 19066,
+          "EL:STOREEXPAND": 56538
+        }
+      },
+      "exact_wire_and_typed_logical_values_equal": true,
+      "step_reduction_percent": 14.7
+    }
+  }
+}

@@ -77,7 +77,7 @@
     (cons 'templates *EL:CompactTemplates*) (cons 'atoms (reverse *EL:CompactAtoms*))
     (cons 'body (reverse *EL:CompactTokens*))))
 (defun EL:CompactTake (/ value)
-  (EL:CompactRequire *EL:CompactRemaining* 'truncated-body)
+  (if (not *EL:CompactRemaining*) (EL:CompactRequire nil 'truncated-body))
   (setq value (car *EL:CompactRemaining*) *EL:CompactRemaining* (cdr *EL:CompactRemaining*)
     *EL:CompactRemainingCount* (1- *EL:CompactRemainingCount*)) value)
 ;; Date: 2026-10-13. Pack only integer tape tokens. REALs remain native DXF doubles.
@@ -100,21 +100,31 @@
         (setq chunks (cons item chunks)))
       (T (EL:CompactRequire nil 'invalid-tape-token))))
   (if run (foreach token (EL:CompactIntegerRun text run) (setq chunks (cons token chunks)))) (reverse chunks))
-(defun EL:CompactUnpackIntegers (chunks / body chunk start end token value)
+(defun EL:CompactReadIntegerChunk (chunk / size wrapped values)
+  ;; Date: 2026-10-14. READ sees only a bounded integer alphabet, enclosed
+  ;; in our own parentheses. Source strings and native REAL fields never
+  ;; use this path; a malformed numeric token cannot be evaluated.
+  ;; Full canonical text and INT/range checks reject partial/ambiguous input.
+  (setq size (strlen chunk))
+  (EL:CompactRequire (and (> size 1) (<= size 224)
+    (equal (substr chunk size 1) " ")) 'integer-chunk-size)
+  (EL:CompactRequire (equal (vl-string-trim " -0123456789" chunk) "") 'integer-chunk-characters)
+  (setq wrapped (strcat "(" (substr chunk 1 (1- size)) ")")
+    values (vl-catch-all-apply 'read (list wrapped)))
+  (EL:CompactRequire (and (not (vl-catch-all-error-p values)) values
+    (listp values) (EL:CompactProperList values)
+    (vl-every '(lambda (item) (and (equal (type item) 'INT)
+      (<= -2147483648 item) (<= item 2147483647))) values)
+    (equal wrapped (vl-prin1-to-string values))) 'integer-chunk-value)
+  values)
+(defun EL:CompactUnpackIntegers (chunks / body chunk value)
+  ;; Date: 2026-10-14. Native parsing replaces per-integer SEARCH/SUBSTR/
+  ;; ATOI/ITOA. The native numeric payload and wire format stay unchanged.
   (foreach chunk chunks
     (cond
       ((member (type chunk) '(INT REAL)) (setq body (cons chunk body)))
       ((equal (type chunk) 'STR)
-        (EL:CompactRequire (and (> (strlen chunk) 0) (<= (strlen chunk) 224)) 'integer-chunk-size)
-        (setq start 0)
-        (while (< start (strlen chunk))
-          (setq end (vl-string-search " " chunk start))
-          (EL:CompactRequire (and end (> end start) (<= (- end start) 11)) 'integer-chunk-token)
-          (setq token (substr chunk (1+ start) (- end start)) value (atoi token))
-          ;; Canonical decimal rejects malformed, overflow and ambiguous values without READ/EVAL.
-          (EL:CompactRequire (and (<= -2147483648 value) (<= value 2147483647)
-            (equal token (itoa value))) 'integer-chunk-value)
-          (setq body (cons value body) start (1+ end))))
+        (foreach value (EL:CompactReadIntegerChunk chunk) (setq body (cons value body))))
       (T (EL:CompactRequire nil 'integer-chunk-type)))) (reverse body))
 (defun EL:CompactPoolPages (values / pages page count)
   ;; Date: 2026-10-11. Linear construction, then two bounded NTH traversals
@@ -127,35 +137,51 @@
     (setq pages (cons (reverse page) pages))) (reverse pages))
 (defun EL:CompactPoolAt (index pages)
   (nth (fix (rem index 32)) (nth (/ index 32) pages)))
-(defun EL:CompactDecode (/ token index count rows item tail)
-  (setq token (EL:CompactTake))
+(defun EL:CompactPoolLength (value / count)
+  ;; Date: 2026-10-14. Validate and count in a single native traversal.
+  (if (not (and (listp value) (setq count (vl-list-length value))))
+    (EL:CompactRequire nil 'pool-shape)) count)
+(defun EL:CompactDecode (/ token kind index count rows item tail)
+  ;; Date: 2026-10-14. This hot path visits every logical value. Inline
+  ;; token consumption; error diagnostics and bounds stay unchanged.
+  (if (not *EL:CompactRemaining*) (EL:CompactRequire nil 'truncated-body))
+  (setq token (car *EL:CompactRemaining*) *EL:CompactRemaining* (cdr *EL:CompactRemaining*)
+    *EL:CompactRemainingCount* (1- *EL:CompactRemainingCount*) kind (type token))
   (cond
-    ((equal (type token) 'REAL) token)
-    ((not (equal (type token) 'INT)) (EL:CompactRequire nil 'invalid-token))
+    ((equal kind 'REAL) token)
+    ((not (equal kind 'INT)) (EL:CompactRequire nil 'invalid-token))
     ((< token 0)
       (setq index (- -1 token))
-      (EL:CompactRequire (< index *EL:CompactReadAtomCount*) 'atom-reference)
-      (if *EL:CompactReadAtomPages* (EL:CompactPoolAt index *EL:CompactReadAtomPages*)
+      (if (>= index *EL:CompactReadAtomCount*) (EL:CompactRequire nil 'atom-reference))
+      (if *EL:CompactReadAtomPages*
+        (nth (fix (rem index 32)) (nth (/ index 32) *EL:CompactReadAtomPages*))
         (nth index *EL:CompactReadAtoms*)))
     ((= token 0) nil)
     ((= token 1) T)
     ((= token 2)
       (setq item (EL:CompactTake))
-      (EL:CompactRequire (equal (type item) 'INT) 'integer-value) item)
+      (if (not (equal (type item) 'INT)) (EL:CompactRequire nil 'integer-value)) item)
     ((= token 3)
       (setq item (EL:CompactDecode) tail (EL:CompactDecode))
-      (EL:CompactRequire tail 'dotted-tail)
+      (if (not tail) (EL:CompactRequire nil 'dotted-tail))
       (cons item tail))
     ((= token 4)
       (setq index (EL:CompactTake))
-      (EL:CompactRequire (and (equal (type index) 'INT) (>= index 0)
-        (< index *EL:CompactReadTemplateCount*)) 'template-reference)
+      (if (not (and (equal (type index) 'INT) (>= index 0)
+          (< index *EL:CompactReadTemplateCount*))) (EL:CompactRequire nil 'template-reference))
       (if *EL:CompactReadTemplatePages* (EL:CompactPoolAt index *EL:CompactReadTemplatePages*)
         (nth index *EL:CompactReadTemplates*)))
     ((> token 8)
       (setq count (- token 8))
-      (EL:CompactRequire (<= count *EL:CompactRemainingCount*) 'list-length)
-      (repeat count (setq rows (cons (EL:CompactDecode) rows))) (reverse rows))
+      (if (> count *EL:CompactRemainingCount*) (EL:CompactRequire nil 'list-length))
+      (repeat count
+        ;; Coordinates are already native doubles, requiring no tag/ref
+        ;; expansion. Keep the exact value, including tiny REALs and 0.0.
+        (if (equal (type (car *EL:CompactRemaining*)) 'REAL)
+          (setq rows (cons (car *EL:CompactRemaining*) rows)
+            *EL:CompactRemaining* (cdr *EL:CompactRemaining*)
+            *EL:CompactRemainingCount* (1- *EL:CompactRemainingCount*))
+          (setq rows (cons (EL:CompactDecode) rows)))) (reverse rows))
     (T (EL:CompactRequire nil 'invalid-tag))))
 (defun EL:StoreExpand (packed / *EL:CompactRemaining* *EL:CompactReadTemplates*
     *EL:CompactReadAtoms* *EL:CompactRemainingCount* *EL:CompactReadAtomCount*
@@ -169,18 +195,17 @@
   (EL:CompactRequire (and (equal (EL:Get 'format-version packed) 2)
     (member (EL:Get 'codec packed) '(EL_COMPACT_V1 EL_COMPACT_V2))) 'unsupported-format)
   (setq *EL:CompactRemaining* (if (equal (EL:Get 'codec packed) 'EL_COMPACT_V2)
-      (EL:CompactUnpackIntegers (EL:Get 'body packed)) (EL:Get 'body packed))
+      (EL:PerfCall "STORE_UNPACK_INTS" 'EL:CompactUnpackIntegers (list (EL:Get 'body packed)))
+      (EL:Get 'body packed))
     *EL:CompactReadTemplates* (EL:Get 'templates packed)
     *EL:CompactReadAtoms* (EL:Get 'atoms packed))
-  (foreach value (list *EL:CompactRemaining* *EL:CompactReadTemplates* *EL:CompactReadAtoms*)
-    (EL:CompactRequire (and (listp value) (EL:CompactProperList value)) 'pool-shape))
   ;; Bound references and list lengths with constant-time counters. Calling
   ;; LENGTH on the remaining long tape for every row is quadratic in CAD.
-  (setq *EL:CompactRemainingCount* (length *EL:CompactRemaining*)
-    *EL:CompactReadAtomCount* (length *EL:CompactReadAtoms*)
-    *EL:CompactReadTemplateCount* (length *EL:CompactReadTemplates*))
+  (setq *EL:CompactRemainingCount* (EL:CompactPoolLength *EL:CompactRemaining*)
+    *EL:CompactReadAtomCount* (EL:CompactPoolLength *EL:CompactReadAtoms*)
+    *EL:CompactReadTemplateCount* (EL:CompactPoolLength *EL:CompactReadTemplates*))
   (foreach value *EL:CompactReadAtoms*
-    (EL:CompactRequire (member (type value) '(STR SYM)) 'atom-type))
+    (if (not (member (type value) '(STR SYM))) (EL:CompactRequire nil 'atom-type)))
   (foreach value *EL:CompactReadTemplates*
     (EL:CompactRequire (and value (listp value) (EL:CompactProperList value)) 'template-shape))
   ;; Small pools already have bounded lookups; do not build an extra index.
@@ -188,7 +213,7 @@
     (setq *EL:CompactReadAtomPages* (EL:CompactPoolPages *EL:CompactReadAtoms*)))
   (if (> *EL:CompactReadTemplateCount* 32)
     (setq *EL:CompactReadTemplatePages* (EL:CompactPoolPages *EL:CompactReadTemplates*)))
-  (setq value (EL:CompactDecode))
+  (setq value (EL:PerfCall "STORE_VALUE_DECODE" 'EL:CompactDecode nil))
   (EL:CompactRequire (not *EL:CompactRemaining*) 'trailing-body)
   (EL:CompactRequire (and (listp value) (EL:CompactProperList value)) 'logical-store-shape)
   ;; Recheck logical copy agreement after expanding references as well.

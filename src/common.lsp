@@ -198,6 +198,7 @@
         "STORE_PARSE" "STORE_READBACK" "STORE_CONTEXT_COMMIT" "STORE_CONTEXT_READ"
         "STORE_MIGRATE_BACKUP" "STORE_STAGE_BUILD"
         "STORE_COMPACT" "STORE_PACK_INTS" "STORE_NATIVE_ENCODE" "STORE_NATIVE_DECODE" "STORE_EXPAND"
+        "STORE_UNPACK_INTS" "STORE_VALUE_DECODE"
         "DIAGRAM_VIEW" "DIAGNOSTIC_EXPORT" "DEVICE_LIBRARY_LOAD" "DEVICE_LEGEND"))
       (and *EL:PerfDetail* (member stage
         '("STORE_SCHEMA" "STORE_REPLACE_PAYLOAD" "CCKK2_INSERT_BLOCK" "CCKK_POWER_TEXT"
@@ -483,6 +484,7 @@
       ("STORE_COMPACT" . "整理完整记录数据") ("STORE_PACK_INTS" . "压缩整数数据")
       ("STORE_NATIVE_ENCODE" . "编码图纸原生字段") ("STORE_NATIVE_DECODE" . "解码图纸原生字段")
       ("STORE_EXPAND" . "还原完整记录数据")
+      ("STORE_UNPACK_INTS" . "展开整数数据") ("STORE_VALUE_DECODE" . "还原记录字段结构")
       ("STORE_READBACK" . "回读核对保存内容") ("STORE_CONTEXT_COMMIT" . "核对提交后的上下文")
       ("STORE_CONTEXT_READ" . "读取提交后的上下文") ("SAVE_GENERATION_DRAFT" . "保存生成草稿")
       ("UNDO_BEGIN" . "开始撤销组") ("UNDO_END" . "结束撤销组")

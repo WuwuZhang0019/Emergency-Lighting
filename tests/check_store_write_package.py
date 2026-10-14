@@ -9,8 +9,6 @@ import zipfile
 from autolisp_host import parse
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGE = ROOT / 'output/应急照明-137'
-ARCHIVE = PACKAGE.with_suffix('.zip')
 FUNCTIONS = {
     'common': ['EL:PERFCALL', 'EL:MONITORTITLE'],
     'diagram-commands': ['EL:SAVEDRAFT'],
@@ -25,10 +23,13 @@ def definitions(text):
             if isinstance(form, list) and form[0] == 'DEFUN'}
 
 
-if __name__ == '__main__':
-    files = {p.relative_to(PACKAGE).as_posix(): p for p in PACKAGE.rglob('*') if p.is_file()}
+def check_package(number, functions):
+    """Shared full-package check for each storage optimization delivery."""
+    package = ROOT / f'output/应急照明-{number:03d}'
+    archive_path = package.with_suffix('.zip')
+    files = {p.relative_to(package).as_posix(): p for p in package.rglob('*') if p.is_file()}
     parsed, encoded = {}, 0
-    with zipfile.ZipFile(ARCHIVE) as archive:
+    with zipfile.ZipFile(archive_path) as archive:
         assert archive.testzip() is None
         entries = {entry.filename.split('/', 1)[1]: entry
                    for entry in archive.infolist() if not entry.is_dir()}
@@ -43,13 +44,13 @@ if __name__ == '__main__':
                 encoded += 1
                 if path.suffix.lower() == '.lsp': parsed[relative] = definitions(text)
     checked = []
-    for module, names in FUNCTIONS.items():
+    for module, names in functions.items():
         source = definitions((ROOT / 'src' / f'{module}.lsp').read_text(encoding='utf-8'))
         for name in names:
-            for entry in (f'src/{module}.lsp', 'START-CAD2020.lsp', 'src/load.lsp', 'UPDATE-137.lsp'):
+            for entry in (f'src/{module}.lsp', 'START-CAD2020.lsp', 'src/load.lsp', f'UPDATE-{number:03d}.lsp'):
                 assert source[name] == parsed[entry][name], (entry, name)
             checked.append(name)
-    startup = (PACKAGE / 'START-CAD2020.lsp').read_bytes().decode('gb2312')
+    startup = (package / 'START-CAD2020.lsp').read_bytes().decode('gb2312')
     resources = re.findall(r"EL:StartupWriteBase64 \(strcat root \"([^\"]+)\"\)\s*'\((.*?)\)\)",
                            startup, flags=re.S)
     expected = {name for name in files if name.startswith('assets/default-device-library/') or
@@ -59,19 +60,23 @@ if __name__ == '__main__':
     for name, literals in resources:
         raw = base64.b64decode(''.join(re.findall(r'"([A-Za-z0-9+/=]*)"', literals)), validate=True)
         if name == 'src/load.lsp':
-            assert 'CAD2020 v137' in raw.decode('gb2312')
+            assert f'CAD2020 v{number}' in raw.decode('gb2312')
         else:
             assert raw == files[name].read_bytes(), name
-    result = {'date': '2026-10-14', 'status': 'passed', 'package': 137,
+    return {'date': '2026-10-14', 'status': 'passed', 'package': number,
               'files': len(files), 'gb2312_lisp_dcl': encoded, 'parsed_lisp': len(parsed),
               'loading_entry_functions': checked, 'embedded_resources': len(resources),
-              'archive_sha256': hashlib.sha256(ARCHIVE.read_bytes()).hexdigest(),
+              'archive_sha256': hashlib.sha256(archive_path.read_bytes()).hexdigest(),
               'checks': ['ZIP CRC', 'all archive and extracted bytes match',
                          'strict GB2312 without BOM', 'all LISP parsing',
                          'changed definitions match all three loading entries',
-                         'embedded runtime resources match generated delivery modules'],
-              'focused_regression_cases': 79,
-              'native_cad_status': '137 first-save timing pending; two-second target not yet verified'}
+                         'embedded runtime resources match generated delivery modules']}
+
+
+if __name__ == '__main__':
+    result = check_package(137, FUNCTIONS)
+    result.update({'focused_regression_cases': 79,
+                   'native_cad_status': '137 first-save timing pending; two-second target not yet verified'})
     output = ROOT / 'tests/evidence/2026-10-14-store-write-package-137.json'
     output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     print(json.dumps(result, ensure_ascii=False, indent=2))

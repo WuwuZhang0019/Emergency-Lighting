@@ -50,8 +50,12 @@
         ((listp data)
           (setq tail data)
           (while (and tail (listp tail))
-            (setq items (cons (EL:StableData (car tail)) items) tail (cdr tail)))
-          (setq result (if tail (EL:StableData tail)))
+            ;; Date: 2026-10-15. Atomic values already have their exact stable
+            ;; representation. Recurse only for nested lists and entity names.
+            (setq item (car tail)
+              items (cons (if (member (type item) '(LIST ENAME))
+                (EL:StableData item) item) items) tail (cdr tail)))
+          (setq result (if (equal (type tail) 'ENAME) (EL:StableData tail) tail))
           (foreach item items (setq result (cons item result))) result)
         (T data)))
 (defun EL:Signature (data) (vl-prin1-to-string (EL:StableData data)))
@@ -380,8 +384,10 @@
         (cons 'frames *EL:LogStack*)))
       (EL:PerfUnwind pending)
       (setq *EL:LogStack* stack))) result)
-(defun EL:LogEntity (entity / data)
-  (setq data (entget entity))
+(defun EL:LogEntity (entity)
+  (EL:LogEntityData (entget entity)))
+(defun EL:LogEntityData (data)
+  ;; Date: 2026-10-15. Reuse the same fresh DXF read for diagnostic context.
   (list (cons 'handle (cdr (assoc 5 data))) (cons 'type (cdr (assoc 0 data)))
     (cons 'layer (cdr (assoc 8 data))) (cons 'block (cdr (assoc 2 data)))
     (cons 'dxf (vl-remove-if-not '(lambda (pair) (member (car pair)

@@ -62,18 +62,27 @@
   (setq total 0.0)
   (foreach segment (EL:Get 'segments wire)
     (setq total (+ total (EL:Norm (EL:V- (cadr segment) (car segment)))))) total)
-(defun EL:NumberPathSlice (wire start finish / low high cursor segment length a b part segments)
-  (setq low (min start finish) high (max start finish) cursor 0.0)
+(defun EL:NumberPathMeasures (wire / cursor segment vector length rows)
+  ;; Date: 2026-10-15. Exact segment lengths/vectors are constant across the
+  ;; 32 prefix probes; retain the original arithmetic and accumulation order.
+  (setq cursor 0.0)
   (foreach segment (EL:Get 'segments wire)
-    (setq length (EL:Norm (EL:V- (cadr segment) (car segment)))
+    (setq vector (EL:V- (cadr segment) (car segment)) length (EL:Norm vector)
+      rows (cons (list (car segment) vector cursor length) rows) cursor (+ cursor length)))
+  (reverse rows))
+(defun EL:NumberPathSlice (wire start finish)
+  (EL:NumberPathSliceMeasured wire start finish (EL:NumberPathMeasures wire)))
+(defun EL:NumberPathSliceMeasured (wire start finish measures / low high row point vector cursor length a b part segments)
+  (setq low (min start finish) high (max start finish))
+  (foreach row measures
+    (setq point (car row) vector (cadr row) cursor (caddr row) length (nth 3 row)
       a (max low cursor) b (min high (+ cursor length)))
     (if (and (> length 1.0e-12) (> b a))
       (progn
         (setq part (list
-          (EL:V+ (car segment) (EL:V* (/ (- a cursor) length) (EL:V- (cadr segment) (car segment))))
-          (EL:V+ (car segment) (EL:V* (/ (- b cursor) length) (EL:V- (cadr segment) (car segment))))))
-        (setq segments (cons part segments))))
-    (setq cursor (+ cursor length)))
+          (EL:V+ point (EL:V* (/ (- a cursor) length) vector))
+          (EL:V+ point (EL:V* (/ (- b cursor) length) vector))))
+        (setq segments (cons part segments)))))
   (setq segments (reverse segments))
   (if (> start finish) (setq segments (mapcar '(lambda (s) (reverse s)) (reverse segments))))
   (EL:Put 'contact-strips (EL:WireContactStrips segments (EL:Get 'width-profiles wire))
@@ -102,23 +111,32 @@
           (EL:BlockPointHit last panel cfg)))
       (cond ((and a (not b)) (list 0.0)) ((and b (not a)) (list (EL:NumberPathLength wire))))))))
 (defun EL:NumberShapeHit (wire shape cfg)
-  (or (EL:ContourPathHit wire shape (EL:StrictDeviceConfig cfg))
-    (EL:WideDevicePathHit wire shape (EL:StrictDeviceConfig cfg))))
-(defun EL:NumberFirstDevice (wire entry target devices cfg / block shape candidate low high middle distance best)
-  (if (> (abs (- target entry)) 1.0e-12)
+  (EL:NumberShapeHitStrict wire shape (EL:StrictDeviceConfig cfg)))
+(defun EL:NumberShapeHitStrict (wire shape cfg)
+  (or (EL:ContourPathHit wire shape cfg) (EL:WideDevicePathHit wire shape cfg)))
+(defun EL:NumberFirstDevice (wire entry target devices cfg / block shape candidates hits row low high middle slice measures)
+  ;; Date: 2026-10-15. All devices share the same 32-step dyadic prefix grid.
+  ;; Search the first contact jointly; on a hit retain every device hitting
+  ;; that prefix, in original order. This preserves the exact boundary and
+  ;; original first-device tie rule without rebuilding each prefix per device.
+  (if (and devices (> (abs (- target entry)) 1.0e-12))
+    (progn
+    (setq cfg (EL:StrictDeviceConfig cfg) measures (EL:NumberPathMeasures wire)
+      slice (EL:NumberPathSliceMeasured wire entry target measures))
     (foreach block devices
       (setq shape (EL:DeviceContactShape block))
-      (if (EL:NumberShapeHit (EL:NumberPathSlice wire entry target) shape cfg)
-        (progn
-          ;; A growing prefix has monotone contact even with holes and multiple regions.
-          (setq low 0.0 high 1.0)
-          (repeat 32
-            (setq middle (/ (+ low high) 2.0))
-            (if (EL:NumberShapeHit (EL:NumberPathSlice wire entry (+ entry (* middle (- target entry)))) shape cfg)
-              (setq high middle) (setq low middle)))
-          (setq distance (+ entry (* high (- target entry))))
-          (if (or (not best) (< (abs (- distance entry)) (abs (- (car best) entry))))
-            (setq best (list distance (EL:Get 'id block)))))))) best)
+      (if (EL:NumberShapeHitStrict slice shape cfg)
+        (setq candidates (cons (cons (EL:Get 'id block) shape) candidates))))
+    (if candidates
+      (progn
+        (setq candidates (reverse candidates) low 0.0 high 1.0)
+        (repeat 32
+          (setq middle (/ (+ low high) 2.0) hits nil
+            slice (EL:NumberPathSliceMeasured wire entry (+ entry (* middle (- target entry))) measures))
+          (foreach row candidates
+            (if (EL:NumberShapeHitStrict slice (cdr row) cfg) (setq hits (cons row hits))))
+          (if hits (setq high middle candidates (reverse hits)) (setq low middle)))
+        (list (+ entry (* high (- target entry))) (caar candidates)))))))
 (defun EL:NumberLinks (wire other network cfg / segments point stations mine theirs links pair a b)
   (setq segments (EL:Get 'segments wire))
   (foreach point (list (caar segments) (cadr (EL:Last segments)))

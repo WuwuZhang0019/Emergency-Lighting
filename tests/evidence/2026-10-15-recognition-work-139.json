@@ -1,0 +1,37 @@
+{
+  "date": "2026-10-15",
+  "status": "passed",
+  "baseline_commit": "520e46b",
+  "scope": "Actual RecognizeFixed in Python adapter; no prior result cache, synthetic drawing, not CAD seconds",
+  "fixture": "Two roots, six connected devices and 48 unrelated wire/device pairs; complete snapshots retained",
+  "exact_complete_result_equal": true,
+  "baseline": {
+    "entity_reads": 353,
+    "effective_name_reads": 165,
+    "lisp_calls": 142339,
+    "prefix_slices": 198,
+    "number_shape_checks": 198,
+    "host_seconds": 3.89,
+    "host_evaluation_steps": 2398335,
+    "inclusive_stage_steps": {
+      "EL:SIMPLECOLLECT": 529888,
+      "EL:SIMPLENETWORK": 882595,
+      "EL:SPLITNETWORK": 960514
+    }
+  },
+  "candidate": {
+    "entity_reads": 194,
+    "effective_name_reads": 2,
+    "lisp_calls": 65646,
+    "prefix_slices": 66,
+    "number_shape_checks": 74,
+    "host_seconds": 4.185,
+    "host_evaluation_steps": 1893596,
+    "inclusive_stage_steps": {
+      "EL:SIMPLECOLLECT": 509837,
+      "EL:SIMPLENETWORK": 776037,
+      "EL:SPLITNETWORK": 582384
+    }
+  },
+  "step_reduction_percent": 21.0
+}

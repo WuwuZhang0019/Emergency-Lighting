@@ -1,11 +1,11 @@
-"""Build the AutoCAD 2020 trial package. Date: 2026-10-14."""
+"""Build the AutoCAD 2020 trial package. Date: 2026-10-15."""
 from pathlib import Path
 import base64
 import shutil
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGE_NO = 138
+PACKAGE_NO = 139
 NAME = f'应急照明-{PACKAGE_NO:03d}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 OUTPUT_ROOT = ROOT / 'output'

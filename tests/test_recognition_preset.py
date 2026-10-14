@@ -1,4 +1,4 @@
-"""Date: 2026-10-12. Library-driven recognition; picking remains a separate action."""
+"""Date: 2026-10-15. Library-driven recognition; picking remains a separate action."""
 import unittest
 from autolisp_host import Pair, Symbol, truth
 import test_auto_wire as auto
@@ -109,9 +109,11 @@ class PresetEntryTests(unittest.TestCase):
                 f = concentrated.TrunkTests() if trunk else diag.FixedDiagnosticTests(); f.setUp()
                 self.addCleanup(f.doCleanups)
                 edited, names = [], []
-                models = iter(['trunk', 'panel'] if trunk else ['panel'])
+                # The direct entry now requests explicit circuit starts after the panel.
+                models = iter([['trunk', [0., 0., 0.]], ['panel', [0., 0., 0.]]] if trunk else
+                              [['panel', [0., 0., 0.]], ['w1', [1., 0., 0.]], None])
                 f.h.builtins.update({
-                    'EL:PICKMODEL': lambda *args: [next(models), [0., 0., 0.]],
+                    'EL:PICKMODEL': lambda *args: next(models),
                     'ENTSEL': lambda *args: self.fail('statistics started device picking'),
                     'EL:PRESETSAVE': lambda *args: self.fail('statistics saved recognition preset'),
                     'EL:DLRECOGNITIONNAMES': lambda *args: names.append(True) or ['LAMP'],

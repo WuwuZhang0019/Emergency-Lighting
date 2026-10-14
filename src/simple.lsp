@@ -185,7 +185,15 @@
         (EL:Get 'direction ep) (EL:Get 'Dmax (EL:Get 'params cfg)))))))
   candidates)
 
-(defun EL:SimpleCollect (cfg / ss i e d bounds items tree wires ends blocks candidates wire candidate id issues block queue current shape perf)
+(defun EL:CollectBlockName (entity definition / saved name)
+  ;; Date: 2026-10-15. Cache only the effective name of a block definition,
+  ;; within one fresh collection. Instance geometry is always read separately.
+  (if (and definition (setq saved (assoc definition *EL:CollectBlockNames*))) (cdr saved)
+    (progn
+      (setq name (EL:EffectiveName entity))
+      (if definition (setq *EL:CollectBlockNames* (cons (cons definition name) *EL:CollectBlockNames*))) name)))
+(defun EL:SimpleCollect (cfg / ss i e d bounds items tree wires ends blocks candidates wire candidate id issues block queue current shape perf name
+    *EL:CollectBlockNames*)
   ;; Date: 2026-10-10. Filter wires by inferred style; only the selected panel
   ;; uses its contour. Device geometry is checked lazily during network tracing.
   (setq ss (EL:PresetSelection cfg "INSERT,LINE,LWPOLYLINE" '(wire-layers panel-layers device-layers)) i 0)
@@ -194,20 +202,25 @@
   (setq perf (EL:PerfBegin "COLLECT_ENTITY_READ"))
   (if ss
     (repeat (sslength ss)
-      (setq e (ssname ss i) d (entget e) i (1+ i) id (cdr (assoc 5 d))
+      (setq e (ssname ss i) d (entget e '("EL_FIXED_V1")) i (1+ i) id (cdr (assoc 5 d)) name nil
             *EL:SimpleEntity* (list id (cdr (assoc 0 d)) (cdr (assoc 8 d))))
       (cond
-        ((EL:ManagedEntity e) nil)
-        ((and (equal (cdr (assoc 0 d)) "INSERT") (EL:PresetBlockAllowed e d cfg))
+        ;; The same selective native read includes the managed-output marker.
+        ((cdr (assoc "EL_FIXED_V1" (cdr (assoc -3 d)))) nil)
+        ((and (equal (cdr (assoc 0 d)) "INSERT")
+            (or (not (EL:Get 'preset-scoped cfg))
+              (EL:PresetBlockNameAllowed (setq name (EL:CollectBlockName e (cdr (assoc 2 d)))) d cfg)))
           (EL:PerfCount "source-block-bounds-reads" 1)
           (if (setq bounds (EL:EntityBounds e))
             (setq items (cons (list (cons 'key id) (cons 'entity e) (cons 'layer (cdr (assoc 8 d)))
+              (cons 'name name) (cons 'definition-name (cdr (assoc 2 d)))
               (cons 'bounds bounds) (cons 'point (EL:V* 0.5 (EL:V+ (car bounds) (cadr bounds))))) items))
             (setq issues (cons (EL:Issue 'MISSING_BLOCK_BOUNDS id nil) issues))))
         ((equal (cdr (assoc 0 d)) "INSERT") nil)
         ((EL:WireStyleAllowed d cfg)
           (EL:PerfCount "source-wire-record-reads" 1)
-          (setq wire (EL:WireRecord e cfg) wires (cons wire wires)
+          (setq wire (EL:WireRecordDXF e (if (assoc -3 d)
+              (vl-remove-if '(lambda (row) (= (car row) -3)) d) d) cfg) wires (cons wire wires)
                 ends (append (EL:Get 'ends wire) ends) issues (append (EL:Get 'issues wire) issues))))))
   (EL:PerfEnd perf 'returned)
   (setq perf (EL:PerfBegin "COLLECT_CANDIDATES") tree (EL:SpatialTree items 0))
@@ -217,7 +230,9 @@
         (progn
           (setq id (EL:Get 'key candidate) *EL:SimpleEntity* (list id 'block-name)
                 candidates (cons id candidates)
-                block (list (cons 'entity (EL:Get 'entity candidate)) (cons 'id id) (cons 'name (EL:EffectiveName (EL:Get 'entity candidate)))
+                block (list (cons 'entity (EL:Get 'entity candidate)) (cons 'id id)
+                  (cons 'name (cond ((EL:Get 'name candidate))
+                    (T (EL:CollectBlockName (EL:Get 'entity candidate) (EL:Get 'definition-name candidate)))))
                   (cons 'layer (EL:Get 'layer candidate)) (cons 'bounds (EL:Get 'bounds candidate)) (cons 'whole-block T)))
           (setq blocks (cons block blocks))))))
   ;; Date: 2026-10-10. Expand the candidate set along touching device chains.
@@ -229,7 +244,9 @@
       (if (not (member id candidates))
         (progn
           (setq candidates (cons id candidates) *EL:SimpleEntity* (list id 'block-name)
-                block (list (cons 'entity (EL:Get 'entity candidate)) (cons 'id id) (cons 'name (EL:EffectiveName (EL:Get 'entity candidate)))
+                block (list (cons 'entity (EL:Get 'entity candidate)) (cons 'id id)
+                  (cons 'name (cond ((EL:Get 'name candidate))
+                    (T (EL:CollectBlockName (EL:Get 'entity candidate) (EL:Get 'definition-name candidate)))))
                   (cons 'layer (EL:Get 'layer candidate)) (cons 'bounds (EL:Get 'bounds candidate)) (cons 'whole-block T))
                 blocks (cons block blocks) queue (cons block queue))))))
   (EL:PerfEnd perf 'returned)

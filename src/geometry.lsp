@@ -108,10 +108,13 @@
     'EL:OCSTrans (list point normal displacement stage)))
 (defun EL:PolylineTrans (point normal)
   (EL:OCSTrans point normal nil "POLYLINE_TRANS"))
-(defun EL:PolylineData (e / data p elev normal points bulges x converted)
-  (setq data (entget e) elev (cond ((cdr (assoc 38 data))) (T 0.0))
+(defun EL:PolylineData (e)
+  (EL:PolylineDataDXF (entget e)))
+(defun EL:PolylineDataDXF (data / p elev normal points bulges x converted)
+  ;; Date: 2026-10-15. Geometry and diagnostics use the caller's fresh DXF.
+  (setq elev (cond ((cdr (assoc 38 data))) (T 0.0))
         normal (cond ((cdr (assoc 210 data))) (T '(0.0 0.0 1.0))))
-  (EL:LogEvent "POLYLINE_INPUT" (list (cons 'entity (EL:LogEntity e)) (cons 'elevation elev) (cons 'raw-dxf data)))
+  (EL:LogEvent "POLYLINE_INPUT" (list (cons 'entity (EL:LogEntityData data)) (cons 'elevation elev) (cons 'raw-dxf data)))
   (foreach x data
     ;; Capture the exact DXF row before numeric group-code comparisons.
     (EL:LogEvent "POLYLINE_DXF_ROW" x)
@@ -198,11 +201,14 @@
   (foreach strip (EL:Get 'contact-strips wire)
     (setq segments (append segments (EL:Get 'segments strip))))
   (EL:SegmentBounds segments))
-(defun EL:WireRecord (e cfg / d id typ pts bs closed segments ends issues normal total seg bounds profiles)
-  (setq d (entget e) id (cdr (assoc 5 d)) typ (cdr (assoc 0 d)) normal (cdr (assoc 210 d)))
+(defun EL:WireRecord (e cfg)
+  (EL:WireRecordDXF e (entget e) cfg))
+(defun EL:WireRecordDXF (e d cfg / id typ pts bs closed segments ends issues normal total seg bounds profiles)
+  ;; Date: 2026-10-15. No second entity read while collecting this wire.
+  (setq id (cdr (assoc 5 d)) typ (cdr (assoc 0 d)) normal (cdr (assoc 210 d)))
   (cond ((= typ "LINE") (setq pts (list (cdr (assoc 10 d)) (cdr (assoc 11 d))) bs '(0.0 0.0)))
         ((= typ "LWPOLYLINE")
-         (setq pts (EL:PolylineData e) bs (cadr pts) pts (car pts)
+         (setq pts (EL:PolylineDataDXF d) bs (cadr pts) pts (car pts)
                closed (= (logand 1 (cond ((cdr (assoc 70 d))) (T 0))) 1)))
         (T (setq issues (list (EL:Issue 'UNSUPPORTED_WIRE id typ)))))
   (if (and normal (> (+ (abs (car normal)) (abs (cadr normal))) 1.0e-9))
@@ -869,24 +875,29 @@
       (setq invalid (vl-remove-if '(lambda (row) (EL:Point (EL:Get 'point row))) items))
       (if invalid (EL:LogEvent "INDEX_INVALID_POINTS" (list axis invalid)))))
   (foreach item items
-    (setq keyed (cons (cons (EL:Signature (EL:Get 'key item)) item) keyed)))
+    ;; Date: 2026-10-15. Keep coordinates beside the tie-break key; native
+    ;; list access replaces repeated alist searches inside sort comparisons.
+    (setq keyed (cons (cons (EL:Get 'point item) (cons (EL:Signature (EL:Get 'key item)) item)) keyed)))
   (EL:SpatialTreeBuild (reverse keyed) axis))
 (defun EL:SpatialTreeBuild (items axis / sorted mid i item pivot left right lo hi bounds)
   ;; Preserve the existing axis order, tie-break order and public tree layout.
   (if items
     (progn
-      (setq sorted (vl-sort items '(lambda (a b)
-        (if (= (nth axis (EL:Get 'point (cdr a))) (nth axis (EL:Get 'point (cdr b))))
-          (< (car a) (car b))
-          (< (nth axis (EL:Get 'point (cdr a))) (nth axis (EL:Get 'point (cdr b)))))))
+      (if (not (cdr items))
+        (setq pivot (cddr (car items)))
+        (progn
+          (setq sorted (vl-sort items '(lambda (a b)
+            (if (= (nth axis (car a)) (nth axis (car b)))
+              (< (cadr a) (cadr b))
+              (< (nth axis (car a)) (nth axis (car b))))))
             mid (/ (length sorted) 2) i 0)
-      (foreach item sorted
-        (cond ((< i mid) (setq left (cons item left)))
-              ((= i mid) (setq pivot (cdr item))) (T (setq right (cons item right))))
-        (setq i (1+ i)))
-      (setq left (EL:SpatialTreeBuild left (fix (rem (1+ axis) 3)))
-            right (EL:SpatialTreeBuild right (fix (rem (1+ axis) 3)))
-            bounds (EL:Get 'bounds pivot)
+          (foreach item sorted
+            (cond ((< i mid) (setq left (cons item left)))
+              ((= i mid) (setq pivot (cddr item))) (T (setq right (cons item right))))
+            (setq i (1+ i)))
+          (setq left (EL:SpatialTreeBuild left (fix (rem (1+ axis) 3)))
+            right (EL:SpatialTreeBuild right (fix (rem (1+ axis) 3))))))
+      (setq bounds (EL:Get 'bounds pivot)
             lo (if bounds (car bounds) (EL:Get 'point pivot))
             hi (if bounds (cadr bounds) lo))
       (foreach item (list left right)

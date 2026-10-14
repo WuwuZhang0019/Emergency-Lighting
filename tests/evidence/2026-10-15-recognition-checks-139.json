@@ -1,0 +1,32 @@
+{
+  "date": "2026-10-15",
+  "status": "passed",
+  "scope": "Focused Python adapter checks, not native AutoCAD acceptance",
+  "cases": 90,
+  "suites": [
+    "test_recognition_fastpath",
+    "test_recognition_preset",
+    "test_gap_index",
+    "test_signature_depth",
+    "test_diagnostics",
+    "test_circuit_number.NumberScopeTests",
+    "test_reachable_network",
+    "test_network_reuse.NetworkReuseTests",
+    "test_network_reuse.FreshNetworkSignatureTests",
+    "test_fixed_source_signature.FixedSourceSignatureTests",
+    "test_circuit_starts",
+    "test_junction_box.JunctionTests.test_registered_names_on_other_layers_survive_preset_filter"
+  ],
+  "failures": [],
+  "sha256": {
+    "src/common.lsp": "4c3c7ec457f0442dd149f4091e3f436d683f1584dc75afcadd089d1ac8435201",
+    "src/config.lsp": "230344b0123f2388473ab460df71722b2c7ba26c4d7e3811bf36f3e5029de76f",
+    "src/geometry.lsp": "63ae9d271a7e004c5415bf03296d5bef237c7bc7d7250adaf3060818bfc75e29",
+    "src/simple.lsp": "aec91739a5a2960f50562a98bc8a79942e68461f0824bc1f8f2e39f40e01c91e",
+    "src/circuit-number.lsp": "60f8cd2c5c46fbcf7017f2b6686db7acd8135da9031d930bb0afa56d4bc01530",
+    "tests/test_recognition_fastpath.py": "073fe67204079fdf6f43805eb8a24ce9fbb6a31040c922bf08bbcb002d366eb8",
+    "tests/fixtures/recognition-138-oracle.lsp": "6019a1985bd10a7fd51e166b88061dd21f6e9fb6d6fec581413281cda8cd1ffc",
+    "tests/test_recognition_preset.py": "c56726cccb66446211448c0a1e68250173fd9723eb1cd945fe88899bdb339c47",
+    "tests/run_recognition_checks.py": "5953fa6edd98f5959472255923311d772090a76e76de329d91c069797b1c06df"
+  }
+}

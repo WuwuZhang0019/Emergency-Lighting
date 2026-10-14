@@ -1,0 +1,41 @@
+{
+  "date": "2026-10-15",
+  "status": "passed",
+  "package": 139,
+  "files": 331,
+  "gb2312_lisp_dcl": 32,
+  "parsed_lisp": 30,
+  "loading_entry_functions": [
+    "EL:STABLEDATA",
+    "EL:LOGENTITY",
+    "EL:LOGENTITYDATA",
+    "EL:PRESETBLOCKALLOWED",
+    "EL:PRESETBLOCKNAMEALLOWED",
+    "EL:POLYLINEDATA",
+    "EL:POLYLINEDATADXF",
+    "EL:WIRERECORD",
+    "EL:WIRERECORDDXF",
+    "EL:SPATIALTREE",
+    "EL:SPATIALTREEBUILD",
+    "EL:COLLECTBLOCKNAME",
+    "EL:SIMPLECOLLECT",
+    "EL:NUMBERPATHMEASURES",
+    "EL:NUMBERPATHSLICE",
+    "EL:NUMBERPATHSLICEMEASURED",
+    "EL:NUMBERSHAPEHIT",
+    "EL:NUMBERSHAPEHITSTRICT",
+    "EL:NUMBERFIRSTDEVICE"
+  ],
+  "embedded_resources": 132,
+  "archive_sha256": "db94ee529377ad6698e2924f5876c921363f7b4270939476b6adb1edab571a5a",
+  "checks": [
+    "ZIP CRC",
+    "all archive and extracted bytes match",
+    "strict GB2312 without BOM",
+    "all LISP parsing",
+    "changed definitions match all three loading entries",
+    "embedded runtime resources match generated delivery modules"
+  ],
+  "focused_regression_cases": 90,
+  "native_cad_status": "139 whole-panel recognition timing pending; one-second target not yet verified"
+}

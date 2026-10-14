@@ -2,7 +2,7 @@
 
 Loads the actual .lsp sources. CAD APIs fail if called. NIL, dynamic scope,
 integer division and AutoLISP LAST (one-element list) are modelled explicitly.
-Date: 2026-10-12.
+Date: 2026-10-14.
 """
 import math
 import re
@@ -90,6 +90,19 @@ def cons(a, b):
     return [a] + seq(b) if b is None or isinstance(b, list) else Pair(a, b)
 
 
+def list_length(value):
+    """Native VL-LIST-LENGTH: zero for NIL, NIL for a dotted list."""
+    count = 0
+    while isinstance(value, Pair):
+        count += 1
+        value = value.cdr
+    if value is None:
+        return count
+    if isinstance(value, list):
+        return count + len(value)
+    return None
+
+
 def entity_data(data, apps=None):
     """Date: 2026-10-11. Match native entget application selection, including '*'."""
     if data is None:
@@ -150,6 +163,7 @@ class Host:
             'APPEND': lambda *xs: sum((seq(x) for x in xs), []) or None,
             'REVERSE': lambda x: list(reversed(seq(x))) or None,
             'LENGTH': lambda x: len(seq(x)), 'NTH': lambda i,x: x[i] if x and i < len(x) else None,
+            'VL-LIST-LENGTH': list_length,
             'LAST': lambda x: x[-1:] if x else None,
             'ASSOC': lambda k,x: next((p for p in seq(x) if equal(car(p), k)), None),
             'MEMBER': lambda k,x: next((x[i:] for i,p in enumerate(seq(x)) if equal(k,p)), None),

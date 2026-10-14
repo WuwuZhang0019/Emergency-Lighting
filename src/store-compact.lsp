@@ -5,10 +5,9 @@
     (progn
       (EL:LogEvent "STORE_COMPACT_ERROR" (list (cons 'reason reason)))
       (EL:StoreParseRequire nil))) condition)
-(defun EL:CompactProperList (value / tail)
-  (setq tail value)
-  (while (and tail (listp tail)) (setq tail (cdr tail)))
-  (not tail))
+(defun EL:CompactProperList (value)
+  ;; Date: 2026-10-14. Native traversal also distinguishes dotted tails.
+  (and (listp value) (numberp (vl-list-length value))))
 (defun EL:CompactIndex (value items / index found)
   (setq index 0)
   (while (and items (not found))
@@ -46,7 +45,7 @@
       index)))
 (defun EL:CompactEmit (value)
   (setq *EL:CompactTokens* (cons value *EL:CompactTokens*)))
-(defun EL:CompactEncode (value / kind index item)
+(defun EL:CompactEncode (value / kind index item count)
   (setq kind (type value))
   (cond
     ((not value) (EL:CompactEmit 0))
@@ -54,7 +53,7 @@
     ((equal kind 'INT) (EL:CompactEmit 2) (EL:CompactEmit value))
     ((equal kind 'REAL) (EL:CompactEmit value))
     ((member kind '(STR SYM)) (EL:CompactEmit (- -1 (EL:CompactAtom value))))
-    ((and (listp value) (member (car value) '(template fixed-template))
+    ((and *EL:CompactTemplates* (listp value) (member (car value) '(template fixed-template))
         (setq index (EL:CompactIndex (cdr value) *EL:CompactTemplates*)))
       ;; An alist entry with a list value is a proper list in AutoLISP.
       ;; Encode its CDR as a template reference, rather than visiting every
@@ -62,11 +61,11 @@
       (EL:CompactEmit 3) (EL:CompactEncode (car value))
       (EL:CompactEmit 4) (EL:CompactEmit index))
     ((listp value)
-      (setq index (EL:CompactIndex value *EL:CompactTemplates*))
+      (setq index (if *EL:CompactTemplates* (EL:CompactIndex value *EL:CompactTemplates*)))
       (cond
         (index (EL:CompactEmit 4) (EL:CompactEmit index))
-        ((EL:CompactProperList value)
-          (EL:CompactEmit (+ 8 (length value)))
+        ((setq count (vl-list-length value))
+          (EL:CompactEmit (+ 8 count))
           (foreach item value (EL:CompactEncode item)))
         (T (EL:CompactEmit 3) (EL:CompactEncode (car value)) (EL:CompactEncode (cdr value)))))
     (T (EL:CompactRequire nil 'unsupported-value))))

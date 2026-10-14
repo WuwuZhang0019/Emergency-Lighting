@@ -101,20 +101,30 @@
     value (EL:StoreParseValue))
   (EL:StoreParseSpace)
   (EL:StoreParseRequire (> *EL:StoreParseIndex* *EL:StoreParseLength*)) value)
-(defun EL:StoreStringChunks (value / codes block count chunks code unicode)
-  ;; Date: 2026-10-09. Native DXF strings never pass through READ or printer
-  ;; escapes. Keep legacy multibyte characters whole at field boundaries.
-  (setq codes (vl-string->list value)
-    unicode (vl-catch-all-apply 'getvar (list "LISPSYS")))
-  (setq unicode (and (numberp unicode) (> unicode 0)))
-  (while codes
-    (setq block nil count 0)
-    (while (and codes (< count 32))
-      (setq code (car codes) codes (cdr codes) block (cons code block) count (1+ count))
-      (if (and (not unicode) (>= code 128) (<= code 255) codes)
-        (setq block (cons (car codes) block) codes (cdr codes) count (1+ count))))
-    (setq chunks (cons (cons 1 (vl-list->string (reverse block))) chunks)))
-  (if chunks (reverse chunks) '((1 . ""))))
+(defun EL:StoreStringChunks (value / size start codes block count chunks code unicode)
+  ;; Date: 2026-10-14. Keep exactly the same DXF pieces, without walking
+  ;; every byte of the integer tape or splitting strings that already fit.
+  (setq size (strlen value))
+  (cond
+    ((<= size 32) (list (cons 1 value)))
+    ((equal (vl-string-trim " -0123456789" value) "")
+      (setq start 1)
+      (while (<= start size)
+        (setq chunks (cons (cons 1 (substr value start 32)) chunks) start (+ start 32)))
+      (reverse chunks))
+    (T
+      ;; Non-ASCII strings retain the legacy multibyte boundary handling.
+      (setq codes (vl-string->list value)
+        unicode (vl-catch-all-apply 'getvar (list "LISPSYS")))
+      (setq unicode (and (numberp unicode) (> unicode 0)))
+      (while codes
+        (setq block nil count 0)
+        (while (and codes (< count 32))
+          (setq code (car codes) codes (cdr codes) block (cons code block) count (1+ count))
+          (if (and (not unicode) (>= code 128) (<= code 255) codes)
+            (setq block (cons (car codes) block) codes (cdr codes) count (1+ count))))
+        (setq chunks (cons (cons 1 (vl-list->string (reverse block))) chunks)))
+      (reverse chunks))))
 (defun EL:StoreEncodeValue (value / kind tail token pair)
   (setq kind (type value))
   (cond
@@ -155,10 +165,10 @@
   (setq valid (vl-catch-all-apply 'EL:StoreSchemaValid (list value)))
   (if (and (not (vl-catch-all-error-p valid)) valid)
     (progn
-      (setq packed (EL:StoreCompact value) bodycount (length (EL:Get 'body packed))
+      (setq packed (EL:PerfCall "STORE_COMPACT" 'EL:StoreCompact (list value)) bodycount (length (EL:Get 'body packed))
         packed (EL:Put 'codec 'EL_COMPACT_V2
-          (EL:Put 'body (EL:CompactPackIntegers (EL:Get 'body packed)) packed))
-        tokens (EL:StoreEncodeNative packed "EL_COMPACT_TYPED_V3"))
+          (EL:Put 'body (EL:PerfCall "STORE_PACK_INTS" 'EL:CompactPackIntegers (list (EL:Get 'body packed))) packed))
+        tokens (EL:PerfCall "STORE_NATIVE_ENCODE" 'EL:StoreEncodeNative (list packed "EL_COMPACT_TYPED_V3")))
       (EL:PerfSet "store-wire-version" 3)
       (EL:PerfSet "store-compact-fields" (length tokens))
       (EL:PerfSet "store-template-pool-count" (length (EL:Get 'templates packed)))
@@ -210,8 +220,9 @@
   (setq marker (cdr (car tokens)))
   (cond
     ((equal marker "EL_TYPED_V1") (EL:StoreDecodeNative tokens marker))
-    ((equal marker "EL_COMPACT_TYPED_V2") (EL:StoreExpand (EL:StoreDecodeNative tokens marker)))
-    ((equal marker "EL_COMPACT_TYPED_V3") (EL:StoreExpand (EL:StoreDecodeNative tokens marker)))
+    ((member marker '("EL_COMPACT_TYPED_V2" "EL_COMPACT_TYPED_V3"))
+      (EL:PerfCall "STORE_EXPAND" 'EL:StoreExpand
+        (list (EL:PerfCall "STORE_NATIVE_DECODE" 'EL:StoreDecodeNative (list tokens marker)))))
     (T (EL:StoreParseRequire nil))))
 (defun EL:StorePayload (entry / prefix)
   ;; Date: 2026-10-13. Typed records start at group 300. Filter only the

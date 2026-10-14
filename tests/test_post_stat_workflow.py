@@ -3,6 +3,7 @@
 Runs actual command/dialog functions with finite CAD/DCL adapters.
 """
 import unittest
+import copy
 import tempfile
 from pathlib import Path
 import test_device_library as library_backend
@@ -127,6 +128,39 @@ class SelectionStoreTests(unittest.TestCase):
             self.h.load_definitions(db.ROOT / 'src' / f'{name}.lsp')
         self.h.builtins['EL:TRANSACTION'] = lambda fn, args: self.h.call(fn, args)
         self.h.builtins['EL:TEMPLATEREADY'] = lambda template, cfg: truth(template)
+
+    def test_new_draft_saves_current_snapshot_without_copying_previous_output_snapshot(self):
+        self.h.load_definitions(db.ROOT / 'src/store-split.lsp')
+        db.StoreTests.install_transaction(self)
+        del self.h.builtins['EL:TRANSACTION']
+        self.h.run('''(setq *EL:SplitStorageLoaded* T
+          cfg '((template (name . "captured")))
+          old-signature '(EL_FIXED_SOURCE_V1 ((old-data 1.0000000000000002)))
+          current-signature '(EL_FIXED_SOURCE_V1 ((current-data 1.203456789012345e-98)))
+          store (EL:StoreInitial)
+          old (EL:Put 'panel-output-handle "old-output"
+            (EL:Put 'source-signature old-signature
+              (EL:Put 'template (EL:Get 'template cfg) (EL:NewRecord "source" store))))
+          store (EL:StorePutDiagram old store))
+          (EL:StoreWriteMonolithic store)
+          (setq result (list '(panel . "source") '(engine . fixed) '(can-generate . T)
+            '(panel-number . "AL1") '(capacity-source . manual)
+            '(circuits ((id . "R1") (seed-key "wire" outlet) (ground-source . default)))
+            (list 'snapshot (cons 'signature current-signature))))''')
+        original = copy.deepcopy(self.entities[self.dictionary['EL_FIXED_V1']])
+        self.assertTrue(truth(self.h.run("(EL:SaveDraft result cfg '((\"灯具\" . 5.25)) 'cap600)")))
+        self.h.run('(setq reopened (EL:DiagramForPanel "source" (EL:StoreRead)))')
+        self.assertIsNone(self.h.run("(EL:Get 'source-signature reopened)"))
+        self.assertIsNone(self.h.run("(EL:Get 'panel-output-handle reopened)"))
+        self.assertTrue(truth(self.h.run("(equal current-signature (EL:Get 'draft-source-signature reopened))")))
+        self.assertTrue(truth(self.h.run("(equal (EL:Get 'template old) (EL:Get 'template reopened))")))
+        self.assertEqual(self.h.run("(EL:Get 'panel-number reopened)"), 'AL1')
+        self.assertEqual(self.h.run("(EL:Get 'draft-capacity reopened)"), Symbol('CAP600'))
+        self.assertTrue(truth(self.h.run("(equal '((\"灯具\" . 5.25)) (EL:Get 'powers reopened))")))
+        self.assertNotEqual(self.h.run("(EL:Get 'diagram-id old)"), self.h.run("(EL:Get 'diagram-id reopened)"))
+        self.assertEqual(self.entities[self.dictionary['EL_FIXED_V1']], original)
+        self.h.frames[0]['BACKUP'] = self.entities[self.dictionary['EL_FIXED_MONOLITH_BACKUP']]
+        self.assertTrue(truth(self.h.run("(equal store (EL:StoreDecode (EL:StorePayload backup)))")))
 
     def test_draft_confirmation_and_shared_template_roundtrip_through_xrecord(self):
         self.h.run('''(setq cfg '((template (name . "captured"))))

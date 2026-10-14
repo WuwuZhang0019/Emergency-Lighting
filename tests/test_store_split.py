@@ -1,4 +1,4 @@
-"""Split-store migration, partial IO and rollback; Date: 2026-10-13."""
+"""Split-store migration, partial IO and rollback; Date: 2026-10-14."""
 import copy
 import unittest
 from pathlib import Path
@@ -70,6 +70,51 @@ class SplitStoreTests(unittest.TestCase):
         reads.clear()
         self.assertEqual(self.call('EL:StoreRecord', 'one'), self.h.lookup('RECORD1'))
         self.assertNotIn(self.get('detail', item2), reads)
+
+    def test_first_save_stages_only_final_records_and_keeps_exact_history_backup(self):
+        put = lambda key, value, row: self.call('EL:Put', Symbol(key.upper()), value, row)
+        old1 = put('source-signature', ['old snapshot 1', 1.e-98], self.h.lookup('RECORD1'))
+        old2 = put('diagram-id', 'older-two', put('source-signature',
+                   ['old snapshot 2', 1.0000000000000002], old1))
+        other = self.h.lookup('RECORD2')
+        old = put('diagrams', [old1, old2, other], self.h.lookup('STORE'))
+        self.assertTrue(truth(self.call('EL:StoreWriteMonolithic', old)))
+        raw = copy.deepcopy(self.call('EL:StorePayload', self.entities[self.dictionary['EL_FIXED_V1']]))
+        current = put('diagram-id', 'new', put('source-signature', ['current', 3.e-97], old1))
+        proposed = self.call('EL:StorePutDiagram', current, old)
+        builds, blobs = [], []
+        original = self.h.call
+        def observe(name, args):
+            if name == 'EL:SPLITBUILD': builds.append(copy.deepcopy(args[0]))
+            if name == 'EL:STOREENCODE' and self.get('chunk-kind', args[0]) == Symbol('BLOB'):
+                blobs.append(copy.deepcopy(self.get('chunk-value', args[0])))
+            return original(name, args)
+        self.h.call = observe
+        context = self.save(proposed)
+        self.assertTrue(truth(self.get('committed', context)))
+        self.assertEqual(builds, [proposed])
+        self.assertNotIn(self.get('source-signature', old1), blobs)
+        self.assertNotIn(self.get('source-signature', old2), blobs)
+        self.assertEqual(blobs.count(self.get('source-signature', current)), 1)
+        self.assertEqual(blobs.count(self.get('source-signature', other)), 1)
+        self.assertEqual(self.call('EL:StoreRead'), proposed)
+        self.assertEqual(self.call('EL:StoreRecord', 'two'), other)
+        backup = self.entities[self.dictionary['EL_FIXED_MONOLITH_BACKUP']]
+        self.assertEqual(self.call('EL:StorePayload', backup), raw)
+
+    def test_legacy_payload_change_during_final_staging_rejects_publication(self):
+        self.assertTrue(truth(self.call('EL:StoreWriteMonolithic', self.h.lookup('STORE'))))
+        before = copy.deepcopy((self.entities, self.dictionary))
+        original = self.h.call
+        def change_before_build(name, args):
+            if name == 'EL:SPLITBUILD':
+                entity = self.dictionary['EL_FIXED_V1']
+                self.entities[entity] = self.entities[entity] + [Pair(1, 'changed while staging')]
+            return original(name, args)
+        self.h.call = change_before_build
+        self.assertFalse(truth(self.get('committed', self.save())))
+        self.assertNotIn('EL_FIXED_SPLIT_V1', self.dictionary)
+        self.assertEqual((self.entities, self.dictionary), before)
 
     def test_power_edit_reuses_large_blobs_and_other_box_and_noop_writes_nothing(self):
         self.save()

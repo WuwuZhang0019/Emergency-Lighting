@@ -1,4 +1,4 @@
-;; Date: 2026-10-12. Common publication/synchronization entry points.
+;; Date: 2026-10-14. Common publication/synchronization entry points.
 (defun EL:PowerInputPath (panel / drawing)
   (if (and panel *EL:Root* (setq drawing (EL:DrawingID)))
     (strcat *EL:Root* "config/power-input-" (EL:Hash (strcat drawing "/" panel)) ".eld")))
@@ -34,9 +34,10 @@
   ;; Date: 2026-10-14. Saving inputs must not revise an earlier output's
   ;; record. A new draft becomes the latest entry for the source box.
   (if (EL:Get 'panel-output-handle record)
-    (setq record (EL:Put 'source-signature (EL:Get 'source-signature record)
-      (EL:Put 'template (EL:Get 'template record)
-        (EL:NewRecord (EL:Get 'panel result) store)))))
+    ;; A new draft has no formal output/snapshot of its own. Its current
+    ;; snapshot is saved below; do not copy the previous output's large blob.
+    (setq record (EL:Put 'template (EL:Get 'template record)
+      (EL:NewRecord (EL:Get 'panel result) store))))
   (setq
     record (EL:Put 'draft-circuits (EL:Get 'circuits result) (EL:Put 'draft-capacity capacity
       (EL:Put 'powers powers (EL:Put 'config cfg (EL:Put 'engine (EL:Get 'engine result) record))))))

@@ -267,17 +267,18 @@
     (if (setq entry (dictsearch (namedobjdict) "EL_FIXED_V1"))
       (progn
         (setq old (EL:StoreReadMonolithic))
-        (EL:SplitBackup entry)
-        ;; Verify every old box before applying this save's edits. No browse migration.
-        (setq staged (EL:SplitBuild old))
-        (EL:StoreCheck old (EL:SplitMaterialize staged) 'split-migration-logical))))
+        ;; Date: 2026-10-14. The exact raw backup keeps every old record.
+        ;; Validate old template copies, then stage only the final store once.
+        ;; Old/new native payloads are still checked before root publication.
+        (EL:CompactTemplates old)
+        (EL:LogCall "STORE_MIGRATE_BACKUP" nil 'EL:SplitBackup (list entry)))))
   (setq *EL:StoreReadCache* nil)
   (setq baseline-contexts *EL:SplitReadContexts*)
   (if old (EL:StoreCheck (EL:Get 'drawing-uuid old) (EL:Get 'drawing-uuid store) 'split-drawing-owner))
   (if (and root (equal old store))
     (progn (EL:PerfCount "split-noop-writes" 1) (setq value old))
     (progn
-      (setq staged (EL:SplitBuild store) *EL:SplitReadContexts* nil)
+      (setq staged (EL:LogCall "STORE_STAGE_BUILD" nil 'EL:SplitBuild (list store)) *EL:SplitReadContexts* nil)
       (if (EL:SplitViewP store) (EL:SplitCheckView staged store)
         (EL:StoreCheck store (EL:SplitMaterialize staged) 'split-staged-logical))
       (if (and root (equal (EL:SplitPairsWithout '(generation) root)

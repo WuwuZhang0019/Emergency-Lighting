@@ -196,6 +196,8 @@
         "CCKK2" "CCKK2_CREATE" "SAVE_CREATED_DIAGRAM" "COMPONENT_INDEX" "STORE_CURRENT_BOX"
         "TX_WRITE" "STORE_READ" "STORE_DECODE" "STORE_CACHE_CHECK" "STORE_SERIALIZE"
         "STORE_PARSE" "STORE_READBACK" "STORE_CONTEXT_COMMIT" "STORE_CONTEXT_READ"
+        "STORE_MIGRATE_BACKUP" "STORE_STAGE_BUILD"
+        "STORE_COMPACT" "STORE_PACK_INTS" "STORE_NATIVE_ENCODE" "STORE_NATIVE_DECODE" "STORE_EXPAND"
         "DIAGRAM_VIEW" "DIAGNOSTIC_EXPORT" "DEVICE_LIBRARY_LOAD" "DEVICE_LEGEND"))
       (and *EL:PerfDetail* (member stage
         '("STORE_SCHEMA" "STORE_REPLACE_PAYLOAD" "CCKK2_INSERT_BLOCK" "CCKK_POWER_TEXT"
@@ -477,6 +479,10 @@
       ("CCKK2_CREATE" . "创建配电箱系统图") ("SAVE_CREATED_DIAGRAM" . "保存生成的系统图记录")
       ("TX_WRITE" . "写入系统图及保存记录") ("STORE_SERIALIZE" . "序列化保存记录")
       ("STORE_PARSE" . "解析并核对序列化数据") ("STORE_REPLACE_PAYLOAD" . "写入图纸记录载荷")
+      ("STORE_MIGRATE_BACKUP" . "备份旧版完整记录") ("STORE_STAGE_BUILD" . "构建最终待保存记录")
+      ("STORE_COMPACT" . "整理完整记录数据") ("STORE_PACK_INTS" . "压缩整数数据")
+      ("STORE_NATIVE_ENCODE" . "编码图纸原生字段") ("STORE_NATIVE_DECODE" . "解码图纸原生字段")
+      ("STORE_EXPAND" . "还原完整记录数据")
       ("STORE_READBACK" . "回读核对保存内容") ("STORE_CONTEXT_COMMIT" . "核对提交后的上下文")
       ("STORE_CONTEXT_READ" . "读取提交后的上下文") ("SAVE_GENERATION_DRAFT" . "保存生成草稿")
       ("UNDO_BEGIN" . "开始撤销组") ("UNDO_END" . "结束撤销组")

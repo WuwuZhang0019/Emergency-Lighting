@@ -1,0 +1,27 @@
+{
+  "date": "2026-10-14",
+  "status": "passed",
+  "baseline_commit": "00da449",
+  "scope": "Python adapter executes real LISP; synthetic snapshots, not CAD seconds or original DWG",
+  "fixture": "actual SaveDraft after two historical outputs; 96 geometry rows per snapshot",
+  "exact_final_wire_equal": true,
+  "exact_backup_and_reopen_equal": true,
+  "baseline": {
+    "stage_builds": 2,
+    "serialized_fields": 4751,
+    "serialized_blobs": 6,
+    "characters_expanded": 20108,
+    "host_seconds": 3.895,
+    "host_evaluation_steps": 3835466,
+    "single_blob_encode_steps": 378764
+  },
+  "candidate": {
+    "stage_builds": 1,
+    "serialized_fields": 1707,
+    "serialized_blobs": 3,
+    "characters_expanded": 0,
+    "host_seconds": 2.144,
+    "host_evaluation_steps": 1976346,
+    "single_blob_encode_steps": 205023
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "date": "2026-10-14",
+  "status": "passed",
+  "package": 137,
+  "files": 329,
+  "gb2312_lisp_dcl": 32,
+  "parsed_lisp": 30,
+  "loading_entry_functions": [
+    "EL:PERFCALL",
+    "EL:MONITORTITLE",
+    "EL:SAVEDRAFT",
+    "EL:STORESTRINGCHUNKS",
+    "EL:STOREENCODE",
+    "EL:STOREDECODE",
+    "EL:COMPACTPROPERLIST",
+    "EL:COMPACTENCODE",
+    "EL:SPLITWRITE"
+  ],
+  "embedded_resources": 132,
+  "archive_sha256": "bac0cc1e8d41b5ed2b366206a3ec1d693b787321e4a94e1a26198160443dc499",
+  "checks": [
+    "ZIP CRC",
+    "all archive and extracted bytes match",
+    "strict GB2312 without BOM",
+    "all LISP parsing",
+    "changed definitions match all three loading entries",
+    "embedded runtime resources match generated delivery modules"
+  ],
+  "focused_regression_cases": 79,
+  "native_cad_status": "137 first-save timing pending; two-second target not yet verified"
+}

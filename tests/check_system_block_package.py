@@ -61,6 +61,8 @@ def check():
         for label in ("第一步：拾取配电箱和回路起始端导线", "第二步：选择配电箱容量",
                       "第三步：在图面查看全部回路", "第四步：生成新系统图", "图块图纸：系统图块库.dwg"):
             assert label in ui, label
+        for index in range(1, 5):
+            assert f'key = "p_step{index}"' in ui
         assert 'key = "p_block_library_open"' in ui
         for entry in entries:
             text = z.read(builder.NAME + "/" + entry).decode("gb2312")
@@ -74,6 +76,8 @@ def check():
                 forms = definitions(text)
                 assert embedded_drawing(forms[Symbol("EL:STARTUPEMBEDDEDASSETS")], relative) == original
                 assert Symbol("EL:PANELOPENBLOCKLIBRARY") in forms
+                assert Symbol("EL:ENSURESYSTEMBLOCKS") in forms
+                assert Symbol("EL:REDSTEPDRAW") in forms
     evidence = {
         "date": "2026-10-15", "package": builder.NAME, "passed": True,
         "lisp_dcl_files": text_files, "dwg_bytes": len(original),
@@ -84,7 +88,7 @@ def check():
                    "original DWG bytes in source, package and ZIP", "original DWG bytes reconstructed from both standalone loading entries"],
         "cad_status": "pending; no native AutoCAD 2020 DCL, Explorer, actual block names, dynamic states or generated geometry acceptance",
     }
-    report = ROOT / "tests/evidence/2026-10-15-system-block-library-package-147.json"
+    report = ROOT / f"tests/evidence/2026-10-15-system-block-library-package-{builder.PACKAGE_NO:03d}.json"
     report.write_text(json.dumps(evidence, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(f"PASS: {text_files} LISP/DCL files; original system DWG {len(original)} bytes; embedded bytes match")
 

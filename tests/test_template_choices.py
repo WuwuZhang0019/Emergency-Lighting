@@ -210,13 +210,14 @@ class TemplateChoiceTests(unittest.TestCase):
                            ('align', 1), ('rotation', 0.), ('layer', 'TEL_TEXT')]:
             self.assertEqual(self.h.run(f"(EL:Get '{key} spec)"), value)
 
-    def test_missing_block_prompts_copy_instead_of_picking(self):
+    def test_missing_library_reports_failure_instead_of_picking(self):
         table = self.h.builtins['TBLSEARCH']
-        self.h.builtins['SSGET'] = lambda *args: None
+        self.h.builtins['SSGET'] = lambda *args: self.fail('must import before looking for template samples')
+        self.h.builtins['FINDFILE'] = lambda path: None
         self.h.builtins['TBLSEARCH'] = lambda kind, name: None if kind == 'BLOCK' else table(kind, name)
         self.assertIsNone(self.call('EL:CaptureFixedTemplate', self.cfg))
-        self.assertIn('请将该图块拷入', ''.join(self.messages))
-        self.assertIn('ZYF_Tool_应急照明配电箱图块', ''.join(self.messages))
+        self.assertIn('缺少 templates/系统图块库.dwg', ''.join(self.messages))
+        self.assertIn('当前输入保留', ''.join(self.messages))
         self.assertEqual(self.saved, [])
 
     def test_definition_only_probes_are_deleted_and_do_not_save_dead_handles(self):

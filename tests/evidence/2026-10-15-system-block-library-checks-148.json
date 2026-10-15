@@ -1,0 +1,193 @@
+{
+  "date": "2026-10-15",
+  "scope": "148 missing system-block import with finite ObjectDBX/COM adapters; red step-number drawing; current template and standalone command checks",
+  "passed": true,
+  "test_count": 46,
+  "tests": [
+    {
+      "test": "test_system_block_import.RedStepDrawingTests.test_four_step_numbers_are_red_and_fit_image_tiles_at_two_sizes",
+      "status": "passed"
+    },
+    {
+      "test": "test_system_block_import.SystemBlockImportTests.test_block_dependencies_do_not_cause_duplicate_style_copy",
+      "status": "passed"
+    },
+    {
+      "test": "test_system_block_import.SystemBlockImportTests.test_capture_imports_before_style_checks_and_keeps_config_on_failure",
+      "status": "passed"
+    },
+    {
+      "test": "test_system_block_import.SystemBlockImportTests.test_com_errors_are_not_success_and_open_database_is_released",
+      "status": "passed"
+    },
+    {
+      "test": "test_system_block_import.SystemBlockImportTests.test_existing_definitions_skip_source_and_com",
+      "status": "passed"
+    },
+    {
+      "test": "test_system_block_import.SystemBlockImportTests.test_ignored_copy_cannot_pass_table_readback_and_retry_can_succeed",
+      "status": "passed"
+    },
+    {
+      "test": "test_system_block_import.SystemBlockImportTests.test_missing_definitions_import_from_matching_dbx_and_read_back",
+      "status": "passed"
+    },
+    {
+      "test": "test_system_block_import.SystemBlockImportTests.test_missing_library_returns_failure_without_opening_database",
+      "status": "passed"
+    },
+    {
+      "test": "test_system_block_import.SystemBlockImportTests.test_missing_source_symbol_stops_before_any_target_write_and_releases_dbx",
+      "status": "passed"
+    },
+    {
+      "test": "test_system_block_import.SystemBlockImportTests.test_partial_missing_preserves_existing_block_and_style_objects",
+      "status": "passed"
+    },
+    {
+      "test": "test_system_block_library.SystemBlockLibraryTests.test_folder_action_keeps_capacity_power_and_unsaved_library_edits",
+      "status": "passed"
+    },
+    {
+      "test": "test_system_block_library.SystemBlockLibraryTests.test_home_folder_action_does_not_trigger_recognition_or_clear_edits",
+      "status": "passed"
+    },
+    {
+      "test": "test_system_block_library.SystemBlockLibraryTests.test_launch_failure_and_exception_are_reported",
+      "status": "passed"
+    },
+    {
+      "test": "test_system_block_library.SystemBlockLibraryTests.test_missing_directory_or_root_does_not_launch_explorer",
+      "status": "passed"
+    },
+    {
+      "test": "test_system_block_library.SystemBlockLibraryTests.test_missing_dwg_opens_folder_and_reports_missing_file",
+      "status": "passed"
+    },
+    {
+      "test": "test_system_block_library.SystemBlockLibraryTests.test_selects_bundled_dwg_with_chinese_and_space_path",
+      "status": "passed"
+    },
+    {
+      "test": "test_template_choices.TemplateChoiceTests.test_allowed_values_unwrap_each_variant_and_preserve_numbers",
+      "status": "passed"
+    },
+    {
+      "test": "test_template_choices.TemplateChoiceTests.test_ambiguous_property_requires_named_choice",
+      "status": "passed"
+    },
+    {
+      "test": "test_template_choices.TemplateChoiceTests.test_capacity_whitespace_and_fixed_buried_alias_are_automatic",
+      "status": "passed"
+    },
+    {
+      "test": "test_template_choices.TemplateChoiceTests.test_capture_returns_template_without_saving_config",
+      "status": "passed"
+    },
+    {
+      "test": "test_template_choices.TemplateChoiceTests.test_config_write_failure_does_not_report_saved",
+      "status": "passed"
+    },
+    {
+      "test": "test_template_choices.TemplateChoiceTests.test_created_annotation_uses_text_layer_and_bylayer_appearance",
+      "status": "passed"
+    },
+    {
+      "test": "test_template_choices.TemplateChoiceTests.test_definition_only_probes_are_deleted_and_do_not_save_dead_handles",
+      "status": "passed"
+    },
+    {
+      "test": "test_template_choices.TemplateChoiceTests.test_enter_cancels_ambiguous_mapping_and_preserves_old_template",
+      "status": "passed"
+    },
+    {
+      "test": "test_template_choices.TemplateChoiceTests.test_enter_cancels_property_choice_without_followup_questions",
+      "status": "passed"
+    },
+    {
+      "test": "test_template_choices.TemplateChoiceTests.test_fixed_text_matches_user_properties_without_current_style_or_pick",
+      "status": "passed"
+    },
+    {
+      "test": "test_template_choices.TemplateChoiceTests.test_invalid_or_duplicate_states_are_not_offered",
+      "status": "passed"
+    },
+    {
+      "test": "test_template_choices.TemplateChoiceTests.test_manual_mapping_lists_meaning_and_retries_invalid_number",
+      "status": "passed"
+    },
+    {
+      "test": "test_template_choices.TemplateChoiceTests.test_missing_library_reports_failure_instead_of_picking",
+      "status": "passed"
+    },
+    {
+      "test": "test_template_choices.TemplateChoiceTests.test_multiple_alias_matches_require_explicit_choice",
+      "status": "passed"
+    },
+    {
+      "test": "test_template_choices.TemplateChoiceTests.test_numeric_states_remain_numbers_in_saved_config",
+      "status": "passed"
+    },
+    {
+      "test": "test_template_choices.TemplateChoiceTests.test_partly_named_values_reserve_known_meanings",
+      "status": "passed"
+    },
+    {
+      "test": "test_template_choices.TemplateChoiceTests.test_probe_exception_still_deletes_temporary_block",
+      "status": "passed"
+    },
+    {
+      "test": "test_template_choices.TemplateChoiceTests.test_readonly_and_empty_properties_do_not_become_choices",
+      "status": "passed"
+    },
+    {
+      "test": "test_template_choices.TemplateChoiceTests.test_screenshot_names_save_six_states_without_number_questions",
+      "status": "passed"
+    },
+    {
+      "test": "test_template_choices.TemplateChoiceTests.test_setting_native_property_uses_unwrapped_allowed_value",
+      "status": "passed"
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_atomic_config_write_restores_previous_file_on_failure",
+      "status": "passed"
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_dcl_keys_and_callback_syntax",
+      "status": "passed"
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_forms_arities_and_local_assignments",
+      "status": "passed"
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_geometry_and_topology_do_not_mutate_drawing",
+      "status": "passed"
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_rollback_only_deletes_created_objects_even_if_one_delete_fails",
+      "status": "passed"
+    },
+    {
+      "test": "test_cckk_assembly.AssemblyTests.test_invalid_count_reprompt_and_enter_defaults_to_one",
+      "status": "passed"
+    },
+    {
+      "test": "test_cckk_assembly.AssemblyTests.test_mid_assembly_failure_cleanup_preserves_old_entities",
+      "status": "passed"
+    },
+    {
+      "test": "test_cckk_assembly.AssemblyTests.test_one_through_eight_layout_visibility_labels_and_restore",
+      "status": "passed"
+    },
+    {
+      "test": "test_cckk_assembly.AssemblyTests.test_original_commands_retain_texts_styles_and_colors",
+      "status": "passed"
+    },
+    {
+      "test": "test_cckk_assembly.AssemblyTests.test_unsupported_readonly_and_ignored_visibility_writes_fail",
+      "status": "passed"
+    }
+  ],
+  "cad_status": "pending; no native AutoCAD ObjectDBX deep clone, dynamic block, DCL layout or real DWG generation acceptance"
+}

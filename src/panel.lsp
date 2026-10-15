@@ -461,9 +461,6 @@
         (setq *EL:DLUINotice* "本次未拾取设备；现有资料和输入保留。"))))
   (if (= status 12) 12 (progn (EL:PanelLibraryReconcile) 3)))
 ;; Date: 2026-10-15. Open the bundled drawing without changing the current DWG.
-(defun EL:SystemBlockLibraryPath (/ root)
-  (if (setq root (EL:NormalizeRoot *EL:Root*))
-    (strcat root "templates/系统图块库.dwg")))
 (defun EL:PanelOpenBlockLibrary (/ path folder present outcome)
   (setq path (EL:SystemBlockLibraryPath))
   (if (and path (setq folder (vl-filename-directory path)) (vl-file-directory-p folder))
@@ -502,6 +499,7 @@
               (cons 'circuits (length (EL:Get 'circuits *EL:PanelDraft*)))) 'EL:PanelFill nil)
             (set_tile "p_number" (strcat "配电箱编号：" (EL:PanelNumber *EL:PanelDraft*)))))
         (EL:TrunkButtonDraw)
+        (EL:StepLabelsDraw)
         (EL:DLUIPanelBegin *EL:PanelLibrarySnapshot*)
         (EL:PanelText "p_diagnostic_status" (cond (diagnostic-notice) (T "")))
         (set_tile "p_diagnostic_action" (cond (diagnostic-action) (T "")))
@@ -520,7 +518,7 @@
         (EL:LogEvent "PANEL_DIALOG_RETURN" (list (cons 'status status) (cons 'action *EL:PanelAction*)))
         (if (= status 4)
           (progn
-            (princ "\n正在自动查找系统图块并读取状态；缺少图块时会提示拷入。")
+            (princ "\n正在检查系统图块；缺少定义时从随包图块库自动导入。")
             (setq captured (vl-catch-all-apply 'EL:CaptureFixedTemplate (list *EL:PanelConfig*)))
             (EL:ClearPickHighlights)
             (if (and (not (vl-catch-all-error-p captured)) captured)
@@ -730,3 +728,66 @@
   (princ (strcat "\n" message))
   (alert (strcat compact (if missing "\n补齐设备库资料后返回本面板重新核对。" "")
     "\n可保存草稿；连接问题请用“查看全部回路”核对。")))
+
+;; Date: 2026-10-15. ACI 1 draws only the step numbers, on the dialog background.
+(defun EL:RedStepDraw (key index / w h scale ox oy run)
+  (setq w (dimx_tile key) h (dimy_tile key)
+    scale (max 1 (fix (min (/ (float w) 56.0) (/ (float h) 14.0))))
+    ox 0 oy (fix (/ (- h (* 14 scale)) 2.0)))
+  (start_image key)
+  (fill_image 0 0 w h -15)
+  (foreach run (EL:StepLabelRuns index)
+    (fill_image (+ ox (* (car run) scale)) (+ oy (* (cadr run) scale))
+      (* (caddr run) scale) scale 1))
+  (end_image))
+(defun EL:StepLabelsDraw (/ index)
+  (setq index 1)
+  (repeat 4 (EL:RedStepDraw (strcat "p_step" (itoa index)) index) (setq index (1+ index))))
+
+;; BEGIN GENERATED RED STEP LABELS
+;; Date: 2026-10-15. SimSun 14 px, 56 x 14; runtime has no font/file dependency.
+(defun EL:StepLabelRuns (index)
+  (nth (1- index) '
+(
+  ; 第一步：
+  (    (2 0 1) (8 0 1) (34 0 1) (2 1 4) (8 1 5) (30 1 1) (34 1 1) (1 2 1)
+    (3 2 1) (7 2 1) (10 2 1) (30 2 1) (34 2 6) (0 3 1) (4 3 1) (6 3 1)
+    (11 3 1) (30 3 1) (34 3 1) (30 4 1) (34 4 1) (1 5 10) (28 5 13) (6 6 1)
+    (10 6 1) (14 6 13) (45 6 2) (1 7 10) (31 7 1) (34 7 1) (45 7 2) (1 8 1)
+    (6 8 1) (30 8 1) (34 8 1) (38 8 1) (1 9 11) (29 9 1) (34 9 1) (37 9 1)
+    (4 10 1) (6 10 1) (11 10 1) (34 10 1) (36 10 1) (45 10 2) (2 11 2) (6 11 1)
+    (11 11 1) (34 11 2) (45 11 2) (0 12 2) (6 12 1) (9 12 2) (31 12 3) (6 13 1)
+    (28 13 3))
+  ; 第二步：
+  (    (2 0 1) (8 0 1) (34 0 1) (2 1 4) (8 1 5) (30 1 1) (34 1 1) (1 2 1)
+    (3 2 1) (7 2 1) (10 2 1) (15 2 11) (30 2 1) (34 2 6) (0 3 1) (4 3 1)
+    (6 3 1) (11 3 1) (30 3 1) (34 3 1) (30 4 1) (34 4 1) (1 5 10) (28 5 13)
+    (6 6 1) (10 6 1) (45 6 2) (1 7 10) (31 7 1) (34 7 1) (45 7 2) (1 8 1)
+    (6 8 1) (30 8 1) (34 8 1) (38 8 1) (1 9 11) (29 9 1) (34 9 1) (37 9 1)
+    (4 10 1) (6 10 1) (11 10 1) (34 10 1) (36 10 1) (45 10 2) (2 11 2) (6 11 1)
+    (11 11 1) (34 11 2) (45 11 2) (0 12 2) (6 12 1) (9 12 2) (14 12 13) (31 12 3)
+    (6 13 1) (28 13 3))
+  ; 第三步：
+  (    (2 0 1) (8 0 1) (34 0 1) (2 1 4) (8 1 5) (15 1 11) (30 1 1) (34 1 1)
+    (1 2 1) (3 2 1) (7 2 1) (10 2 1) (30 2 1) (34 2 6) (0 3 1) (4 3 1)
+    (6 3 1) (11 3 1) (30 3 1) (34 3 1) (30 4 1) (34 4 1) (1 5 10) (28 5 13)
+    (6 6 1) (10 6 1) (45 6 2) (1 7 10) (16 7 9) (31 7 1) (34 7 1) (45 7 2)
+    (1 8 1) (6 8 1) (30 8 1) (34 8 1) (38 8 1) (1 9 11) (29 9 1) (34 9 1)
+    (37 9 1) (4 10 1) (6 10 1) (11 10 1) (34 10 1) (36 10 1) (45 10 2) (2 11 2)
+    (6 11 1) (11 11 1) (34 11 2) (45 11 2) (0 12 2) (6 12 1) (9 12 2) (31 12 3)
+    (6 13 1) (14 13 13) (28 13 3))
+  ; 第四步：
+  (    (2 0 1) (8 0 1) (34 0 1) (2 1 4) (8 1 5) (15 1 12) (30 1 1) (34 1 1)
+    (1 2 1) (3 2 1) (7 2 1) (10 2 1) (15 2 1) (19 2 1) (22 2 1) (26 2 1)
+    (30 2 1) (34 2 6) (0 3 1) (4 3 1) (6 3 1) (11 3 1) (15 3 1) (19 3 1)
+    (22 3 1) (26 3 1) (30 3 1) (34 3 1) (15 4 1) (19 4 1) (22 4 1) (26 4 1)
+    (30 4 1) (34 4 1) (1 5 10) (15 5 1) (19 5 1) (22 5 1) (26 5 1) (28 5 13)
+    (6 6 1) (10 6 1) (15 6 1) (19 6 1) (22 6 1) (26 6 1) (45 6 2) (1 7 10)
+    (15 7 1) (19 7 1) (22 7 1) (26 7 1) (31 7 1) (34 7 1) (45 7 2) (1 8 1)
+    (6 8 1) (15 8 1) (19 8 1) (22 8 1) (26 8 1) (30 8 1) (34 8 1) (38 8 1)
+    (1 9 11) (15 9 1) (18 9 1) (23 9 4) (29 9 1) (34 9 1) (37 9 1) (4 10 1)
+    (6 10 1) (11 10 1) (15 10 1) (17 10 1) (26 10 1) (34 10 1) (36 10 1) (45 10 2)
+    (2 11 2) (6 11 1) (11 11 1) (15 11 1) (26 11 1) (34 11 2) (45 11 2) (0 12 2)
+    (6 12 1) (9 12 2) (15 12 12) (31 12 3) (6 13 1) (15 13 1) (26 13 1) (28 13 3))
+)))
+;; END GENERATED RED STEP LABELS

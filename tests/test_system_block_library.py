@@ -14,7 +14,7 @@ ROOT = workflow.db.ROOT
 class SystemBlockLibraryTests(unittest.TestCase):
     def setUp(self):
         self.h = Host()
-        for module in ("config", "panel"):
+        for module in ("config", "insert-circuit", "panel"):
             self.h.load_definitions(ROOT / "src" / (module + ".lsp"))
         self.root = "C:/中文 目录/工具包/"
         self.path = self.root + "templates/系统图块库.dwg"

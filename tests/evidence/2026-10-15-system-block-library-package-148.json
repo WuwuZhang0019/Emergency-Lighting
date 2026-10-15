@@ -1,0 +1,18 @@
+{
+  "date": "2026-10-15",
+  "package": "应急照明-148",
+  "passed": true,
+  "lisp_dcl_files": 32,
+  "dwg_bytes": 157286,
+  "dwg_signature": "AC1024",
+  "dwg_sha256": "fbe464766c6ff04aaf771942e12f273c4521d880c5dc5eebb7c5fa0b619a9fe4",
+  "checks": [
+    "ZIP and extracted files byte identity",
+    "strict GB2312 and no UTF-8 BOM",
+    "four visible steps and system drawing entry",
+    "all loading entries use renamed blocks and purpose caption",
+    "original DWG bytes in source, package and ZIP",
+    "original DWG bytes reconstructed from both standalone loading entries"
+  ],
+  "cad_status": "pending; no native AutoCAD 2020 DCL, Explorer, actual block names, dynamic states or generated geometry acceptance"
+}

@@ -1,3 +1,57 @@
+;; Date: 2026-10-15. Import missing definitions; never insert the library as a wrapper block.
+(defun EL:SystemBlockLibraryPath (/ path)
+  (cond
+    ((and (equal (type *EL:Root*) 'STR) (/= *EL:Root* ""))
+      (strcat (vl-string-right-trim "/\\" *EL:Root*) "/templates/系统图块库.dwg"))
+    ((setq path (findfile "CCKK.lsp"))
+      (strcat (vl-filename-directory path) "/templates/系统图块库.dwg"))
+    ((findfile "系统图块库.dwg"))))
+(defun EL:SystemMissingSymbols (kind names / name missing)
+  (foreach name names (if (not (tblsearch kind name)) (setq missing (cons name missing))))
+  (reverse missing))
+(defun EL:SystemSourceObjects (database kind names / table name objects)
+  (setq table (if (equal kind "BLOCK") (vla-get-Blocks database) (vla-get-TextStyles database)))
+  (foreach name names (setq objects (cons (vla-Item table name) objects)))
+  (reverse objects))
+(defun EL:SystemCopySymbols (database target kind objects / array index object)
+  (if objects
+    (progn
+      (setq array (vlax-make-safearray vlax-vbObject (cons 0 (1- (length objects)))) index 0)
+      (foreach object objects
+        (vlax-safearray-put-element array index object) (setq index (1+ index)))
+      (vla-CopyObjects database array
+        (if (equal kind "BLOCK") (vla-get-Blocks target) (vla-get-TextStyles target))))))
+(defun EL:SystemImportWork (path blocks styles / application target block-objects style-objects)
+  (setq application (vlax-get-acad-object) target (vla-get-ActiveDocument application)
+    *EL:SystemLibraryDBX* (vla-GetInterfaceObject application
+      (strcat "ObjectDBX.AxDbDocument." (itoa (atoi (getvar "ACADVER"))))))
+  (vlax-invoke-method *EL:SystemLibraryDBX* 'Open path)
+  ;; Complete both source-table lookups before any target-table write.
+  (setq block-objects (EL:SystemSourceObjects *EL:SystemLibraryDBX* "BLOCK" blocks)
+    style-objects (EL:SystemSourceObjects *EL:SystemLibraryDBX* "STYLE" styles))
+  (EL:SystemCopySymbols *EL:SystemLibraryDBX* target "BLOCK" block-objects)
+  ;; A cloned block may already have brought in a requested text style.
+  (EL:SystemCopySymbols *EL:SystemLibraryDBX* target "STYLE"
+    (EL:SystemSourceObjects *EL:SystemLibraryDBX* "STYLE" (EL:SystemMissingSymbols "STYLE" styles)))
+  (and (not (EL:SystemMissingSymbols "BLOCK" blocks)) (not (EL:SystemMissingSymbols "STYLE" styles))))
+(defun EL:EnsureSystemBlocks (blocks styles / missing-blocks missing-styles path result *EL:SystemLibraryDBX*)
+  (setq missing-blocks (EL:SystemMissingSymbols "BLOCK" blocks)
+    missing-styles (EL:SystemMissingSymbols "STYLE" styles))
+  (cond
+    ((not (or missing-blocks missing-styles)) T)
+    ((not (and (setq path (EL:SystemBlockLibraryPath)) (findfile path)))
+      (princ "\n缺少 templates/系统图块库.dwg，请重新解压完整交付包；当前输入保留。") nil)
+    (T
+      (vl-load-com)
+      (princ "\n正在从系统图块库.dwg 自动导入缺少的系统图块和文字样式。")
+      (setq result (vl-catch-all-apply 'EL:SystemImportWork (list path missing-blocks missing-styles)))
+      (if *EL:SystemLibraryDBX* (vl-catch-all-apply 'vlax-release-object (list *EL:SystemLibraryDBX*)))
+      (cond
+        ((vl-catch-all-error-p result)
+          (princ (strcat "\n系统图块库自动导入失败：" (vl-catch-all-error-message result)
+            "；请检查图块图纸中的新块名和文字样式。当前输入保留。")) nil)
+        ((not result) (princ "\n系统图块库导入后未读到全部所需定义，已停止生成；当前输入保留。") nil)
+        (T (princ "\n所需系统图块和文字样式已导入，继续检查模板。") T)))))
 ;; Date: 2026-10-09. Standalone circuit/panel insertion with centered labels.
 (defun EL:CCKKLayer (name / row)
   (if (not (tblsearch "LAYER" name))
@@ -31,6 +85,7 @@
       (princ "\n已取消插入。"))
     (princ))
   (cond
+    ((not (EL:EnsureSystemBlocks (list blockname) (list style))) nil)
     ((not (tblsearch "BLOCK" blockname))
       (princ (strcat "\n当前图纸没有图块 " blockname "，请先将该图块复制到本图。")))
     ((not (tblsearch "STYLE" style))
@@ -145,6 +200,9 @@
     (if cleanup (princ "\nCCKK2 已取消或中止，本次新增图形已清理。")
       (princ "\n本次部分新增图形未能清理，请核对图纸。")) (princ))
   (vl-load-com)
+  (EL:CCKK2Require (EL:EnsureSystemBlocks
+    '("ZYF_Tool_应急照明配电箱图块" "ZYF_Tool_应急照明配电回路图块") '("_TEL_DIM" "ICDA-STYLE1"))
+    "系统图块库自动导入未完成。")
   (foreach item '("ZYF_Tool_应急照明配电回路图块" "ZYF_Tool_应急照明配电箱图块")
     (EL:CCKK2Require (tblsearch "BLOCK" item) (strcat "当前图纸缺少图块：" item)))
   (foreach item '("_TEL_DIM" "ICDA-STYLE1")

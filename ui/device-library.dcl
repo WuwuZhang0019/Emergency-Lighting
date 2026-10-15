@@ -14,7 +14,13 @@ el_device_library_locked : dialog {
 }
 el_device_library : dialog {
   label = "独立设备库";
-  : text { key = "dl_root"; width = 104; }
+  : column { fixed_height = true; alignment = top;
+    : text { key = "dl_root"; width = 104; fixed_height = true; }
+    : row { fixed_height = true;
+      : text { label = "功率参数：catalog.eld；保存设备后可发送此文件作为默认值来源。"; }
+      : button { key = "dl_open"; label = "打开所在文件夹"; }
+    }
+  }
   : row {
     : column {
       : edit_box { key = "dl_query"; label = "搜索图块名 / 设备名"; edit_width = 28; }

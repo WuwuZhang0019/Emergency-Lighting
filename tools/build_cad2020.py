@@ -6,7 +6,7 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 # Date: 2026-10-15. Software version; PACKAGE_NO is a legacy delivery identifier.
-VERSION = '0.1.48'
+VERSION = '0.1.49'
 PACKAGE_NO = 148
 NAME = f'应急照明-{PACKAGE_NO:03d}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
@@ -157,7 +157,9 @@ def build():
     guide = guide.replace('目标为 Windows AutoCAD 2021+，`LISPSYS=1` 或 `2`（修改后需重启）', '本包供简体中文 Windows AutoCAD 2020 试用，LISP/DCL 已转换为 GB2312，无需设置 LISPSYS')
     guide = guide.replace('配置和结果使用 UTF-8 数据关联表', '本包配置和结果使用系统默认编码的数据关联表（简体中文 Windows 通常为 GBK），不要混用旧包配置')
     (DEST / 'docs/03_加载使用与验收说明.md').write_text(guide, encoding='utf-8')
-    for source in sorted((ROOT / 'docs/更新记录').glob(f'{PACKAGE_NO:03d}-*.md')):
+    release_notes = (sorted((ROOT / 'docs/更新记录').glob(f'v{VERSION}-*.md'))
+                     or sorted((ROOT / 'docs/更新记录').glob(f'{PACKAGE_NO:03d}-*.md')))
+    for source in release_notes:
         shutil.copy2(source, DEST / '本次更新.md')
     shutil.copy2(ROOT / 'docs/04_整箱自动分回路统计与设备功率赋值方案.md',
                  DEST / 'docs/04_整箱自动分回路统计与设备功率赋值方案.md')

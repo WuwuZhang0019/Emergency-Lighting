@@ -186,6 +186,31 @@ class SelectionStoreTests(unittest.TestCase):
         self.assertNotEqual(self.h.run("(EL:Get 'status reopened)"), Symbol('STALE'))
         self.assertIsNone(self.h.run("(EL:Get 'is-ground (car (EL:Get 'draft-circuits reopened)))"))
 
+    def test_template_change_updates_current_draft_only_and_preserves_other_panels(self):
+        for had_output in (False, True):
+            with self.subTest(had_output=had_output):
+                self.setUp()
+                self.h.run("""(setq old-template '((name . "old-random-blocks"))
+                  new-template '((name . "ZYF_Tool_应急照明"))
+                  cfg (list (cons 'template old-template))
+                  result '((panel . "source") (engine . fixed) (can-generate . T)
+                    (circuits ((id . "R1") (seed-key "wire" outlet) (ground-source . default)))))
+                  (EL:SaveDraft result cfg '(("Lamp" . 5)) 'cap600)
+                  (EL:SaveDraft (EL:Put 'panel "other" result) cfg nil 'cap300)
+                  (setq before-store (EL:StoreRead)
+                    other-before (EL:DiagramForPanel "other" before-store)
+                    current-before (EL:DiagramForPanel "source" before-store))""")
+                if had_output:
+                    self.h.run("""(setq current-before (EL:Put 'panel-output-handle "old-output" current-before))
+                      (EL:StoreWrite (EL:StorePutDiagram current-before before-store))""")
+                self.h.run("(setq cfg (EL:Put 'template new-template cfg))")
+                self.assertTrue(truth(self.h.run("(EL:SaveDraft result cfg '((\"Lamp\" . 7)) 'cap600)")))
+                self.h.run('(setq after-store (EL:StoreRead) reopened (EL:DiagramForPanel "source" after-store))')
+                self.assertTrue(truth(self.h.run("(equal (EL:Get 'template reopened) new-template)")))
+                self.assertTrue(truth(self.h.run("(equal (EL:Get 'template (EL:Get 'config reopened)) new-template)")))
+                self.assertTrue(truth(self.h.run('(equal other-before (EL:DiagramForPanel "other" after-store))')))
+                self.assertIsNone(self.h.run("(EL:Get 'panel-output-handle reopened)"))
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -1,4 +1,4 @@
-"""Date: 2026-10-15. Finite CAD adapter plus real Windows PowerShell ZIP I/O."""
+"""Date: 2026-10-15. Folder export is default; legacy ZIP helpers are checked separately."""
 import base64
 import copy
 import os
@@ -120,153 +120,110 @@ class DiagnosticBundleTests(unittest.TestCase):
     def export(self):
         return Path(self.h.run('(EL:DiagnosticExport)'))
 
-    def test_complete_bundle_exact_bytes_special_paths_no_dwg_writes_and_unique_names(self):
+    def test_complete_folder_exact_bytes_special_paths_no_dwg_writes_and_unique_names(self):
         before = self.f.before()
         raw = '历史事件\r\n'.encode('gb2312')
         (self.root / 'output/ELTRACE-debug.log').write_bytes(raw)
         (self.root / 'output/ELPERF.log').write_bytes(b'perf\r\n')
         (self.root / 'temp/ELPERF.log').write_bytes(b'fallback perf\r\n')
         (self.root / 'output/unrelated.dwg').write_bytes(b'not a log')
-        zip_path = self.export()
-        with zipfile.ZipFile(zip_path) as archive:
-            self.assertIsNone(archive.testzip())
-            self.assertEqual(set(archive.namelist()), {
-                'README.md', 'manifest.eld', 'association.eld', 'drawing-store.eld',
-                'current-result.eld', 'run.eld', 'timeline.md', 'progress.log', 'runtime-ELTRACE-debug.log',
-                'runtime-ELPERF.log', 'temp-ELPERF.log'})
-            self.assertEqual(archive.read('runtime-ELTRACE-debug.log'), raw)
-            self.assertEqual(archive.read('timeline.md'), self.timeline.read_bytes())
-            self.assertIn('原始日志' * 5000, archive.read('run.eld').decode('utf-8-sig'))
-            record = self.h.run('(EL:DiagramForPanel "source" (EL:StoreRead))')
-            self.assertEqual(archive.read('association.eld').decode('utf-8-sig').strip(),
-                             self.h.builtins['VL-PRIN1-TO-STRING'](record))
-            progress = archive.read('progress.log').decode('ascii')
-            self.assertIn('FILE_DONE drawing-store', progress)
-            self.assertIn('FILE_DONE current-result', progress)
-            self.assertIn('ZIP_BEGIN', progress)
-        self.assertNotIn('/', str(self.h.lookup('*EL:DIAGNOSTICEXPORTPATH*')))
-        self.assertFalse(zip_path.with_suffix('').exists(), 'successful snapshot cleanup')
-        first_bytes = zip_path.read_bytes()
+        folder = self.export()
+        self.assertTrue(folder.is_dir())
+        self.assertEqual({path.name for path in folder.iterdir()}, {
+            'README.md', 'manifest.eld', 'association.eld', 'drawing-store.eld',
+            'current-result.eld', 'run.eld', 'timeline.md', 'progress.log',
+            'runtime-ELTRACE-debug.log', 'runtime-ELPERF.log', 'temp-ELPERF.log'})
+        self.assertEqual((folder / 'runtime-ELTRACE-debug.log').read_bytes(), raw)
+        self.assertEqual((folder / 'timeline.md').read_bytes(), self.timeline.read_bytes())
+        self.assertIn('原始日志' * 5000, (folder / 'run.eld').read_text(encoding='utf-8-sig'))
+        progress = (folder / 'progress.log').read_text(encoding='ascii')
+        self.assertIn('FILE_DONE drawing-store', progress)
+        self.assertIn('BUNDLE_DONE', progress)
+        self.assertNotIn('ZIP_', progress)
+        first = {path.name: path.read_bytes() for path in folder.iterdir()}
         second = self.export()
-        self.assertNotEqual(second, zip_path)
-        self.assertEqual(first_bytes, zip_path.read_bytes())
+        self.assertNotEqual(second, folder)
+        self.assertEqual(first, {path.name: path.read_bytes() for path in folder.iterdir()})
         self.f.assert_business_unchanged(before)
-        self.assertTrue(all(s['closed'] and s['released'] for s in self.streams))
-        self.assertEqual(self.h.run('(getvar "CMDECHO")'), 1)
-        self.assertFalse(Path(str(second) + '.status').exists())
+        self.assertEqual(self.processes, [])
+        self.assertTrue(all(stream['closed'] and stream['released'] for stream in self.streams))
 
     def test_invalid_association_keeps_logs_and_explains_missing_record(self):
-        del self.f.fixture.entities['t0']
-        with zipfile.ZipFile(self.export()) as archive:
-            self.assertNotIn('association.eld', archive.namelist())
-            self.assertIn('timeline.md', archive.namelist())
-            self.assertIn('系统图成员缺失', archive.read('README.md').decode('utf-8-sig'))
-            self.assertIn('UNAVAILABLE', archive.read('manifest.eld').decode('utf-8-sig'))
+        def invalid(*args):
+            raise RuntimeError('invalid association')
+        self.h.builtins['EL:DIAGNOSTICRECORDVALID'] = invalid
+        folder = self.export()
+        self.assertTrue((folder / 'timeline.md').is_file())
+        self.assertFalse((folder / 'association.eld').exists())
+        self.assertIn('invalid association', (folder / 'README.md').read_text(encoding='utf-8-sig'))
+        self.assertIn('关联异常', self.h.lookup('*EL:DIAGNOSTICEXPORTMESSAGE*'))
 
     def test_no_run_or_saved_output_still_exports_load_snapshot_with_missing_notes(self):
-        self.h.frames[0]['*EL:DIAGNOSTICRUNS*'] = None
-        self.h.frames[0]['*EL:RESULT*'] = None
+        self.h.set('*EL:DIAGNOSTICRUNS*', None)
+        self.h.set('*EL:MONITORLOADSUMMARY*', [Pair(Symbol('COMMAND'), 'APPLOAD')])
         self.h.builtins['EL:STOREREAD'] = lambda: None
         self.h.builtins['EL:EXPORTDIAGNOSTICRUN'] = lambda: None
-        self.h.frames[0]['*EL:MONITORLOADSUMMARY*'] = [Pair(Symbol('COMMAND'), 'APPLOAD')]
-        self.h.frames[0]['*EL:MONITORLOADSTAMP*'] = '20261015.120000'
-        with zipfile.ZipFile(self.export()) as archive:
-            self.assertEqual(set(archive.namelist()), {'README.md', 'manifest.eld', 'load.eld', 'progress.log'})
-            self.assertIn('APPLOAD', archive.read('load.eld').decode('utf-8-sig'))
-            self.assertIn('run.eld：本次会话没有可用资料', archive.read('README.md').decode('utf-8-sig'))
+        folder = self.export()
+        self.assertIn('APPLOAD', (folder / 'load.eld').read_text(encoding='utf-8-sig'))
+        self.assertIn('run.eld：本次会话没有可用资料', (folder / 'README.md').read_text(encoding='utf-8-sig'))
+        self.assertEqual(self.processes, [])
 
-    def test_zip_failure_retains_snapshot_exposes_folder_and_never_claims_success(self):
-        script = self.root / 'src/diagnostic-bundle.ps1'
-        code = script.read_text(encoding='utf-8')
-        script.write_text(code.replace(
-            '    # The source is a dedicated snapshot,',
-            "    throw 'simulated compression failure'\n    # The source is a dedicated snapshot,", 1), encoding='utf-8')
+    def test_unavailable_compressor_does_not_prevent_folder_export(self):
+        (self.root / 'src/diagnostic-bundle.ps1').unlink()
+        self.h.builtins['EL:DIAGNOSTICZIP'] = lambda *args: self.fail('folder export must not compress')
         message = self.h.run('(EL:PanelDiagnosticExport)')
-        self.assertIn('诊断压缩失败', message)
+        self.assertIn('已导出诊断资料文件夹', message)
         folder = Path(self.h.lookup('*EL:DIAGNOSTICEXPORTPATH*'))
         self.assertTrue((folder / 'association.eld').is_file())
         self.assertFalse(Path(str(folder) + '.zip').exists())
-        self.assertEqual(self.h.lookup('*EL:DIAGNOSTICEXPORTMESSAGE*'), message)
-        self.assertIn('ERROR', message)
-        self.assertIn('simulated compression failure', (folder / 'bundle-error.txt').read_text(encoding='utf-8-sig'))
-        report = (folder / 'export-error.txt').read_text(encoding='utf-8-sig')
-        self.assertIn(message, report)
-        self.assertIn('stage: ZIP_WAIT', report)
-        self.assertIn('package-146.marker', report)
+        self.assertFalse((folder / 'export-error.txt').exists())
 
-    def test_native_launch_failure_is_saved_and_next_export_clears_old_failure(self):
-        startapp = self.h.builtins['STARTAPP']
-        def failed_launch(*args):
-            raise RuntimeError('native launcher failed')
-        self.h.builtins['STARTAPP'] = failed_launch
+    def test_blocked_native_launcher_is_not_called_and_old_export_error_is_cleared(self):
+        self.h.builtins['STARTAPP'] = lambda *args: self.fail('must not launch PowerShell')
+        self.h.set('*EL:DIAGNOSTICERROR*', 'old launch error')
+        self.h.set('*EL:DIAGNOSTICEXPORTMESSAGE*', 'old failure')
         message = self.h.run('(EL:PanelDiagnosticExport)')
-        folder = Path(self.h.lookup('*EL:DIAGNOSTICEXPORTPATH*'))
-        report = (folder / 'export-error.txt').read_text(encoding='utf-8-sig')
-        self.assertIn('native launcher failed', message)
-        self.assertIn('stage: ZIP_LAUNCH STARTAPP', report)
-        self.assertIn(message, report)
-        self.assertTrue((folder / 'association.eld').is_file())
-        self.h.builtins['STARTAPP'] = startapp
-        success = self.h.run('(EL:PanelDiagnosticExport)')
-        self.assertIn('已导出诊断包', success)
+        self.assertIn('已导出诊断资料文件夹', message)
         self.assertFalse(self.h.lookup('*EL:DIAGNOSTICERROR*'))
-        with zipfile.ZipFile(self.h.lookup('*EL:DIAGNOSTICEXPORTPATH*')) as archive:
-            self.assertNotIn('export-error.txt', archive.namelist())
-        self.assertEqual((folder / 'export-error.txt').read_text(encoding='utf-8-sig'), report)
-
-    def test_encoded_command_failure_keeps_raw_com_error_and_stage(self):
-        create = self.h.builtins['VLAX-CREATE-OBJECT']
-        def fail_xml(name):
-            if name == 'MSXML2.DOMDocument.6.0':
-                raise RuntimeError('Class not registered 80040154')
-            return create(name)
-        self.h.builtins['VLAX-CREATE-OBJECT'] = fail_xml
-        message = self.h.run('(EL:PanelDiagnosticExport)')
-        folder = Path(self.h.lookup('*EL:DIAGNOSTICEXPORTPATH*'))
-        self.assertIn('Class not registered 80040154', message)
-        self.assertIn('stage: ZIP_ENCODE', (folder / 'export-error.txt').read_text(encoding='utf-8-sig'))
+        self.assertTrue(Path(self.h.lookup('*EL:DIAGNOSTICEXPORTPATH*')).is_dir())
         self.assertEqual(self.processes, [])
 
-    def test_failure_report_write_error_does_not_replace_original_launch_failure(self):
-        write = self.h.builtins['VLAX-INVOKE-METHOD']
-        def failed_launch(*args):
-            raise RuntimeError('original launch error')
-        def fail_report(obj, method, *args):
-            if str(method).upper() == 'SAVETOFILE' and str(args[0]).endswith('export-error.txt'):
-                raise OSError('secondary report write error')
-            return write(obj, method, *args)
-        self.h.builtins['STARTAPP'] = failed_launch
-        self.h.builtins['VLAX-INVOKE-METHOD'] = fail_report
+    def test_unavailable_command_encoder_is_not_needed_for_folder_export(self):
+        self.h.builtins['EL:DIAGNOSTICENCODEDCOMMAND'] = lambda *args: self.fail('must not encode a shell command')
         message = self.h.run('(EL:PanelDiagnosticExport)')
-        self.assertIn('original launch error', message)
-        self.assertNotIn('secondary report write error', message)
-        self.assertEqual(self.h.lookup('*EL:DIAGNOSTICEXPORTMESSAGE*'), message)
-        self.assertIn('original launch error', self.h.lookup('*EL:DIAGNOSTICERROR*'))
+        self.assertIn('已导出诊断资料文件夹', message)
+        self.assertEqual(self.processes, [])
 
-    def test_missing_completion_is_bounded_cancels_late_worker_and_restores_echo(self):
-        self.h.builtins['STARTAPP'] = lambda *args: 33
-        clock = [0]
-        self.h.builtins['EL:TICK'] = lambda: clock[0]
-        self.h.builtins['VL-CMDF'] = lambda *args: clock.__setitem__(0, clock[0] + 10000)
-        message = self.h.run('(EL:PanelDiagnosticExport)')
-        folder = Path(self.h.lookup('*EL:DIAGNOSTICEXPORTPATH*'))
-        self.assertIn('超过 30 秒', message)
-        self.assertEqual(clock[0], 30000)
-        self.assertEqual(self.h.run('(getvar "CMDECHO")'), 1)
-        self.assertTrue(Path(str(folder) + '.zip.cancel').is_file())
-        self.assertTrue((folder / 'association.eld').is_file())
-        self.assertIn('stage: ZIP_TIMEOUT', (folder / 'export-error.txt').read_text(encoding='utf-8-sig'))
-
-    def test_cancelled_wait_restores_echo_and_keeps_original_error(self):
-        self.h.builtins['STARTAPP'] = lambda *args: 33
+    def test_failure_report_write_error_does_not_replace_original_collection_failure(self):
+        invoke=self.h.builtins['VLAX-INVOKE-METHOD']
         def interrupted(*args):
-            raise RuntimeError('user cancelled wait')
-        self.h.builtins['VL-CMDF'] = interrupted
-        message = self.h.run('(EL:PanelDiagnosticExport)')
-        folder = Path(self.h.lookup('*EL:DIAGNOSTICEXPORTPATH*'))
-        self.assertIn('user cancelled wait', message)
+            folder=self.root/'output/failed-snapshot'
+            folder.mkdir()
+            self.h.set('*EL:DIAGNOSTICEXPORTPATH*',str(folder))
+            raise RuntimeError('original collection error')
+        def fail_report(obj,method,*args):
+            if str(method).upper()=='SAVETOFILE' and str(args[0]).endswith('export-error.txt'):
+                raise OSError('secondary report write error')
+            return invoke(obj,method,*args)
+        self.h.builtins['EL:DIAGNOSTICBUNDLE']=interrupted
+        self.h.builtins['VLAX-INVOKE-METHOD']=fail_report
+        message=self.h.run('(EL:PanelDiagnosticExport)')
+        self.assertIn('original collection error',message)
+        self.assertNotIn('secondary report write error',message)
+        self.assertEqual(self.h.lookup('*EL:DIAGNOSTICEXPORTMESSAGE*'),message)
+
+    def test_folder_export_never_waits_for_a_compression_completion_file(self):
+        self.h.builtins['EL:DIAGNOSTICWAIT'] = lambda *args: self.fail('folder export must not wait')
+        self.h.builtins['STARTAPP'] = lambda *args: self.fail('folder export must not launch a worker')
+        folder = self.export()
+        self.assertTrue(folder.is_dir())
+        self.assertFalse(Path(str(folder) + '.zip.cancel').exists())
         self.assertEqual(self.h.run('(getvar "CMDECHO")'), 1)
-        self.assertTrue(Path(str(folder) + '.zip.cancel').is_file())
+
+    def test_folder_export_does_not_change_cad_echo_or_call_delay(self):
+        self.h.builtins['VL-CMDF'] = lambda *args: self.fail('must not delay the CAD command')
+        self.assertTrue(self.export().is_dir())
+        self.assertEqual(self.h.run('(getvar "CMDECHO")'), 1)
 
     def test_wait_handles_signed_cad_clock_rollover(self):
         clock = [2147483640]
@@ -300,14 +257,12 @@ class DiagnosticBundleTests(unittest.TestCase):
         self.assertFalse(Path(str(folder) + '.zip').exists())
         self.assertIn('cancelled or timed out', (folder / 'bundle-error.txt').read_text(encoding='utf-8-sig'))
 
-    def test_success_marker_without_zip_cannot_report_success(self):
-        def false_completion(*args):
-            folder = Path(self.h.lookup('*EL:DIAGNOSTICEXPORTPATH*'))
-            Path(str(folder) + '.zip.status').write_text('OK', encoding='ascii')
-            return 33
-        self.h.builtins['STARTAPP'] = false_completion
-        message = self.h.run('(EL:PanelDiagnosticExport)')
-        self.assertIn('ZIP 文件不存在或为空', message)
+    def test_folder_export_has_no_zip_or_worker_status_artifacts(self):
+        folder = self.export()
+        self.assertTrue((folder / 'manifest.eld').is_file())
+        for suffix in ('.zip', '.zip.status', '.zip.cancel'):
+            self.assertFalse(Path(str(folder) + suffix).exists())
+        self.assertEqual(self.processes, [])
 
     def test_existing_zip_is_never_overwritten_by_helper(self):
         folder = self.root / 'output/ELDIAG-20261015.123456'
@@ -322,13 +277,15 @@ class DiagnosticBundleTests(unittest.TestCase):
         self.assertTrue((folder / 'bundle-error.txt').is_file())
 
     def test_open_location_quotes_windows_path_and_missing_file_does_not_launch(self):
-        path = self.export()
-        opened = []
-        self.h.builtins['STARTAPP'] = lambda *args: opened.append(args) or 33
-        self.f.fixture.call('EL:DiagnosticOpenFolder', path.as_posix())
-        self.assertEqual(opened, [('explorer.exe', '/select,"' + str(path) + '"')])
-        self.f.fixture.call('EL:DiagnosticOpenFolder', str(path) + '.missing')
-        self.assertEqual(len(opened), 1)
+        folder=self.export(); opened=[]
+        self.h.builtins['STARTAPP']=lambda app,args:opened.append((app,args)) or 1
+        self.f.fixture.call('EL:DiagnosticOpenFolder',str(folder))
+        self.assertEqual(opened,[('explorer.exe','"'+str(folder)+'"')])
+        file=folder/'README.md'
+        self.f.fixture.call('EL:DiagnosticOpenFolder',str(file))
+        self.assertEqual(opened[-1],('explorer.exe','/select,"'+str(file)+'"'))
+        self.f.fixture.call('EL:DiagnosticOpenFolder',str(folder)+'.missing')
+        self.assertEqual(len(opened),2)
 
     def test_large_saved_record_uses_native_file_print_without_building_lisp_print_string(self):
         value = [Pair(Symbol('PAYLOAD'), 'x' * 3_000_000 + '完整中文记录')]
@@ -361,14 +318,14 @@ class DiagnosticBundleTests(unittest.TestCase):
                     Pair(Symbol('WIRES'), ['W1', 'W2']), Pair(Symbol('BLOCKS'), ['B1'])]
         result = self.f.fixture.call('EL:Put', Symbol('SNAPSHOT'), snapshot, result)
         self.h.frames[0]['*EL:RESULT*'] = result
-        with zipfile.ZipFile(self.export()) as archive:
-            summary = archive.read('current-result.eld').decode('utf-8-sig')
-            self.assertIn('BUSINESS-FIELDS', summary)
-            self.assertIn('(WIRE-COUNT . 2)', summary)
-            self.assertIn('(BLOCK-COUNT . 1)', summary)
-            self.assertIn('(PANEL . "source")', summary)
-            self.assertIn('association.eld', archive.namelist())
-            self.assertIn('drawing-store.eld', archive.namelist())
+        folder = self.export()
+        summary = (folder / 'current-result.eld').read_text(encoding='utf-8-sig')
+        self.assertIn('BUSINESS-FIELDS', summary)
+        self.assertIn('(WIRE-COUNT . 2)', summary)
+        self.assertIn('(BLOCK-COUNT . 1)', summary)
+        self.assertIn('(PANEL . "source")', summary)
+        self.assertTrue((folder / 'association.eld').is_file())
+        self.assertTrue((folder / 'drawing-store.eld').is_file())
 
     def test_interrupted_native_print_closes_file_and_keeps_last_progress_checkpoint(self):
         path = self.root / 'output/interrupted.eld'

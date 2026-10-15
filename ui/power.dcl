@@ -134,12 +134,20 @@ el_panel : dialog {
   }
   : boxed_column {
     label = "设备库";
-    : text { key = "dl_root"; width = 76; }
-    : row { alignment = left;
-      : text { label = "图块图纸：系统图块库.dwg"; width = 44; fixed_width = true; }
-      : button { key = "p_block_library_open"; label = "打开所在文件夹"; width = 24; fixed_width = true; }
+    // Date: 2026-10-15. Keep header rows compact; the editor receives the spare height.
+    : column { fixed_height = true; alignment = top;
+      : text { key = "dl_root"; width = 76; fixed_height = true; }
+      : row { alignment = left; fixed_height = true;
+        : text { label = "功率参数：catalog.eld"; width = 44; fixed_width = true; }
+        : button { key = "dl_open"; label = "打开所在文件夹"; width = 24; fixed_width = true; }
+      }
+      : row { alignment = left; fixed_height = true;
+        : text { label = "图块图纸：系统图块库.dwg"; width = 44; fixed_width = true; }
+        : button { key = "p_block_library_open"; label = "打开所在文件夹"; width = 24; fixed_width = true; }
+      }
+      : text { label = "默认功率反馈：先保存设备，再发送 catalog.eld。"; fixed_height = true; }
     }
-    : row {
+    : row { children_alignment = top;
       : column {
         : edit_box { key = "dl_query"; label = "搜索图块名 / 设备名"; edit_width = 20; }
         : toggle { key = "dl_deleted"; label = "显示已删除"; }
@@ -172,8 +180,8 @@ el_panel : dialog {
         : button { key = "dl_save"; label = "保存设备"; }
       }
     }
-    : text { key = "dl_status"; width = 76; }
-    : text { label = "设备资料修改后点保存；拾取图形后返回此面板。"; }
+    : text { key = "dl_status"; width = 76; fixed_height = true; }
+    : text { label = "设备资料修改后点保存；拾取图形后返回此面板。"; fixed_height = true; }
   }
   }
 }

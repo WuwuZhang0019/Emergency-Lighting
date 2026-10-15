@@ -1,0 +1,162 @@
+{
+  "date": "2026-10-15",
+  "version": "v0.1.49",
+  "scope": "folder diagnostics without ZIP/process launch, library catalog location and edit retention, fresh input template synchronization with native XRecord adapters",
+  "passed": true,
+  "test_count": 35,
+  "tests": [
+    {
+      "test": "test_library_location.LibraryLocationDialogTests.test_panel_open_keeps_capacity_and_unsaved_power_without_saving_catalog",
+      "status": "passed"
+    },
+    {
+      "test": "test_library_location.LibraryLocationDialogTests.test_standalone_open_returns_to_same_editor_with_unsaved_power",
+      "status": "passed"
+    },
+    {
+      "test": "test_library_location.LibraryLocationTests.test_launcher_failure_is_a_notice_and_does_not_change_library",
+      "status": "passed"
+    },
+    {
+      "test": "test_library_location.LibraryLocationTests.test_missing_catalog_opens_directory_and_explains_save_requirement",
+      "status": "passed"
+    },
+    {
+      "test": "test_library_location.LibraryLocationTests.test_missing_directory_does_not_open_a_different_library",
+      "status": "passed"
+    },
+    {
+      "test": "test_library_location.LibraryLocationTests.test_selects_catalog_of_current_editor_and_keeps_raw_drafts",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagnostic_bundle.DiagnosticBundleTests.test_blocked_native_launcher_is_not_called_and_old_export_error_is_cleared",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagnostic_bundle.DiagnosticBundleTests.test_cad2020_native_gb2312_file_is_converted_to_utf8",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagnostic_bundle.DiagnosticBundleTests.test_complete_folder_exact_bytes_special_paths_no_dwg_writes_and_unique_names",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagnostic_bundle.DiagnosticBundleTests.test_failure_report_write_error_does_not_replace_original_collection_failure",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagnostic_bundle.DiagnosticBundleTests.test_folder_export_does_not_change_cad_echo_or_call_delay",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagnostic_bundle.DiagnosticBundleTests.test_folder_export_has_no_zip_or_worker_status_artifacts",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagnostic_bundle.DiagnosticBundleTests.test_folder_export_never_waits_for_a_compression_completion_file",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagnostic_bundle.DiagnosticBundleTests.test_interrupted_native_print_closes_file_and_keeps_last_progress_checkpoint",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagnostic_bundle.DiagnosticBundleTests.test_invalid_association_keeps_logs_and_explains_missing_record",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagnostic_bundle.DiagnosticBundleTests.test_large_saved_record_uses_native_file_print_without_building_lisp_print_string",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagnostic_bundle.DiagnosticBundleTests.test_live_geometry_and_library_cache_are_not_traversed_or_serialized",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagnostic_bundle.DiagnosticBundleTests.test_native_close_failure_cannot_report_a_missing_output_as_completed",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagnostic_bundle.DiagnosticBundleTests.test_no_run_or_saved_output_still_exports_load_snapshot_with_missing_notes",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagnostic_bundle.DiagnosticBundleTests.test_open_location_quotes_windows_path_and_missing_file_does_not_launch",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagnostic_bundle.DiagnosticBundleTests.test_unavailable_command_encoder_is_not_needed_for_folder_export",
+      "status": "passed"
+    },
+    {
+      "test": "test_diagnostic_bundle.DiagnosticBundleTests.test_unavailable_compressor_does_not_prevent_folder_export",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.SelectionStoreTests.test_draft_confirmation_and_shared_template_roundtrip_through_xrecord",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.SelectionStoreTests.test_missing_capacity_and_ground_use_defaults_without_marking_stale",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.SelectionStoreTests.test_new_draft_saves_inputs_without_unused_source_geometry_and_keeps_legacy_backup",
+      "status": "passed"
+    },
+    {
+      "test": "test_post_stat_workflow.SelectionStoreTests.test_template_change_updates_current_draft_only_and_preserves_other_panels",
+      "status": "passed"
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_atomic_config_write_restores_previous_file_on_failure",
+      "status": "passed"
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_dcl_keys_and_callback_syntax",
+      "status": "passed"
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_forms_arities_and_local_assignments",
+      "status": "passed"
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_geometry_and_topology_do_not_mutate_drawing",
+      "status": "passed"
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_rollback_only_deletes_created_objects_even_if_one_delete_fails",
+      "status": "passed"
+    },
+    {
+      "test": "test_store_compact.StoreCompactTests.test_tampered_valid_template_reference_detects_copy_conflict",
+      "status": "passed"
+    },
+    {
+      "test": "test_device_ui.DeviceUITests.test_dcl_keys_callbacks_and_cancel_preserve_store",
+      "status": "passed"
+    },
+    {
+      "test": "test_placement_finish.DiagnosticButtonTests.test_button_returns_to_panel_with_capacity_and_library_edits_preserved",
+      "status": "passed"
+    },
+    {
+      "test": "test_placement_finish.DiagnosticButtonTests.test_failed_export_survives_folder_action_and_retry_replaces_old_result",
+      "status": "passed"
+    }
+  ],
+  "input_analysis": {
+    "file": "output (14).zip",
+    "sha256": "18909bd7698f8120f43d46402185b6e04d425bd6db0778d54782bfb6cea2416e",
+    "diagnostic_failure_stage": "ZIP_LAUNCH STARTAPP",
+    "all_snapshot_files_collected": true,
+    "generation_failure_reason": "TEMPLATE-COPY-CONFLICT",
+    "saved_records": 4,
+    "saved_template_copies_consistent": true,
+    "current_panel_has_legacy_draft_without_output": true,
+    "current_draft_template_must_follow_new_config": true
+  },
+  "delivery": "source only; no program package build",
+  "cad_status": "pending; DCL layout and original-DWG save/generation not exercised in native AutoCAD"
+}

@@ -536,6 +536,8 @@
           (setq diagnostic-action (EL:DiagnosticOpenFolder diagnostic-path) status 3))
         (if (= status 19)
           (setq *EL:DLUINotice* (EL:PanelOpenBlockLibrary) status 3))
+        (if (= status 20)
+          (setq *EL:DLUINotice* (EL:DLOpenCatalog) status 3))
         (if (member status '(13 14 15 16))
           (setq status (EL:PanelLibraryExternal status))))
       (setq status 0)))

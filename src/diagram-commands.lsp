@@ -34,10 +34,11 @@
   ;; Date: 2026-10-14. Saving inputs must not revise an earlier output's
   ;; record. A new draft becomes the latest entry for the source box.
   (if (EL:Get 'panel-output-handle record)
-    ;; A new input record has no formal output of its own. Retain the
-    ;; template, without inheriting the previous output's geometry snapshot.
-    (setq record (EL:Put 'template (EL:Get 'template record)
-      (EL:NewRecord (EL:Get 'panel result) store))))
+    ;; A new input record has no formal output of its own.
+    (setq record (EL:NewRecord (EL:Get 'panel result) store)))
+  ;; Date: 2026-10-15. Fresh inputs and their config use the same current template.
+  ;; Historical records for other panels retain their own verified templates.
+  (setq record (EL:Put 'template (EL:Get 'template cfg) record))
   (setq
     record (EL:Put 'draft-circuits (EL:Get 'circuits result) (EL:Put 'draft-capacity capacity
       (EL:Put 'powers powers (EL:Put 'config cfg (EL:Put 'engine (EL:Get 'engine result) record))))))
@@ -691,15 +692,15 @@
         (setq files (cons (car entry) files))
         (EL:DiagnosticProgress (strcat "COPY_DONE " (car entry))))
       (setq notes (cons (strcat (car entry) "：本次未产生或文件不存在。\r\n") notes))))
-  (setq metadata (list (cons 'export-time stamp) (cons 'package *EL:PackageMarker*)
+  (setq metadata (list '(export-format . directory) (cons 'export-time stamp) (cons 'package *EL:PackageMarker*)
     (cons 'drawing (getvar "DWGNAME")) (cons 'drawing-folder (getvar "DWGPREFIX"))
     (cons 'acad-version (getvar "ACADVER")) (cons 'association-status (if record 'verified 'unavailable))
     (cons 'association-issue issue) (cons 'files (append '("README.md" "manifest.eld") (reverse files)))))
   (EL:DiagnosticWriteData (strcat folder "/manifest.eld") metadata)
   (EL:DiagnosticWriteText (strcat folder "/README.md")
-    (strcat "# 应急照明诊断包\r\n日期：" (substr stamp 1 4) "-" (substr stamp 5 2) "-" (substr stamp 7 2)
+    (strcat "# 应急照明诊断资料\r\n日期：" (substr stamp 1 4) "-" (substr stamp 5 2) "-" (substr stamp 7 2)
       "\r\n状态：诊断快照已收集；关联核对状态见 manifest.eld\r\n\r\n"
-      "将整个 ZIP 发给分析人员即可。导出不修改图纸。\r\n"
+      "将此文件夹中的资料发给分析人员即可，也可自行压缩。导出不修改图纸。\r\n"
       "timeline.md：当前图纸最近有效运行的耗时、错误、事件及加载时间轴。\r\n"
       "run.eld：同一次运行的完整事件和计时原始数据，未做日志文本截断。\r\n"
       "load.eld：本次会话最近一次插件加载的计时和原始动作；可能晚于 run.eld。\r\n"
@@ -714,8 +715,9 @@
       "内存记录在关闭图纸后不再保留，缺少资料不会伪造补全。\r\n\r\n"
       (if issue (strcat "关联读取或核对问题：" issue "\r\n") "")
       (EL:MonitorJoin (reverse notes))))
-  (EL:DiagnosticProgress "ZIP_BEGIN")
-  (EL:DiagnosticZip folder))
+  ;; Date: 2026-10-15. Export completes without a child process or ZIP dependency.
+  (EL:DiagnosticProgress "BUNDLE_DONE")
+  (EL:DiagnosticWindowsPath folder))
 (defun EL:DiagnosticOpenFolder (path / outcome)
   (if (and path (or (vl-file-directory-p path) (findfile path)))
     (progn
@@ -724,7 +726,7 @@
           (EL:DiagnosticWindowsPath path) "\""))))
       (if (or (not outcome) (vl-catch-all-error-p outcome))
         "无法打开文件夹，请选中路径后复制。" "已打开诊断文件所在位置。"))
-    "压缩包不存在，请重新导出。"))
+    "诊断资料不存在，请重新导出。"))
 (defun EL:DiagnosticExport (/ store record path session logpath issue checked)
   (setq *EL:DiagnosticExportMessage* nil *EL:DiagnosticExportPath* nil *EL:DiagnosticError* nil
     *EL:DiagnosticStage* "EXPORT_BEGIN")
@@ -750,12 +752,12 @@
             (setq issue (EL:DiagnosticFailure checked) record nil))))
       (setq *EL:DiagnosticError* nil)
       (setq path (EL:PerfCall "DIAGNOSTIC_EXPORT" 'EL:DiagnosticBundle (list record store logpath issue)))
-      (EL:DiagnosticRequire (and (equal (type path) 'STR) (/= path "")) "诊断压缩包未生成，内存资料已保留。")
+      (EL:DiagnosticRequire (and (equal (type path) 'STR) (/= path "")) "诊断资料目录未生成，内存资料已保留。")
       (setq
         *EL:DiagnosticExportPath* path
-        *EL:DiagnosticExportMessage* (if issue "已导出诊断包；关联异常原因已收入包内。" "已导出诊断包，可复制下方路径或打开文件夹。"))
+        *EL:DiagnosticExportMessage* (if issue "已导出诊断资料文件夹；关联异常原因已收入其中。" "已导出诊断资料文件夹，可复制路径或打开查看。"))
       (EL:LogEvent "DIAGNOSTIC_EXPORTED" (list (cons 'path path) (cons 'association-issue issue)))
-      (princ (strcat "\n诊断压缩包：" path)) path)))
+      (princ (strcat "\n诊断资料文件夹：" path)) path)))
 (defun EL:DiagnosticSaveFailure (message / saved stamp notice)
   ;; Date: 2026-10-15. Keep the original failure even if saving its report fails.
   (setq saved *EL:DiagnosticError* stamp (rtos (getvar "CDATE") 2 6)

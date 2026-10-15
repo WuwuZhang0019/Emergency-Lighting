@@ -1,3 +1,18 @@
+;; Date: 2026-10-15. Locate the saved parameters of the currently edited library.
+(defun EL:DLOpenCatalog (/ root path present outcome)
+  (setq root (EL:Get 'root (EL:Get 'snapshot *EL:DLUIState*)))
+  (if (and root (vl-file-directory-p root))
+    (progn
+      (setq path (strcat (EL:NormalizeRoot root) "catalog.eld") present (findfile path)
+        outcome (vl-catch-all-apply 'startapp
+          (list "explorer.exe" (strcat (if present "/select,\"" "\"")
+            (vl-string-translate "/" "\\" (if present path root)) "\""))))
+      (cond
+        ((or (not outcome) (vl-catch-all-error-p outcome))
+          "无法打开设备库文件夹，请按上方目录查找 catalog.eld。")
+        (present "已选中 catalog.eld；请先保存设备，再发送此文件作为默认功率来源。")
+        (T "已打开设备库目录；catalog.eld 尚未生成，请先保存设备。")))
+    "设备库目录不存在，请检查当前库目录。"))
 ;; Date: 2026-10-11. One-window CRUD; draft state survives picking and Escape.
 (defun EL:DLStrip (entry)
   (vl-remove-if '(lambda (p) (member (car p) '(captured watts-text aliases-text keep-old-name panel-name))) entry))
@@ -305,13 +320,14 @@
       (EL:MonitorActionTile "dl_pick" "(EL:DLUIStore) (done_dialog 13)")
       (EL:MonitorActionTile "dl_repair" "(EL:DLUIStore) (done_dialog 16)")
       (EL:MonitorActionTile "dl_import" "(EL:DLUIStore) (done_dialog 15)")
+      (EL:MonitorActionTile "dl_open" "(EL:DLUIStore) (done_dialog 20)")
       T)
     (progn
       (set_tile "dl_root" "设备库暂不可读取")
       (set_tile "dl_status" (cond (*EL:DLError*) (T "请检查设备库目录。")))
       (foreach key '("dl_rows" "dl_new" "dl_save" "dl_delete" "dl_restore" "dl_query"
           "dl_deleted" "dl_refresh" "dl_reload" "dl_directory" "dl_pick" "dl_repair"
-          "dl_import" "dl_block" "dl_aliases" "dl_keep_old" "dl_display" "dl_watts"
+          "dl_import" "dl_open" "dl_block" "dl_aliases" "dl_keep_old" "dl_display" "dl_watts"
           "dl_zero" "dl_ground" "dl_active")
         (mode_tile key 1)) nil)))
 (defun EL:DLUIRun (/ dialog status entity entry result checkpoint)
@@ -333,9 +349,11 @@
         (EL:MonitorActionTile "dl_pick" "(EL:DLUIStore) (done_dialog 3)")
         (EL:MonitorActionTile "dl_repair" "(EL:DLUIStore) (done_dialog 7)")
         (EL:MonitorActionTile "dl_import" "(EL:DLUIStore) (done_dialog 6)")
+        (EL:MonitorActionTile "dl_open" "(EL:DLUIStore) (done_dialog 8)")
         (EL:MonitorActionTile "dl_close" "(EL:DLUIStore) (done_dialog 0)")
         (setq status (start_dialog))) (setq status 0)))
     (cond
+      ((= status 8) (setq *EL:DLUINotice* (EL:DLOpenCatalog) status 2))
       ((= status 6) (EL:DLImportUI) (setq status 2))
       ((= status 7)
         (setq entry (EL:DLUIEntry) *EL:DLContinue* 'EL:DLUIResume

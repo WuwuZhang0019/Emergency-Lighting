@@ -10,7 +10,7 @@
       (setq ok T)
       (foreach file '("src/load.lsp" "src/common.lsp" "src/config.lsp" "src/geometry.lsp"
                      "src/topology.lsp" "src/statistics.lsp" "src/generation.lsp"
-                     "src/main.lsp" "src/simple.lsp" "src/circuit-number.lsp" "src/fixed.lsp" "src/panel.lsp" "src/diagnostic-bundle.ps1"
+                     "src/main.lsp" "src/simple.lsp" "src/circuit-number.lsp" "src/fixed.lsp" "src/panel.lsp"
                      "src/store-compact.lsp" "src/diagram-store.lsp" "src/store-split.lsp" "src/diagram-update.lsp" "src/diagram-commands.lsp" "src/insert-circuit.lsp" "src/device-library.lsp" "src/device-assets.lsp" "src/device-defaults.lsp" "src/device-ui.lsp" "src/device-recognition.lsp" "src/device-inputs.lsp" "src/device-migration.lsp" "ui/device-library.dcl" "ui/power.dcl")
         (if (not (findfile (strcat root file))) (setq ok nil)))
       (foreach folder '("config" "output" "templates")
@@ -30,9 +30,15 @@
       (if (EL:RootValid root) root))))
 (defun EL:EnsureRoot (/ selected root)
   ;; A standalone session update may define commands before a data root exists.
-  (if (EL:RootValid *EL:Root*)
-    (setq *EL:Root* (EL:NormalizeRoot *EL:Root*))
-    (progn
+  (cond
+    ((EL:RootValid *EL:Root*) (setq *EL:Root* (EL:NormalizeRoot *EL:Root*)))
+    ((and *EL:PackageMarker* (or *EL:StartupAttempted* *EL:StartupError*))
+      ;; Date: 2026-10-15. A failed automatic startup must not reopen the
+      ;; legacy file picker on ELSTAT. Manual relocation belongs to ELROOT.
+      (setq *EL:Root* nil)
+      (princ (strcat "\n插件目录尚未就绪，请修复加载错误后重新加载；如需切换目录，请主动运行 ELROOT。"
+        (if *EL:StartupError* (strcat "\n初始化原因：" (vl-string-translate "/" "\\" *EL:StartupError*)) ""))) nil)
+    (T
       (setq *EL:Root* nil)
       (princ "\n尚未设置有效插件目录，请选择完整包内的 src/load.lsp。")
       (setq selected (EL:PerfInput 'getfiled (list "请选择本包内的 src/load.lsp" "" "lsp" 0)))

@@ -46,6 +46,9 @@ class DiagnosticBundleTests(unittest.TestCase):
         self.h.builtins.update({
             'GETVAR': lambda name: variables[name] if name in variables else getvar(name),
             'GETENV': lambda name: os.environ.get(name),
+            'OPEN': lambda path, mode: open(path, mode, encoding='utf-8'),
+            'READ-LINE': lambda file: (line.rstrip('\r\n') if (line := file.readline()) else None),
+            'CLOSE': lambda file: file.close(),
             'EL:EXPORTDIAGNOSTICRUN': lambda: str(self.timeline),
             'FINDFILE': lambda path: str(path) if Path(path).is_file() else None,
             'VL-FILE-DIRECTORY-P': lambda path: Path(path).is_dir(),

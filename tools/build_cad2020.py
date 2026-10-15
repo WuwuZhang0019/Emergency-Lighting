@@ -10,6 +10,10 @@ NAME = f'应急照明-{PACKAGE_NO:03d}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 OUTPUT_ROOT = ROOT / 'output'
 DEST = OUTPUT_ROOT / NAME
+LOAD_COMPLETION = (
+    '(EL:MonitorLoadEnd (if *EL:MonitorLoadReady* \'load-finished \'load-failed))\n'
+    '(EL:StartupCommandHint *EL:MonitorLoadReady*)\n(princ)\n'
+)
 
 
 def replace_once(text, old, new):
@@ -18,7 +22,7 @@ def replace_once(text, old, new):
 
 
 def lisp_string(text):
-    return '"' + text.replace('\\', '\\\\').replace('"', '\\"') + '"'
+    return '"' + text.replace('\\', '\\\\').replace('"', '\\"').replace('\r', '\\r').replace('\n', '\\n') + '"'
 
 
 def embedded_writer(name, assets):
@@ -38,7 +42,7 @@ def embedded_writer(name, assets):
 def embedded_resources():
     """Date: 2026-10-14. Separate lookup, code/UI and default-asset timings."""
     text = embedded_writer('EL:StartupEmbeddedText',
-        sorted((DEST / 'src').glob('*')) + sorted((DEST / 'ui').glob('*')))
+        sorted((DEST / 'src').glob('*.lsp')) + sorted((DEST / 'ui').glob('*')))
     assets = embedded_writer('EL:StartupEmbeddedAssets',
         sorted((DEST / 'assets/default-device-library').rglob('*')))
     return (text + assets + '(defun EL:StartupEmbeddedRoot (/ base root folder marker ok)\n'
@@ -58,6 +62,13 @@ def embedded_resources():
             '        (EL:PerfCall "LOAD_RUNTIME_ASSETS" \'EL:StartupEmbeddedAssets (list root))))\n' +
             f'\n      (if (and ok (EL:RootValid root)\n'
             f'        (EL:StartupWriteLines marker \'("Emergency-Lighting {PACKAGE_NO}"))) root))))\n')
+
+
+def diagnostic_script_definition():
+    """Date: 2026-10-15. Keep diagnostics independent of writing a .ps1 at startup."""
+    script = (ROOT / 'src/diagnostic-bundle.ps1').read_text(encoding='utf-8')
+    chunks = '\n'.join(lisp_string(script[i:i + 192]) for i in range(0, len(script), 192))
+    return '(defun EL:DiagnosticScriptText () (EL:MonitorJoin \'(\n' + chunks + '\n)))\n'
 
 
 def build():
@@ -89,6 +100,8 @@ def build():
                 text = replace_once(text, '(open *EL:LogPath* "a" "utf8")', '(open *EL:LogPath* "a")')
                 text = replace_once(text, '(open path "a" "utf8")', '(open path "a")')
                 text = replace_once(text, 'AutoCAD 2021+, LISPSYS=1/2.', 'AutoCAD 2020 trial, GB2312 source and system-codepage data.')
+            if source.name == 'diagram-commands.lsp':
+                text += '\n' + diagnostic_script_definition()
             data = text.encode('gb2312', errors='strict')
             assert data.decode('gb2312') == text
             (DEST / folder / source.name).write_bytes(data)
@@ -115,9 +128,9 @@ def build():
               f'(setq *EL:PackageMarker* "{marker}")\n'
               '(if (setq *EL:MonitorLoadReady* (EL:PerfCall "LOAD_ROOT" \'EL:EnsureRoot nil))\n'
               '  (progn (EL:PerfCall "LOAD_LIBRARY" \'EL:DLDefaultStartup nil)\n'
-              f'    (princ "\\n已加载（CAD2020 v{PACKAGE_NO}）：目录已确认。输入 ELSTAT 开始统计。"))\n'
+              f'    (princ "\\n已加载（CAD2020 v{PACKAGE_NO}）：目录已确认。"))\n'
               f'  (princ "\\nCAD2020 v{PACKAGE_NO} 模块已载入，但未确认插件目录。运行 ELSETUP 或 ELSTAT 后选择完整包内的 src/load.lsp。"))\n'
-              '(EL:MonitorLoadEnd (if *EL:MonitorLoadReady* \'load-finished \'load-failed))\n(princ)\n')
+              + LOAD_COMPLETION)
     (DEST / UPDATE_NAME).write_bytes(update.encode('gb2312'))
     # Date: 2026-10-10. Resolve APPLOAD folder, then validate version and assets.
     startup = replace_once(update, '(setq *EL:MonitorLoadReady* (EL:PerfCall "LOAD_ROOT" \'EL:EnsureRoot nil))',

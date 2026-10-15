@@ -112,7 +112,7 @@
     (setq root (EL:StartupCandidate (getenv (strcat "EL_PACKAGE_ROOT_" marker)) marker)))
   root)
 (defun EL:StartupRoot (marker / root)
-  (setq *EL:StartupError* nil
+  (setq *EL:StartupAttempted* T *EL:StartupError* nil
     root (EL:PerfCall "LOAD_ROOT_SEARCH" 'EL:StartupFindRoot (list marker)))
   ;; Never prompt during startup. Manual relocation belongs to c:ELROOT only.
   (if (not root)
@@ -128,3 +128,7 @@
     (princ (strcat "\n自动初始化失败："
       (cond (*EL:StartupError*) (T "无法建立完整本地运行目录，请检查 LOCALAPPDATA 路径。")))))
   root)
+(defun EL:StartupCommandHint (ready)
+  ;; Date: 2026-10-15. Print after the loading logs and timing report.
+  (princ (if ready "\n启动命令：输入 ELSTAT 开始统计；ELDEVLIB 打开设备库。"
+    "\n启动未完成：请修复上方初始化错误后重新加载；需要切换目录时运行 ELROOT。")))

@@ -529,13 +529,20 @@
   (EL:DiagnosticRequire (not (vl-catch-all-error-p result)) "无法准备诊断压缩命令。")
   (foreach object '("\r" "\n" " " "\t")
     (while (vl-string-search object result) (setq result (vl-string-subst "" object result)))) result)
+(defun EL:DiagnosticScriptText (/ path file line parts)
+  ;; Date: 2026-10-15. Source installs read the helper; delivered modules
+  ;; embed its text so startup never needs to write a PowerShell file.
+  (if (and *EL:Root* (setq path (findfile (strcat *EL:Root* "src/diagnostic-bundle.ps1")))
+      (setq file (open path "r")))
+    (progn
+      (while (setq line (read-line file)) (setq parts (cons (strcat line "\r\n") parts)))
+      (close file) (EL:MonitorJoin (reverse parts)))))
 (defun EL:DiagnosticZip (folder / script powershell command shell result path)
-  (setq script (strcat *EL:Root* "src/diagnostic-bundle.ps1")
+  (setq script (EL:DiagnosticScriptText)
     powershell (strcat (getenv "SystemRoot") "/System32/WindowsPowerShell/v1.0/powershell.exe")
     path (strcat folder ".zip"))
-  (EL:DiagnosticRequire (and (findfile script) (findfile powershell)) "诊断压缩工具缺失，请使用完整交付包和 Windows PowerShell。")
-  (setq command (EL:DiagnosticEncodedCommand (strcat "& "
-    (EL:DiagnosticPSQuote (EL:DiagnosticWindowsPath script)) " -SourceDirectory "
+  (EL:DiagnosticRequire (and script (findfile powershell)) "诊断压缩工具缺失，请使用完整交付包和 Windows PowerShell。")
+  (setq command (EL:DiagnosticEncodedCommand (strcat "& {\r\n" script "\r\n} -SourceDirectory "
     (EL:DiagnosticPSQuote (EL:DiagnosticWindowsPath folder))))
     result (vl-catch-all-apply '(lambda ()
       (setq shell (vlax-create-object "WScript.Shell"))

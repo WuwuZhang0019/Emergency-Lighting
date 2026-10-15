@@ -54,7 +54,11 @@ def check_package(number, functions):
     resources = re.findall(r"EL:StartupWriteBase64 \(strcat root \"([^\"]+)\"\)\s*'\((.*?)\)\)",
                            startup, flags=re.S)
     expected = {name for name in files if name.startswith('assets/default-device-library/') or
-                name.startswith('ui/') or (name.startswith('src/') and name != 'src/load.lsp')}
+                name.startswith('ui/') or (name.startswith('src/') and name.endswith('.lsp') and name != 'src/load.lsp')}
+    # Date: 2026-10-15. The old 143 package extracted its helper; subsequent
+    # startup code embeds it in LISP instead. Verify bytes if an old entry exists.
+    if any(name == 'src/diagnostic-bundle.ps1' for name, _ in resources):
+        expected.add('src/diagnostic-bundle.ps1')
     # The embedded load entry is the small module loader generated before the standalone entry.
     assert {name for name, _ in resources} == expected | {'src/load.lsp'}
     for name, literals in resources:

@@ -1,0 +1,248 @@
+{
+  "date": "2026-10-15",
+  "status": "targeted_checks_passed",
+  "software_version": "0.1.52",
+  "checks": 52,
+  "runs": [
+    {
+      "checks": 50,
+      "result": "passed"
+    },
+    {
+      "checks": 2,
+      "result": "passed",
+      "scope": "main panel and standalone library catalog-location callbacks"
+    }
+  ],
+  "tests": [
+    {
+      "test": "test_library_edit_flow.LibraryEditFlowTests.test_changed_or_missing_asset_invalidates_the_editor_proof_and_keeps_input",
+      "passed": true
+    },
+    {
+      "test": "test_library_edit_flow.LibraryEditFlowTests.test_explicit_refresh_revalidates_assets",
+      "passed": true
+    },
+    {
+      "test": "test_library_edit_flow.LibraryEditFlowTests.test_focus_loss_then_rapid_selection_preserves_scrolled_indices_and_each_power",
+      "passed": true
+    },
+    {
+      "test": "test_library_edit_flow.LibraryEditFlowTests.test_parameter_commit_keeps_locked_checks_and_uses_the_verified_snapshot",
+      "passed": true
+    },
+    {
+      "test": "test_library_edit_flow.LibraryEditFlowTests.test_parameters_reuse_validated_assets_and_switching_back_does_not_reread_them",
+      "passed": true
+    },
+    {
+      "test": "test_library_edit_flow.LibraryEditFlowTests.test_rename_replaces_only_that_row_without_moving_a_filtered_list",
+      "passed": true
+    },
+    {
+      "test": "test_library_autosave.LibraryAutosaveTests.test_blank_power_is_saved_as_a_draft_without_implying_zero",
+      "passed": true
+    },
+    {
+      "test": "test_library_autosave.LibraryAutosaveTests.test_close_retries_an_earlier_invalid_device_and_keeps_valid_edits",
+      "passed": true
+    },
+    {
+      "test": "test_library_autosave.LibraryAutosaveTests.test_commit_exception_is_failure_and_does_not_close_editor",
+      "passed": true
+    },
+    {
+      "test": "test_library_autosave.LibraryAutosaveTests.test_conflict_and_lock_never_overwrite_disk_or_discard_input",
+      "passed": true
+    },
+    {
+      "test": "test_library_autosave.LibraryAutosaveTests.test_invalid_power_keeps_file_and_raw_input_then_can_be_corrected",
+      "passed": true
+    },
+    {
+      "test": "test_library_autosave.LibraryAutosaveTests.test_names_aliases_ground_zero_and_activation_all_save",
+      "passed": true
+    },
+    {
+      "test": "test_library_autosave.LibraryAutosaveTests.test_power_callback_writes_catalog_and_reopens_without_saving_button",
+      "passed": true
+    },
+    {
+      "test": "test_library_autosave.LibraryAutosaveTests.test_switching_saves_previous_device_and_selects_original_target",
+      "passed": true
+    },
+    {
+      "test": "test_library_autosave.LibraryAutosaveTests.test_unchanged_focus_switch_and_close_do_not_rewrite_catalog",
+      "passed": true
+    },
+    {
+      "test": "test_library_autosave.LibraryAutosaveTests.test_write_failure_retains_draft_for_automatic_retry",
+      "passed": true
+    },
+    {
+      "test": "test_capture_parameter_editing.CaptureParameterEditingTests.test_eldevlib_opens_editor_for_running_failed_and_completed_markers",
+      "passed": true
+    },
+    {
+      "test": "test_capture_parameter_editing.CaptureParameterEditingTests.test_elstat_always_opens_panel_without_starting_or_resuming_a_legend",
+      "passed": true
+    },
+    {
+      "test": "test_capture_parameter_editing.CaptureParameterEditingTests.test_late_worker_completion_preserves_already_autosaved_power",
+      "passed": true
+    },
+    {
+      "test": "test_capture_parameter_editing.CaptureParameterEditingTests.test_only_graph_changing_actions_are_disabled_during_capture",
+      "passed": true
+    },
+    {
+      "test": "test_capture_parameter_editing.CaptureParameterEditingTests.test_repair_callback_also_keeps_newer_saved_parameters",
+      "passed": true
+    },
+    {
+      "test": "test_capture_parameter_editing.CaptureParameterEditingTests.test_two_power_edits_and_close_save_while_capture_is_pending",
+      "passed": true
+    },
+    {
+      "test": "test_device_ui.DeviceUITests.test_asset_message_requires_successful_drawing_and_preserves_incomplete_fields",
+      "passed": true
+    },
+    {
+      "test": "test_device_ui.DeviceUITests.test_cancel_locked_manager_retains_lock_and_existing_drafts",
+      "passed": true
+    },
+    {
+      "test": "test_device_ui.DeviceUITests.test_dcl_keys_callbacks_and_cancel_preserve_store",
+      "passed": true
+    },
+    {
+      "test": "test_device_ui.DeviceUITests.test_explicit_false_ground_zero_and_alias_input_survive_conversion",
+      "passed": true
+    },
+    {
+      "test": "test_device_ui.DeviceUITests.test_full_crud_publishes_and_refresh_keeps_other_unsaved_drafts",
+      "passed": true
+    },
+    {
+      "test": "test_device_ui.DeviceUITests.test_incomplete_device_remains_draft_and_disabled",
+      "passed": true
+    },
+    {
+      "test": "test_device_ui.DeviceUITests.test_invalid_directory_never_changes_active_library_or_drafts",
+      "passed": true
+    },
+    {
+      "test": "test_device_ui.DeviceUITests.test_invalid_watts_text_is_retained_without_replacing_catalog",
+      "passed": true
+    },
+    {
+      "test": "test_device_ui.DeviceUITests.test_locked_manager_opens_recovery_then_manager_after_explicit_confirmation",
+      "passed": true
+    },
+    {
+      "test": "test_device_ui.DeviceUITests.test_missing_asset_cannot_publish_ready_or_restore_active",
+      "passed": true
+    },
+    {
+      "test": "test_device_ui.DeviceUITests.test_multiple_new_drafts_keep_separate_ids_and_search_results",
+      "passed": true
+    },
+    {
+      "test": "test_device_ui.DeviceUITests.test_panel_capture_returns_to_unified_panel",
+      "passed": true
+    },
+    {
+      "test": "test_device_ui.DeviceUITests.test_rename_keeps_old_name_by_default_and_can_be_disabled",
+      "passed": true
+    },
+    {
+      "test": "test_device_ui.DeviceUITests.test_store_preserves_empty_and_invalid_raw_fields_when_switching",
+      "passed": true
+    },
+    {
+      "test": "test_device_pick.DevicePickTests.test_asset_copy_failure_keeps_catalog_and_captured_graphic",
+      "passed": true
+    },
+    {
+      "test": "test_device_pick.DevicePickTests.test_concurrent_catalog_edit_blocks_publication_and_keeps_capture_for_retry",
+      "passed": true
+    },
+    {
+      "test": "test_device_pick.DevicePickTests.test_deleted_source_in_queue_does_not_prevent_other_type_from_publishing",
+      "passed": true
+    },
+    {
+      "test": "test_device_pick.DevicePickTests.test_existing_graphic_is_reused_and_saved_watts_are_preserved",
+      "passed": true
+    },
+    {
+      "test": "test_device_pick.DevicePickTests.test_invalid_slide_is_not_published_and_next_type_still_succeeds",
+      "passed": true
+    },
+    {
+      "test": "test_device_pick.DevicePickTests.test_multi_pick_filters_wrong_layer_xref_paper_output_and_deduplicates",
+      "passed": true
+    },
+    {
+      "test": "test_device_pick.DevicePickTests.test_picker_is_enabled_without_selected_entry_and_escape_returns_to_same_drafts",
+      "passed": true
+    },
+    {
+      "test": "test_device_pick.DevicePickTests.test_picking_retains_same_name_and_unrelated_invalid_raw_drafts",
+      "passed": true
+    },
+    {
+      "test": "test_device_pick.DevicePickTests.test_two_types_directly_publish_graphics_without_new_or_save_buttons",
+      "passed": true
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_atomic_config_write_restores_previous_file_on_failure",
+      "passed": true
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_dcl_keys_and_callback_syntax",
+      "passed": true
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_forms_arities_and_local_assignments",
+      "passed": true
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_geometry_and_topology_do_not_mutate_drawing",
+      "passed": true
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_rollback_only_deletes_created_objects_even_if_one_delete_fails",
+      "passed": true
+    },
+    {
+      "test": "test_library_location.LibraryLocationDialogTests.test_panel_open_automatically_saves_power_and_keeps_capacity",
+      "passed": true
+    },
+    {
+      "test": "test_library_location.LibraryLocationDialogTests.test_standalone_open_automatically_saves_power_and_returns_to_same_editor",
+      "passed": true
+    }
+  ],
+  "source_sha256": {
+    "src/device-ui.lsp": "011607f657d17ee4c4b101b42f3b0742bc55a1a97aaa5b0182b1a8de2f923c6c",
+    "tools/build_cad2020.py": "7dee5a4f40aa1127bc64b5ba99a8197fb5e99b4fb999671b14b79979b489012c",
+    "tests/test_library_edit_flow.py": "f2086c7e02fa152e101b18aa5eb49b577f8b852cf331dd569603cac4b931c121",
+    "tests/autolisp_host.py": "1a1293d70ed8103b18f0d1cbb39c4feb27483f7e2e2b4e9219fc228605a53f5b",
+    "tests/test_device_library.py": "4792876e9ec8347c41f0383847d227b705ebfefd5c8a520b02e19c6da14811d4"
+  },
+  "video": {
+    "file": "QQ20261015-224524.mp4",
+    "duration_seconds": 43.02261,
+    "observation": "At about 8 and 20 seconds the highlighted library row differs temporarily from the right-hand device; the visible list top also changes. This observation does not attribute elapsed time to individual program stages."
+  },
+  "operation_checks": {
+    "power_after_valid_preview_asset_binary_reads": 0,
+    "power_and_select_full_list_rebuilds": 0,
+    "committed_catalog_reads_during_parameter_save": 2,
+    "name_change_list_operation": "replace one existing row (operation 1)"
+  },
+  "scope": "Continuous focus-loss saves and scrolled selection; filtered renames; editor-only validated asset reuse and invalidation; locked exact catalog comparison and published readback; capture callbacks, picking, main panel and standalone entrypoints",
+  "native_cad_status": "pending_user_validation",
+  "boundary": "Real temporary catalog and DWG/SLD file I/O with finite AutoLISP and DCL adapters; no native AutoCAD timing, focus, scroll, original-DWG or Undo acceptance"
+}

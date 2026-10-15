@@ -1,4 +1,4 @@
-"""Independent catalog contracts. Date: 2026-10-11. Not native CAD acceptance."""
+"""Independent catalog contracts. Date: 2026-10-15. Not native CAD acceptance."""
 from pathlib import Path
 import tempfile
 import unittest
@@ -155,6 +155,7 @@ class DeviceLibraryTests(unittest.TestCase):
             'READ-LINE': lambda f: f.readline().rstrip('\r\n') or None,
             'CLOSE': lambda f: f.close(),
             'VL-FILE-SIZE': lambda p: Path(p).stat().st_size,
+            'VL-FILE-SYSTIME': lambda p: [Path(p).stat().st_mtime_ns] if Path(p).is_file() else None,
             'VL-DIRECTORY-FILES': lambda p,pattern,mode: [f.name for f in Path(p).glob(pattern) if f.is_file()],
             'EL:DLLockAcquire'.upper(): lambda p,o: Path(p).write_text(o) or True,
         })

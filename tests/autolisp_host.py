@@ -178,6 +178,7 @@ class Host:
             'LAST': lambda x: x[-1:] if x else None,
             'ASSOC': lambda k,x: next((p for p in seq(x) if equal(car(p), k)), None),
             'MEMBER': lambda k,x: next((x[i:] for i,p in enumerate(seq(x)) if equal(k,p)), None),
+            'VL-POSITION': lambda k,x: next((i for i,p in enumerate(seq(x)) if equal(k,p)), None),
             'SUBST': lambda new,old,x: [new if equal(p,old) else p for p in seq(x)] or None,
             'EQUAL': equal, '=': self.compare_equal,
             '/=': lambda a,b: not self.compare_equal(a,b), '<': lambda a,b: a<b, '<=': lambda a,b: a<=b,

@@ -6,8 +6,8 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 # Date: 2026-10-15. Software version; PACKAGE_NO is a legacy delivery identifier.
-VERSION = '0.1.51'
-PACKAGE_NO = 150
+VERSION = '0.1.52'
+PACKAGE_NO = 151
 NAME = f'应急照明-v{VERSION}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 OUTPUT_ROOT = ROOT / 'output'

@@ -1,4 +1,4 @@
-"""Library draft and CRUD callbacks. Date: 2026-10-14. No native DCL acceptance."""
+"""Library draft and CRUD callbacks. Date: 2026-10-15. No native DCL acceptance."""
 from pathlib import Path
 import re
 import tempfile
@@ -9,7 +9,9 @@ from autolisp_host import Pair, Symbol, truth, parse
 
 
 class DeviceUITests(unittest.TestCase):
-    setUp = backend.DeviceLibraryTests.setUp
+    def setUp(self):
+        backend.DeviceLibraryTests.setUp(self)
+        self.h.builtins['SET_TILE'] = lambda *args: None
     call = backend.DeviceLibraryTests.call
     get = backend.DeviceLibraryTests.get
     put = backend.DeviceLibraryTests.put
@@ -197,7 +199,7 @@ class DeviceUITests(unittest.TestCase):
                 for child in form: check_callbacks(child)
         for form in parse(code): check_callbacks(form)
         self.assertEqual(ui.count('{'),ui.count('}'))
-        self.assertIn('(EL:DLUIStore) (done_dialog 0)',code)
+        self.assertIn('(EL:DLUILeave 0)',code)
 
     def test_rename_keeps_old_name_by_default_and_can_be_disabled(self):
         self.cat=self.call('EL:DLUpsert',self.cat,self.entry('Old Lamp'))

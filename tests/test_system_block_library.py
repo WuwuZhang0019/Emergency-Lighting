@@ -59,9 +59,10 @@ class SystemBlockLibraryTests(unittest.TestCase):
         self.assertIn("不存在", self.call())
         self.assertEqual(self.opened, [])
 
-    def test_folder_action_keeps_capacity_power_and_unsaved_library_edits(self):
+    def test_folder_action_keeps_capacity_and_automatically_saves_library_edits(self):
         f = workflow.PostStatWorkflowTests()
         f.setUp()
+        workflow.install_library_files(f, self)
         callbacks, opens = {}, []
         f.h.builtins["ACTION_TILE"] = lambda key, action: callbacks.__setitem__(key, action)
         f.h.builtins["EL:PANELOPENBLOCKLIBRARY"] = lambda: opens.append(True) or "已打开图块文件夹"
@@ -75,14 +76,15 @@ class SystemBlockLibraryTests(unittest.TestCase):
         self.assertEqual(opens, [True])
         self.assertEqual(f.dialogs, ["el_panel", "el_panel"])
         self.assertEqual(f.tiles["p_capacity"], "p_600")
-        self.assertEqual(f.get("display", f.call("EL:DLUIDraft")), "保留的设备名称")
-        self.assertEqual(f.get("watts-text", f.call("EL:DLUIDraft")), "7")
+        self.assertEqual(f.get("display", f.call("EL:DLUIEntry")), "保留的设备名称")
+        self.assertEqual(f.get("watts", f.call("EL:DLUIEntry")), 7)
         self.assertEqual(f.tiles["dl_watts"], "7")
         self.assertEqual(f.tiles["dl_status"], "已打开图块文件夹")
 
     def test_home_folder_action_does_not_trigger_recognition_or_clear_edits(self):
         f = workflow.PostStatWorkflowTests()
         f.setUp()
+        workflow.install_library_files(f, self)
         callbacks = {}
         f.h.builtins["ACTION_TILE"] = lambda key, action: callbacks.__setitem__(key, action)
         f.h.builtins["EL:PANELOPENBLOCKLIBRARY"] = lambda: "已打开图块文件夹"
@@ -92,7 +94,7 @@ class SystemBlockLibraryTests(unittest.TestCase):
                      lambda: f.invoke_action(callbacks, "cancel")]
         f.call("EL:PanelDialog", None, None, None, None)
         self.assertEqual(f.dialogs, ["el_panel", "el_panel"])
-        self.assertEqual(f.get("display", f.call("EL:DLUIDraft")), "未拾取时的编辑")
+        self.assertEqual(f.get("display", f.call("EL:DLUIEntry")), "未拾取时的编辑")
 
 
 if __name__ == "__main__":

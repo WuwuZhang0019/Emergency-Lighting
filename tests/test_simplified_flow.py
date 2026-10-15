@@ -1,4 +1,4 @@
-"""Current-source draft and new-only generation checks. Date: 2026-10-14.
+"""Current-source draft and new-only generation checks. Date: 2026-10-15.
 
 Finite adapters verify store identities and untouched old output; native CAD
 geometry/contact and placement still require original-DWG acceptance.
@@ -91,6 +91,7 @@ class SimplifiedFlowTests(unittest.TestCase):
     def test_home_panel_opens_without_recognition(self):
         f = workflow.PostStatWorkflowTests()
         f.setUp()
+        workflow.install_library_files(f, self)
         callbacks = {}
         f.h.builtins["ACTION_TILE"] = lambda tile, action: callbacks.__setitem__(tile, action)
         f.h.builtins["EL:RECOGNIZEFIXED"] = lambda *args: self.fail("recognized before pick")
@@ -99,8 +100,9 @@ class SimplifiedFlowTests(unittest.TestCase):
         result = f.call("EL:PanelDialog", None, None, None, None)
         self.assertTrue(f.get("pick-panel", result))
         self.assertIn("dl_rows", callbacks)
-        self.assertIn("dl_save", callbacks)
-        self.assertEqual(f.get("display", f.call("EL:DLUIDraft")), "待保存设备名")
+        self.assertNotIn("dl_save", callbacks)
+        self.assertIn("dl_watts", callbacks)
+        self.assertEqual(f.get("display", f.call("EL:DLUIEntry")), "待保存设备名")
 
     def test_elstat_cancel_does_not_start_pick(self):
         h = Host()

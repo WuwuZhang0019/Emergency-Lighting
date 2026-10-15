@@ -557,7 +557,7 @@
       ("dl_rows" . "选择设备库条目") ("dl_query" . "搜索设备库")
       ("dl_new" . "新增设备") ("dl_pick" . "拾取设备入库")
       ("dl_open" . "打开设备库参数文件所在位置")
-      ("dl_save" . "保存到设备库") ("dl_delete" . "删除设备")
+      ("dl_watts" . "修改设备功率并自动保存") ("dl_delete" . "删除设备")
       ("dl_restore" . "恢复设备") ("dl_refresh" . "刷新设备库")
       ("dl_close" . "关闭设备库")))))
   (if (not title) (setq title "修改控件或执行按钮"))

@@ -192,6 +192,7 @@ class DiagnosticButtonTests(unittest.TestCase):
     def test_button_returns_to_panel_with_capacity_and_library_edits_preserved(self):
         f = panel.PostStatWorkflowTests()
         f.setUp()
+        panel.install_library_files(f, self)
         callbacks, exports, opens = {}, [], []
         path = 'C:\\中文 目录\\ELDIAG-20261015.123456.zip'
         f.h.builtins['ACTION_TILE'] = lambda key, action: callbacks.__setitem__(key, action)
@@ -214,7 +215,7 @@ class DiagnosticButtonTests(unittest.TestCase):
         self.assertEqual(opens, [path])
         self.assertEqual(f.tiles['p_diagnostic_path'], path)
         self.assertEqual(f.tiles['p_capacity'], 'p_600')
-        self.assertEqual(f.get('display', f.call('EL:DLUIDraft')), '保留输入')
+        self.assertEqual(f.get('display', f.call('EL:DLUIEntry')), '保留输入')
         self.assertEqual(f.tiles['p_diagnostic_status'], '诊断已导出')
         self.assertEqual(f.tiles['p_diagnostic_action'], '已打开诊断位置')
 

@@ -1,4 +1,4 @@
-"""Locate saved power parameters without publishing unsaved edits. Date: 2026-10-15."""
+"""Locate power parameters after automatic persistence. Date: 2026-10-15."""
 from pathlib import Path, PureWindowsPath
 import unittest
 from autolisp_host import Host, Symbol
@@ -53,12 +53,13 @@ class LibraryLocationTests(unittest.TestCase):
 class LibraryLocationDialogTests(unittest.TestCase):
     def fixture(self):
         f=workflow.PostStatWorkflowTests(); f.setUp()
+        self.catalog_path=workflow.install_library_files(f,self)
         callbacks={}; opens=[]
         f.h.builtins['ACTION_TILE']=lambda key,action:callbacks.__setitem__(key,action)
         f.h.builtins['EL:DLOPENCATALOG']=lambda:opens.append(True) or '已定位 catalog.eld'
         return f,callbacks,opens
 
-    def test_panel_open_keeps_capacity_and_unsaved_power_without_saving_catalog(self):
+    def test_panel_open_automatically_saves_power_and_keeps_capacity(self):
         f,callbacks,opens=self.fixture()
         def edit():
             f.tiles['dl_display']='保留设备编辑'; f.tiles['dl_watts']='12'
@@ -68,10 +69,12 @@ class LibraryLocationDialogTests(unittest.TestCase):
         f.dialog()
         self.assertEqual(opens,[True]); self.assertEqual(f.dialogs,['el_panel','el_panel'])
         self.assertEqual(f.tiles['p_capacity'],'p_600')
-        self.assertEqual(f.get('watts-text',f.call('EL:DLUIDraft')),'12')
-        self.assertEqual(f.get('display',f.call('EL:DLUIDraft')),'保留设备编辑')
+        self.assertEqual(f.get('watts',f.call('EL:DLUIEntry')),12)
+        self.assertEqual(f.get('display',f.call('EL:DLUIEntry')),'保留设备编辑')
+        saved=f.get('devices',f.call('EL:DLParse',self.catalog_path.read_text(encoding='utf-8')))[0]
+        self.assertEqual(f.get('watts',saved),12)
 
-    def test_standalone_open_returns_to_same_editor_with_unsaved_power(self):
+    def test_standalone_open_automatically_saves_power_and_returns_to_same_editor(self):
         f,callbacks,opens=self.fixture()
         f.call('EL:DLUIPanelBegin',f.call('EL:DLSnapshot'))
         def edit():
@@ -80,8 +83,10 @@ class LibraryLocationDialogTests(unittest.TestCase):
         f.actions=[edit,lambda:f.invoke_action(callbacks,'dl_close')]
         f.call('EL:DLUIRun')
         self.assertEqual(opens,[True]); self.assertEqual(f.dialogs,['el_device_library','el_device_library'])
-        self.assertEqual(f.get('watts-text',f.call('EL:DLUIDraft')),'17')
-        self.assertEqual(f.get('display',f.call('EL:DLUIDraft')),'独立窗口编辑')
+        self.assertEqual(f.get('watts',f.call('EL:DLUIEntry')),17)
+        self.assertEqual(f.get('display',f.call('EL:DLUIEntry')),'独立窗口编辑')
+        saved=f.get('devices',f.call('EL:DLParse',self.catalog_path.read_text(encoding='utf-8')))[0]
+        self.assertEqual(f.get('watts',saved),17)
 
 
 if __name__=='__main__':

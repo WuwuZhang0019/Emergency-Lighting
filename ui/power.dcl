@@ -74,8 +74,8 @@ el_panel : dialog {
   : row {
   : column { fixed_width = true;
     // Date: 2026-10-15. Four visible steps retain the existing pick controls.
-    : row { alignment = left;
-      : image { key = "p_step1"; width = 9; height = 1.3; fixed_width = true; fixed_height = true; color = dialog_background; help_string = "第一步：拾取配电箱和回路起始端导线"; }
+    : row { fixed_width = true; fixed_height = true; alignment = left;
+      : image { key = "p_step1"; width = 8; height = 1.3; fixed_width = true; fixed_height = true; color = dialog_background; help_string = "第一步：拾取配电箱和回路起始端导线"; }
       : text { label = "拾取配电箱和回路起始端导线"; width = 36; fixed_width = true; }
     }
     : row { fixed_width = true; alignment = left;
@@ -83,9 +83,9 @@ el_panel : dialog {
       : image_button { key = "p_trunk"; width = 28; height = 1.8; fixed_width = true; fixed_height = true; color = 3; is_tab_stop = true; }
     }
     : text { key = "p_number"; label = "配电箱编号：暂无编号"; width = 46; fixed_width = true; }
-    : row { alignment = left;
-      : image { key = "p_step2"; width = 9; height = 1.3; fixed_width = true; fixed_height = true; color = dialog_background; help_string = "第二步：选择配电箱容量"; }
-      : text { label = "选择配电箱容量"; }
+    : row { fixed_width = true; fixed_height = true; alignment = left;
+      : image { key = "p_step2"; width = 8; height = 1.3; fixed_width = true; fixed_height = true; color = dialog_background; help_string = "第二步：选择配电箱容量"; }
+      : text { label = "选择配电箱容量"; fixed_width = true; }
     }
     : radio_row { key = "p_capacity"; fixed_width = true; alignment = left;
       : radio_button { key = "p_300"; width = 10; fixed_width = true; label = "0.3kW"; value = "1"; }
@@ -94,7 +94,7 @@ el_panel : dialog {
     }
     : text { key = "p_capacity_status"; width = 46; fixed_width = true; }
     : text { key = "p_capacity_status1"; width = 46; fixed_width = true; }
-    : boxed_column { label = "识别结果：回路编号 / 功率";
+    : boxed_column { label = "识别结果：回路编号 / 功率"; fixed_height = true; alignment = top;
       : row { : text { label = "回路1"; width = 7; } : text { key = "p_row0"; width = 22; } }
       : row { : text { label = "回路2"; width = 7; } : text { key = "p_row1"; width = 22; } }
       : row { : text { label = "回路3"; width = 7; } : text { key = "p_row2"; width = 22; } }
@@ -103,9 +103,13 @@ el_panel : dialog {
       : row { : text { label = "回路6"; width = 7; } : text { key = "p_row5"; width = 22; } }
       : row { : text { label = "回路7"; width = 7; } : text { key = "p_row6"; width = 22; } }
       : row { : text { label = "回路8"; width = 7; } : text { key = "p_row7"; width = 22; } }
-      : row { alignment = left;
-        : image { key = "p_step3"; width = 9; height = 1.3; fixed_width = true; fixed_height = true; color = dialog_background; help_string = "第三步：在图面查看全部回路"; }
-        : button { key = "f_preview"; label = "在图面查看全部回路"; }
+      : row { fixed_width = true; fixed_height = true; alignment = left;
+        : image { key = "p_step3"; width = 8; height = 1.3; fixed_width = true; fixed_height = true; color = dialog_background; help_string = "第三步：在图面查看全部回路"; }
+        : button { key = "f_preview"; label = "在图面查看全部回路"; width = 28; fixed_width = true; }
+      }
+      : row { fixed_width = true; fixed_height = true; alignment = left;
+        : image { key = "p_step4"; width = 8; height = 1.3; fixed_width = true; fixed_height = true; color = dialog_background; help_string = "第四步：生成新系统图"; }
+        : button { key = "p_generate"; label = "生成新系统图"; width = 28; fixed_width = true; is_default = true; }
       }
     }
     : text { key = "p_device_status"; width = 46; fixed_width = true; }
@@ -125,11 +129,8 @@ el_panel : dialog {
     : edit_box { key = "p_diagnostic_path"; label = "路径"; edit_width = 38; edit_limit = 2048; }
     : button { key = "p_diagnostic_open"; label = "打开所在文件夹"; is_enabled = false; }
     : text { key = "p_diagnostic_action"; width = 46; fixed_width = true; }
-    : row {
-      // Date: 2026-10-15. Generation includes saving; no standalone draft action.
-      : image { key = "p_step4"; width = 9; height = 1.3; fixed_width = true; fixed_height = true; color = dialog_background; help_string = "第四步：生成新系统图"; }
-      : button { key = "p_generate"; label = "生成新系统图"; is_default = true; }
-      : button { key = "cancel"; label = "取消"; is_cancel = true; }
+    : row { fixed_width = true; fixed_height = true; alignment = right;
+      : button { key = "cancel"; label = "取消"; width = 12; fixed_width = true; is_cancel = true; }
     }
   }
   : boxed_column {
@@ -145,7 +146,7 @@ el_panel : dialog {
         : text { label = "图块图纸：系统图块库.dwg"; width = 44; fixed_width = true; }
         : button { key = "p_block_library_open"; label = "打开所在文件夹"; width = 24; fixed_width = true; }
       }
-      : text { label = "默认功率反馈：先保存设备，再发送 catalog.eld。"; fixed_height = true; }
+      : text { label = "默认功率反馈：自动保存成功后，发送 catalog.eld。"; fixed_height = true; }
     }
     : row { children_alignment = top;
       : column {
@@ -177,11 +178,10 @@ el_panel : dialog {
         : popup_list { key = "dl_ground"; label = "是否地面"; }
         : toggle { key = "dl_active"; label = "启用名称匹配"; value = "1"; }
         : button { key = "dl_repair"; label = "修复图例"; }
-        : button { key = "dl_save"; label = "保存设备"; }
       }
     }
     : text { key = "dl_status"; width = 76; fixed_height = true; }
-    : text { label = "设备资料修改后点保存；拾取图形后返回此面板。"; fixed_height = true; }
+    : text { label = "离开输入框后自动保存；勾选和下拉选项修改后立即保存。"; fixed_height = true; }
   }
   }
 }

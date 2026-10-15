@@ -1,4 +1,4 @@
-// Date: 2026-10-14. Status: integrated editor; direct ELDEVLIB entry retained.
+// Date: 2026-10-15. Status: automatic persistence in both library editors.
 el_device_library_locked : dialog {
   label = "独立设备库 - 占用恢复";
   : text { key = "dl_lock_root"; width = 104; }
@@ -17,7 +17,7 @@ el_device_library : dialog {
   : column { fixed_height = true; alignment = top;
     : text { key = "dl_root"; width = 104; fixed_height = true; }
     : row { fixed_height = true;
-      : text { label = "功率参数：catalog.eld；保存设备后可发送此文件作为默认值来源。"; }
+      : text { label = "功率参数：catalog.eld；自动保存成功后可发送此文件作为默认值来源。"; }
       : button { key = "dl_open"; label = "打开所在文件夹"; }
     }
   }
@@ -52,14 +52,13 @@ el_device_library : dialog {
       : popup_list { key = "dl_ground"; label = "是否地面"; }
       : toggle { key = "dl_active"; label = "启用名称匹配"; value = "1"; }
       : button { key = "dl_repair"; label = "从库内图形修复图例"; }
-      : button { key = "dl_save"; label = "保存设备"; is_default = true; }
-      : text { label = "拾取后图形直接入库；缺功率时保留为草稿。"; }
+      : text { label = "离开输入框后自动保存；缺资料时保存为草稿。"; }
     }
   }
   : text { key = "dl_status"; width = 104; }
   : text { label = "重新统计时刷新库默认值，保留手填值；新图仅在点击生成后创建。"; }
   : row {
-    : button { key = "dl_close"; label = "关闭（保留未保存输入）"; is_cancel = true; }
+    : button { key = "dl_close"; label = "关闭"; is_cancel = true; }
   }
 }
 el_device_import : dialog {

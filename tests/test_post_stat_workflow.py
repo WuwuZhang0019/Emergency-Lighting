@@ -1,4 +1,4 @@
-"""Current-panel workflow fixture and storage checks. Date: 2026-10-14. Status: current.
+"""Current-panel workflow fixture and storage checks. Date: 2026-10-15. Status: current.
 
 Runs actual command/dialog functions with finite CAD/DCL adapters.
 """
@@ -10,6 +10,20 @@ import test_device_library as library_backend
 import test_fixed_diagnostics as diag
 import test_diagram_store as db
 from autolisp_host import Pair, Symbol, truth
+
+
+def install_library_files(fixture, owner):
+    """Give editor actions a real transactional catalog, scoped to this test."""
+    folder = tempfile.TemporaryDirectory()
+    owner.addCleanup(folder.cleanup)
+    catalog = fixture.get('catalog', fixture.call('EL:DLSnapshot'))
+    root = library_backend.DeviceLibraryTests.fs(fixture, folder.name)
+    path = Path(folder.name, 'catalog.eld')
+    path.write_text(db.dump(catalog), encoding='utf-8')
+    fixture.h.builtins['VL-PRIN1-TO-STRING'] = db.dump
+    fixture.h.builtins['EL:DLSNAPSHOT'] = lambda:fixture.call('EL:DLSnapshotLoad',root)
+    fixture.h.builtins['EL:DLUIASSETREADY'] = lambda *args:True
+    return path
 
 
 class PostStatWorkflowTests(unittest.TestCase):

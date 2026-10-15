@@ -488,8 +488,69 @@
   (EL:DiagnosticRequire (and result (not (vl-catch-all-error-p result))
     (not (vl-catch-all-error-p closed)))
     (strcat "诊断文件写入失败，内存资料已保留：" (EL:DiagnosticWindowsPath path))) T)
-(defun EL:DiagnosticWriteData (path data)
-  (EL:DiagnosticWriteText path (strcat (vl-prin1-to-string data) "\r\n")))
+(defun EL:DiagnosticProgress (stage / file)
+  ;; Date: 2026-10-15. Flush a small checkpoint before each potentially slow file.
+  (if *EL:DiagnosticProgressPath*
+    (progn
+      (princ (strcat "\n诊断导出：" stage))
+      (if (setq file (open *EL:DiagnosticProgressPath* "a"))
+        (progn (write-line (strcat (rtos (EL:Tick) 2 0) " " stage) file) (close file))))) nil)
+(defun EL:DiagnosticNativeCharset () "utf-8")
+(defun EL:DiagnosticNativeText (path / stream outcome)
+  ;; Native PRINT writes directly to disk; ADO performs the codepage conversion
+  ;; in native code instead of constructing a multi-megabyte LISP print string.
+  (setq outcome (vl-catch-all-apply '(lambda ()
+    (setq stream (vlax-create-object "ADODB.Stream"))
+    (vlax-put-property stream 'Type 2)
+    (vlax-put-property stream 'Charset (EL:DiagnosticNativeCharset))
+    (vlax-invoke-method stream 'Open nil 0 -1 "" "")
+    (vlax-invoke-method stream 'LoadFromFile path)
+    (vlax-invoke-method stream 'ReadText -1)) nil))
+  (if stream
+    (progn (vl-catch-all-apply 'vlax-invoke-method (list stream 'Close))
+      (vlax-release-object stream)))
+  (EL:DiagnosticRequire (not (vl-catch-all-error-p outcome))
+    (strcat "诊断临时文件读取失败：" (EL:DiagnosticWindowsPath path))) outcome)
+(defun EL:DiagnosticWriteData (path data / tmp file outcome closed)
+  ;; Date: 2026-10-15. Do not VL-PRIN1-TO-STRING the entire live graph/store.
+  (EL:DiagnosticProgress (strcat "FILE_BEGIN " (vl-filename-base path)))
+  (setq tmp (strcat path ".native.tmp")
+    outcome (vl-catch-all-apply '(lambda ()
+      (setq file (open tmp "w" "utf8"))
+      (EL:DiagnosticRequire file "无法创建诊断临时文件。")
+      (prin1 data file) (write-line "" file)) nil))
+  (if file (setq closed (vl-catch-all-apply 'close (list file))))
+  (if (and (not (vl-catch-all-error-p outcome)) (not (vl-catch-all-error-p closed)))
+    (setq outcome (vl-catch-all-apply '(lambda ()
+      (EL:DiagnosticWriteText path (EL:DiagnosticNativeText tmp))) nil))
+    (setq outcome nil))
+  (if (findfile tmp) (vl-catch-all-apply 'vl-file-delete (list tmp)))
+  (EL:DiagnosticRequire (and (not (vl-catch-all-error-p outcome)) outcome)
+    (strcat "诊断数据写出失败，已完成资料保留在原目录：" (EL:DiagnosticWindowsPath path)))
+  (EL:DiagnosticProgress (strcat "FILE_DONE " (vl-filename-base path))) T)
+(defun EL:DiagnosticFields (data keys / result key row)
+  (foreach key keys (if (setq row (assoc key data)) (setq result (cons row result))))
+  (reverse result))
+(defun EL:DiagnosticResult (result / snapshot circuits circuit)
+  ;; The persisted input/association is exported separately in full. Live caches
+  ;; and expanded geometry are not a second diagnostic record of that input.
+  (if result
+    (progn
+      (setq snapshot (EL:Get 'snapshot result))
+      (foreach circuit (EL:Get 'circuits result)
+        (setq circuits (cons (EL:DiagnosticFields circuit
+          '(id circuit-uid circuit-number number-status watts total-watts complete
+            issues wires devices objects seed-key output-order rows groups)) circuits)))
+      (append (EL:DiagnosticFields result '(panel drawing engine complete total-watts
+          capacity-option capacity-source diagram-id excluded-seeds))
+        (list '(diagnostic-scope . business-fields)
+          '(omitted-live-fields snapshot-geometry network-proof device-library caches)
+          (cons 'snapshot-summary (list (cons 'drawing (EL:Get 'drawing snapshot))
+            (cons 'wire-count (length (EL:Get 'wires snapshot)))
+            (cons 'block-count (length (EL:Get 'blocks snapshot)))
+            (cons 'end-count (length (EL:Get 'ends snapshot)))
+            (cons 'issue-count (length (EL:Get 'issues snapshot)))))
+          (cons 'circuits (reverse circuits)))))))
 (defun EL:DiagnosticFolderAt (base / folder index)
   (setq base (strcat (EL:NormalizeRoot base) "ELDIAG-" (rtos (getvar "CDATE") 2 6))
     folder base index 0)
@@ -553,16 +614,19 @@
     (findfile path) (> (vl-file-size path) 0))
     (strcat "诊断压缩失败，原始资料保留在：" (EL:DiagnosticWindowsPath folder)))
   (EL:DiagnosticWindowsPath path))
-(defun EL:DiagnosticBundle (record store logpath issue / folder run files entry source target notes stamp metadata)
+(defun EL:DiagnosticBundle (record store logpath issue / folder run files entry source target notes stamp metadata
+    *EL:DiagnosticProgressPath*)
   (setq folder (EL:DiagnosticFolder) *EL:DiagnosticExportPath* (EL:DiagnosticWindowsPath folder)
     stamp (rtos (getvar "CDATE") 2 6)
-    run (EL:Get (namedobjdict) *EL:DiagnosticRuns*))
+    run (EL:Get (namedobjdict) *EL:DiagnosticRuns*) files '("progress.log")
+    *EL:DiagnosticProgressPath* (strcat folder "/progress.log"))
+  (EL:DiagnosticProgress "BUNDLE_BEGIN")
   (foreach entry (list (cons "run.eld" run)
       (cons "load.eld" (if *EL:MonitorLoadSummary* (list
         (cons 'summary *EL:MonitorLoadSummary*) (cons 'rows *EL:MonitorLoadRows*)
         (cons 'origin *EL:MonitorLoadOrigin*) (cons 'stamp *EL:MonitorLoadStamp*))))
       (cons "association.eld" record)
-      (cons "drawing-store.eld" store) (cons "current-result.eld" *EL:Result*))
+      (cons "drawing-store.eld" store) (cons "current-result.eld" (EL:DiagnosticResult *EL:Result*)))
     (if (cdr entry)
       (progn (EL:DiagnosticWriteData (strcat folder "/" (car entry)) (cdr entry))
         (setq files (cons (car entry) files)))
@@ -578,9 +642,11 @@
     (setq source (cdr entry) target (strcat folder "/" (car entry)))
     (if (and source (findfile source))
       (progn
+        (EL:DiagnosticProgress (strcat "COPY_BEGIN " (car entry)))
         (EL:DiagnosticRequire (vl-file-copy source target)
           (strcat "无法复制诊断日志：" (EL:DiagnosticWindowsPath source)))
-        (setq files (cons (car entry) files)))
+        (setq files (cons (car entry) files))
+        (EL:DiagnosticProgress (strcat "COPY_DONE " (car entry))))
       (setq notes (cons (strcat (car entry) "：本次未产生或文件不存在。\r\n") notes))))
   (setq metadata (list (cons 'export-time stamp) (cons 'package *EL:PackageMarker*)
     (cons 'drawing (getvar "DWGNAME")) (cons 'drawing-folder (getvar "DWGPREFIX"))
@@ -596,13 +662,16 @@
       "load.eld：本次会话最近一次插件加载的计时和原始动作；可能晚于 run.eld。\r\n"
       "association.eld：当前图纸最近成功出图或选中旧系统图的已核对关联。\r\n"
       "drawing-store.eld：当前图纸已保存记录的只读快照，不代表所有旧图成员已核对。\r\n"
-      "current-result.eld：当前识别结果；可能与最近一次成功出图不同。\r\n"
+      "current-result.eld：当前识别结果的业务字段与源图数量；可能与最近一次成功出图不同。\r\n"
+      "完整保存记录和出图关联保留在 drawing-store.eld / association.eld，不重复展开内存几何、网络证明及设备库缓存。\r\n"
+      "progress.log：逐文件导出检查点；中断时可定位最后进入的阶段。\r\n"
       "runtime / active / temp 日志：已有共享历史文件，可能含此前命令或其他图纸；以 run.eld 为本次运行依据。\r\n"
       "manifest.eld：版本、图纸、导出时间、关联状态和文件清单。\r\n"
       "本次生成的 .eld / .md 为 UTF-8；复制的历史 .log 保持原编码。\r\n"
       "内存记录在关闭图纸后不再保留，缺少资料不会伪造补全。\r\n\r\n"
       (if issue (strcat "关联读取或核对问题：" issue "\r\n") "")
       (EL:MonitorJoin (reverse notes))))
+  (EL:DiagnosticProgress "ZIP_BEGIN")
   (EL:DiagnosticZip folder))
 (defun EL:DiagnosticOpenFolder (path / outcome)
   (if (and path (or (vl-file-directory-p path) (findfile path)))

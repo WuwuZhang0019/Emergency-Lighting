@@ -5,7 +5,7 @@ import shutil
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGE_NO = 143
+PACKAGE_NO = 144
 NAME = f'应急照明-{PACKAGE_NO:03d}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 OUTPUT_ROOT = ROOT / 'output'
@@ -101,6 +101,9 @@ def build():
                 text = replace_once(text, '(open path "a" "utf8")', '(open path "a")')
                 text = replace_once(text, 'AutoCAD 2021+, LISPSYS=1/2.', 'AutoCAD 2020 trial, GB2312 source and system-codepage data.')
             if source.name == 'diagram-commands.lsp':
+                text = replace_once(text, '(open tmp "w" "utf8")', '(open tmp "w")')
+                text = replace_once(text, '(defun EL:DiagnosticNativeCharset () "utf-8")',
+                                    '(defun EL:DiagnosticNativeCharset () "gb2312")')
                 text += '\n' + diagnostic_script_definition()
             data = text.encode('gb2312', errors='strict')
             assert data.decode('gb2312') == text
@@ -219,6 +222,8 @@ def build():
     for source in sorted((ROOT / 'tests/evidence').glob(f'????-??-??-placement-finish-checks-{PACKAGE_NO:03d}.json')):
         shutil.copy2(source, DEST / 'tests/evidence' / source.name)
     for source in sorted((ROOT / 'tests/evidence').glob(f'????-??-??-diagnostic-bundle-checks-{PACKAGE_NO:03d}.json')):
+        shutil.copy2(source, DEST / 'tests/evidence' / source.name)
+    for source in sorted((ROOT / 'tests/evidence').glob('????-??-??-diagnostic-export-hang-analysis.json')):
         shutil.copy2(source, DEST / 'tests/evidence' / source.name)
     readme = guide
     (DEST / '使用说明.md').write_text(readme, encoding='utf-8')

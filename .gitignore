@@ -158,3 +158,6 @@ config/power-input-*.eld
 /output/ELDIAG-*/
 /output/ELDIAG-*.zip
 /output/ELDIAG-*.zip.partial
+/output/应急照明-144/
+/output/应急照明-144.zip
+/output/diagnostic-bundle-144-check/

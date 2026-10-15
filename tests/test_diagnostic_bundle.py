@@ -9,12 +9,13 @@ import tempfile
 import unittest
 import zipfile
 
-from autolisp_host import Pair, Symbol
+from autolisp_host import Pair, Symbol, parse
+from test_diagram_store import dump
 from monitor_io import install_monitor_io
 import test_diagnostic_export as diagnostic
 
 ROOT = Path(__file__).resolve().parents[1]
-CHECK_ROOT = ROOT / 'output/diagnostic-bundle-143-check'
+CHECK_ROOT = ROOT / 'output/diagnostic-bundle-144-check'
 
 
 class DiagnosticBundleTests(unittest.TestCase):
@@ -46,9 +47,12 @@ class DiagnosticBundleTests(unittest.TestCase):
         self.h.builtins.update({
             'GETVAR': lambda name: variables[name] if name in variables else getvar(name),
             'GETENV': lambda name: os.environ.get(name),
-            'OPEN': lambda path, mode: open(path, mode, encoding='utf-8'),
+            'OPEN': lambda path, mode, *encoding: open(path, mode, encoding=encoding[0] if encoding else 'gb2312'),
             'READ-LINE': lambda file: (line.rstrip('\r\n') if (line := file.readline()) else None),
             'CLOSE': lambda file: file.close(),
+            'PRIN1': lambda value, file: file.write(dump(value)) and value,
+            'WRITE-LINE': lambda value, file: file.write(value + '\n'),
+            'VL-FILENAME-BASE': lambda path: Path(path).stem,
             'EL:EXPORTDIAGNOSTICRUN': lambda: str(self.timeline),
             'FINDFILE': lambda path: str(path) if Path(path).is_file() else None,
             'VL-FILE-DIRECTORY-P': lambda path: Path(path).is_dir(),
@@ -74,6 +78,13 @@ class DiagnosticBundleTests(unittest.TestCase):
                 self.assertEqual(obj['CHARSET'], 'unicode')
                 self.assertEqual(obj['TYPE'], 1)
                 return (b'\xff\xfe' + obj['text'].encode('utf-16-le'))[obj['POSITION']:]
+            if method == 'LOADFROMFILE':
+                encoding = 'utf-8-sig' if obj['CHARSET'] == 'utf-8' else obj['CHARSET']
+                obj['text'] = Path(args[0]).read_text(encoding=encoding)
+                return None
+            if method == 'READTEXT':
+                self.assertEqual(args, (-1,))
+                return obj['text']
             if method == 'RUN':
                 self.assertEqual(args[1:], (0, True), 'hidden process must finish before success')
                 self.processes.append(args[0])
@@ -101,7 +112,7 @@ class DiagnosticBundleTests(unittest.TestCase):
             self.assertIsNone(archive.testzip())
             self.assertEqual(set(archive.namelist()), {
                 'README.md', 'manifest.eld', 'association.eld', 'drawing-store.eld',
-                'current-result.eld', 'run.eld', 'timeline.md', 'runtime-ELTRACE-debug.log',
+                'current-result.eld', 'run.eld', 'timeline.md', 'progress.log', 'runtime-ELTRACE-debug.log',
                 'runtime-ELPERF.log', 'temp-ELPERF.log'})
             self.assertEqual(archive.read('runtime-ELTRACE-debug.log'), raw)
             self.assertEqual(archive.read('timeline.md'), self.timeline.read_bytes())
@@ -109,6 +120,10 @@ class DiagnosticBundleTests(unittest.TestCase):
             record = self.h.run('(EL:DiagramForPanel "source" (EL:StoreRead))')
             self.assertEqual(archive.read('association.eld').decode('utf-8-sig').strip(),
                              self.h.builtins['VL-PRIN1-TO-STRING'](record))
+            progress = archive.read('progress.log').decode('ascii')
+            self.assertIn('FILE_DONE drawing-store', progress)
+            self.assertIn('FILE_DONE current-result', progress)
+            self.assertIn('ZIP_BEGIN', progress)
         self.assertNotIn('/', str(self.h.lookup('*EL:DIAGNOSTICEXPORTPATH*')))
         self.assertFalse(zip_path.with_suffix('').exists(), 'successful snapshot cleanup')
         first_bytes = zip_path.read_bytes()
@@ -134,7 +149,7 @@ class DiagnosticBundleTests(unittest.TestCase):
         self.h.frames[0]['*EL:MONITORLOADSUMMARY*'] = [Pair(Symbol('COMMAND'), 'APPLOAD')]
         self.h.frames[0]['*EL:MONITORLOADSTAMP*'] = '20261015.120000'
         with zipfile.ZipFile(self.export()) as archive:
-            self.assertEqual(set(archive.namelist()), {'README.md', 'manifest.eld', 'load.eld'})
+            self.assertEqual(set(archive.namelist()), {'README.md', 'manifest.eld', 'load.eld', 'progress.log'})
             self.assertIn('APPLOAD', archive.read('load.eld').decode('utf-8-sig'))
             self.assertIn('run.eld：本次会话没有可用资料', archive.read('README.md').decode('utf-8-sig'))
 
@@ -168,6 +183,80 @@ class DiagnosticBundleTests(unittest.TestCase):
         self.assertEqual(opened, [('explorer.exe', '/select,"' + str(path) + '"')])
         self.f.fixture.call('EL:DiagnosticOpenFolder', str(path) + '.missing')
         self.assertEqual(len(opened), 1)
+
+    def test_large_saved_record_uses_native_file_print_without_building_lisp_print_string(self):
+        value = [Pair(Symbol('PAYLOAD'), 'x' * 3_000_000 + '完整中文记录')]
+        self.h.builtins['VL-PRIN1-TO-STRING'] = lambda *args: self.fail('whole-record string formatting')
+        path = self.root / 'output/large-store.eld'
+        self.f.fixture.call('EL:DiagnosticWriteData', str(path), value)
+        self.assertEqual(path.read_text(encoding='utf-8-sig').strip(), dump(value))
+        self.assertFalse(Path(str(path) + '.native.tmp').exists())
+
+    def test_cad2020_native_gb2312_file_is_converted_to_utf8(self):
+        # Exercise the exact source-to-delivery substitution without building a package.
+        code = (ROOT / 'src/diagram-commands.lsp').read_text(encoding='utf-8')
+        code = code.replace('(open tmp "w" "utf8")', '(open tmp "w")')
+        for form in parse(code):
+            if isinstance(form, list) and form[:2] == [Symbol('DEFUN'), Symbol('EL:DIAGNOSTICWRITEDATA')]:
+                self.h.evaluate(form)
+        self.h.builtins['EL:DIAGNOSTICNATIVECHARSET'] = lambda: 'gb2312'
+        path = self.root / 'output/gb2312-store.eld'
+        value = [Pair(Symbol('NAME'), '应急照明中文记录')]
+        self.f.fixture.call('EL:DiagnosticWriteData', str(path), value)
+        self.assertEqual(path.read_text(encoding='utf-8-sig').strip(), dump(value))
+
+    def test_live_geometry_and_library_cache_are_not_traversed_or_serialized(self):
+        class Poison:
+            def __repr__(self):
+                raise AssertionError('live geometry/cache must not be printed')
+        result = self.h.lookup('*EL:RESULT*')
+        result = self.f.fixture.call('EL:Put', Symbol('DEVICE-LIBRARY'), Poison(), result)
+        snapshot = [Pair(Symbol('GEOMETRY'), Poison()),
+                    Pair(Symbol('WIRES'), ['W1', 'W2']), Pair(Symbol('BLOCKS'), ['B1'])]
+        result = self.f.fixture.call('EL:Put', Symbol('SNAPSHOT'), snapshot, result)
+        self.h.frames[0]['*EL:RESULT*'] = result
+        with zipfile.ZipFile(self.export()) as archive:
+            summary = archive.read('current-result.eld').decode('utf-8-sig')
+            self.assertIn('BUSINESS-FIELDS', summary)
+            self.assertIn('(WIRE-COUNT . 2)', summary)
+            self.assertIn('(BLOCK-COUNT . 1)', summary)
+            self.assertIn('(PANEL . "source")', summary)
+            self.assertIn('association.eld', archive.namelist())
+            self.assertIn('drawing-store.eld', archive.namelist())
+
+    def test_interrupted_native_print_closes_file_and_keeps_last_progress_checkpoint(self):
+        path = self.root / 'output/interrupted.eld'
+        progress = self.root / 'output/progress.log'
+        self.h.frames[0]['*EL:DIAGNOSTICPROGRESSPATH*'] = str(progress)
+        handles = []
+        original_open = self.h.builtins['OPEN']
+        def opening(*args):
+            file = original_open(*args)
+            handles.append(file)
+            return file
+        def interrupted(value, file):
+            file.write('partial')
+            raise RuntimeError('cancelled native print')
+        self.h.builtins['OPEN'] = opening
+        self.h.builtins['PRIN1'] = interrupted
+        with self.assertRaises(RuntimeError):
+            self.f.fixture.call('EL:DiagnosticWriteData', str(path), [1, 2, 3])
+        self.assertTrue(all(file.closed for file in handles))
+        self.assertFalse(path.exists())
+        self.assertFalse(Path(str(path) + '.native.tmp').exists())
+        self.assertIn('FILE_BEGIN interrupted', progress.read_text(encoding='ascii'))
+        self.assertNotIn('FILE_DONE interrupted', progress.read_text(encoding='ascii'))
+
+    def test_native_close_failure_cannot_report_a_missing_output_as_completed(self):
+        path = self.root / 'output/close-failed.eld'
+        def failed_close(file):
+            file.close()
+            raise OSError('native close failed')
+        self.h.builtins['CLOSE'] = failed_close
+        with self.assertRaises(RuntimeError):
+            self.f.fixture.call('EL:DiagnosticWriteData', str(path), [1, 2, 3])
+        self.assertFalse(path.exists())
+        self.assertFalse(Path(str(path) + '.native.tmp').exists())
 
 
 if __name__ == '__main__':

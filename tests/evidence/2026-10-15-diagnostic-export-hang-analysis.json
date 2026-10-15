@@ -1,0 +1,46 @@
+{
+  "date": "2026-10-15",
+  "status": "analyzed",
+  "input_archive": "output (11).zip",
+  "input_sha256": "6387c5724db52deb0cf8ca125e0f21c5edfd1c2abd15cccadfe791ba4cfc7a4d",
+  "files": [
+    {
+      "name": "ELDIAG-20261015.141546/association.eld",
+      "bytes": 211341,
+      "modified_local": "2026-10-15 14:15:48"
+    },
+    {
+      "name": "ELDIAG-20261015.141546/drawing-store.eld",
+      "bytes": 5960389,
+      "modified_local": "2026-10-15 14:16:52"
+    },
+    {
+      "name": "ELDIAG-20261015.141546/load.eld",
+      "bytes": 8298,
+      "modified_local": "2026-10-15 14:15:48"
+    },
+    {
+      "name": "ELDIAG-20261015.141546/run.eld",
+      "bytes": 202031,
+      "modified_local": "2026-10-15 14:15:48"
+    },
+    {
+      "name": "ELMONITOR-20261015.141449-ELSTAT.md",
+      "bytes": 180073,
+      "modified_local": "2026-10-15 14:15:40"
+    }
+  ],
+  "observations": [
+    "drawing-store.eld: 5960389 bytes; about 64 seconds after association.eld",
+    "No current-result.eld, README.md, manifest.eld or ELDIAG ZIP in supplied files",
+    "143 writer order: run, load, association, drawing-store, current-result, copy logs, manifest, README, ZIP"
+  ],
+  "inference": "Export stalled during pre-compression serialization; exact live-result subfield cost is not available. No evidence of a ZIP-process deadlock.",
+  "native_cad_evidence": {
+    "package": 143,
+    "after_submit_total_ms": 4468,
+    "after_submit_program_ms": 2374,
+    "after_graphics_ms": 31
+  },
+  "scope": "Metadata only; supplied raw drawing records are not copied into Git."
+}

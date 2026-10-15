@@ -1,0 +1,42 @@
+{
+  "date": "2026-10-15",
+  "status": "passed",
+  "package": 143,
+  "files": 337,
+  "gb2312_lisp_dcl": 32,
+  "parsed_lisp": 30,
+  "loading_entry_functions": [
+    "EL:EXPORTDIAGNOSTICRUN",
+    "EL:ROOTVALID",
+    "EL:DIAGNOSTICREQUIRE",
+    "EL:DIAGNOSTICFAILURE",
+    "EL:DIAGNOSTICRECORD",
+    "EL:DIAGNOSTICRECORDVALID",
+    "EL:DIAGNOSTICWINDOWSPATH",
+    "EL:DIAGNOSTICWRITETEXT",
+    "EL:DIAGNOSTICWRITEDATA",
+    "EL:DIAGNOSTICFOLDERAT",
+    "EL:DIAGNOSTICFOLDER",
+    "EL:DIAGNOSTICPSQUOTE",
+    "EL:DIAGNOSTICENCODEDCOMMAND",
+    "EL:DIAGNOSTICZIP",
+    "EL:DIAGNOSTICBUNDLE",
+    "EL:DIAGNOSTICOPENFOLDER",
+    "EL:DIAGNOSTICEXPORT",
+    "EL:PANELDIAGNOSTICEXPORT",
+    "C:ELDIAG",
+    "EL:PANELDIALOG"
+  ],
+  "embedded_resources": 133,
+  "archive_sha256": "5a18703a600259cf33e00f708a1c586f68730549ad9be8464e9adfa97d50bab4",
+  "checks": [
+    "ZIP CRC",
+    "all archive and extracted bytes match",
+    "strict GB2312 without BOM",
+    "all LISP parsing",
+    "changed definitions match all three loading entries",
+    "embedded runtime resources match generated delivery modules"
+  ],
+  "focused_regression_cases": 26,
+  "native_cad_status": "Native AutoCAD COM, DCL path copy and Explorer action acceptance pending"
+}

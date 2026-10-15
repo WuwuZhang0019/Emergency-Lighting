@@ -1,0 +1,26 @@
+{
+  "date": "2026-10-15",
+  "status": "passed",
+  "scope": "Finite CAD/DCL adapters and real Windows PowerShell compression; native CAD pending",
+  "cases": 26,
+  "suites": [
+    "test_diagnostic_bundle",
+    "test_diagnostic_export",
+    "test_placement_finish",
+    "test_log_volume"
+  ],
+  "failures": [],
+  "sha256": {
+    "src/diagram-commands.lsp": "fbfcf84525cd9b51ed7b47155063ec19fb93bad0797ca9e55e19d8c12bd0f7e2",
+    "src/diagnostic-bundle.ps1": "84ef2784ea7a79875969d7b52cf5367a12b30a79cc580a10c4ce5ffb09a070ed",
+    "src/config.lsp": "e547b45b5b5d929523379f592d89ff17cab2d8bdd0184ed66240eddf97c2246b",
+    "src/common.lsp": "d2e13ac4e0d13ba27c23601a2bebac69fc566565aba77afd3eb6272a074db864",
+    "src/panel.lsp": "806efda07f1696a9f87af9ec10174aadd322e2cf331e28edac593b0dc5060d2d",
+    "ui/power.dcl": "e581dc6314b01125f7ba1e127abcd3bf7d812abe20b7a1a2c8bfd427983ca2bb",
+    "tools/build_cad2020.py": "9f0caa3cea5dbfea3b4ac60e5165ca12a93fe2af8c88d81454384adf7dde2c6d",
+    "tests/test_diagnostic_bundle.py": "a146d483627e8497f4748e65b6c31d09f653d1331cba455aa36301cf44522398",
+    "tests/test_diagnostic_export.py": "ff0f74546d3b29cf7eb8b6ca8bbcfd64da06da6c451fcf10d6240ca76923626a",
+    "tests/test_placement_finish.py": "c920b87837d4e85bba9faba5352c13c04a72ee78e8b6b38dd6b8b83d61022b1b",
+    "tests/run_diagnostic_bundle_checks.py": "0306475c7075f2b53827473ed5298f718dd522155b86bb8977ae4eb1c53836ba"
+  }
+}

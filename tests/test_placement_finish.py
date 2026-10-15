@@ -163,6 +163,7 @@ class PlacementFinishTests(unittest.TestCase):
         self.generate()
         before = copy.deepcopy((self.f.entities, self.f.dictionary))
         self.h.builtins['EL:EXPORTDIAGNOSTICRUN'] = lambda: 'root/output/ELMONITOR-run.md'
+        self.h.builtins['EL:DIAGNOSTICBUNDLE'] = lambda record, *args: self.exports.append(('bundle.zip', record)) or 'bundle.zip'
         self.assertTrue(truth(self.f.call('EL:DiagnosticExport')))
         self.assertEqual(len(self.exports), 1)
         self.assertEqual(exact(self.exports[0][1]), exact(self.output()))
@@ -172,34 +173,49 @@ class PlacementFinishTests(unittest.TestCase):
     def test_export_rejects_erased_or_retagged_output_and_never_uses_other_drawing_cache(self):
         self.generate()
         self.h.builtins['EL:EXPORTDIAGNOSTICRUN'] = lambda: None
+        bundles = []
+        self.h.builtins['EL:DIAGNOSTICBUNDLE'] = lambda *args: bundles.append(args) or 'bundle.zip'
         handle = self.f.get('block-handle', self.f.get('rows', self.output())[0])
         del self.f.entities[handle]
-        with self.assertRaises(RuntimeError):
-            self.f.call('EL:DiagnosticExport')
+        self.f.call('EL:DiagnosticExport')
         self.assertEqual(self.exports, [])
+        self.assertIsNone(bundles[-1][0])
+        self.assertIn('系统图成员缺失', bundles[-1][3])
         self.h.builtins['NAMEDOBJDICT'] = lambda: 'OTHER-DWG'
         self.h.builtins['EL:STOREREAD'] = lambda: None
-        self.assertFalse(truth(self.f.call('EL:DiagnosticExport')))
+        self.assertTrue(truth(self.f.call('EL:DiagnosticExport')))
         self.assertEqual(self.exports, [])
+        self.assertEqual(bundles[-1], (None, None, None, None))
 
 
 class DiagnosticButtonTests(unittest.TestCase):
     def test_button_returns_to_panel_with_capacity_and_library_edits_preserved(self):
         f = panel.PostStatWorkflowTests()
         f.setUp()
-        callbacks, exports = {}, []
+        callbacks, exports, opens = {}, [], []
+        path = 'C:\\中文 目录\\ELDIAG-20261015.123456.zip'
         f.h.builtins['ACTION_TILE'] = lambda key, action: callbacks.__setitem__(key, action)
-        f.h.builtins['EL:PANELDIAGNOSTICEXPORT'] = lambda: exports.append(True) or '诊断已导出'
+        def export():
+            exports.append(True)
+            f.h.set('*EL:DIAGNOSTICEXPORTPATH*', path)
+            return '诊断已导出'
+        f.h.builtins['EL:PANELDIAGNOSTICEXPORT'] = export
+        f.h.builtins['EL:DIAGNOSTICOPENFOLDER'] = lambda value: opens.append(value) or '已打开诊断位置'
         f.actions = [lambda: (f.tiles.__setitem__('dl_display', '保留输入'),
                               f.call('EL:PanelCapacity', 'p_600'),
                               f.invoke_action(callbacks, 'p_diagnostic')),
+                     lambda: (self.assertEqual(f.tiles['p_diagnostic_path'], path),
+                              f.tiles.__setitem__('p_diagnostic_path', 'edited display only'),
+                              f.invoke_action(callbacks, 'p_diagnostic_open')),
                      lambda: f.invoke_action(callbacks, 'cancel')]
         f.dialog()
         self.assertEqual(exports, [True])
-        self.assertEqual(f.dialogs, ['el_panel', 'el_panel'])
+        self.assertEqual(f.dialogs, ['el_panel', 'el_panel', 'el_panel'])
+        self.assertEqual(opens, [path])
+        self.assertEqual(f.tiles['p_diagnostic_path'], path)
         self.assertEqual(f.tiles['p_capacity'], 'p_600')
         self.assertEqual(f.get('display', f.call('EL:DLUIDraft')), '保留输入')
-        self.assertIn('诊断已导出', f.tiles['p_diagnostic_status'])
+        self.assertIn('已打开诊断位置', f.tiles['p_diagnostic_status'])
 
 
 class DeferredRunTests(unittest.TestCase):

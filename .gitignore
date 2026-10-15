@@ -152,3 +152,9 @@ config/power-input-*.eld
 /output/应急照明-142/
 /output/应急照明-142.zip
 /output/placement-finish-142-check/
+/output/应急照明-143/
+/output/应急照明-143.zip
+/output/diagnostic-bundle-143-check/
+/output/ELDIAG-*/
+/output/ELDIAG-*.zip
+/output/ELDIAG-*.zip.partial

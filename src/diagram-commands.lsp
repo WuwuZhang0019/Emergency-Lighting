@@ -439,6 +439,12 @@
     (list (cons 'record record) (cons 'store
       (list '(schema-version . 1) (cons 'drawing-uuid (EL:Get 'drawing-uuid store)))))
     *EL:DiagramDiagnostics*)) nil)
+(defun EL:DiagnosticRequire (condition message)
+  ;; Preserve the actionable reason when AutoLISP EXIT becomes a generic abort.
+  (if (not condition) (setq *EL:DiagnosticError* message))
+  (EL:Require condition message))
+(defun EL:DiagnosticFailure (outcome)
+  (if *EL:DiagnosticError* *EL:DiagnosticError* (vl-catch-all-error-message outcome)))
 (defun EL:DiagnosticRecord (store / record pick tag handle)
   (if *EL:Result*
     (setq record (EL:DiagramForPanel (EL:Get 'panel *EL:Result*) store)))
@@ -448,13 +454,13 @@
       (progn
         (setq handle (cdr (assoc 5 (entget (car pick)))) tag (EL:DiagramTag (car pick))
           record (EL:By 'diagram-id (cdr (nth 1 tag)) (EL:Get 'diagrams store)))
-        (EL:Require (and record (equal (cdr (car tag)) (EL:Get 'drawing-uuid store))
+        (EL:DiagnosticRequire (and record (equal (cdr (car tag)) (EL:Get 'drawing-uuid store))
           (equal (cdr (nth 4 tag)) handle)
           (EL:OwnedEntity handle store record (cdr (nth 2 tag)) (cdr (nth 3 tag)))
           (member (list handle (cdr (nth 2 tag)) (cdr (nth 3 tag))) (EL:DiagramOutputRefs record)))
           "不是本图原始受管成员；复制或外来对象不能导出关联记录。")))) record)
 (defun EL:DiagnosticRecordValid (record store / ref entity)
-  (EL:Require (and (equal (type (EL:Get 'diagram-id record)) 'STR)
+  (EL:DiagnosticRequire (and (equal (type (EL:Get 'diagram-id record)) 'STR)
     (/= (EL:Get 'diagram-id record) "")
     (equal (type (EL:Get 'source-panel-handle record)) 'STR)
     (/= (EL:Get 'source-panel-handle record) "")
@@ -466,49 +472,176 @@
   (foreach ref (EL:DiagramOutputRefs record)
     (setq entity (EL:OwnedEntity (car ref) store record (cadr ref) (caddr ref)))
     ;; Exporting is read-only, so a locked layer does not prevent diagnostics.
-    (EL:Require (and entity (equal (cdr (assoc 410 (entget entity))) "Model"))
+    (EL:DiagnosticRequire (and entity (equal (cdr (assoc 410 (entget entity))) "Model"))
       "系统图成员缺失或归属失配，未导出诊断副本。")) T)
-(defun EL:DiagnosticExport (/ store record path exported session logpath)
+(defun EL:DiagnosticWindowsPath (path)
+  (if path (vl-string-translate "/" "\\" path)))
+(defun EL:DiagnosticWriteText (path textdata / stream result closed)
+  ;; Date: 2026-10-15. All new diagnostic snapshots are UTF-8, including CAD2020.
+  (setq result (vl-catch-all-apply '(lambda ()
+    (setq stream (vlax-create-object "ADODB.Stream"))
+    (EL:MonitorStreamWrite stream path textdata)) nil))
+  (if stream
+    (progn
+      (setq closed (vl-catch-all-apply 'vlax-invoke-method (list stream 'Close)))
+      (vlax-release-object stream)))
+  (EL:DiagnosticRequire (and result (not (vl-catch-all-error-p result))
+    (not (vl-catch-all-error-p closed)))
+    (strcat "诊断文件写入失败，内存资料已保留：" (EL:DiagnosticWindowsPath path))) T)
+(defun EL:DiagnosticWriteData (path data)
+  (EL:DiagnosticWriteText path (strcat (vl-prin1-to-string data) "\r\n")))
+(defun EL:DiagnosticFolderAt (base / folder index)
+  (setq base (strcat (EL:NormalizeRoot base) "ELDIAG-" (rtos (getvar "CDATE") 2 6))
+    folder base index 0)
+  (while (or (vl-file-directory-p folder) (findfile (strcat folder ".zip"))
+      (findfile (strcat folder ".zip.partial")))
+    (setq index (1+ index) folder (strcat base "-" (itoa index))))
+  (if (vl-mkdir folder) folder))
+(defun EL:DiagnosticFolder (/ folder)
+  (setq folder (vl-catch-all-apply 'EL:DiagnosticFolderAt (list (strcat *EL:Root* "output/"))))
+  (if (or (not folder) (vl-catch-all-error-p folder))
+    (setq folder (vl-catch-all-apply 'EL:DiagnosticFolderAt (list (getvar "TEMPPREFIX")))))
+  (EL:DiagnosticRequire (and folder (not (vl-catch-all-error-p folder))) "无法创建诊断目录；请检查输出目录或临时目录的写入权限。")
+  folder)
+(defun EL:DiagnosticPSQuote (value / index)
+  (setq index 0)
+  (while (setq index (vl-string-search "'" value index))
+    (setq value (strcat (substr value 1 index) "''" (substr value (+ index 2))) index (+ index 2)))
+  (strcat "'" value "'"))
+(defun EL:DiagnosticEncodedCommand (textdata / stream xml node result object)
+  ;; No user path is interpolated into a shell command. PowerShell receives
+  ;; UTF-16LE Base64, avoiding WScript expansion of percent signs in paths.
+  (setq result (vl-catch-all-apply '(lambda ()
+    (setq stream (vlax-create-object "ADODB.Stream"))
+    (vlax-put-property stream 'Type 2) (vlax-put-property stream 'Charset "unicode")
+    (vlax-invoke-method stream 'Open nil 0 -1 "" "")
+    (vlax-invoke-method stream 'WriteText textdata 0)
+    (vlax-put-property stream 'Position 0) (vlax-put-property stream 'Type 1)
+    (vlax-put-property stream 'Position 2)
+    (setq xml (vlax-create-object "MSXML2.DOMDocument.6.0")
+      node (EL:StartupUnwrap (vlax-invoke-method xml 'createElement "binary")))
+    (vlax-put-property node 'dataType "bin.base64")
+    (vlax-put-property node 'nodeTypedValue (vlax-invoke-method stream 'Read -1))
+    (vlax-get-property node 'text)) nil))
+  (if stream (vl-catch-all-apply 'vlax-invoke-method (list stream 'Close)))
+  (foreach object (list stream node xml)
+    (if object (vl-catch-all-apply 'vlax-release-object (list object))))
+  (EL:DiagnosticRequire (not (vl-catch-all-error-p result)) "无法准备诊断压缩命令。")
+  (foreach object '("\r" "\n" " " "\t")
+    (while (vl-string-search object result) (setq result (vl-string-subst "" object result)))) result)
+(defun EL:DiagnosticZip (folder / script powershell command shell result path)
+  (setq script (strcat *EL:Root* "src/diagnostic-bundle.ps1")
+    powershell (strcat (getenv "SystemRoot") "/System32/WindowsPowerShell/v1.0/powershell.exe")
+    path (strcat folder ".zip"))
+  (EL:DiagnosticRequire (and (findfile script) (findfile powershell)) "诊断压缩工具缺失，请使用完整交付包和 Windows PowerShell。")
+  (setq command (EL:DiagnosticEncodedCommand (strcat "& "
+    (EL:DiagnosticPSQuote (EL:DiagnosticWindowsPath script)) " -SourceDirectory "
+    (EL:DiagnosticPSQuote (EL:DiagnosticWindowsPath folder))))
+    result (vl-catch-all-apply '(lambda ()
+      (setq shell (vlax-create-object "WScript.Shell"))
+      (vlax-invoke-method shell 'Run (strcat "\"" (EL:DiagnosticWindowsPath powershell)
+        "\" -NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand " command) 0 :vlax-true)) nil))
+  (if shell (vl-catch-all-apply 'vlax-release-object (list shell)))
+  (EL:DiagnosticRequire (and (not (vl-catch-all-error-p result)) (equal result 0)
+    (findfile path) (> (vl-file-size path) 0))
+    (strcat "诊断压缩失败，原始资料保留在：" (EL:DiagnosticWindowsPath folder)))
+  (EL:DiagnosticWindowsPath path))
+(defun EL:DiagnosticBundle (record store logpath issue / folder run files entry source target notes stamp metadata)
+  (setq folder (EL:DiagnosticFolder) *EL:DiagnosticExportPath* (EL:DiagnosticWindowsPath folder)
+    stamp (rtos (getvar "CDATE") 2 6)
+    run (EL:Get (namedobjdict) *EL:DiagnosticRuns*))
+  (foreach entry (list (cons "run.eld" run)
+      (cons "load.eld" (if *EL:MonitorLoadSummary* (list
+        (cons 'summary *EL:MonitorLoadSummary*) (cons 'rows *EL:MonitorLoadRows*)
+        (cons 'origin *EL:MonitorLoadOrigin*) (cons 'stamp *EL:MonitorLoadStamp*))))
+      (cons "association.eld" record)
+      (cons "drawing-store.eld" store) (cons "current-result.eld" *EL:Result*))
+    (if (cdr entry)
+      (progn (EL:DiagnosticWriteData (strcat folder "/" (car entry)) (cdr entry))
+        (setq files (cons (car entry) files)))
+      (setq notes (cons (strcat (car entry) "：本次会话没有可用资料。\r\n") notes))))
+  ;; Historical shared logs are explicitly named; never collect DWGs, assets,
+  ;; previous diagnostic archives or unrelated files by a recursive scan.
+  (foreach entry (list (cons "timeline.md" logpath)
+      (cons "runtime-ELTRACE-debug.log" (strcat *EL:Root* "output/ELTRACE-debug.log"))
+      (cons "runtime-ELPERF.log" (strcat *EL:Root* "output/ELPERF.log"))
+      (cons "active-ELTRACE-debug.log" *EL:LogPath*)
+      (cons "temp-ELTRACE-debug.log" (strcat (getvar "TEMPPREFIX") "ELTRACE-debug.log"))
+      (cons "temp-ELPERF.log" (strcat (getvar "TEMPPREFIX") "ELPERF.log")))
+    (setq source (cdr entry) target (strcat folder "/" (car entry)))
+    (if (and source (findfile source))
+      (progn
+        (EL:DiagnosticRequire (vl-file-copy source target)
+          (strcat "无法复制诊断日志：" (EL:DiagnosticWindowsPath source)))
+        (setq files (cons (car entry) files)))
+      (setq notes (cons (strcat (car entry) "：本次未产生或文件不存在。\r\n") notes))))
+  (setq metadata (list (cons 'export-time stamp) (cons 'package *EL:PackageMarker*)
+    (cons 'drawing (getvar "DWGNAME")) (cons 'drawing-folder (getvar "DWGPREFIX"))
+    (cons 'acad-version (getvar "ACADVER")) (cons 'association-status (if record 'verified 'unavailable))
+    (cons 'association-issue issue) (cons 'files (append '("README.md" "manifest.eld") (reverse files)))))
+  (EL:DiagnosticWriteData (strcat folder "/manifest.eld") metadata)
+  (EL:DiagnosticWriteText (strcat folder "/README.md")
+    (strcat "# 应急照明诊断包\r\n日期：" (substr stamp 1 4) "-" (substr stamp 5 2) "-" (substr stamp 7 2)
+      "\r\n状态：诊断快照已收集；关联核对状态见 manifest.eld\r\n\r\n"
+      "将整个 ZIP 发给分析人员即可。导出不修改图纸。\r\n"
+      "timeline.md：当前图纸最近有效运行的耗时、错误、事件及加载时间轴。\r\n"
+      "run.eld：同一次运行的完整事件和计时原始数据，未做日志文本截断。\r\n"
+      "load.eld：本次会话最近一次插件加载的计时和原始动作；可能晚于 run.eld。\r\n"
+      "association.eld：当前图纸最近成功出图或选中旧系统图的已核对关联。\r\n"
+      "drawing-store.eld：当前图纸已保存记录的只读快照，不代表所有旧图成员已核对。\r\n"
+      "current-result.eld：当前识别结果；可能与最近一次成功出图不同。\r\n"
+      "runtime / active / temp 日志：已有共享历史文件，可能含此前命令或其他图纸；以 run.eld 为本次运行依据。\r\n"
+      "manifest.eld：版本、图纸、导出时间、关联状态和文件清单。\r\n"
+      "本次生成的 .eld / .md 为 UTF-8；复制的历史 .log 保持原编码。\r\n"
+      "内存记录在关闭图纸后不再保留，缺少资料不会伪造补全。\r\n\r\n"
+      (if issue (strcat "关联读取或核对问题：" issue "\r\n") "")
+      (EL:MonitorJoin (reverse notes))))
+  (EL:DiagnosticZip folder))
+(defun EL:DiagnosticOpenFolder (path / outcome)
+  (if (and path (or (vl-file-directory-p path) (findfile path)))
+    (progn
+      (setq outcome (vl-catch-all-apply 'startapp
+        (list "explorer.exe" (strcat (if (vl-file-directory-p path) "\"" "/select,\"")
+          (EL:DiagnosticWindowsPath path) "\""))))
+      (if (or (not outcome) (vl-catch-all-error-p outcome))
+        "无法打开文件夹，请选中路径后复制。" "已打开诊断文件所在位置。"))
+    "压缩包不存在，请重新导出。"))
+(defun EL:DiagnosticExport (/ store record path session logpath issue checked)
+  (setq *EL:DiagnosticExportMessage* nil *EL:DiagnosticExportPath* nil *EL:DiagnosticError* nil)
   (if (EL:EnsureRoot)
     (progn
-      (setq *EL:DiagnosticExportMessage* nil
-        logpath (EL:ExportDiagnosticRun)
+      (setq logpath (EL:ExportDiagnosticRun)
         session (EL:Get (namedobjdict) *EL:DiagramDiagnostics*))
-      (EL:LogAttach)
+      (setq store (EL:MeasuredCatch 'EL:StoreRead nil))
+      (if (vl-catch-all-error-p store)
+        (setq issue (vl-catch-all-error-message store) store nil))
       (if session
-        (setq store (EL:Get 'store session) record (EL:Get 'record session))
-        (progn
-          (setq store (EL:StoreRead))
-          ;; Saved input-only records are not generated output associations.
-          (if (vl-some '(lambda (row) (EL:Get 'panel-output-handle row)) (EL:Get 'diagrams store))
-            (setq record (EL:DiagnosticRecord store)))))
+        (setq record (EL:Get 'record session))
+        (if (vl-some '(lambda (row) (EL:Get 'panel-output-handle row)) (EL:Get 'diagrams store))
+          (progn
+            (setq record (EL:MeasuredCatch 'EL:DiagnosticRecord (list store)))
+            (if (vl-catch-all-error-p record)
+              (setq issue (EL:DiagnosticFailure record) record nil)))))
       (if record
         (progn
-          (EL:DiagnosticRecordValid record store)
-          (setq path (strcat *EL:Root* "output/diagram-" (EL:Hash (EL:Get 'diagram-id record)) ".eld")
-            exported (EL:PerfCall "DIAGNOSTIC_EXPORT" 'EL:WriteData (list path record)))
-          (if exported
-            (progn
-              (setq *EL:DiagnosticExportMessage* (strcat "已导出关联记录：" path
-                (if logpath "；全过程日志已导出，路径见命令行。" "")))
-              (EL:LogEvent "DIAGNOSTIC_EXPORTED" (list (cons 'diagram-id (EL:Get 'diagram-id record)) (cons 'path path)))
-              (princ (strcat "\n系统图诊断副本已导出：" path)))
-            (progn
-              (EL:LogEvent "DIAGNOSTIC_EXPORT_FAILED" (list (cons 'diagram-id (EL:Get 'diagram-id record)) (cons 'path path)))
-              (princ (strcat "\n诊断副本导出失败，请检查目录写入权限：" path)))) exported)
-        (if logpath
-          (progn
-            (setq *EL:DiagnosticExportMessage* "已导出全过程诊断日志；本次会话没有可导出的出图关联记录。")
-            (princ (strcat "\n" *EL:DiagnosticExportMessage*)) T)
-          (progn
-            (setq *EL:DiagnosticExportMessage* "本次会话没有诊断数据，请完成一次统计或生成后再导出。")
-            (princ (strcat "\n" *EL:DiagnosticExportMessage*)) nil))))))
+          (setq checked (EL:MeasuredCatch 'EL:DiagnosticRecordValid
+            (list record (if session (EL:Get 'store session) store))))
+          (if (vl-catch-all-error-p checked)
+            (setq issue (EL:DiagnosticFailure checked) record nil))))
+      (setq *EL:DiagnosticError* nil)
+      (setq path (EL:PerfCall "DIAGNOSTIC_EXPORT" 'EL:DiagnosticBundle (list record store logpath issue)))
+      (EL:DiagnosticRequire (and (equal (type path) 'STR) (/= path "")) "诊断压缩包未生成，内存资料已保留。")
+      (setq
+        *EL:DiagnosticExportPath* path
+        *EL:DiagnosticExportMessage* (if issue "已导出诊断包；关联异常原因已收入包内。" "已导出诊断包，可复制下方路径或打开文件夹。"))
+      (EL:LogEvent "DIAGNOSTIC_EXPORTED" (list (cons 'path path) (cons 'association-issue issue)))
+      (princ (strcat "\n诊断压缩包：" path)) path)))
 (defun EL:PanelDiagnosticExport (/ outcome)
   ;; Export outside the DCL callback, then reopen with the same input values.
   (setq outcome (EL:MeasuredCatch 'EL:DiagnosticExport nil))
   (cond
     ((vl-catch-all-error-p outcome)
-      (strcat "诊断导出失败：" (vl-catch-all-error-message outcome)))
+      (strcat "诊断导出失败：" (EL:DiagnosticFailure outcome)))
     (*EL:DiagnosticExportMessage*)
     (T "诊断导出未完成，请查看命令行原因。")))
 (defun c:ELDIAG (/ *error* perfowner outcome checkpoint failed)
@@ -522,7 +655,7 @@
   (if (vl-catch-all-error-p outcome)
     (progn
       (setq failed T) (EL:PerfUnwind checkpoint)
-      (EL:LogFailure (vl-catch-all-error-message outcome)))
+      (EL:LogFailure (EL:DiagnosticFailure outcome)))
     (EL:LogFinish (if outcome 'diagnostic-exported 'diagnostic-not-exported)))
   (EL:ClearPickHighlights)
   (if perfowner (EL:PerfFinish (if failed 'failed (if outcome 'diagnostic-exported 'diagnostic-not-exported)))) (princ))

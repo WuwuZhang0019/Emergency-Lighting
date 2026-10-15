@@ -692,7 +692,7 @@
         (setq path (EL:MeasuredCatch 'EL:MonitorSave (list (EL:Get 'summary run) T))))
       (EL:Require (and (not (vl-catch-all-error-p path)) path)
         "全过程诊断日志导出失败；内存记录已保留，请检查输出目录权限。")
-      (if path (princ (strcat "\n全过程诊断日志已导出：" path))) path)))
+      (if path (princ (strcat "\n全过程诊断日志已导出：" (vl-string-translate "/" "\\" path)))) path)))
 (defun EL:MonitorLoadBegin (started / token)
   ;; Date: 2026-10-13. Finish the old clock before a reload changes its origin.
   ;; A cancelled command must never become the parent of later APPLOAD events.

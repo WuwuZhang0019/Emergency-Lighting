@@ -19,6 +19,7 @@ class DiagnosticExportTests(unittest.TestCase):
         self.h = self.fixture.h
         getvar = self.h.builtins['GETVAR']
         self.exports, self.events, self.messages, self.reports = [], [], [], []
+        self.bundles = []
         self.h.builtins.update({
             'GETVAR': lambda name: 1 if name == 'TILEMODE' else 2 if name == 'CVPORT' else getvar(name),
             'GETPOINT': lambda *args: [100., 200., 0.],
@@ -26,6 +27,7 @@ class DiagnosticExportTests(unittest.TestCase):
             'EL:ENSUREROOT': lambda: True,
             'EL:PICKENTITY': lambda prompt: ['panel', [0., 0., 0.]],
             'EL:WRITEDATA': lambda path, data: self.exports.append((path, data)) or True,
+            'EL:DIAGNOSTICBUNDLE': self.bundle,
             'EL:LOGEVENT': lambda name, context: self.events.append((name, context)),
             'EL:PERFREPORT': lambda data: self.reports.append(data),
             'EL:CLEARPICKHIGHLIGHTS': lambda: None,
@@ -34,6 +36,13 @@ class DiagnosticExportTests(unittest.TestCase):
         self.h.frames[0]['*EL:ROOT*'] = 'root/'
         self.h.frames[0]['*EL:RESULT*'] = self.h.lookup('RESULT')
         self.h.frames[0]['*EL:PERFLOGSOFF*'] = True
+
+    def bundle(self, record, store, logpath, issue):
+        self.bundles.append((record, store, logpath, issue))
+        path = 'C:\\diagnostics\\ELDIAG-fixture.zip'
+        if record:
+            self.exports.append((path, record))
+        return path
 
     def get(self, key, data):
         return self.fixture.get(key, data)
@@ -65,7 +74,7 @@ class DiagnosticExportTests(unittest.TestCase):
         self.h.builtins['EL:PICKENTITY'] = lambda prompt: self.fail('current panel must take priority')
         self.assertTrue(truth(self.h.run('(EL:DiagnosticExport)')))
         record = self.h.run('(EL:DiagramForPanel "source" (EL:StoreRead))')
-        expected = 'root/output/diagram-' + self.fixture.call('EL:Hash', 'd1') + '.eld'
+        expected = 'C:\\diagnostics\\ELDIAG-fixture.zip'
         self.assertEqual(self.exports, [(expected, record)])
         self.assertIn(expected, ''.join(self.messages))
         self.assert_business_unchanged(before)
@@ -80,17 +89,18 @@ class DiagnosticExportTests(unittest.TestCase):
 
     def test_failed_export_does_not_change_business_or_mark_source_stale(self):
         before = self.before()
-        self.h.builtins['EL:WRITEDATA'] = lambda *args: None
+        self.h.builtins['EL:DIAGNOSTICBUNDLE'] = lambda *args: None
         self.h.builtins['EL:MARKSTALE'] = lambda *args: self.fail('diagnostic failure must not mark source stale')
-        self.assertFalse(truth(self.h.run('(EL:DiagnosticExport)')))
-        self.assertTrue(any(name == 'DIAGNOSTIC_EXPORT_FAILED' for name, _ in self.events))
+        self.h.run('(c:ELDIAG)')
+        self.assertFalse(self.h.lookup('*EL:DIAGNOSTICEXPORTPATH*'))
+        self.assertTrue(any(name == 'ERROR' for name, _ in self.events))
         self.assert_business_unchanged(before)
 
     def test_command_catches_export_exception_and_preserves_error_context(self):
         before = self.before()
         def failed(*args):
             raise RuntimeError('diagnostic file access denied')
-        self.h.builtins['EL:WRITEDATA'] = failed
+        self.h.builtins['EL:DIAGNOSTICBUNDLE'] = failed
         self.h.builtins['EL:MARKSTALE'] = lambda *args: self.fail('diagnostic failure must not mark source stale')
         self.h.run('(c:ELDIAG)')
         self.assertTrue(any(name == 'ERROR' and self.get('message', context) == 'diagnostic file access denied'
@@ -108,7 +118,7 @@ class DiagnosticExportTests(unittest.TestCase):
         before = self.before()
         self.h.run('(c:ELDIAG)')
         self.assertEqual(self.exports, [])
-        self.assertTrue(any(name == 'ERROR' for name, _ in self.events))
+        self.assertIn('不是本图原始受管成员', self.bundles[0][3])
         self.assert_business_unchanged(before)
 
     def test_incomplete_or_foreign_member_is_rejected_even_with_current_result(self):
@@ -116,7 +126,7 @@ class DiagnosticExportTests(unittest.TestCase):
         before = self.before()
         self.h.run('(c:ELDIAG)')
         self.assertEqual(self.exports, [])
-        self.assertTrue(any(name == 'ERROR' for name, _ in self.events))
+        self.assertIn('系统图成员缺失或归属失配', self.bundles[0][3])
         self.assert_business_unchanged(before)
 
     def test_command_records_export_stage_and_zero_business_writes(self):

@@ -5,7 +5,7 @@ import shutil
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGE_NO = 142
+PACKAGE_NO = 143
 NAME = f'应急照明-{PACKAGE_NO:03d}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 OUTPUT_ROOT = ROOT / 'output'
@@ -38,7 +38,7 @@ def embedded_writer(name, assets):
 def embedded_resources():
     """Date: 2026-10-14. Separate lookup, code/UI and default-asset timings."""
     text = embedded_writer('EL:StartupEmbeddedText',
-        sorted((DEST / 'src').glob('*.lsp')) + sorted((DEST / 'ui').glob('*')))
+        sorted((DEST / 'src').glob('*')) + sorted((DEST / 'ui').glob('*')))
     assets = embedded_writer('EL:StartupEmbeddedAssets',
         sorted((DEST / 'assets/default-device-library').rglob('*')))
     return (text + assets + '(defun EL:StartupEmbeddedRoot (/ base root folder marker ok)\n'
@@ -74,6 +74,7 @@ def build():
     assert len(list((defaults / 'assets').rglob('block.dwg'))) == 49
     assert len(list((defaults / 'assets').rglob('legend.sld'))) == 49
     shutil.copytree(defaults, DEST / 'assets/default-device-library', dirs_exist_ok=True)
+    shutil.copy2(ROOT / 'src/diagnostic-bundle.ps1', DEST / 'src/diagnostic-bundle.ps1')
     for folder, pattern in (('src', '*.lsp'), ('ui', '*.dcl')):
         for source in (ROOT / folder).glob(pattern):
             text = source.read_text(encoding='utf-8')
@@ -203,6 +204,8 @@ def build():
     for source in sorted((ROOT / 'tests/evidence').glob(f'????-??-??-contact-regression-{PACKAGE_NO:03d}.json')):
         shutil.copy2(source, DEST / 'tests/evidence' / source.name)
     for source in sorted((ROOT / 'tests/evidence').glob(f'????-??-??-placement-finish-checks-{PACKAGE_NO:03d}.json')):
+        shutil.copy2(source, DEST / 'tests/evidence' / source.name)
+    for source in sorted((ROOT / 'tests/evidence').glob(f'????-??-??-diagnostic-bundle-checks-{PACKAGE_NO:03d}.json')):
         shutil.copy2(source, DEST / 'tests/evidence' / source.name)
     readme = guide
     (DEST / '使用说明.md').write_text(readme, encoding='utf-8')

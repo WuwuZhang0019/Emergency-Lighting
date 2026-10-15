@@ -21,7 +21,8 @@ class DiagnosticExportTests(unittest.TestCase):
         self.exports, self.events, self.messages, self.reports = [], [], [], []
         self.bundles = []
         self.h.builtins.update({
-            'GETVAR': lambda name: 1 if name == 'TILEMODE' else 2 if name == 'CVPORT' else getvar(name),
+            'GETVAR': lambda name: 1 if name == 'TILEMODE' else 2 if name == 'CVPORT'
+                                  else 20261015.123456 if name == 'CDATE' else getvar(name),
             'GETPOINT': lambda *args: [100., 200., 0.],
             'TRANS': lambda point, *args: point,
             'EL:ENSUREROOT': lambda: True,
@@ -108,6 +109,20 @@ class DiagnosticExportTests(unittest.TestCase):
         self.assertFalse(truth(self.h.lookup('*EL:PERFACTIVE*')))
         self.assertFalse(truth(self.h.lookup('*EL:PERFPENDING*')))
         self.assert_business_unchanged(before)
+
+    def test_retry_clears_prior_path_and_notice_before_early_failure(self):
+        self.assertIn('已导出诊断包', self.h.run('(EL:PanelDiagnosticExport)'))
+        self.h.frames[0]['*EL:DIAGNOSTICERROR*'] = 'old error'
+        def early_failure():
+            self.assertFalse(self.h.lookup('*EL:DIAGNOSTICEXPORTPATH*'))
+            self.assertFalse(self.h.lookup('*EL:DIAGNOSTICEXPORTMESSAGE*'))
+            self.assertFalse(self.h.lookup('*EL:DIAGNOSTICERROR*'))
+            raise RuntimeError('new export initialization failure')
+        self.h.builtins['EL:ENSUREROOT'] = early_failure
+        message = self.h.run('(EL:PanelDiagnosticExport)')
+        self.assertEqual(message, '诊断导出失败：new export initialization failure')
+        self.assertEqual(self.h.lookup('*EL:DIAGNOSTICEXPORTMESSAGE*'), message)
+        self.assertFalse(self.h.lookup('*EL:DIAGNOSTICEXPORTPATH*'))
 
     def test_selected_copy_or_foreign_object_is_rejected_before_export(self):
         self.h.frames[0]['*EL:RESULT*'] = None

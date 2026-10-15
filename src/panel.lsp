@@ -462,7 +462,7 @@
   (if (= status 12) 12 (progn (EL:PanelLibraryReconcile) 3)))
 (defun EL:PanelDialog (result cfg powers capacity / dialog status captured
     *EL:PanelAction* *EL:PanelDraft* *EL:PanelPowers* *EL:PanelCapacity* *EL:PanelConfig*
-    *EL:PanelTemplateReady* *EL:PanelLibrarySnapshot* home diagnostic-notice diagnostic-path)
+    *EL:PanelTemplateReady* *EL:PanelLibrarySnapshot* home diagnostic-notice diagnostic-path diagnostic-action)
   (setq home (not result)
     *EL:PanelDraft* (if result (EL:PanelCompute (EL:SelectFixedExits result nil) powers cfg))
     *EL:PanelPowers* powers *EL:PanelCapacity* (EL:CapacityDefault capacity)
@@ -486,6 +486,7 @@
         (EL:TrunkButtonDraw)
         (EL:DLUIPanelBegin *EL:PanelLibrarySnapshot*)
         (EL:PanelText "p_diagnostic_status" (cond (diagnostic-notice) (T "")))
+        (set_tile "p_diagnostic_action" (cond (diagnostic-action) (T "")))
         (set_tile "p_diagnostic_path" (cond (diagnostic-path) (T "")))
         (mode_tile "p_diagnostic_open" (if diagnostic-path 0 1))
         (EL:MonitorActionTile "p_pick" "(EL:DLUIStore) (done_dialog 9)")
@@ -511,10 +512,11 @@
         (if (= status 5)
           (progn (EL:AllCircuitColorPreview *EL:PanelDraft*) (setq status 3)))
         (if (= status 17)
-          (setq diagnostic-notice (EL:PanelDiagnosticExport)
+          (setq diagnostic-action nil diagnostic-notice (EL:PanelDiagnosticExport)
             diagnostic-path *EL:DiagnosticExportPath* status 3))
         (if (= status 18)
-          (setq diagnostic-notice (EL:DiagnosticOpenFolder diagnostic-path) status 3))
+          ;; Date: 2026-10-15. Folder feedback must not replace the export result.
+          (setq diagnostic-action (EL:DiagnosticOpenFolder diagnostic-path) status 3))
         (if (member status '(13 14 15 16))
           (setq status (EL:PanelLibraryExternal status))))
       (setq status 0)))

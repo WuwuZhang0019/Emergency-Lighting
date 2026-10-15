@@ -112,6 +112,7 @@ el_panel : dialog {
     : text { key = "p_diagnostic_status1"; width = 46; fixed_width = true; }
     : edit_box { key = "p_diagnostic_path"; label = "路径"; edit_width = 38; edit_limit = 2048; }
     : button { key = "p_diagnostic_open"; label = "打开所在文件夹"; is_enabled = false; }
+    : text { key = "p_diagnostic_action"; width = 46; fixed_width = true; }
     : row {
       // Date: 2026-10-15. Generation includes saving; no standalone draft action.
       : button { key = "p_generate"; label = "生成新系统图"; is_default = true; }

@@ -15,7 +15,7 @@ from monitor_io import install_monitor_io
 import test_diagnostic_export as diagnostic
 
 ROOT = Path(__file__).resolve().parents[1]
-CHECK_ROOT = ROOT / 'output/diagnostic-bundle-144-check'
+CHECK_ROOT = ROOT / 'output/diagnostic-bundle-145-check'
 
 
 class DiagnosticBundleTests(unittest.TestCase):
@@ -33,7 +33,7 @@ class DiagnosticBundleTests(unittest.TestCase):
         self.h.builtins.pop('EL:DIAGNOSTICBUNDLE')
         self.h.load_definitions(ROOT / 'src/startup.lsp')
         self.h.frames[0]['*EL:ROOT*'] = self.root.as_posix() + '/'
-        self.h.frames[0]['*EL:PACKAGEMARKER*'] = 'package-143.marker'
+        self.h.frames[0]['*EL:PACKAGEMARKER*'] = 'package-145.marker'
         self.h.frames[0][':VLAX-TRUE'] = True
         self.run = [Pair(Symbol('EVENTS'), [[1, 'EXAMPLE', '原始日志' * 5000]])]
         self.h.frames[0]['*EL:DIAGNOSTICRUNS*'] = [Pair('NOD', self.run)]
@@ -161,7 +161,66 @@ class DiagnosticBundleTests(unittest.TestCase):
         folder = Path(self.h.lookup('*EL:DIAGNOSTICEXPORTPATH*'))
         self.assertTrue((folder / 'association.eld').is_file())
         self.assertFalse(Path(str(folder) + '.zip').exists())
-        self.assertFalse(self.h.lookup('*EL:DIAGNOSTICEXPORTMESSAGE*'))
+        self.assertEqual(self.h.lookup('*EL:DIAGNOSTICEXPORTMESSAGE*'), message)
+        self.assertIn('PowerShell exit code=7', message)
+        report = (folder / 'export-error.txt').read_text(encoding='utf-8-sig')
+        self.assertIn(message, report)
+        self.assertIn('stage: ZIP_EXIT 7', report)
+        self.assertIn('package-145.marker', report)
+
+    def test_com_launch_failure_is_saved_and_next_export_clears_old_failure(self):
+        create = self.h.builtins['VLAX-CREATE-OBJECT']
+        def fail_shell(name):
+            if name == 'WScript.Shell':
+                raise RuntimeError('Automation Error 80070005: Access denied')
+            return create(name)
+        self.h.builtins['VLAX-CREATE-OBJECT'] = fail_shell
+        message = self.h.run('(EL:PanelDiagnosticExport)')
+        folder = Path(self.h.lookup('*EL:DIAGNOSTICEXPORTPATH*'))
+        report = (folder / 'export-error.txt').read_text(encoding='utf-8-sig')
+        self.assertIn('Automation Error 80070005: Access denied', message)
+        self.assertIn('stage: ZIP_LAUNCH', report)
+        self.assertIn(message, report)
+        self.assertTrue((folder / 'association.eld').is_file())
+        self.h.builtins['VLAX-CREATE-OBJECT'] = create
+        success = self.h.run('(EL:PanelDiagnosticExport)')
+        self.assertIn('已导出诊断包', success)
+        self.assertFalse(self.h.lookup('*EL:DIAGNOSTICERROR*'))
+        with zipfile.ZipFile(self.h.lookup('*EL:DIAGNOSTICEXPORTPATH*')) as archive:
+            self.assertNotIn('export-error.txt', archive.namelist())
+        self.assertEqual((folder / 'export-error.txt').read_text(encoding='utf-8-sig'), report)
+
+    def test_encoded_command_failure_keeps_raw_com_error_and_stage(self):
+        create = self.h.builtins['VLAX-CREATE-OBJECT']
+        def fail_xml(name):
+            if name == 'MSXML2.DOMDocument.6.0':
+                raise RuntimeError('Class not registered 80040154')
+            return create(name)
+        self.h.builtins['VLAX-CREATE-OBJECT'] = fail_xml
+        message = self.h.run('(EL:PanelDiagnosticExport)')
+        folder = Path(self.h.lookup('*EL:DIAGNOSTICEXPORTPATH*'))
+        self.assertIn('Class not registered 80040154', message)
+        self.assertIn('stage: ZIP_ENCODE', (folder / 'export-error.txt').read_text(encoding='utf-8-sig'))
+        self.assertEqual(self.processes, [])
+
+    def test_failure_report_write_error_does_not_replace_original_com_failure(self):
+        create = self.h.builtins['VLAX-CREATE-OBJECT']
+        write = self.h.builtins['VLAX-INVOKE-METHOD']
+        def fail_shell(name):
+            if name == 'WScript.Shell':
+                raise RuntimeError('original launch error')
+            return create(name)
+        def fail_report(obj, method, *args):
+            if str(method).upper() == 'SAVETOFILE' and str(args[0]).endswith('export-error.txt'):
+                raise OSError('secondary report write error')
+            return write(obj, method, *args)
+        self.h.builtins['VLAX-CREATE-OBJECT'] = fail_shell
+        self.h.builtins['VLAX-INVOKE-METHOD'] = fail_report
+        message = self.h.run('(EL:PanelDiagnosticExport)')
+        self.assertIn('original launch error', message)
+        self.assertNotIn('secondary report write error', message)
+        self.assertEqual(self.h.lookup('*EL:DIAGNOSTICEXPORTMESSAGE*'), message)
+        self.assertIn('original launch error', self.h.lookup('*EL:DIAGNOSTICERROR*'))
 
     def test_existing_zip_is_never_overwritten_by_helper(self):
         folder = self.root / 'output/ELDIAG-20261015.123456'

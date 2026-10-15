@@ -490,6 +490,7 @@
     (strcat "诊断文件写入失败，内存资料已保留：" (EL:DiagnosticWindowsPath path))) T)
 (defun EL:DiagnosticProgress (stage / file)
   ;; Date: 2026-10-15. Flush a small checkpoint before each potentially slow file.
+  (setq *EL:DiagnosticStage* stage)
   (if *EL:DiagnosticProgressPath*
     (progn
       (princ (strcat "\n诊断导出：" stage))
@@ -587,7 +588,9 @@
   (if stream (vl-catch-all-apply 'vlax-invoke-method (list stream 'Close)))
   (foreach object (list stream node xml)
     (if object (vl-catch-all-apply 'vlax-release-object (list object))))
-  (EL:DiagnosticRequire (not (vl-catch-all-error-p result)) "无法准备诊断压缩命令。")
+  (EL:DiagnosticRequire (not (vl-catch-all-error-p result))
+    (strcat "无法准备诊断压缩命令："
+      (if (vl-catch-all-error-p result) (vl-catch-all-error-message result) "")))
   (foreach object '("\r" "\n" " " "\t")
     (while (vl-string-search object result) (setq result (vl-string-subst "" object result)))) result)
 (defun EL:DiagnosticScriptText (/ path file line parts)
@@ -599,20 +602,30 @@
       (while (setq line (read-line file)) (setq parts (cons (strcat line "\r\n") parts)))
       (close file) (EL:MonitorJoin (reverse parts)))))
 (defun EL:DiagnosticZip (folder / script powershell command shell result path)
+  (EL:DiagnosticProgress "ZIP_PREPARE")
   (setq script (EL:DiagnosticScriptText)
     powershell (strcat (getenv "SystemRoot") "/System32/WindowsPowerShell/v1.0/powershell.exe")
     path (strcat folder ".zip"))
   (EL:DiagnosticRequire (and script (findfile powershell)) "诊断压缩工具缺失，请使用完整交付包和 Windows PowerShell。")
+  (EL:DiagnosticProgress "ZIP_ENCODE")
   (setq command (EL:DiagnosticEncodedCommand (strcat "& {\r\n" script "\r\n} -SourceDirectory "
-    (EL:DiagnosticPSQuote (EL:DiagnosticWindowsPath folder))))
-    result (vl-catch-all-apply '(lambda ()
+    (EL:DiagnosticPSQuote (EL:DiagnosticWindowsPath folder)))))
+  (EL:DiagnosticProgress "ZIP_LAUNCH")
+  (setq result (vl-catch-all-apply '(lambda ()
       (setq shell (vlax-create-object "WScript.Shell"))
       (vlax-invoke-method shell 'Run (strcat "\"" (EL:DiagnosticWindowsPath powershell)
         "\" -NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand " command) 0 :vlax-true)) nil))
   (if shell (vl-catch-all-apply 'vlax-release-object (list shell)))
+  ;; The successful helper has already removed its snapshot directory.
+  (if (and (not (vl-catch-all-error-p result)) (vl-file-directory-p folder))
+    (EL:DiagnosticProgress (strcat "ZIP_EXIT " (vl-prin1-to-string result))))
   (EL:DiagnosticRequire (and (not (vl-catch-all-error-p result)) (equal result 0)
     (findfile path) (> (vl-file-size path) 0))
-    (strcat "诊断压缩失败，原始资料保留在：" (EL:DiagnosticWindowsPath folder)))
+    (strcat "诊断压缩失败："
+      (cond ((vl-catch-all-error-p result) (vl-catch-all-error-message result))
+        ((not (equal result 0)) (strcat "PowerShell exit code=" (vl-prin1-to-string result)))
+        (T "ZIP 文件不存在或为空"))
+      "；原始资料保留在：" (EL:DiagnosticWindowsPath folder)))
   (EL:DiagnosticWindowsPath path))
 (defun EL:DiagnosticBundle (record store logpath issue / folder run files entry source target notes stamp metadata
     *EL:DiagnosticProgressPath*)
@@ -683,7 +696,8 @@
         "无法打开文件夹，请选中路径后复制。" "已打开诊断文件所在位置。"))
     "压缩包不存在，请重新导出。"))
 (defun EL:DiagnosticExport (/ store record path session logpath issue checked)
-  (setq *EL:DiagnosticExportMessage* nil *EL:DiagnosticExportPath* nil *EL:DiagnosticError* nil)
+  (setq *EL:DiagnosticExportMessage* nil *EL:DiagnosticExportPath* nil *EL:DiagnosticError* nil
+    *EL:DiagnosticStage* "EXPORT_BEGIN")
   (if (EL:EnsureRoot)
     (progn
       (setq logpath (EL:ExportDiagnosticRun)
@@ -712,12 +726,27 @@
         *EL:DiagnosticExportMessage* (if issue "已导出诊断包；关联异常原因已收入包内。" "已导出诊断包，可复制下方路径或打开文件夹。"))
       (EL:LogEvent "DIAGNOSTIC_EXPORTED" (list (cons 'path path) (cons 'association-issue issue)))
       (princ (strcat "\n诊断压缩包：" path)) path)))
+(defun EL:DiagnosticSaveFailure (message / saved stamp notice)
+  ;; Date: 2026-10-15. Keep the original failure even if saving its report fails.
+  (setq saved *EL:DiagnosticError* stamp (rtos (getvar "CDATE") 2 6)
+    notice (strcat "诊断导出失败：" message)
+    *EL:DiagnosticExportMessage* notice)
+  (if (and *EL:DiagnosticExportPath* (vl-file-directory-p *EL:DiagnosticExportPath*))
+    (vl-catch-all-apply 'EL:DiagnosticWriteText
+      (list (strcat *EL:DiagnosticExportPath* "\\export-error.txt")
+        (strcat "日期：" (substr stamp 1 4) "-" (substr stamp 5 2) "-" (substr stamp 7 2)
+          "\r\n状态：导出失败；已完成资料保留\r\n"
+          "export-time: " stamp "\r\npackage: " (vl-prin1-to-string *EL:PackageMarker*)
+          "\r\nstage: " (cond (*EL:DiagnosticStage*) (T "UNKNOWN"))
+          "\r\n" notice "\r\n"))))
+  (setq *EL:DiagnosticError* saved)
+  (princ (strcat "\n" notice)) notice)
 (defun EL:PanelDiagnosticExport (/ outcome)
   ;; Export outside the DCL callback, then reopen with the same input values.
   (setq outcome (EL:MeasuredCatch 'EL:DiagnosticExport nil))
   (cond
     ((vl-catch-all-error-p outcome)
-      (strcat "诊断导出失败：" (EL:DiagnosticFailure outcome)))
+      (EL:DiagnosticSaveFailure (EL:DiagnosticFailure outcome)))
     (*EL:DiagnosticExportMessage*)
     (T "诊断导出未完成，请查看命令行原因。")))
 (defun c:ELDIAG (/ *error* perfowner outcome checkpoint failed)
@@ -731,6 +760,7 @@
   (if (vl-catch-all-error-p outcome)
     (progn
       (setq failed T) (EL:PerfUnwind checkpoint)
+      (EL:DiagnosticSaveFailure (EL:DiagnosticFailure outcome))
       (EL:LogFailure (EL:DiagnosticFailure outcome)))
     (EL:LogFinish (if outcome 'diagnostic-exported 'diagnostic-not-exported)))
   (EL:ClearPickHighlights)

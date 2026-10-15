@@ -215,7 +215,36 @@ class DiagnosticButtonTests(unittest.TestCase):
         self.assertEqual(f.tiles['p_diagnostic_path'], path)
         self.assertEqual(f.tiles['p_capacity'], 'p_600')
         self.assertEqual(f.get('display', f.call('EL:DLUIDraft')), '保留输入')
-        self.assertIn('已打开诊断位置', f.tiles['p_diagnostic_status'])
+        self.assertEqual(f.tiles['p_diagnostic_status'], '诊断已导出')
+        self.assertEqual(f.tiles['p_diagnostic_action'], '已打开诊断位置')
+
+    def test_failed_export_survives_folder_action_and_retry_replaces_old_result(self):
+        f = panel.PostStatWorkflowTests()
+        f.setUp()
+        callbacks, exports, opens = {}, [], []
+        folder = 'C:\\中文 目录\\ELDIAG-20261015.123456'
+        path = folder + '-1.zip'
+        f.h.builtins['ACTION_TILE'] = lambda key, action: callbacks.__setitem__(key, action)
+        def export():
+            exports.append(True)
+            f.h.set('*EL:DIAGNOSTICEXPORTPATH*', folder if len(exports) == 1 else path)
+            return '诊断导出失败：模拟压缩错误' if len(exports) == 1 else '诊断已导出'
+        f.h.builtins['EL:PANELDIAGNOSTICEXPORT'] = export
+        f.h.builtins['EL:DIAGNOSTICOPENFOLDER'] = lambda value: opens.append(value) or '无法打开文件夹'
+        def retry():
+            self.assertEqual(f.tiles['p_diagnostic_status'], '诊断导出失败：模拟压缩错误')
+            self.assertEqual(f.tiles['p_diagnostic_action'], '无法打开文件夹')
+            self.assertEqual(f.tiles['p_diagnostic_path'], folder)
+            f.invoke_action(callbacks, 'p_diagnostic')
+        f.actions = [lambda: f.invoke_action(callbacks, 'p_diagnostic'),
+                     lambda: f.invoke_action(callbacks, 'p_diagnostic_open'), retry,
+                     lambda: f.invoke_action(callbacks, 'cancel')]
+        f.dialog()
+        self.assertEqual(len(exports), 2)
+        self.assertEqual(opens, [folder])
+        self.assertEqual(f.tiles['p_diagnostic_status'], '诊断已导出')
+        self.assertEqual(f.tiles['p_diagnostic_action'], '')
+        self.assertEqual(f.tiles['p_diagnostic_path'], path)
 
 
 class DeferredRunTests(unittest.TestCase):

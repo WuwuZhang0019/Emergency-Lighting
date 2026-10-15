@@ -3,10 +3,13 @@ param([Parameter(Mandatory = $true)][string]$SourceDirectory)
 $ErrorActionPreference = 'Stop'
 $stage = $null
 $partial = $null
+$statusPath = $null
 $published = $false
+function Complete-ELDiagnostic([string]$result) {
+    [IO.File]::WriteAllText($statusPath + '.tmp', $result, [Text.Encoding]::ASCII)
+    [IO.File]::Move($statusPath + '.tmp', $statusPath)
+}
 try {
-    Add-Type -AssemblyName System.IO.Compression
-    Add-Type -AssemblyName System.IO.Compression.FileSystem
     $stage = [IO.Path]::GetFullPath($SourceDirectory).TrimEnd('\', '/')
     if (-not [IO.Directory]::Exists($stage) -or
         [IO.Path]::GetFileName($stage) -notmatch '^ELDIAG-[0-9.-]+$') {
@@ -14,6 +17,13 @@ try {
     }
     $zipPath = $stage + '.zip'
     $partial = $zipPath + '.partial'
+    $statusPath = $zipPath + '.status'
+    $cancelPath = $zipPath + '.cancel'
+    if ([IO.File]::Exists($statusPath) -or [IO.File]::Exists($statusPath + '.tmp')) {
+        throw 'Diagnostic completion status already exists.'
+    }
+    Add-Type -AssemblyName System.IO.Compression
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
     if ([IO.File]::Exists($zipPath) -or [IO.File]::Exists($partial)) {
         throw 'Diagnostic archive already exists; nothing was overwritten.'
     }
@@ -52,18 +62,24 @@ try {
             if ($expected -ne $actual) { throw 'Archive entry hash mismatch.' }
         }
     } finally { $archive.Dispose() }
+    if ([IO.File]::Exists($cancelPath)) { throw 'Diagnostic export cancelled or timed out.' }
     [IO.File]::Move($partial, $zipPath)
     $published = $true
     # Remove only the known files after publication. No recursive deletion.
     foreach ($file in $files) { [IO.File]::Delete($file) }
     [IO.Directory]::Delete($stage, $false)
+    Complete-ELDiagnostic 'OK'
     exit 0
 } catch {
     # A completed verified ZIP is still successful if snapshot cleanup was blocked.
-    if ($published) { exit 0 }
-    if ($stage -and [IO.Directory]::Exists($stage)) {
-        [IO.File]::WriteAllText([IO.Path]::Combine($stage, 'bundle-error.txt'),
-            $_.Exception.ToString(), (New-Object Text.UTF8Encoding($false)))
+    if ($published) { Complete-ELDiagnostic 'OK'; exit 0 }
+    try {
+        if ($statusPath -and [IO.Directory]::Exists($stage)) {
+            [IO.File]::WriteAllText([IO.Path]::Combine($stage, 'bundle-error.txt'),
+                $_.Exception.ToString(), (New-Object Text.UTF8Encoding($false)))
+        }
+    } finally {
+        if ($statusPath -and -not [IO.File]::Exists($statusPath)) { Complete-ELDiagnostic 'ERROR' }
     }
     exit 1
 }

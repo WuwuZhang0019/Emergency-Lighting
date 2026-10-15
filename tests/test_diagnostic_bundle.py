@@ -6,6 +6,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import tempfile
+import time
 import unittest
 import zipfile
 
@@ -15,7 +16,7 @@ from monitor_io import install_monitor_io
 import test_diagnostic_export as diagnostic
 
 ROOT = Path(__file__).resolve().parents[1]
-CHECK_ROOT = ROOT / 'output/diagnostic-bundle-145-check'
+CHECK_ROOT = ROOT / 'output/diagnostic-bundle-146-check'
 
 
 class DiagnosticBundleTests(unittest.TestCase):
@@ -33,7 +34,7 @@ class DiagnosticBundleTests(unittest.TestCase):
         self.h.builtins.pop('EL:DIAGNOSTICBUNDLE')
         self.h.load_definitions(ROOT / 'src/startup.lsp')
         self.h.frames[0]['*EL:ROOT*'] = self.root.as_posix() + '/'
-        self.h.frames[0]['*EL:PACKAGEMARKER*'] = 'package-145.marker'
+        self.h.frames[0]['*EL:PACKAGEMARKER*'] = 'package-146.marker'
         self.h.frames[0][':VLAX-TRUE'] = True
         self.run = [Pair(Symbol('EVENTS'), [[1, 'EXAMPLE', '原始日志' * 5000]])]
         self.h.frames[0]['*EL:DIAGNOSTICRUNS*'] = [Pair('NOD', self.run)]
@@ -42,10 +43,34 @@ class DiagnosticBundleTests(unittest.TestCase):
         getvar = self.h.builtins['GETVAR']
         variables = {'TEMPPREFIX': (self.root / 'temp').as_posix() + '/',
                      'CDATE': 20261015.123456, 'DWGNAME': '测试图纸.dwg',
-                     'DWGPREFIX': 'G:/设计/', 'ACADVER': '23.1'}
+                     'DWGPREFIX': 'G:/设计/', 'ACADVER': '23.1', 'CMDECHO': 1}
         self.processes = []
+        self.workers = []
+        def cleanup_workers():
+            for worker in self.workers:
+                try:
+                    worker.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    worker.kill()
+                    worker.wait()
+        self.addCleanup(cleanup_workers)
+        def startapp(app, arguments):
+            self.assertNotIn('/', app)
+            self.assertIn('-WindowStyle Hidden', arguments)
+            self.processes.append((app, arguments))
+            self.workers.append(subprocess.Popen([app, *arguments.split()], stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL, creationflags=subprocess.CREATE_NO_WINDOW))
+            return 33
+        def delay(command, milliseconds):
+            self.assertEqual((command, milliseconds), ('_.DELAY', 50))
+            self.assertEqual(variables['CMDECHO'], 0)
+            time.sleep(milliseconds / 1000)
         self.h.builtins.update({
             'GETVAR': lambda name: variables[name] if name in variables else getvar(name),
+            'SETVAR': lambda name, value: variables.__setitem__(name, value) or value,
+            'EL:TICK': lambda: int(time.monotonic() * 1000) % 2147483648,
+            'STARTAPP': startapp,
+            'VL-CMDF': delay,
             'GETENV': lambda name: os.environ.get(name),
             'OPEN': lambda path, mode, *encoding: open(path, mode, encoding=encoding[0] if encoding else 'gb2312'),
             'READ-LINE': lambda file: (line.rstrip('\r\n') if (line := file.readline()) else None),
@@ -68,7 +93,7 @@ class DiagnosticBundleTests(unittest.TestCase):
         def com_create(name):
             if name == 'ADODB.Stream':
                 return create(name)
-            self.assertIn(name, ('MSXML2.DOMDocument.6.0', 'WScript.Shell'))
+            self.assertEqual(name, 'MSXML2.DOMDocument.6.0', 'export must not create WScript.Shell')
             return {'kind': name}
         def com_invoke(obj, method, *args):
             method = str(method).upper()
@@ -85,11 +110,6 @@ class DiagnosticBundleTests(unittest.TestCase):
             if method == 'READTEXT':
                 self.assertEqual(args, (-1,))
                 return obj['text']
-            if method == 'RUN':
-                self.assertEqual(args[1:], (0, True), 'hidden process must finish before success')
-                self.processes.append(args[0])
-                return subprocess.run(args[0], capture_output=True, timeout=45,
-                                      creationflags=subprocess.CREATE_NO_WINDOW).returncode
             return invoke(obj, method, *args)
         self.h.builtins.update({
             'VLAX-CREATE-OBJECT': com_create,
@@ -132,6 +152,8 @@ class DiagnosticBundleTests(unittest.TestCase):
         self.assertEqual(first_bytes, zip_path.read_bytes())
         self.f.assert_business_unchanged(before)
         self.assertTrue(all(s['closed'] and s['released'] for s in self.streams))
+        self.assertEqual(self.h.run('(getvar "CMDECHO")'), 1)
+        self.assertFalse(Path(str(second) + '.status').exists())
 
     def test_invalid_association_keeps_logs_and_explains_missing_record(self):
         del self.f.fixture.entities['t0']
@@ -155,34 +177,36 @@ class DiagnosticBundleTests(unittest.TestCase):
 
     def test_zip_failure_retains_snapshot_exposes_folder_and_never_claims_success(self):
         script = self.root / 'src/diagnostic-bundle.ps1'
-        script.write_text('exit 7\n', encoding='ascii')
+        code = script.read_text(encoding='utf-8')
+        script.write_text(code.replace(
+            '    # The source is a dedicated snapshot,',
+            "    throw 'simulated compression failure'\n    # The source is a dedicated snapshot,", 1), encoding='utf-8')
         message = self.h.run('(EL:PanelDiagnosticExport)')
         self.assertIn('诊断压缩失败', message)
         folder = Path(self.h.lookup('*EL:DIAGNOSTICEXPORTPATH*'))
         self.assertTrue((folder / 'association.eld').is_file())
         self.assertFalse(Path(str(folder) + '.zip').exists())
         self.assertEqual(self.h.lookup('*EL:DIAGNOSTICEXPORTMESSAGE*'), message)
-        self.assertIn('PowerShell exit code=7', message)
+        self.assertIn('ERROR', message)
+        self.assertIn('simulated compression failure', (folder / 'bundle-error.txt').read_text(encoding='utf-8-sig'))
         report = (folder / 'export-error.txt').read_text(encoding='utf-8-sig')
         self.assertIn(message, report)
-        self.assertIn('stage: ZIP_EXIT 7', report)
-        self.assertIn('package-145.marker', report)
+        self.assertIn('stage: ZIP_WAIT', report)
+        self.assertIn('package-146.marker', report)
 
-    def test_com_launch_failure_is_saved_and_next_export_clears_old_failure(self):
-        create = self.h.builtins['VLAX-CREATE-OBJECT']
-        def fail_shell(name):
-            if name == 'WScript.Shell':
-                raise RuntimeError('Automation Error 80070005: Access denied')
-            return create(name)
-        self.h.builtins['VLAX-CREATE-OBJECT'] = fail_shell
+    def test_native_launch_failure_is_saved_and_next_export_clears_old_failure(self):
+        startapp = self.h.builtins['STARTAPP']
+        def failed_launch(*args):
+            raise RuntimeError('native launcher failed')
+        self.h.builtins['STARTAPP'] = failed_launch
         message = self.h.run('(EL:PanelDiagnosticExport)')
         folder = Path(self.h.lookup('*EL:DIAGNOSTICEXPORTPATH*'))
         report = (folder / 'export-error.txt').read_text(encoding='utf-8-sig')
-        self.assertIn('Automation Error 80070005: Access denied', message)
-        self.assertIn('stage: ZIP_LAUNCH', report)
+        self.assertIn('native launcher failed', message)
+        self.assertIn('stage: ZIP_LAUNCH STARTAPP', report)
         self.assertIn(message, report)
         self.assertTrue((folder / 'association.eld').is_file())
-        self.h.builtins['VLAX-CREATE-OBJECT'] = create
+        self.h.builtins['STARTAPP'] = startapp
         success = self.h.run('(EL:PanelDiagnosticExport)')
         self.assertIn('已导出诊断包', success)
         self.assertFalse(self.h.lookup('*EL:DIAGNOSTICERROR*'))
@@ -203,24 +227,87 @@ class DiagnosticBundleTests(unittest.TestCase):
         self.assertIn('stage: ZIP_ENCODE', (folder / 'export-error.txt').read_text(encoding='utf-8-sig'))
         self.assertEqual(self.processes, [])
 
-    def test_failure_report_write_error_does_not_replace_original_com_failure(self):
-        create = self.h.builtins['VLAX-CREATE-OBJECT']
+    def test_failure_report_write_error_does_not_replace_original_launch_failure(self):
         write = self.h.builtins['VLAX-INVOKE-METHOD']
-        def fail_shell(name):
-            if name == 'WScript.Shell':
-                raise RuntimeError('original launch error')
-            return create(name)
+        def failed_launch(*args):
+            raise RuntimeError('original launch error')
         def fail_report(obj, method, *args):
             if str(method).upper() == 'SAVETOFILE' and str(args[0]).endswith('export-error.txt'):
                 raise OSError('secondary report write error')
             return write(obj, method, *args)
-        self.h.builtins['VLAX-CREATE-OBJECT'] = fail_shell
+        self.h.builtins['STARTAPP'] = failed_launch
         self.h.builtins['VLAX-INVOKE-METHOD'] = fail_report
         message = self.h.run('(EL:PanelDiagnosticExport)')
         self.assertIn('original launch error', message)
         self.assertNotIn('secondary report write error', message)
         self.assertEqual(self.h.lookup('*EL:DIAGNOSTICEXPORTMESSAGE*'), message)
         self.assertIn('original launch error', self.h.lookup('*EL:DIAGNOSTICERROR*'))
+
+    def test_missing_completion_is_bounded_cancels_late_worker_and_restores_echo(self):
+        self.h.builtins['STARTAPP'] = lambda *args: 33
+        clock = [0]
+        self.h.builtins['EL:TICK'] = lambda: clock[0]
+        self.h.builtins['VL-CMDF'] = lambda *args: clock.__setitem__(0, clock[0] + 10000)
+        message = self.h.run('(EL:PanelDiagnosticExport)')
+        folder = Path(self.h.lookup('*EL:DIAGNOSTICEXPORTPATH*'))
+        self.assertIn('超过 30 秒', message)
+        self.assertEqual(clock[0], 30000)
+        self.assertEqual(self.h.run('(getvar "CMDECHO")'), 1)
+        self.assertTrue(Path(str(folder) + '.zip.cancel').is_file())
+        self.assertTrue((folder / 'association.eld').is_file())
+        self.assertIn('stage: ZIP_TIMEOUT', (folder / 'export-error.txt').read_text(encoding='utf-8-sig'))
+
+    def test_cancelled_wait_restores_echo_and_keeps_original_error(self):
+        self.h.builtins['STARTAPP'] = lambda *args: 33
+        def interrupted(*args):
+            raise RuntimeError('user cancelled wait')
+        self.h.builtins['VL-CMDF'] = interrupted
+        message = self.h.run('(EL:PanelDiagnosticExport)')
+        folder = Path(self.h.lookup('*EL:DIAGNOSTICEXPORTPATH*'))
+        self.assertIn('user cancelled wait', message)
+        self.assertEqual(self.h.run('(getvar "CMDECHO")'), 1)
+        self.assertTrue(Path(str(folder) + '.zip.cancel').is_file())
+
+    def test_wait_handles_signed_cad_clock_rollover(self):
+        clock = [2147483640]
+        self.h.builtins['EL:TICK'] = lambda: clock[0]
+        def delay(*args):
+            clock[0] += 10000
+            if clock[0] > 2147483647:
+                clock[0] -= 4294967296
+        self.h.builtins['VL-CMDF'] = delay
+        self.assertIsNone(self.f.fixture.call('EL:DiagnosticWait', str(self.root / 'missing.status'), 30000))
+        self.assertEqual(clock[0], 2147483640 + 30000 - 4294967296)
+        self.assertEqual(self.h.run('(getvar "CMDECHO")'), 1)
+
+    def test_native_launcher_nil_or_zero_never_enters_wait(self):
+        folder = self.root / 'output/ELDIAG-20261015.123456'
+        folder.mkdir()
+        self.h.builtins['EL:DIAGNOSTICWAIT'] = lambda *args: self.fail('failed launch must not wait')
+        for returned in (None, 0):
+            self.h.builtins['STARTAPP'] = lambda *args: returned
+            with self.assertRaises(RuntimeError):
+                self.f.fixture.call('EL:DiagnosticZip', str(folder))
+            self.assertIn('无法启动诊断压缩程序', self.h.lookup('*EL:DIAGNOSTICERROR*'))
+
+    def test_worker_will_not_publish_after_cancellation(self):
+        folder = self.root / 'output/ELDIAG-20261015.123456'
+        folder.mkdir()
+        (folder / 'README.md').write_text('snapshot', encoding='utf-8')
+        Path(str(folder) + '.zip.cancel').write_text('CANCEL', encoding='ascii')
+        with self.assertRaises(RuntimeError):
+            self.f.fixture.call('EL:DiagnosticZip', str(folder))
+        self.assertFalse(Path(str(folder) + '.zip').exists())
+        self.assertIn('cancelled or timed out', (folder / 'bundle-error.txt').read_text(encoding='utf-8-sig'))
+
+    def test_success_marker_without_zip_cannot_report_success(self):
+        def false_completion(*args):
+            folder = Path(self.h.lookup('*EL:DIAGNOSTICEXPORTPATH*'))
+            Path(str(folder) + '.zip.status').write_text('OK', encoding='ascii')
+            return 33
+        self.h.builtins['STARTAPP'] = false_completion
+        message = self.h.run('(EL:PanelDiagnosticExport)')
+        self.assertIn('ZIP 文件不存在或为空', message)
 
     def test_existing_zip_is_never_overwritten_by_helper(self):
         folder = self.root / 'output/ELDIAG-20261015.123456'

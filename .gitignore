@@ -164,3 +164,9 @@ config/power-input-*.eld
 /output/应急照明-145/
 /output/应急照明-145.zip
 /output/diagnostic-bundle-145-check/
+/output/应急照明-146/
+/output/应急照明-146.zip
+/output/diagnostic-bundle-146-check/
+/output/ELDIAG-*.zip.status
+/output/ELDIAG-*.zip.status.tmp
+/output/ELDIAG-*.zip.cancel

@@ -17,7 +17,7 @@ SOURCES = ['src/diagram-commands.lsp', 'src/diagnostic-bundle.ps1', 'src/config.
            'tests/check_diagnostic_bundle_package.py', 'tests/run_diagnostic_bundle_checks.py']
 
 if __name__ == '__main__':
-    check_root = ROOT / 'output/diagnostic-bundle-145-check'
+    check_root = ROOT / 'output/diagnostic-bundle-146-check'
     check_root.mkdir(exist_ok=True)
     os.environ['TEMP'] = os.environ['TMP'] = tempfile.tempdir = str(check_root)
     result = unittest.TextTestRunner(stream=io.StringIO()).run(
@@ -28,7 +28,7 @@ if __name__ == '__main__':
               'scope': 'Finite CAD/DCL adapters and real Windows PowerShell compression; native CAD pending',
               'cases': result.testsRun, 'suites': SUITES, 'failures': failures,
               'sha256': {name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest() for name in SOURCES}}
-    output = ROOT / 'tests/evidence/2026-10-15-diagnostic-bundle-checks-145.json'
+    output = ROOT / 'tests/evidence/2026-10-15-diagnostic-bundle-checks-146.json'
     output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     print(json.dumps({'cases': result.testsRun, 'status': report['status'], 'failures': failures},
                      ensure_ascii=False, indent=2))

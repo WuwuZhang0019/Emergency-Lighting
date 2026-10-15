@@ -507,7 +507,7 @@
         (setq rows (cons (cons key (reverse blocks)) rows)))
       (T (setq rows (cons (assoc key baseline) rows))))) (reverse rows))
 (defun EL:NetworkProofMake (input output cfg panel contacts / proof roles block)
-  (setq input (EL:StableData input) output (EL:StableData output))
+  (setq input (EL:StableSnapshot input) output (EL:StableSnapshot output))
   (foreach block (EL:Get 'blocks input)
     (setq roles (cons (cons (EL:Get 'id block) (assoc 'role block)) roles)))
   (setq proof (list '(version . 4) (cons 'panel panel)
@@ -552,6 +552,11 @@
         (not (EL:Get 'issues (cdr row))))) *EL:DeviceContactCache*))
     (setq *EL:NetworkMemo* (list key result (EL:DeviceContactEvidence *EL:DeviceContactCache*)))
     (setq *EL:NetworkMemo* nil))
+  ;; Date: 2026-10-15. Share fresh definition geometry only with the next
+  ;; split in this synchronous recognition call. Never persist this cache.
+  (if *EL:RecognitionPass*
+    (setq *EL:RecognitionContacts* (list result (namedobjdict) *EL:FreshEpoch*
+      (vl-remove-if-not '(lambda (row) (equal (caar row) 'definition)) *EL:DeviceTemplateCache*))))
   result)
 (defun EL:SimpleGapSnapshot (snapshot)
   ;; Date: 2026-10-13. Virtual continuation joins only the two free wire ends.
@@ -618,13 +623,21 @@
       (if (and (= (length (EL:Get 'candidates reverse-row)) 1)
           (equal (EL:Get 'target (car (EL:Get 'candidates reverse-row))) (EL:Get 'key ep)))
         (EL:WalkLink (EL:Get 'wire ep) (EL:Get 'wire other))))))
+(defun EL:WalkDevicePathHit (wire block / key saved hit)
+  ;; Date: 2026-10-15. Both directions of the walk ask the same predicate.
+  ;; Cache misses as well as hits, scoped to these immutable fresh records.
+  (setq key (list (EL:Get 'id wire) (EL:Get 'id block)))
+  (if (setq saved (assoc key *EL:WalkContactHits*)) (cdr saved)
+    (progn
+      (setq hit (EL:SimpleDevicePathHit wire block *EL:WalkConfig*)
+        *EL:WalkContactHits* (cons (cons key hit) *EL:WalkContactHits*)) hit)))
 (defun EL:WalkPathHit (wire block)
   (if (equal (EL:Get 'role block) 'junction)
     (vl-some '(lambda (ep) (and
       (not (EL:StartBoundaryPoint (EL:Get 'point ep) *EL:WalkSnapshot* *EL:WalkConfig*))
       (not (EL:TrunkPoint (EL:Get 'point ep) (EL:Get 'trunk-segments *EL:WalkSnapshot*)))
       (EL:SimpleDevicePointHit (EL:Get 'point ep) block *EL:WalkConfig*))) (EL:Get 'ends wire))
-    (EL:SimpleDevicePathHit wire block *EL:WalkConfig*)))
+    (EL:WalkDevicePathHit wire block)))
 (defun EL:WalkWire (wire / id ep state other item block point)
   (setq id (EL:Get 'id wire))
   (foreach ep (EL:Get 'ends wire)
@@ -663,7 +676,7 @@
       (foreach item (EL:SpatialBoxQuery *EL:WalkWireTree* (EL:Get 'bounds block)
           (max *EL:WalkTouch* *EL:DeviceContactTolerance*))
         (setq wire (EL:Get 'wire item))
-        (if (EL:SimpleDevicePathHit wire block *EL:WalkConfig*)
+        (if (EL:WalkDevicePathHit wire block)
           (EL:WalkLink id (EL:Get 'id wire)))))))
 (defun EL:NetworkEdges (edges / row previous rows)
   ;; Date: 2026-10-13. Sort small handle pairs, then deduplicate adjacent edges.
@@ -675,7 +688,7 @@
     *EL:WalkPanel* *EL:WalkConfig* *EL:WalkSnapshot* *EL:WalkTouch*
     *EL:WalkWireTree* *EL:WalkBlockTree* *EL:WalkEndTree* *EL:WalkJunctionTree*
     *EL:WalkWireRecords* *EL:WalkBlockRecords* *EL:WalkEndRecords*
-    *EL:WalkQueue* *EL:WalkSeen* *EL:WalkEdges* *EL:WalkEnds* *EL:WalkGapRows*
+    *EL:WalkQueue* *EL:WalkSeen* *EL:WalkEdges* *EL:WalkEnds* *EL:WalkGapRows* *EL:WalkContactHits*
     *EL:WalkGapSnapshot* *EL:GapPathIndex* *EL:GapIndexReady* *EL:DeviceContactTolerance*)
   (setq *EL:DeviceTemplateEnabled* T *EL:DeviceContactTolerance* (EL:DeviceContactTolerance cfg)
     wires (EL:Get 'wires snapshot)

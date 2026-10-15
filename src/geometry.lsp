@@ -879,7 +879,7 @@
     ;; list access replaces repeated alist searches inside sort comparisons.
     (setq keyed (cons (cons (EL:Get 'point item) (cons (EL:Signature (EL:Get 'key item)) item)) keyed)))
   (EL:SpatialTreeBuild (reverse keyed) axis))
-(defun EL:SpatialTreeBuild (items axis / sorted mid i item pivot left right lo hi bounds)
+(defun EL:SpatialTreeBuild (items axis / sorted mid item pivot left right lo hi bounds)
   ;; Preserve the existing axis order, tie-break order and public tree layout.
   (if items
     (progn
@@ -890,11 +890,11 @@
             (if (= (nth axis (car a)) (nth axis (car b)))
               (< (cadr a) (cadr b))
               (< (nth axis (car a)) (nth axis (car b))))))
-            mid (/ (length sorted) 2) i 0)
-          (foreach item sorted
-            (cond ((< i mid) (setq left (cons item left)))
-              ((= i mid) (setq pivot (cddr item))) (T (setq right (cons item right))))
-            (setq i (1+ i)))
+            mid (/ (length sorted) 2))
+          ;; Date: 2026-10-15. Consume only the left half in Lisp; native
+          ;; REVERSE preserves the original right-half order before sorting.
+          (repeat mid (setq left (cons (car sorted) left) sorted (cdr sorted)))
+          (setq pivot (cddr (car sorted)) right (reverse (cdr sorted)))
           (setq left (EL:SpatialTreeBuild left (fix (rem (1+ axis) 3)))
             right (EL:SpatialTreeBuild right (fix (rem (1+ axis) 3))))))
       (setq bounds (EL:Get 'bounds pivot)
@@ -905,7 +905,9 @@
       (list pivot left right lo hi))))
 (defun EL:RayBoxHits (p direction limit lo hi / axis low high d near far tmp ok eps)
   (setq axis 0 near 0.0 far limit ok T eps (EL:GapEpsilon))
-  (repeat 3
+  ;; Date: 2026-10-15. A rejected slab cannot be recovered by later axes.
+  ;; Retain the exact subtraction/division order and epsilon on visited axes.
+  (while (and ok (< axis 3))
     (setq low (- (nth axis lo) eps (nth axis p))
           high (- (+ (nth axis hi) eps) (nth axis p)) d (nth axis direction))
     (if (< (abs d) 1.0e-15)

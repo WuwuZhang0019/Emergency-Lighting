@@ -51,7 +51,7 @@
           (cons 'message (if (vl-catch-all-error-p checked) (vl-catch-all-error-message checked) "slide_image returned nil"))))))))
   (end_image) shown)
 (defun EL:FixedSourceSignature (snapshot)
-  (list 'EL_FIXED_SOURCE_V1 (EL:StableData snapshot)))
+  (list 'EL_FIXED_SOURCE_V1 (EL:StableSnapshot snapshot)))
 (defun EL:CircuitSnapshot (snapshot panel / blocks b)
   (foreach b (EL:Get 'blocks snapshot)
     (setq blocks (cons (EL:Put 'identity (EL:FixedBlockIdentity (EL:Get 'name b))
@@ -59,6 +59,14 @@
   (EL:Put 'signature (EL:LogCall "SNAPSHOT_SIGNATURE" nil 'EL:FixedSourceSignature (list snapshot)) (EL:Put 'blocks (reverse blocks) snapshot)))
 (defun EL:SplitNetwork (network cfg / snapshot panel edges seeds wire block i circuits result circuit
     *EL:DeviceContactCache* *EL:DeviceTemplateCache* *EL:DeviceTemplateEnabled*)
+  ;; Date: 2026-10-15. Reuse definitions only for this call's identical
+  ;; network, DWG owner and epoch. Keep original instance/pose creation order
+  ;; and arithmetic; standalone splits still start with fresh caches.
+  (if (and *EL:RecognitionPass* *EL:RecognitionContacts*
+      (eq network (car *EL:RecognitionContacts*))
+      (equal (namedobjdict) (cadr *EL:RecognitionContacts*))
+      (equal *EL:FreshEpoch* (caddr *EL:RecognitionContacts*)))
+    (setq *EL:DeviceTemplateCache* (nth 3 *EL:RecognitionContacts*)))
   (setq snapshot (EL:CircuitSnapshot (EL:Get 'snapshot network) (EL:Get 'panel network))
         panel (EL:Get 'panel network) block (EL:By 'id panel (EL:Get 'blocks snapshot)) i 0)
   (foreach wire (vl-sort (EL:Get 'wires snapshot) '(lambda (a b) (< (EL:Get 'id a) (EL:Get 'id b))))
@@ -317,7 +325,7 @@
       (*EL:PanelTemplateReady* (setq *EL:PanelAction* 'generate) (done_dialog 2))
       (T (setq *EL:PanelAction* 'generate) (done_dialog 4)))
       (alert (if *EL:DLError*
-        (strcat *EL:DLError* "\n请点击独立设备库检查并恢复；也可以先点保存，将当前输入保存为本图草稿。")
+        (strcat *EL:DLError* "\n请在设备库中检查并恢复；当前面板输入保留，恢复后可再次生成。")
         "设备库默认值已刷新，请核对当前功率和地面属性后再次生成。"))))
 (defun EL:PanelGenerate (/ outcome)
   ;; Date: 2026-10-10. Keep callback failures visible while preserving the draft.
@@ -352,14 +360,14 @@
     ((not ids) "未识别到连接设备，请检查导线连接或设备图块。")
     ((and (not (assoc 'block-ground *EL:PanelDraft*)) (vl-some '(lambda (c) (EL:Get 'is-ground c)) cs))
       "沿用旧回路地面设置；修改图块地面勾选后按图块统一重算。")
-    (T "核对回路后可保存当前输入，或生成一张新系统图。")))
+    (T "核对回路后点击生成新系统图，当前输入会自动保存。")))
   (EL:PanelText "p_total" (strcat (EL:PanelKnownTotal) "；实际回路 " (itoa (length cs)) "；输出 " (itoa (EL:FixedOutputCount (length cs)))
     "；已完整核对回路 " (itoa (EL:Get 'box-watts *EL:PanelDraft*)) " W"))
   (set_tile "p_capacity" (cond ((equal *EL:PanelCapacity* 'cap600) "p_600")
     ((equal *EL:PanelCapacity* 'cap1000) "p_1000") (T "p_300")))
   (EL:PanelText "p_capacity_status" "默认 0.3kW；可按需要调整为 0.6kW 或 1kW。")
   (EL:PanelText "p_template_status" (if *EL:PanelTemplateReady* "模板已验证，生成时自动切换状态。"
-    "模板未设置或已变化：点击生成时设置；不影响统计和保存当前输入。"))
+    "模板未设置或已变化：点击生成时设置；不影响当前统计。"))
   (setq i 0)
   (foreach c cs
     (if (> (strlen (EL:CircuitNumberText c (1+ i))) 24)
@@ -401,7 +409,7 @@
   (EL:PanelText "p_capacity_status" "识别后可选择配电箱容量。")
   (EL:PanelText "p_template_status" "")
   (set_tile "p_capacity" "p_300")
-  (foreach key '("p_trunk" "p_capacity" "f_preview" "accept" "p_generate") (mode_tile key 1)))
+  (foreach key '("p_trunk" "p_capacity" "f_preview" "p_generate") (mode_tile key 1)))
 (defun EL:PanelLibraryReconcile (/ snapshot resolved)
   (setq snapshot (EL:Get 'snapshot *EL:DLUIState*))
   (if snapshot
@@ -481,7 +489,6 @@
         (EL:MonitorActionTile "p_trunk" "(EL:DLUIStore) (done_dialog 10)")
         (EL:MonitorActionTile "f_preview" "(EL:DLUIStore) (done_dialog 5)")
         (EL:MonitorActionTile "p_capacity" "(EL:PanelCapacity $value)")
-        (EL:MonitorActionTile "accept" "(EL:PanelAccept)")
         (EL:MonitorActionTile "p_generate" "(EL:PanelGenerate)")
         (EL:MonitorActionTile "cancel" "(EL:DLUIStore) (done_dialog 0)")
         (setq *EL:PanelAction* nil status (EL:PerfInput 'start_dialog nil))

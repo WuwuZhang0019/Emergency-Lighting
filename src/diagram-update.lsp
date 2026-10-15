@@ -37,8 +37,10 @@
     (setq serial (1+ serial) id (strcat prefix (itoa serial))))
   (list (cons 'diagram-id id) (cons 'source-panel-handle panel) '(capacity-option . cap300) '(capacity-source . default)
     '(template-version . 1) '(status . unverified)))
-(defun EL:RecognizeFixed (cfg panel / snapshot network result record keys perf)
-  (setq cfg (EL:CurrentJunctionConfig cfg))
+(defun EL:RecognizeFixed (cfg panel / snapshot network result record keys perf
+    *EL:RecognitionPass* *EL:RecognitionContacts*
+    *EL:StableSnapshotMemo* *EL:StableSnapshotOwner* *EL:StableSnapshotEpoch*)
+  (setq *EL:RecognitionPass* T cfg (EL:CurrentJunctionConfig cfg))
   (setq perf (EL:PerfBegin "RECOGNIZE_FIXED_RUN"))
   (EL:PerfCount "recognize-fixed-calls" 1)
   (EL:Require (and (handent panel) (not (EL:ManagedEntity (handent panel)))) "来源配电箱缺失或为受管输出。")

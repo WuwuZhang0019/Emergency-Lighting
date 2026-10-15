@@ -1,0 +1,37 @@
+{
+  "date": "2026-10-15",
+  "status": "passed",
+  "scope": "Focused Python adapter checks; original-DWG CAD timing remains pending",
+  "cases": 97,
+  "suites": [
+    "test_recognition_fastpath",
+    "test_recognition_preset",
+    "test_gap_index",
+    "test_signature_depth",
+    "test_diagnostics",
+    "test_circuit_number.NumberScopeTests",
+    "test_reachable_network",
+    "test_network_reuse.NetworkReuseTests",
+    "test_network_reuse.FreshNetworkSignatureTests",
+    "test_fixed_source_signature.FixedSourceSignatureTests",
+    "test_circuit_starts",
+    "test_junction_box.JunctionTests.test_registered_names_on_other_layers_survive_preset_filter",
+    "test_recognition_six",
+    "test_cckk_panel_command.PanelCommandTests.test_panel_calls_real_command_places_native_box_and_85w_circuits",
+    "test_cckk_panel_command.PanelCommandTests.test_two_circuit_cancel_then_retry_releases_live_guard"
+  ],
+  "failures": [],
+  "sha256": {
+    "src/common.lsp": "fa93720e401b28ad3581460ba762bbefd7a24af6bcd3b7b1b663d0776f4a4e5c",
+    "src/geometry.lsp": "eb937bb7c70e7c3879ffa9dcd5170479205d8b5c1d62fa81452cb3ee29b0b2f3",
+    "src/simple.lsp": "865bdc8c1c74b57acdbb453dd00a9ed841c1442e51ddf4662c8f5f5e9a7ee4f5",
+    "src/circuit-number.lsp": "e5d3709bc741f2c577090f47cdd01d40caf3810a38a2a516bc8545258f712ee8",
+    "src/diagram-update.lsp": "361ff7872d62aec295f939fd5e19e129f05c97b6f137eee763b2655679f4cb12",
+    "src/panel.lsp": "1d792d8ea8873ae0690510b1e1483da3b71d2897dc1beb28bea63cc695d7ea7b",
+    "ui/power.dcl": "6adf88cf3bb95a91761aee89eebe068a14437236f1c89c3dd5914c2e3de33a7b",
+    "tests/autolisp_host.py": "bae0425037e673cba6f3946d98f3780b746a69ba2406a032ce077e2d5d37b681",
+    "tests/test_recognition_six.py": "d3956de4c0b6c3a171dbf4562228b9566e3048309d03f86e4dc65ad402b17da4",
+    "tests/check_recognition_six_work.py": "f6d2ff9807aaa7c5f9d8d151d2f826ee0c80a68c60ec78001682d1d8820453f8",
+    "tests/run_recognition_six_checks.py": "d6285807fa84a8743e1735b22002449d4f731e2104c0587a8972bce84e49dcc5"
+  }
+}

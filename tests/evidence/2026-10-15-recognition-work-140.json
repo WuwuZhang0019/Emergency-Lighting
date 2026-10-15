@@ -1,0 +1,45 @@
+{
+  "date": "2026-10-15",
+  "status": "passed",
+  "baseline_commit": "2149cfa",
+  "scope": "Cold full RecognizeFixed in Python adapter; not native AutoCAD seconds",
+  "fixture": {
+    "circuits": 6,
+    "connected_devices": 72,
+    "wires": 773,
+    "blocks": 556,
+    "description": "Six radial polylines, alternating start/end selection, native ZE labels; unrelated remote geometry"
+  },
+  "exact_complete_result_equal": true,
+  "baseline": {
+    "lisp_calls": 1169983,
+    "entity_reads": 1818,
+    "stable_data_calls": 151461,
+    "point_contact_checks": 4936,
+    "definition_reads": 2,
+    "wire_device_checks": 144,
+    "host_evaluation_steps": 32638564,
+    "host_seconds": 40.822,
+    "inclusive_stage_steps": {
+      "EL:SIMPLECOLLECT": 9009857,
+      "EL:SIMPLENETWORK": 13749100,
+      "EL:SPLITNETWORK": 8684816
+    }
+  },
+  "candidate": {
+    "lisp_calls": 926837,
+    "entity_reads": 1802,
+    "stable_data_calls": 86048,
+    "point_contact_checks": 1966,
+    "definition_reads": 1,
+    "wire_device_checks": 72,
+    "host_evaluation_steps": 21291980,
+    "host_seconds": 28.601,
+    "inclusive_stage_steps": {
+      "EL:SIMPLECOLLECT": 7718145,
+      "EL:SIMPLENETWORK": 8499772,
+      "EL:SPLITNETWORK": 3879271
+    }
+  },
+  "step_reduction_percent": 34.8
+}

@@ -2,7 +2,7 @@
 
 Loads the actual .lsp sources. CAD APIs fail if called. NIL, dynamic scope,
 integer division and AutoLISP LAST (one-element list) are modelled explicitly.
-Date: 2026-10-14.
+Date: 2026-10-15.
 """
 import math
 import re
@@ -75,6 +75,16 @@ def parse(text):
 
 
 def seq(x):
+    # Native proper lists can also be parsed as (a . (b c)); MAPCAR and the
+    # other list primitives must accept that representation after VL-LIST-LENGTH.
+    if isinstance(x, Pair):
+        items = []
+        while isinstance(x, Pair):
+            items.append(x.car)
+            x = x.cdr
+        if x is not None and not isinstance(x, list):
+            raise TypeError('expected proper list')
+        return items + (x or [])
     return [] if x is None else x
 
 
@@ -164,6 +174,7 @@ class Host:
             'REVERSE': lambda x: list(reversed(seq(x))) or None,
             'LENGTH': lambda x: len(seq(x)), 'NTH': lambda i,x: x[i] if x and i < len(x) else None,
             'VL-LIST-LENGTH': list_length,
+            'EQ': lambda a,b: (a is b) if isinstance(a, (list, Pair)) or isinstance(b, (list, Pair)) else equal(a,b),
             'LAST': lambda x: x[-1:] if x else None,
             'ASSOC': lambda k,x: next((p for p in seq(x) if equal(car(p), k)), None),
             'MEMBER': lambda k,x: next((x[i:] for i,p in enumerate(seq(x)) if equal(k,p)), None),

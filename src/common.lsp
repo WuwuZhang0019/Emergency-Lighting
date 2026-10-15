@@ -47,6 +47,11 @@
 (defun EL:StableData (data / tail items result item)
   ;; Date: 2026-10-09. Iterate list tails: stack depth follows nesting, not entity count.
   (cond ((equal (type data) 'ENAME) (list 'handle (cdr (assoc 5 (entget data)))))
+        ;; Date: 2026-10-15. Native list traversal avoids rebuilding every
+        ;; proper-list tail twice. Dotted tails retain the exact legacy path.
+        ((and (listp data) (vl-list-length data))
+          (mapcar '(lambda (item) (if (member (type item) '(LIST ENAME))
+            (EL:StableData item) item)) data))
         ((listp data)
           (setq tail data)
           (while (and tail (listp tail))
@@ -59,6 +64,23 @@
           (foreach item items (setq result (cons item result))) result)
         (T data)))
 (defun EL:Signature (data) (vl-prin1-to-string (EL:StableData data)))
+(defun EL:StableSnapshot (snapshot / owner epoch)
+  ;; Date: 2026-10-15. Builders retain immutable alist rows. Convert each
+  ;; identical row once inside this synchronous recognition pass, including
+  ;; unknown fields. Changed rows, writes, interaction and DWG changes miss.
+  (if (and *EL:RecognitionPass* (vl-list-length snapshot))
+    (progn
+      (setq owner (namedobjdict) epoch *EL:FreshEpoch*)
+      (if (not (and (equal owner *EL:StableSnapshotOwner*) (equal epoch *EL:StableSnapshotEpoch*)))
+        (setq *EL:StableSnapshotMemo* nil *EL:StableSnapshotOwner* owner *EL:StableSnapshotEpoch* epoch))
+      (mapcar 'EL:StableSnapshotRow snapshot))
+    (EL:StableData snapshot)))
+(defun EL:StableSnapshotRow (row / saved value)
+  (if (setq saved (vl-some '(lambda (item) (if (eq row (car item)) item)) *EL:StableSnapshotMemo*))
+    (cadr saved)
+    (progn
+      (setq value (EL:StableData row)
+        *EL:StableSnapshotMemo* (cons (list row value) *EL:StableSnapshotMemo*)) value)))
 (defun EL:RecognitionRules (cfg / rows key)
   (foreach key '(wire-styles auto-panel concentrated-trunk circuit-starts wire-layers panel-layers device-layers leader-layers panel-names device-names leader-names
       layer-pairs params calibrated gap-pairs leader-pairs roles exits)

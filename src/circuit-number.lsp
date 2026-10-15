@@ -113,15 +113,40 @@
 (defun EL:NumberShapeHit (wire shape cfg)
   (EL:NumberShapeHitStrict wire shape (EL:StrictDeviceConfig cfg)))
 (defun EL:NumberShapeHitStrict (wire shape cfg)
-  (or (EL:ContourPathHit wire shape cfg) (EL:WideDevicePathHit wire shape cfg)))
-(defun EL:NumberFirstDevice (wire entry target devices cfg / block shape candidates hits row low high middle slice measures)
+  (or (if *EL:NumberProbeActive* (EL:NumberProbePathHit wire shape cfg) (EL:ContourPathHit wire shape cfg))
+    (EL:WideDevicePathHit wire shape cfg)))
+(defun EL:NumberProbePointHit (point shape cfg / key saved hit)
+  ;; Date: 2026-10-15. Exact point/shape keys; the strict config is fixed for
+  ;; this one binary search. NIL is a cached miss, not an absent entry.
+  (setq key (cons point shape))
+  (if (setq saved (assoc key *EL:NumberProbePoints*)) (cdr saved)
+    (progn (setq hit (EL:BlockPointHit point shape cfg)
+      *EL:NumberProbePoints* (cons (cons key hit) *EL:NumberProbePoints*)) hit)))
+(defun EL:NumberProbePathHit (wire shape cfg / hit seg edge segments candidates key saved tol)
+  ;; Same ordered predicates as ContourPathHit. Only identical points and
+  ;; completed segments are memoized; the 32-step grid is unchanged.
+  (setq segments (EL:Get 'segments wire) tol (EL:Get 'eps_boundary (EL:Get 'params cfg)))
+  (while (and segments (not hit))
+    (setq seg (car segments) segments (cdr segments) key (cons seg shape))
+    (if (setq saved (assoc key *EL:NumberProbeSegments*)) (setq hit (cdr saved))
+      (progn
+        (if (or (EL:NumberProbePointHit (car seg) shape cfg) (EL:NumberProbePointHit (cadr seg) shape cfg)
+            (EL:RegionContains (EL:V* 0.5 (EL:V+ (car seg) (cadr seg))) shape)) (setq hit T))
+        (if (not hit) (setq hit (vl-some '(lambda (curve) (EL:CurveSegmentHit seg curve tol)) (EL:Get 'curves shape))))
+        (if (not hit) (setq candidates (EL:ContactSegmentsTolerance shape (EL:SegmentBounds (list seg)) tol)))
+        (while (and candidates (not hit))
+          (setq edge (car candidates) candidates (cdr candidates))
+          (if (EL:SegmentsTouchTolerance seg edge tol) (setq hit T)))
+        (setq *EL:NumberProbeSegments* (cons (cons key hit) *EL:NumberProbeSegments*))))) hit)
+(defun EL:NumberFirstDevice (wire entry target devices cfg / block shape candidates hits row low high middle slice measures
+    *EL:NumberProbeActive* *EL:NumberProbePoints* *EL:NumberProbeSegments*)
   ;; Date: 2026-10-15. All devices share the same 32-step dyadic prefix grid.
   ;; Search the first contact jointly; on a hit retain every device hitting
   ;; that prefix, in original order. This preserves the exact boundary and
   ;; original first-device tie rule without rebuilding each prefix per device.
   (if (and devices (> (abs (- target entry)) 1.0e-12))
     (progn
-    (setq cfg (EL:StrictDeviceConfig cfg) measures (EL:NumberPathMeasures wire)
+    (setq *EL:NumberProbeActive* T cfg (EL:StrictDeviceConfig cfg) measures (EL:NumberPathMeasures wire)
       slice (EL:NumberPathSliceMeasured wire entry target measures))
     (foreach block devices
       (setq shape (EL:DeviceContactShape block))

@@ -108,8 +108,8 @@ el_panel : dialog {
     : text { key = "p_error1"; width = 46; fixed_width = true; }
     : text { key = "p_error2"; width = 46; fixed_width = true; }
     : row {
-      : button { key = "accept"; label = "保存当前输入"; is_default = true; }
-      : button { key = "p_generate"; label = "生成新系统图"; }
+      // Date: 2026-10-15. Generation includes saving; no standalone draft action.
+      : button { key = "p_generate"; label = "生成新系统图"; is_default = true; }
       : button { key = "cancel"; label = "取消"; is_cancel = true; }
     }
   }

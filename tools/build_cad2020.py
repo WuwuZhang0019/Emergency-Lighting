@@ -6,9 +6,9 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 # Date: 2026-10-15. Software version; PACKAGE_NO is a legacy delivery identifier.
-VERSION = '0.1.50'
-PACKAGE_NO = 149
-NAME = f'应急照明-{PACKAGE_NO:03d}'
+VERSION = '0.1.51'
+PACKAGE_NO = 150
+NAME = f'应急照明-v{VERSION}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 OUTPUT_ROOT = ROOT / 'output'
 DEST = OUTPUT_ROOT / NAME
@@ -244,7 +244,8 @@ def build():
     (DEST / '使用说明.md').write_text(readme, encoding='utf-8')
     for filename in ('cad-plan.dxf', 'cad-plan.expected.json'):
         shutil.copy2(ROOT / 'tests/fixtures' / filename, DEST / 'tests/fixtures' / filename)
-    archive = DEST.with_suffix('.zip')
+    # Date: 2026-10-15. Keep every dotted component of the software version.
+    archive = DEST.parent / (DEST.name + '.zip')
     with zipfile.ZipFile(archive, 'w', zipfile.ZIP_DEFLATED) as z:
         for path in sorted(DEST.rglob('*')):
             z.write(path, path.relative_to(DEST.parent))

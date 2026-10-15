@@ -1,0 +1,206 @@
+{
+  "date": "2026-10-15",
+  "version": "0.1.51",
+  "status": "automated_passed",
+  "passed": true,
+  "test_count": 47,
+  "tests": [
+    {
+      "test": "test_capture_parameter_editing.CaptureParameterEditingTests.test_eldevlib_opens_editor_for_running_failed_and_completed_markers",
+      "passed": true
+    },
+    {
+      "test": "test_capture_parameter_editing.CaptureParameterEditingTests.test_elstat_always_opens_panel_without_starting_or_resuming_a_legend",
+      "passed": true
+    },
+    {
+      "test": "test_capture_parameter_editing.CaptureParameterEditingTests.test_late_worker_completion_preserves_already_autosaved_power",
+      "passed": true
+    },
+    {
+      "test": "test_capture_parameter_editing.CaptureParameterEditingTests.test_only_graph_changing_actions_are_disabled_during_capture",
+      "passed": true
+    },
+    {
+      "test": "test_capture_parameter_editing.CaptureParameterEditingTests.test_repair_callback_also_keeps_newer_saved_parameters",
+      "passed": true
+    },
+    {
+      "test": "test_capture_parameter_editing.CaptureParameterEditingTests.test_two_power_edits_and_close_save_while_capture_is_pending",
+      "passed": true
+    },
+    {
+      "test": "test_library_autosave.LibraryAutosaveTests.test_blank_power_is_saved_as_a_draft_without_implying_zero",
+      "passed": true
+    },
+    {
+      "test": "test_library_autosave.LibraryAutosaveTests.test_close_retries_an_earlier_invalid_device_and_keeps_valid_edits",
+      "passed": true
+    },
+    {
+      "test": "test_library_autosave.LibraryAutosaveTests.test_commit_exception_is_failure_and_does_not_close_editor",
+      "passed": true
+    },
+    {
+      "test": "test_library_autosave.LibraryAutosaveTests.test_conflict_and_lock_never_overwrite_disk_or_discard_input",
+      "passed": true
+    },
+    {
+      "test": "test_library_autosave.LibraryAutosaveTests.test_invalid_power_keeps_file_and_raw_input_then_can_be_corrected",
+      "passed": true
+    },
+    {
+      "test": "test_library_autosave.LibraryAutosaveTests.test_names_aliases_ground_zero_and_activation_all_save",
+      "passed": true
+    },
+    {
+      "test": "test_library_autosave.LibraryAutosaveTests.test_power_callback_writes_catalog_and_reopens_without_saving_button",
+      "passed": true
+    },
+    {
+      "test": "test_library_autosave.LibraryAutosaveTests.test_switching_saves_previous_device_and_selects_original_target",
+      "passed": true
+    },
+    {
+      "test": "test_library_autosave.LibraryAutosaveTests.test_unchanged_focus_switch_and_close_do_not_rewrite_catalog",
+      "passed": true
+    },
+    {
+      "test": "test_library_autosave.LibraryAutosaveTests.test_write_failure_retains_draft_for_automatic_retry",
+      "passed": true
+    },
+    {
+      "test": "test_device_ui.DeviceUITests.test_asset_message_requires_successful_drawing_and_preserves_incomplete_fields",
+      "passed": true
+    },
+    {
+      "test": "test_device_ui.DeviceUITests.test_cancel_locked_manager_retains_lock_and_existing_drafts",
+      "passed": true
+    },
+    {
+      "test": "test_device_ui.DeviceUITests.test_dcl_keys_callbacks_and_cancel_preserve_store",
+      "passed": true
+    },
+    {
+      "test": "test_device_ui.DeviceUITests.test_explicit_false_ground_zero_and_alias_input_survive_conversion",
+      "passed": true
+    },
+    {
+      "test": "test_device_ui.DeviceUITests.test_full_crud_publishes_and_refresh_keeps_other_unsaved_drafts",
+      "passed": true
+    },
+    {
+      "test": "test_device_ui.DeviceUITests.test_incomplete_device_remains_draft_and_disabled",
+      "passed": true
+    },
+    {
+      "test": "test_device_ui.DeviceUITests.test_invalid_directory_never_changes_active_library_or_drafts",
+      "passed": true
+    },
+    {
+      "test": "test_device_ui.DeviceUITests.test_invalid_watts_text_is_retained_without_replacing_catalog",
+      "passed": true
+    },
+    {
+      "test": "test_device_ui.DeviceUITests.test_locked_manager_opens_recovery_then_manager_after_explicit_confirmation",
+      "passed": true
+    },
+    {
+      "test": "test_device_ui.DeviceUITests.test_missing_asset_cannot_publish_ready_or_restore_active",
+      "passed": true
+    },
+    {
+      "test": "test_device_ui.DeviceUITests.test_multiple_new_drafts_keep_separate_ids_and_search_results",
+      "passed": true
+    },
+    {
+      "test": "test_device_ui.DeviceUITests.test_panel_capture_returns_to_unified_panel",
+      "passed": true
+    },
+    {
+      "test": "test_device_ui.DeviceUITests.test_rename_keeps_old_name_by_default_and_can_be_disabled",
+      "passed": true
+    },
+    {
+      "test": "test_device_ui.DeviceUITests.test_store_preserves_empty_and_invalid_raw_fields_when_switching",
+      "passed": true
+    },
+    {
+      "test": "test_device_pick.DevicePickTests.test_asset_copy_failure_keeps_catalog_and_captured_graphic",
+      "passed": true
+    },
+    {
+      "test": "test_device_pick.DevicePickTests.test_concurrent_catalog_edit_blocks_publication_and_keeps_capture_for_retry",
+      "passed": true
+    },
+    {
+      "test": "test_device_pick.DevicePickTests.test_deleted_source_in_queue_does_not_prevent_other_type_from_publishing",
+      "passed": true
+    },
+    {
+      "test": "test_device_pick.DevicePickTests.test_existing_graphic_is_reused_and_saved_watts_are_preserved",
+      "passed": true
+    },
+    {
+      "test": "test_device_pick.DevicePickTests.test_invalid_slide_is_not_published_and_next_type_still_succeeds",
+      "passed": true
+    },
+    {
+      "test": "test_device_pick.DevicePickTests.test_multi_pick_filters_wrong_layer_xref_paper_output_and_deduplicates",
+      "passed": true
+    },
+    {
+      "test": "test_device_pick.DevicePickTests.test_picker_is_enabled_without_selected_entry_and_escape_returns_to_same_drafts",
+      "passed": true
+    },
+    {
+      "test": "test_device_pick.DevicePickTests.test_picking_retains_same_name_and_unrelated_invalid_raw_drafts",
+      "passed": true
+    },
+    {
+      "test": "test_device_pick.DevicePickTests.test_two_types_directly_publish_graphics_without_new_or_save_buttons",
+      "passed": true
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_atomic_config_write_restores_previous_file_on_failure",
+      "passed": true
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_dcl_keys_and_callback_syntax",
+      "passed": true
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_forms_arities_and_local_assignments",
+      "passed": true
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_geometry_and_topology_do_not_mutate_drawing",
+      "passed": true
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_rollback_only_deletes_created_objects_even_if_one_delete_fails",
+      "passed": true
+    },
+    {
+      "test": "test_simplified_flow.SimplifiedFlowTests.test_home_panel_opens_without_recognition",
+      "passed": true
+    },
+    {
+      "test": "test_library_location.LibraryLocationDialogTests.test_panel_open_automatically_saves_power_and_keeps_capacity",
+      "passed": true
+    },
+    {
+      "test": "test_library_location.LibraryLocationDialogTests.test_standalone_open_automatically_saves_power_and_returns_to_same_editor",
+      "passed": true
+    }
+  ],
+  "source_sha256": {
+    "src/main.lsp": "1e30f4246ad94f61a7f0ee2f686a69d59a0f62e3fd5aec9d2dfe8bf5ee93d1ce",
+    "src/device-ui.lsp": "45dcb97a28306b042480f3ad93df0228c4e56526ed2907442eca60393ddae989",
+    "tools/build_cad2020.py": "035157d72acddffd4cfe364593208302a1288ec2779a046cd2b832db07be85ef",
+    "tests/test_capture_parameter_editing.py": "35b632d0e2c6eba71e351a1540ff75bc943d09d4f37f2f71395e80739a914b1c"
+  },
+  "scope": "Command routing and parameter autosave during pending legends; graph task retention; late pick and repair callbacks preserve saved powers; existing autosave, graphic picking and source contracts",
+  "native_cad_status": "pending_user_validation",
+  "boundary": "Finite AutoLISP/CAD adapters and real catalog file I/O; not native AutoCAD, background callback or original-DWG acceptance"
+}

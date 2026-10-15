@@ -78,9 +78,11 @@
     (T "未登记图形，请从 CAD 拾取设备图块")))
   (foreach key '("dl_block" "dl_display" "dl_watts" "dl_aliases" "dl_zero" "dl_ground" "dl_active" "dl_keep_old")
     (mode_tile key (if (and entry (not (equal (EL:Get 'status entry) 'deleted))) 0 1)))
-  (mode_tile "dl_pick" 0)
+  ;; A pending worker only locks graph-changing actions; existing parameters remain editable.
+  (foreach key '("dl_pick" "dl_new" "dl_import" "dl_directory")
+    (mode_tile key (if *EL:DLCaptureJob* 1 0)))
   (mode_tile "dl_delete" (if (and entry (not (equal (EL:Get 'status entry) 'deleted))) 0 1))
-  (mode_tile "dl_repair" (if (and entry (not (equal (EL:Get 'status entry) 'deleted))
+  (mode_tile "dl_repair" (if (and (not *EL:DLCaptureJob*) entry (not (equal (EL:Get 'status entry) 'deleted))
     (> (EL:Get 'asset-revision entry) 0)) 0 1))
   (mode_tile "dl_restore" (if (and entry (equal (EL:Get 'status entry) 'deleted)) 0 1)))
 (defun EL:DLUIFill (/ entry index selected snapshot)
@@ -205,8 +207,21 @@
       (EL:DLUIStatus (cond (*EL:DLError*) (T "未操作，资料保留。"))))))
 (defun EL:DLUIQuery (value deleted)
   (EL:DLUIStore) (setq *EL:DLUIState* (EL:Put 'deleted deleted (EL:Put 'query value *EL:DLUIState*))) (EL:DLUIFill))
+(defun EL:DLUICaptureEntry (entry / snapshot origin draft saved)
+  ;; Date: 2026-10-15. Both picking and repair callbacks keep newer parameter edits.
+  (setq snapshot (EL:Get 'snapshot *EL:DLUIState*) origin (EL:Get 'snapshot (EL:Get 'captured entry)))
+  (if (and (equal (EL:Get 'root snapshot) (EL:Get 'root origin))
+      (equal (EL:Get 'library-id (EL:Get 'catalog snapshot)) (EL:Get 'library-id (EL:Get 'catalog origin))))
+    (progn
+      (setq draft (EL:Get (EL:Get 'device-id entry) (EL:Get 'drafts *EL:DLUIState*)))
+      (if (and (not draft)
+          (setq saved (EL:By 'device-id (EL:Get 'device-id entry) (EL:Get 'devices (EL:Get 'catalog snapshot))))
+          (or (> (EL:Get 'revision entry) 0)
+            (member (EL:DLNameKey (EL:Get 'block-name entry)) (mapcar 'EL:DLNameKey (EL:DLEntryNames saved)))))
+        (setq draft saved))))
+  (if draft (EL:Put 'captured (EL:Get 'captured entry) draft) entry))
 (defun EL:DLUIResume (entry / continuation)
-  (if entry (EL:DLUISetDraft entry))
+  (if entry (EL:DLUISetDraft (EL:DLUICaptureEntry entry)))
   (setq *EL:DLContinue* nil continuation
     (if (equal *EL:DLUIHost* 'panel) T (EL:DLUIRun)))
   (if (and (not (equal continuation 'suspended)) *EL:DLParentContinue*) (apply *EL:DLParentContinue* nil)))
@@ -311,7 +326,7 @@
   (if suspended 'suspended
     (progn (setq *EL:DLUINotice* (strcat "拾取完成：新入库 " (itoa *EL:DLUIPickSaved*) " 种，已有 "
       (itoa *EL:DLUIPickReused*) " 种，未完成 " (itoa *EL:DLUIPickFailed*) " 种。缺功率的设备请补齐资料。")) T)))
-(defun EL:DLUIPickResume (entry / result continuation draft)
+(defun EL:DLUIPickResume (entry / result continuation)
   (setq *EL:DLContinue* nil)
   (if entry
     (progn
@@ -322,8 +337,7 @@
           ;; Keep the captured graphic and the user's raw fields available for retry.
           (EL:LogEvent "DEVICE_PICK_PUBLISH_FAILED" (list (cons 'name (EL:Get 'block-name entry))
             (cons 'message (if (vl-catch-all-error-p result) (vl-catch-all-error-message result) *EL:DLError*))))
-          (setq draft (EL:Get (EL:Get 'device-id entry) (EL:Get 'drafts *EL:DLUIState*)))
-          (EL:DLUISetDraft (if draft (EL:Put 'captured (EL:Get 'captured entry) draft) entry))
+          (EL:DLUISetDraft (EL:DLUICaptureEntry entry))
           (setq *EL:DLUIPickFailed* (1+ *EL:DLUIPickFailed*)))))
     (setq *EL:DLUIPickFailed* (1+ *EL:DLUIPickFailed*)))
   (if (not (equal (EL:DLUIPickNext) 'suspended))
@@ -344,7 +358,8 @@
         (EL:DLUIAdoptSnapshot snapshot))
       (start_list "dl_ground") (mapcar 'add_list '("待确认" "非地面" "地面")) (end_list)
       (EL:DLUIFill)
-      (EL:DLUIStatus (cond (*EL:DLError*) (*EL:DLUINotice*)
+      (EL:DLUIStatus (cond (*EL:DLError*)
+        (*EL:DLCaptureJob* "图例任务尚未完成；可直接修改已有设备资料并自动保存。") (*EL:DLUINotice*)
         (T "选择设备编辑；离开输入框后自动保存。")))
       (EL:MonitorActionTile "dl_rows" "(EL:DLUISelect $value)")
       (EL:MonitorActionTile "dl_new" "(EL:DLUINew)")
@@ -377,7 +392,8 @@
     (if (= status 2) (if (new_dialog "el_device_library" dialog)
       (progn
         (start_list "dl_ground") (mapcar 'add_list '("待确认" "非地面" "地面")) (end_list)
-        (EL:DLUIFill) (EL:DLUIStatus (cond (*EL:DLError*) (*EL:DLUINotice*)
+        (EL:DLUIFill) (EL:DLUIStatus (cond (*EL:DLError*)
+          (*EL:DLCaptureJob* "图例任务尚未完成；可直接修改已有设备资料并自动保存。") (*EL:DLUINotice*)
           (T "拾取图形直接入库；离开输入框后自动保存设备资料。")))
         (EL:MonitorActionTile "dl_rows" "(EL:DLUISelect $value)") (EL:MonitorActionTile "dl_new" "(EL:DLUINew)")
         (EL:DLUIAutoBind)
@@ -450,9 +466,9 @@
         (EL:DLUIAdoptSnapshot snapshot))
       (EL:DLUIRun)) (progn (if root (alert (cond (*EL:DLError*) (T "无法读取设备库；原文件保留。")))) nil)))
 (defun c:ELDEVLIB (/ result)
-  (if *EL:DLCaptureJob*
-    (if (or (EL:Get 'failed *EL:DLCaptureJob*) (findfile (EL:Get 'marker *EL:DLCaptureJob*))) (EL:DLCaptureResume (EL:Get 'token *EL:DLCaptureJob*))
-      (princ "\n图例正在生成；请等待返回来源图纸，完成后自动恢复设备库。"))
-    (progn (setq *EL:DLParentContinue* nil result (vl-catch-all-apply 'EL:DLUIOpen nil))
-      (if (vl-catch-all-error-p result) (princ (strcat "\n设备库窗口未完成，输入保留：" (vl-catch-all-error-message result)))))) (princ))
+  ;; Date: 2026-10-15. Opening saved parameters never waits for legend generation.
+  (setq *EL:DLParentContinue* nil *EL:DLUIPickRequested* nil
+    result (vl-catch-all-apply 'EL:DLUIOpen nil))
+  (if (vl-catch-all-error-p result) (princ (strcat "\n设备库窗口未完成，输入保留：" (vl-catch-all-error-message result))))
+  (princ))
 (princ)

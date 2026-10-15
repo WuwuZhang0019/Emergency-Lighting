@@ -509,7 +509,10 @@
               (if (equal (type object) 'STR) (EL:LocateID object)
                 (foreach i object (if (equal (type i) 'STR) (EL:LocateID i)))))))))) (princ))
 ;; Date: 2026-10-12. Resume an owned preview job before opening another statistics window.
-(defun c:ELSTAT () (if *EL:DLCaptureJob* (c:ELDEVLIB) (EL:FixedStat)) (princ))
+(defun c:ELSTAT ()
+  ;; Date: 2026-10-15. A pending legend must not lock the parameter editor.
+  (if *EL:DLCaptureJob* (setq *EL:DLParentContinue* nil))
+  (EL:FixedStat) (princ))
 (defun c:ELSAVERESULT (/ path cfg)
   (if (and *EL:Result* (setq cfg (EL:LoadConfig))
        (EL:SourceCurrent *EL:Result* cfg (EL:CollectEndpointSnapshot cfg)))

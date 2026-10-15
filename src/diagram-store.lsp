@@ -681,6 +681,12 @@
           valid (and (<= 48 digit) (<= digit 57)) index (1+ index)))
       (if valid (progn (setq serial (atoi suffix))
         (if (and (> serial 0) (equal suffix (itoa serial))) serial 0)) 0)) 0))
+(defun EL:InputRecord (record)
+  ;; Date: 2026-10-15. Current-input reopening uses rows, config and overrides.
+  ;; Full source geometry belongs to the live result/freshness check only;
+  ;; no history replay or old-diagram update consumes a persisted snapshot.
+  (EL:Put 'input-record-version 2
+    (vl-remove-if '(lambda (row) (member (car row) '(source-signature draft-source-signature))) record)))
 (defun EL:StorePutDiagram (record store / rows row source seen kept latest serials serial)
   ;; Date: 2026-10-14. Keep one editable record per source panel. Earlier
   ;; generated entities stay in the DWG with their tags, but their history

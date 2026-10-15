@@ -51,6 +51,9 @@
       (cons 'blocks (length (EL:Get 'blocks snapshot)))) 'EL:SimpleNetwork (list snapshot cfg panel)))
   (setq result (EL:SelectFixedExits (EL:SplitNativeNumberBranches
     (EL:LogCall "SPLIT_NETWORK" (list (cons 'panel panel)) 'EL:SplitNetwork (list network cfg)) network cfg) nil))
+  (if *EL:CollectMemo*
+    (setq *EL:CollectMemo* (EL:Put 'input snapshot (EL:Put 'signature
+      (EL:Get 'signature (EL:Get 'snapshot result)) *EL:CollectMemo*))))
   (EL:PerfSet "wire-count" (length (EL:Get 'wires snapshot)))
   (EL:PerfSet "block-count" (length (EL:Get 'blocks snapshot)))
   (EL:PerfEnd perf 'returned) result)
@@ -68,20 +71,22 @@
   (setq cfg (EL:CurrentJunctionConfig cfg))
   (if *EL:FreshSourceCandidate* (EL:FixedFreshForResult cfg *EL:FreshSourceCandidate*)
     (EL:FixedFreshSnapshotFull cfg panel)))
-(defun EL:FixedFreshForResult (cfg result / snapshot network proof epoch panel owner answer
+(defun EL:FixedFreshForResult (cfg result / snapshot network proof epoch panel owner answer native-current
     *EL:DeviceContactCache* *EL:DeviceTemplateCache* *EL:DeviceTemplateEnabled*)
   (setq owner (namedobjdict) panel (EL:Get 'panel result) epoch *EL:FreshEpoch* *EL:DeviceTemplateEnabled* T
     proof (EL:Get 'network-proof (EL:Get 'snapshot result)))
   (EL:Require (and (handent panel) (not (EL:ManagedEntity (handent panel)))) "来源配电箱缺失或为受管输出。")
   (EL:PerfCount "freshness-scan-calls" 1)
-  (setq snapshot (EL:LogCall "SIMPLE_COLLECT" nil 'EL:SimpleCollect (list cfg))
-    snapshot (cond ((EL:Get 'circuit-starts cfg) (EL:StartSnapshot snapshot cfg panel))
-      ((EL:Get 'concentrated-trunk cfg) (EL:TrunkSnapshot snapshot cfg panel)) (T snapshot)))
+  (setq native-current (EL:PerfCall "SOURCE_NATIVE_VERIFY" 'EL:CollectSourceCurrent (list cfg result)))
+  (if native-current (setq snapshot native-current)
+    (setq snapshot (EL:LogCall "SIMPLE_COLLECT" nil 'EL:SimpleCollect (list cfg))
+      snapshot (cond ((EL:Get 'circuit-starts cfg) (EL:StartSnapshot snapshot cfg panel))
+        ((EL:Get 'concentrated-trunk cfg) (EL:TrunkSnapshot snapshot cfg panel)) (T snapshot))))
   (setq answer (if (and (not *EL:NetworkReuseDisabled*) (equal (EL:Get 'version proof) 4) (equal panel (EL:Get 'panel proof))
       (equal (EL:StableData (vl-remove-if '(lambda (row) (equal (car row) 'template)) cfg)) (EL:Get 'config proof))
       (not (EL:Get 'issues snapshot))
-      (equal (EL:StableData snapshot)
-        (EL:NetworkProofInput (cadr (EL:Get 'signature (EL:Get 'snapshot result))) proof))
+      (or native-current (equal (EL:StableData snapshot)
+        (EL:NetworkProofInput (cadr (EL:Get 'signature (EL:Get 'snapshot result))) proof)))
       (EL:PerfCall "NETWORK_VERIFY_GEOMETRY" 'EL:NetworkGeometryCurrent (list (EL:Get 'contacts proof) snapshot))
       (equal epoch *EL:FreshEpoch*))
     (progn (EL:PerfCount "network-proof-reuses" 1) (EL:Get 'snapshot result))
@@ -265,12 +270,11 @@
           (setq record (EL:Put 'draft-circuits nil (EL:Put 'draft-capacity nil
             (EL:Put 'capacity-option capacity (EL:Put 'template template
               (EL:Put 'config cfg (EL:Put 'engine (EL:Get 'engine result)
-                (EL:Put 'source-signature (EL:PersistSourceSignature result cfg)
+                (EL:Put 'source-signature nil
                   (EL:Put 'power-signature (EL:Signature (EL:Get 'power-config result))
                     (EL:Put 'powers powers (EL:Put 'status 'current
                       (EL:Put 'updated-at (getvar "CDATE") record))))))))))))
-          (setq record (EL:Put 'panel-circuits (EL:Get 'circuits result)
-            (EL:Put 'draft-source-signature nil record)))
+          (setq record (EL:Put 'panel-circuits (EL:Get 'circuits result) record))
           (if (assoc 'block-ground result)
             (setq record (EL:Put 'block-ground (EL:Get 'block-ground result) record)))
           (setq record (EL:Put 'candidate-keys (EL:Get 'candidate-keys result)
@@ -280,7 +284,8 @@
             record (EL:RecordNumberInputs record result nil)
             record (EL:DLPersist result record)
             store (EL:Put 'fixed-template template store))
-          (setq context (EL:TransactionVerifiedStore
+          (setq record (EL:InputRecord record)
+            context (EL:TransactionVerifiedStore
             (if *EL:CCKK2Request* 'EL:CCKK2CreateDiagram 'EL:CreateDiagram)
             (list result template capacity plan record store))
             outcome (EL:Get 'outcome context))

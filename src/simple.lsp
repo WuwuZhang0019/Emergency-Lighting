@@ -192,7 +192,46 @@
     (progn
       (setq name (EL:EffectiveName entity))
       (if definition (setq *EL:CollectBlockNames* (cons (cons definition name) *EL:CollectBlockNames*))) name)))
-(defun EL:SimpleCollect (cfg / ss i e d bounds items tree wires ends blocks candidates wire candidate id issues block queue current shape perf name
+(setq *EL:CollectMemo* nil)
+(defun EL:CollectRules (cfg)
+  (vl-remove-if '(lambda (row) (equal (car row) 'template)) cfg))
+(defun EL:CollectLayerFacts (cfg)
+  (mapcar '(lambda (layer) (list layer (tblsearch "LAYER" layer))) (EL:Get 'wire-layers cfg)))
+(defun EL:CollectSourceCurrent (cfg result / memo ss i e d facts fact good name saved *EL:CollectBlockNames*)
+  ;; Date: 2026-10-15. Re-read the entire native selection, bounds, names and
+  ;; panel contour. Equality skips derived wire/candidate calculations only.
+  ;; Device contact definitions are still checked by NetworkGeometryCurrent.
+  (setq memo *EL:CollectMemo*)
+  (if (and memo (not *EL:NetworkReuseDisabled*)
+      (equal (EL:Get 'owner memo) (namedobjdict))
+      (equal (EL:Get 'signature memo) (EL:Get 'signature (EL:Get 'snapshot result)))
+      (EL:Get 'signature memo)
+      (equal (EL:Get 'drawing memo) (EL:DrawingID))
+      (equal (EL:Get 'config memo) (EL:CollectRules cfg))
+      (equal (EL:Get 'layers memo) (EL:CollectLayerFacts cfg)))
+    (progn
+      (setq ss (EL:PresetSelection cfg "INSERT,LINE,LWPOLYLINE" '(wire-layers panel-layers device-layers))
+        facts (EL:Get 'facts memo) i 0 good T)
+      (while (and good ss (< i (sslength ss)))
+        (setq e (ssname ss i) d (entget e '("EL_FIXED_V1")) i (1+ i))
+        (EL:PerfCount "source-native-entity-checks" 1)
+        (if (not (cdr (assoc "EL_FIXED_V1" (cdr (assoc -3 d)))))
+          (progn
+            (setq fact (car facts) facts (cdr facts)
+              good (and fact (equal d (car fact))))
+            (if (and good (cadr fact))
+              (progn
+                (EL:PerfCount "source-native-bounds-checks" 1)
+                (setq good (equal (cadr fact) (EL:EntityBounds e)))))
+            (if (and good (equal (cdr (assoc 0 d)) "INSERT")
+                (setq saved (assoc (cdr (assoc 2 d)) (EL:Get 'names memo))))
+              (setq good (equal (cdr saved) (EL:CollectBlockName e (cdr (assoc 2 d)))))))))
+      (setq good (and good (not facts)))
+      (if (and good (EL:Get 'auto-panel cfg))
+        (setq good (equal (EL:Get 'panel-shape memo)
+          (EL:PanelContactShape (handent (EL:Get 'auto-panel cfg)) cfg))))
+      (if good (progn (EL:PerfCount "source-derived-reuses" 1) (EL:Get 'input memo))))))
+(defun EL:SimpleCollect (cfg / ss i e d bounds items tree wires ends blocks candidates wire candidate id issues block queue current shape perf name facts snapshot
     *EL:CollectBlockNames*)
   ;; Date: 2026-10-10. Filter wires by inferred style; only the selected panel
   ;; uses its contour. Device geometry is checked lazily during network tracing.
@@ -202,7 +241,7 @@
   (setq perf (EL:PerfBegin "COLLECT_ENTITY_READ"))
   (if ss
     (repeat (sslength ss)
-      (setq e (ssname ss i) d (entget e '("EL_FIXED_V1")) i (1+ i) id (cdr (assoc 5 d)) name nil
+       (setq e (ssname ss i) d (entget e '("EL_FIXED_V1")) i (1+ i) id (cdr (assoc 5 d)) name nil bounds nil
             *EL:SimpleEntity* (list id (cdr (assoc 0 d)) (cdr (assoc 8 d))))
       (cond
         ;; The same selective native read includes the managed-output marker.
@@ -221,7 +260,9 @@
           (EL:PerfCount "source-wire-record-reads" 1)
           (setq wire (EL:WireRecordDXF e (if (assoc -3 d)
               (vl-remove-if '(lambda (row) (= (car row) -3)) d) d) cfg) wires (cons wire wires)
-                ends (append (EL:Get 'ends wire) ends) issues (append (EL:Get 'issues wire) issues))))))
+                 ends (append (EL:Get 'ends wire) ends) issues (append (EL:Get 'issues wire) issues))))
+      (if (not (cdr (assoc "EL_FIXED_V1" (cdr (assoc -3 d)))))
+        (setq facts (cons (list d bounds) facts)))))
   (EL:PerfEnd perf 'returned)
   (setq perf (EL:PerfBegin "COLLECT_CANDIDATES") tree (EL:SpatialTree items 0))
   (foreach wire wires
@@ -258,7 +299,11 @@
       (if block
         (setq blocks (subst (append (EL:Put 'whole-block nil block) shape) block blocks)))))
   (EL:LogEvent "SIMPLE_COUNTS" (list (cons 'wires (length wires)) (cons 'blocks (length blocks)) (cons 'issues issues)))
-  (list (cons 'drawing (EL:DrawingID)) (cons 'wires wires) (cons 'blocks blocks) (cons 'ends ends) (cons 'issues issues)))
+  (setq snapshot (list (cons 'drawing (EL:DrawingID)) (cons 'wires wires) (cons 'blocks blocks) (cons 'ends ends) (cons 'issues issues)))
+  (setq *EL:CollectMemo* (if (not issues) (list (cons 'owner (namedobjdict))
+    (cons 'drawing (EL:DrawingID)) (cons 'config (EL:CollectRules cfg))
+    (cons 'layers (EL:CollectLayerFacts cfg)) (cons 'facts (reverse facts))
+    (cons 'names *EL:CollectBlockNames*) (cons 'panel-shape shape)))) snapshot)
 
 (defun EL:SimpleEndState (ep tree cfg / point occupied candidate candidates)
   (setq point (EL:Get 'point ep) occupied (EL:Get 'occupied ep))

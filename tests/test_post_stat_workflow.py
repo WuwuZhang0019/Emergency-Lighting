@@ -129,7 +129,7 @@ class SelectionStoreTests(unittest.TestCase):
         self.h.builtins['EL:TRANSACTION'] = lambda fn, args: self.h.call(fn, args)
         self.h.builtins['EL:TEMPLATEREADY'] = lambda template, cfg: truth(template)
 
-    def test_new_draft_saves_current_snapshot_without_copying_previous_output_snapshot(self):
+    def test_new_draft_saves_inputs_without_unused_source_geometry_and_keeps_legacy_backup(self):
         self.h.load_definitions(db.ROOT / 'src/store-split.lsp')
         db.StoreTests.install_transaction(self)
         del self.h.builtins['EL:TRANSACTION']
@@ -152,7 +152,8 @@ class SelectionStoreTests(unittest.TestCase):
         self.h.run('(setq reopened (EL:DiagramForPanel "source" (EL:StoreRead)))')
         self.assertIsNone(self.h.run("(EL:Get 'source-signature reopened)"))
         self.assertIsNone(self.h.run("(EL:Get 'panel-output-handle reopened)"))
-        self.assertTrue(truth(self.h.run("(equal current-signature (EL:Get 'draft-source-signature reopened))")))
+        self.assertIsNone(self.h.run("(EL:Get 'draft-source-signature reopened)"))
+        self.assertEqual(self.h.run("(EL:Get 'input-record-version reopened)"), 2)
         self.assertTrue(truth(self.h.run("(equal (EL:Get 'template old) (EL:Get 'template reopened))")))
         self.assertEqual(self.h.run("(EL:Get 'panel-number reopened)"), 'AL1')
         self.assertEqual(self.h.run("(EL:Get 'draft-capacity reopened)"), Symbol('CAP600'))

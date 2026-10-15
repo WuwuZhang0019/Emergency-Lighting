@@ -1,0 +1,61 @@
+{
+  "date": "2026-10-15",
+  "status": "passed",
+  "baseline_commit": "41b9c27",
+  "scope": "Real LISP in a finite Python adapter; counts are not original-DWG CAD timing",
+  "fixture": {
+    "circuits": 6,
+    "wires": 773,
+    "blocks": 556,
+    "connected_devices": 72,
+    "retained_other_boxes": 5,
+    "storage_snapshot_geometry_rows": 96
+  },
+  "exact_recognition_result_equal": true,
+  "exact_current_inputs_equal": true,
+  "source_check": {
+    "before": {
+      "lisp_calls": 435330,
+      "ENTGET": 1586,
+      "EL:SIMPLECOLLECT": 1,
+      "EL:ENTITYBOUNDS": 556,
+      "EL:WIRERECORDDXF": 773,
+      "EL:SPATIALTREE": 1,
+      "host_seconds": 14.521,
+      "host_evaluation_steps": 10910417,
+      "source_derived_reuses": 0
+    },
+    "after": {
+      "lisp_calls": 66387,
+      "ENTGET": 1586,
+      "EL:ENTITYBOUNDS": 556,
+      "host_seconds": 1.142,
+      "host_evaluation_steps": 898213,
+      "source_derived_reuses": 1
+    }
+  },
+  "first_input_write": {
+    "before": {
+      "lisp_calls": 27343,
+      "ENTGET": 174,
+      "EL:STOREENCODE": 6,
+      "serialized_fields": 2273,
+      "EL:STOREDECODE": 6,
+      "host_seconds": 1.146,
+      "host_evaluation_steps": 779980,
+      "large_snapshot_persisted": true,
+      "other_five_box_records_exact": true
+    },
+    "after": {
+      "lisp_calls": 11840,
+      "ENTGET": 93,
+      "EL:STOREENCODE": 5,
+      "serialized_fields": 878,
+      "EL:STOREDECODE": 5,
+      "host_seconds": 0.485,
+      "host_evaluation_steps": 332864,
+      "large_snapshot_persisted": false,
+      "other_five_box_records_exact": true
+    }
+  }
+}

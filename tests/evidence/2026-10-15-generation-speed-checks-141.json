@@ -1,0 +1,30 @@
+{
+  "date": "2026-10-15",
+  "status": "passed",
+  "scope": "Finite CAD adapters; original-DWG timing and placement remain pending",
+  "cases": 25,
+  "suites": [
+    "test_generation_speed",
+    "test_post_stat_workflow.SelectionStoreTests",
+    "test_simplified_flow.SimplifiedFlowTests.test_consecutive_generation_keeps_old_entities_and_prunes_history",
+    "test_generation_boundaries.FreshCallbackBoundaryTests",
+    "test_generation_boundaries.NativePlacementBoundaryTests.test_actual_template_definition_change_during_placement_rolls_back",
+    "test_cckk_panel_command.PanelCommandTests.test_panel_calls_real_command_places_native_box_and_85w_circuits",
+    "test_cckk_panel_command.PanelCommandTests.test_two_circuit_cancel_then_retry_releases_live_guard",
+    "test_store_context.StoreContextTests.test_native_readback_difference_does_not_publish_context",
+    "test_store_context.StoreContextTests.test_commit_callback_change_discards_candidate_and_reads_current_dwg",
+    "test_store_split.SplitStoreTests.test_changed_native_reference_invalidates_context"
+  ],
+  "failures": [],
+  "sha256": {
+    "src/common.lsp": "fdd0cbbf6b9cec7f6bbc21384ca9c56ea666ea04146b6938e64c12cbb8a4d3eb",
+    "src/simple.lsp": "a32691c1f9ff68259d1539af09a83741f1be49baea30abe77ec9252d7f9590fd",
+    "src/diagram-store.lsp": "16401be93f4471c3abba9c13c669a3c915047fbaba25e3f32e138c6961ca2e3f",
+    "src/diagram-update.lsp": "5bc90e2502dfbf652b309301aeab366a20dd9dadd052bfecbeb9963383aaf74c",
+    "src/diagram-commands.lsp": "996a869bb7fd7775013ff83dec35b467df9d237b50535364f0f360cfe479ea6e",
+    "tests/test_generation_speed.py": "b7a1e1326fc4ea7df92ae7606068efbf87dcca1b8dbb2dd35de69cddf7799f85",
+    "tests/test_post_stat_workflow.py": "45ca21345630aa510ef09f21537a58e9e3b14648af85ab74589ad1cfc4054a2c",
+    "tests/check_generation_speed_work.py": "52c70e6c9c28afb23ea59401b76dd0e955611e5d666a433921793780becdd7be",
+    "tests/run_generation_speed_checks.py": "fda37a534502c68b00d3ac76000b70834263f6ddc0d577c377df3c590e9ec064"
+  }
+}

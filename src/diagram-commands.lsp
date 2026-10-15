@@ -1,4 +1,4 @@
-;; Date: 2026-10-14. Common publication/synchronization entry points.
+;; Date: 2026-10-15. Common publication/synchronization entry points.
 (defun EL:PowerInputPath (panel / drawing)
   (if (and panel *EL:Root* (setq drawing (EL:DrawingID)))
     (strcat *EL:Root* "config/power-input-" (EL:Hash (strcat drawing "/" panel)) ".eld")))
@@ -24,7 +24,7 @@
       (foreach row powers
         (if (numberp (cdr row)) (setq merged (EL:Put (car row) (cdr row) merged))))
       (EL:WriteData (strcat *EL:Root* "config/block-powers.eld") (list '(version . 1) (cons 'powers merged))))))
-(defun EL:SaveDraft (result cfg powers capacity / store record context signature)
+(defun EL:SaveDraft (result cfg powers capacity / store record context)
   (setq *EL:LastSavedDraftId* nil)
   (if (assoc 'effective-powers result) (setq powers (EL:Get 'effective-powers result)))
   (setq capacity (EL:CapacityDefault capacity))
@@ -34,18 +34,13 @@
   ;; Date: 2026-10-14. Saving inputs must not revise an earlier output's
   ;; record. A new draft becomes the latest entry for the source box.
   (if (EL:Get 'panel-output-handle record)
-    ;; A new draft has no formal output/snapshot of its own. Its current
-    ;; snapshot is saved below; do not copy the previous output's large blob.
+    ;; A new input record has no formal output of its own. Retain the
+    ;; template, without inheriting the previous output's geometry snapshot.
     (setq record (EL:Put 'template (EL:Get 'template record)
       (EL:NewRecord (EL:Get 'panel result) store))))
   (setq
     record (EL:Put 'draft-circuits (EL:Get 'circuits result) (EL:Put 'draft-capacity capacity
       (EL:Put 'powers powers (EL:Put 'config cfg (EL:Put 'engine (EL:Get 'engine result) record))))))
-  ;; Date: 2026-10-13. Reopen the saved draft from its own source snapshot.
-  ;; Keep the formal signature intact until a new diagram is generated.
-  (setq signature (EL:PersistSourceSignature result cfg)
-    record (EL:Put 'draft-source-signature
-      (if (and signature (equal signature (EL:Get 'source-signature record))) 'formal-source signature) record))
   (setq record (EL:Put 'panel-number (EL:PanelNumber result) record))
   (setq record (EL:RecordNumberInputs record result T))
   (setq record (EL:DLPersist result record))
@@ -68,7 +63,8 @@
   (EL:Require (or (and (not (EL:Get 'can-generate result))
       (EL:Get 'load-error (EL:Get 'device-library result))) (EL:DLSubmissionCurrent result))
     "设备库已变化，当前输入保留；请刷新库并重新核对后保存。")
-  (setq context (EL:TransactionVerifiedStore 'EL:StoreWrite (list (EL:StorePutDiagram record store))))
+  (setq record (EL:InputRecord record)
+    context (EL:TransactionVerifiedStore 'EL:StoreWrite (list (EL:StorePutDiagram record store))))
   (if (and (equal T (EL:Get 'outcome context))
       (equal record (EL:DiagramForPanel (EL:Get 'panel result) (EL:TransactionVerifiedRead context))))
     (progn (setq *EL:LastSavedDraftId* (EL:Get 'diagram-id record)) T)))

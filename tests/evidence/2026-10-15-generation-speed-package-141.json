@@ -1,0 +1,35 @@
+{
+  "date": "2026-10-15",
+  "status": "passed",
+  "package": 141,
+  "files": 333,
+  "gb2312_lisp_dcl": 32,
+  "parsed_lisp": 30,
+  "loading_entry_functions": [
+    "EL:PERFSTART",
+    "EL:PERFFINISH",
+    "EL:PERFCALL",
+    "EL:MONITORTITLE",
+    "EL:COLLECTRULES",
+    "EL:COLLECTLAYERFACTS",
+    "EL:COLLECTSOURCECURRENT",
+    "EL:SIMPLECOLLECT",
+    "EL:INPUTRECORD",
+    "EL:RECOGNIZEFIXED",
+    "EL:FIXEDFRESHFORRESULT",
+    "EL:SYNCDIAGRAMSCOPED",
+    "EL:SAVEDRAFT"
+  ],
+  "embedded_resources": 132,
+  "archive_sha256": "a10496759a5c4facc7893e38a6526ae98a87fe4df2fa17c8b085873ca59de8e4",
+  "checks": [
+    "ZIP CRC",
+    "all archive and extracted bytes match",
+    "strict GB2312 without BOM",
+    "all LISP parsing",
+    "changed definitions match all three loading entries",
+    "embedded runtime resources match generated delivery modules"
+  ],
+  "focused_regression_cases": 25,
+  "native_cad_status": "Original DWG first-write and generation timing pending; 2-second target unverified"
+}

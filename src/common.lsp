@@ -137,7 +137,7 @@
     (progn
       (setq tick (vl-catch-all-apply 'getvar (list "MILLISECS")))
       (setq *EL:PerfActive* T *EL:PerfCommand* commandname *EL:PerfStarted* (if (numberp tick) tick 0)
-        *EL:PerfMetrics* nil *EL:PerfStages* nil *EL:PerfPending* nil *EL:PerfMarks* nil *EL:StoreReadCache* nil *EL:NetworkMemo* nil *EL:StatisticsMemo* nil *EL:SplitCache* nil *EL:DLCache* nil *EL:DLSessionSnapshot* nil
+        *EL:PerfMetrics* nil *EL:PerfStages* nil *EL:PerfPending* nil *EL:PerfMarks* nil *EL:StoreReadCache* nil *EL:NetworkMemo* nil *EL:CollectMemo* nil *EL:StatisticsMemo* nil *EL:SplitCache* nil *EL:DLCache* nil *EL:DLSessionSnapshot* nil
         *EL:PerfWaitMS* 0 *EL:PerfWaitDepth* 0 *EL:PerfSerial* 0 *EL:PerfOutcome* nil
         *EL:StoreReadScope* (1+ (cond (*EL:StoreReadScope*) (T 0))))
       (setq stamp (vl-catch-all-apply 'getvar (list "CDATE")))
@@ -151,6 +151,7 @@
           "transaction-failures" "log-open-attempts" "log-write-attempts" "log-close-attempts" "panel-submits"
           "store-read-cache-hits" "store-read-cache-misses"
           "source-collect-calls" "source-selection-entities" "source-block-bounds-reads"
+          "source-native-entity-checks" "source-native-bounds-checks" "source-derived-reuses"
           "source-wire-record-reads" "device-contour-reads" "device-template-reuses"
           "network-build-calls" "network-verified-reuses" "network-geometry-checks"
           "number-scopes" "number-source-handles" "number-problems"
@@ -217,7 +218,7 @@
         "PANEL_HISTORY_READ" "PANEL_HISTORY_RESTORE" "PANEL_FILL" "PREPARE_PANEL" "NEW_RECORD" "READ_STORE"
         "RECOGNIZE_FIXED" "RECOGNIZE_TRUNK" "SAVE_GENERATION_DRAFT" "STORE_REPLACE_PAYLOAD"
         "UNDO_BEGIN" "UNDO_END" "TX_MARKER_CREATE" "RECOVERY_UNDO_END"
-        "SIMPLE_COLLECT" "SIMPLE_NETWORK" "NETWORK_VERIFY_GEOMETRY" "NETWORK_BUILD" "SPLIT_NETWORK" "CIRCUIT_NUMBER_SCOPE"
+        "SIMPLE_COLLECT" "SIMPLE_NETWORK" "SOURCE_NATIVE_VERIFY" "NETWORK_VERIFY_GEOMETRY" "NETWORK_BUILD" "SPLIT_NETWORK" "CIRCUIT_NUMBER_SCOPE"
         "COMPARE_SOURCE_NUMBER" "PRE_GENERATE_FRESH" "FRESH_SOURCE_SCAN"
         "CCKK2" "CCKK2_CREATE" "SAVE_CREATED_DIAGRAM" "COMPONENT_INDEX" "STORE_CURRENT_BOX"
         "TX_WRITE" "STORE_READ" "STORE_DECODE" "STORE_CACHE_CHECK" "STORE_SERIALIZE"
@@ -301,7 +302,7 @@
         *EL:PerfMetrics* nil *EL:PerfStages* nil *EL:PerfMarks* nil *EL:PerfLogOwner* nil *EL:StoreReadCache* nil)
       (vl-catch-all-apply 'EL:PerfReport (list summary))
       (EL:MonitorReport summary)))
-  (setq *EL:StoreReadCache* nil *EL:NetworkMemo* nil *EL:StatisticsMemo* nil *EL:SplitCache* nil *EL:DLCache* nil *EL:DLSessionSnapshot* nil) nil)
+  (setq *EL:StoreReadCache* nil *EL:NetworkMemo* nil *EL:CollectMemo* nil *EL:StatisticsMemo* nil *EL:SplitCache* nil *EL:DLCache* nil *EL:DLSessionSnapshot* nil) nil)
 (defun c:ELPERF (/ option)
   (if *EL:PerfActive* (princ "\n请结束当前统计或生成后再调整性能采样。")
     (progn
@@ -502,9 +503,10 @@
       ("NETWORK_REACHABLE_TRACE" . "沿起始导线搜索真实连接")
       ("NETWORK_CONTACT_NODES" . "合并同一接点的重复连接")
       ("NETWORK_SIGNATURE" . "整理去重后的几何证据") ("NETWORK_VERIFY_GEOMETRY" . "核对网络几何")
+      ("SOURCE_NATIVE_VERIFY" . "核对源图原生对象与范围")
       ("SPLIT_NETWORK" . "拆分回路") ("CIRCUIT_NUMBER_SCOPE" . "识别回路编号范围")
       ("COMPARE_SOURCE_NUMBER" . "核对回路编号") ("PRE_GENERATE_FRESH" . "生成前核对源图")
-      ("FRESH_SOURCE_SCAN" . "重采样源图") ("CCKK2" . "生成新配电箱系统图")
+      ("FRESH_SOURCE_SCAN" . "核对当前源图") ("CCKK2" . "生成新配电箱系统图")
       ("CCKK2_CREATE" . "创建配电箱系统图") ("SAVE_CREATED_DIAGRAM" . "保存生成的系统图记录")
       ("TX_WRITE" . "写入系统图及保存记录") ("STORE_SERIALIZE" . "序列化保存记录")
       ("STORE_PARSE" . "解析并核对序列化数据") ("STORE_REPLACE_PAYLOAD" . "写入图纸记录载荷")

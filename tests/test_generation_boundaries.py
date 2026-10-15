@@ -132,8 +132,8 @@ class NativePlacementBoundaryTests(unittest.TestCase):
 
     def test_actual_template_definition_change_during_placement_rolls_back(self):
         definitions = {
-            'dfgjhdrtyjtfgj4SADFG3': ['panel-definition', 1],
-            'fghjftyuk': ['circuit-definition', 1],
+            'ZYF_Tool_应急照明配电箱图块': ['panel-definition', 1],
+            'ZYF_Tool_应急照明配电回路图块': ['circuit-definition', 1],
         }
         self.h.builtins.pop('EL:TEMPLATERUNTIMEVALID')
         self.h.builtins.update({
@@ -155,7 +155,7 @@ class NativePlacementBoundaryTests(unittest.TestCase):
         def command(*args):
             original_command(*args)
             if args[-1] == 'pause':
-                definitions['fghjftyuk'][1] = 2
+                definitions['ZYF_Tool_应急照明配电回路图块'][1] = 2
 
         self.h.builtins['COMMAND'] = command
         self.assertFalse(truth(self.f.invoke()))

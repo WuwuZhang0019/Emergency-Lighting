@@ -25,7 +25,7 @@ if __name__ == '__main__':
     dcl = (ROOT / 'output/应急照明-140/ui/power.dcl').read_bytes().decode('gb2312')
     panel = (ROOT / 'output/应急照明-140/src/panel.lsp').read_bytes().decode('gb2312')
     assert '保存当前输入' not in dcl
-    assert 'key = "p_generate"; label = "生成新系统图"; is_default = true;' in dcl
+    assert 'key = "p_generate"; label = "第四步：生成新系统图"; is_default = true;' in dcl
     assert '(EL:MonitorActionTile "accept" "(EL:PanelAccept)")' not in panel
     assert '"f_preview" "accept" "p_generate"' not in panel
     result.update({'date': '2026-10-15', 'focused_regression_cases': regression['cases'],

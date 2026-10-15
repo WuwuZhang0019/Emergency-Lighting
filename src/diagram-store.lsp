@@ -928,7 +928,7 @@
       (EL:Get 'rotation plan) (EL:Get 'scale plan)))))
 (defun EL:CCKKLabels (plan / labels row index label)
   ;; Captions are mandatory for this box, including old plans without the marker.
-  (if (and (equal (EL:Get 'panel-name plan) "dfgjhdrtyjtfgj4SADFG3") (EL:Get 'rows plan))
+  (if (and (equal (EL:Get 'panel-name plan) "ZYF_Tool_应急照明配电箱图块") (EL:Get 'rows plan))
     (progn
       (setq labels (list (EL:CCKKLabelPlan 'panel "panel-label" nil (EL:Get 'position plan) plan)))
       (setq index 0)

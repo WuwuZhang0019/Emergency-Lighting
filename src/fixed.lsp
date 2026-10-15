@@ -1,8 +1,8 @@
 ;; Date: 2026-10-09. Fixed dynamic templates; legacy template schema is retained.
 (defun EL:FixedTemplate (template)
   (and (EL:TemplateValid template)
-    (equal (EL:Get 'name (EL:Get 'panel template)) "dfgjhdrtyjtfgj4SADFG3")
-    (equal (EL:Get 'name (EL:Get 'circuit template)) "fghjftyuk")))
+    (equal (EL:Get 'name (EL:Get 'panel template)) "ZYF_Tool_应急照明配电箱图块")
+    (equal (EL:Get 'name (EL:Get 'circuit template)) "ZYF_Tool_应急照明配电回路图块")))
 (defun EL:FixedText ()
   ;; Date: 2026-10-09. User-supplied TEXT appearance; never sample again.
   (if (tblsearch "STYLE" "_TEL_DIM")
@@ -170,8 +170,8 @@
   (if (and (tblsearch "STYLE" "ICDA-STYLE1") (setq annotation (EL:FixedText)))
     (progn
       (princ "\n自动读取本图系统图块；文字使用 _TEL_DIM、高350、宽度因子0.7。单位固定 mm。")
-      (if annotation (setq panel (EL:FixedCapture "dfgjhdrtyjtfgj4SADFG3" '(cap300 cap600 cap1000) nil)))
-      (if panel (setq circuit (EL:FixedCapture "fghjftyuk" '(normal ground reserve) annotation)))
+      (if annotation (setq panel (EL:FixedCapture "ZYF_Tool_应急照明配电箱图块" '(cap300 cap600 cap1000) nil)))
+      (if panel (setq circuit (EL:FixedCapture "ZYF_Tool_应急照明配电回路图块" '(normal ground reserve) annotation)))
       (setq template (list (cons 'panel panel) (cons 'circuit circuit) '(step 0.0 -1200.0 0.0)
         '(actual-format . "{回路功率W}W") '(reserve-format . "预留") '(layer . "SYS_系统标注_E")))
       (cond

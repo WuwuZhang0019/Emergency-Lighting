@@ -11,8 +11,8 @@ class FixedTests(unittest.TestCase):
     def fixture(self):
         self.h.load_definitions(__import__('pathlib').Path(__file__).resolve().parents[1]/'src/fixed.lsp')
         self.generation_fixture()
-        self.h.run('''(setq template (EL:Put 'panel (EL:Put 'name "dfgjhdrtyjtfgj4SADFG3" (EL:Get 'panel template))
-          (EL:Put 'circuit (EL:Put 'name "fghjftyuk" (EL:Get 'circuit template)) template)))''')
+        self.h.run('''(setq template (EL:Put 'panel (EL:Put 'name "ZYF_Tool_应急照明配电箱图块" (EL:Get 'panel template))
+          (EL:Put 'circuit (EL:Put 'name "ZYF_Tool_应急照明配电回路图块" (EL:Get 'circuit template)) template)))''')
 
     def test_fixed_coordinates_reserves_and_rotation(self):
         self.fixture()

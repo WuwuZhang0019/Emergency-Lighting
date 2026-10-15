@@ -460,6 +460,24 @@
           (if (equal (EL:DLUIPickNext) 'suspended) (setq status 12)))
         (setq *EL:DLUINotice* "本次未拾取设备；现有资料和输入保留。"))))
   (if (= status 12) 12 (progn (EL:PanelLibraryReconcile) 3)))
+;; Date: 2026-10-15. Open the bundled drawing without changing the current DWG.
+(defun EL:SystemBlockLibraryPath (/ root)
+  (if (setq root (EL:NormalizeRoot *EL:Root*))
+    (strcat root "templates/系统图块库.dwg")))
+(defun EL:PanelOpenBlockLibrary (/ path folder present outcome)
+  (setq path (EL:SystemBlockLibraryPath))
+  (if (and path (setq folder (vl-filename-directory path)) (vl-file-directory-p folder))
+    (progn
+      (setq present (findfile path)
+        outcome (vl-catch-all-apply 'startapp
+          (list "explorer.exe" (strcat (if present "/select,\"" "\"")
+            (vl-string-translate "/" "\\" (if present path folder)) "\""))))
+      (cond
+        ((or (not outcome) (vl-catch-all-error-p outcome))
+          "无法打开图块文件夹，请手动查看 templates/系统图块库.dwg。")
+        (present "已打开系统图块库所在文件夹。")
+        (T "已打开图块文件夹；尚缺系统图块库.dwg。")))
+    "图块文件夹不存在，请重新解压完整交付包。"))
 (defun EL:PanelDialog (result cfg powers capacity / dialog status captured
     *EL:PanelAction* *EL:PanelDraft* *EL:PanelPowers* *EL:PanelCapacity* *EL:PanelConfig*
     *EL:PanelTemplateReady* *EL:PanelLibrarySnapshot* home diagnostic-notice diagnostic-path diagnostic-action)
@@ -496,6 +514,7 @@
         (EL:MonitorActionTile "p_generate" "(EL:PanelGenerate)")
         (EL:MonitorActionTile "p_diagnostic" "(EL:DLUIStore) (done_dialog 17)")
         (EL:MonitorActionTile "p_diagnostic_open" "(EL:DLUIStore) (done_dialog 18)")
+        (EL:MonitorActionTile "p_block_library_open" "(EL:DLUIStore) (done_dialog 19)")
         (EL:MonitorActionTile "cancel" "(EL:DLUIStore) (done_dialog 0)")
         (setq *EL:PanelAction* nil status (EL:PerfInput 'start_dialog nil))
         (EL:LogEvent "PANEL_DIALOG_RETURN" (list (cons 'status status) (cons 'action *EL:PanelAction*)))
@@ -517,6 +536,8 @@
         (if (= status 18)
           ;; Date: 2026-10-15. Folder feedback must not replace the export result.
           (setq diagnostic-action (EL:DiagnosticOpenFolder diagnostic-path) status 3))
+        (if (= status 19)
+          (setq *EL:DLUINotice* (EL:PanelOpenBlockLibrary) status 3))
         (if (member status '(13 14 15 16))
           (setq status (EL:PanelLibraryExternal status))))
       (setq status 0)))

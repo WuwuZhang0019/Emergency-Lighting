@@ -188,14 +188,14 @@
   (setq good (EL:TemplateValid template) layer (EL:Get 'layer template))
   (if good
     (progn
-      (if (and (not (equal (EL:Get 'name (EL:Get 'panel template)) "dfgjhdrtyjtfgj4SADFG3"))
+      (if (and (not (equal (EL:Get 'name (EL:Get 'panel template)) "ZYF_Tool_应急照明配电箱图块"))
           (member layer (append (EL:Get 'wire-layers cfg) (EL:Get 'panel-layers cfg)
             (EL:Get 'device-layers cfg) (EL:Get 'leader-layers cfg)))) (setq good nil))
       (foreach definition (list (EL:Get 'panel template) (EL:Get 'circuit template))
         (if (or (not (tblsearch "BLOCK" (EL:Get 'name definition)))
             (not (equal (EL:Get 'definition definition) (EL:Signature (EL:DefinitionData (EL:Get 'name definition) nil)))))
           (setq good nil))
-        (if (member (EL:Get 'name definition) '("dfgjhdrtyjtfgj4SADFG3" "fghjftyuk"))
+        (if (member (EL:Get 'name definition) '("ZYF_Tool_应急照明配电箱图块" "ZYF_Tool_应急照明配电回路图块"))
           (if (not (EL:WithFixedBlock (EL:Get 'name definition) 'EL:FixedDefinitionValid (list definition))) (setq good nil))
           (if (and (EL:Get 'source-handle definition) (setq b (handent (EL:Get 'source-handle definition)))
               (equal (cdr (assoc 0 (entget b))) "INSERT") (equal (EL:EffectiveName b) (EL:Get 'name definition)))

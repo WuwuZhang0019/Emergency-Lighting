@@ -41,7 +41,7 @@ class PanelCommandTests(unittest.TestCase):
             'GETPOINT':lambda *args:self.fail('CCKK2 must use native drag placement'),
             'VLA-REGEN':lambda *args:None,'EL:CONFIRMDIAGRAM':lambda:self.fail('placement must not ask Yes/No'),
             'EL:EFFECTIVENAME':lambda e:next((p.cdr for p in self.entities[e] if isinstance(p,Pair) and p.car==2),
-                                            'dfgjhdrtyjtfgj4SADFG3' if e=='panel' else 'fghjftyuk'),
+                                            'ZYF_Tool_应急照明配电箱图块' if e=='panel' else 'ZYF_Tool_应急照明配电回路图块'),
             'EL:ALLOWEDVALUES':lambda e:['CAP300','CAP600','CAP1000'] if e in ('panel','native-1')
                                       else ['NORMAL','GROUND','RESERVE'],
         })
@@ -319,7 +319,7 @@ class PanelCommandTests(unittest.TestCase):
                          ['NORMAL','NORMAL','RESERVE','RESERVE'])
         self.assertEqual([field(self.entities[self.get('handle',label)],1)
                           for label in self.get('cckk-labels',record)],
-                         ['CK-B1AL1','ZE1','商铺疏散指示及应急照明','ZE2','商铺疏散指示及应急照明','ZE3','ZE4'])
+                         ['CK-B1AL1','ZE1','疏散指示及应急照明','ZE2','疏散指示及应急照明','ZE3','ZE4'])
         for flag in ('OPEN','DIRTY','RUNNING'):
             self.assertFalse(truth(self.h.lookup('*EL:TRANSACTION'+flag+'*')))
         self.assertNotIn('EL_FIXED_TX',self.dictionary)
@@ -480,7 +480,7 @@ class PanelCommandTests(unittest.TestCase):
                 self.assertEqual(field(data,code),value)
         labels=[l for l in labels if self.get('kind',l)!=Symbol('NUMBER')]
         for label,text,point,style,layer,color in zip(labels,
-                ['CK-B1AL1','商铺疏散指示及应急照明'],[[2550.,-255.,0.],[17510.,-5235.,0.]],
+                ['CK-B1AL1','疏散指示及应急照明'],[[2550.,-255.,0.],[17510.,-5235.,0.]],
                 ['ICDA-STYLE1','_TEL_DIM'],['SYS_系统标注_E','TEL_TEXT'],[0,256]):
             data=self.entities[self.get('handle',label)]
             for code,expected in [(0,'TEXT'),(1,text),(11,point),(7,style),(8,layer),(62,color),
@@ -503,14 +503,14 @@ class PanelCommandTests(unittest.TestCase):
         record=self.h.run('(EL:DiagramForPanel "source" (EL:StoreRead))')
         self.assertEqual([field(self.entities[self.get('handle',label)],1)
                           for label in self.get('cckk-labels',record)],
-                         ['CK-B1AL1','ZE1','商铺疏散指示及应急照明','ZE2','ZE3'])
+                         ['CK-B1AL1','ZE1','疏散指示及应急照明','ZE2','ZE3'])
         count=len(self.entities)
         self.assertTrue(truth(self.invoke()))
         self.assertGreater(len(self.entities),count)
 
     def test_caption_creation_failure_rolls_back_instead_of_silent_omission(self):
         original=self.h.builtins['ENTMAKE']
-        self.h.builtins['ENTMAKE']=lambda data:None if field(data,1)=='商铺疏散指示及应急照明' else original(data)
+        self.h.builtins['ENTMAKE']=lambda data:None if field(data,1)=='疏散指示及应急照明' else original(data)
         before=set(self.entities)
         self.assertFalse(truth(self.invoke()))
         self.assertFalse(any(e.startswith('native-') for e in self.entities))

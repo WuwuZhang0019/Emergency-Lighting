@@ -56,10 +56,10 @@
       (foreach item saved (setvar (car item) (cdr item)))))
   (princ))
 (defun c:CCKK ()
-  (EL:CCKKInsert "fghjftyuk" "_TEL_DIM" "TEL_TEXT" 256
-    '(("商铺疏散指示及应急照明" 10983.0 65.0) ("132W" 10983.0 -450.0)) "CCKK"))
+  (EL:CCKKInsert "ZYF_Tool_应急照明配电回路图块" "_TEL_DIM" "TEL_TEXT" 256
+    '(("疏散指示及应急照明" 10983.0 65.0) ("132W" 10983.0 -450.0)) "CCKK"))
 (defun c:CCKK1 ()
-  (EL:CCKKInsert "dfgjhdrtyjtfgj4SADFG3" "ICDA-STYLE1" "SYS_系统标注_E" 0
+  (EL:CCKKInsert "ZYF_Tool_应急照明配电箱图块" "ICDA-STYLE1" "SYS_系统标注_E" 0
     '(("CK-B1AL1" 2450.0 -455.0)) "CCKK1"))
 ;; Date: 2026-10-09. Standalone assembly; no statistics or DWG draft store.
 (defun EL:CCKK2Rows (count / index total rows)
@@ -110,7 +110,7 @@
   (if (not normal) (setq normal '(0.0 0.0 1.0)))
   (foreach row rows
     (setq point (EL:CCKKPoint panel (car row) (cadr row))
-      circuit (EL:CCKK2Insert "fghjftyuk" (trans point normal 1))
+      circuit (EL:CCKK2Insert "ZYF_Tool_应急照明配电回路图块" (trans point normal 1))
       origin (cdr (assoc 10 (entget circuit))))
     (EL:CCKKVisibility circuit (caddr row))
     (setq index (1+ index))
@@ -126,7 +126,7 @@
 (defun EL:CCKKCaptionDef (kind)
   (cond ((equal kind 'panel) '("CK-B1AL1" 2450.0 -455.0 "SYS_系统标注_E" "ICDA-STYLE1" 0))
     ((equal kind 'number) '("ZE1" 2100.0 140.0 "TEL_TEXT" "_TEL_DIM" 256))
-    (T '("商铺疏散指示及应急照明" 10983.0 65.0 "TEL_TEXT" "_TEL_DIM" 256))))
+    (T '("疏散指示及应急照明" 10983.0 65.0 "TEL_TEXT" "_TEL_DIM" 256))))
 (defun EL:CCKKCaptionText (block kind)
   (apply 'EL:CCKKText (cons block (EL:CCKKCaptionDef kind))))
 (defun EL:CCKK2Cleanup (/ entity result good)
@@ -145,7 +145,7 @@
     (if cleanup (princ "\nCCKK2 已取消或中止，本次新增图形已清理。")
       (princ "\n本次部分新增图形未能清理，请核对图纸。")) (princ))
   (vl-load-com)
-  (foreach item '("fghjftyuk" "dfgjhdrtyjtfgj4SADFG3")
+  (foreach item '("ZYF_Tool_应急照明配电回路图块" "ZYF_Tool_应急照明配电箱图块")
     (EL:CCKK2Require (tblsearch "BLOCK" item) (strcat "当前图纸缺少图块：" item)))
   (foreach item '("_TEL_DIM" "ICDA-STYLE1")
     (EL:CCKK2Require (tblsearch "STYLE" item) (strcat "当前图纸缺少文字样式：" item)))
@@ -161,7 +161,7 @@
   (setvar "CMDECHO" 0) (setvar "ATTREQ" 0) (setvar "DRAGMODE" 2)
   (setvar "CLAYER" "SYS_系统标注_E")
   (princ "\n移动鼠标放置配电箱，左键点击后生成整组回路和文字，Esc 取消。")
-  (setq panel (EL:CCKK2Insert "dfgjhdrtyjtfgj4SADFG3" nil))
+  (setq panel (EL:CCKK2Insert "ZYF_Tool_应急照明配电箱图块" nil))
   (EL:CCKK2Build panel rows)
   (foreach item saved (setvar (car item) (cdr item)))
   (princ (strcat "\n已插入配电箱、" (itoa count) " 条实际回路和 "

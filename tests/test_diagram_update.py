@@ -14,8 +14,8 @@ class UpdateTests(unittest.TestCase):
         for name in ('geometry','statistics','generation','fixed','panel','diagram-update','diagram-commands','insert-circuit'):
             self.h.load_definitions(db.ROOT/'src'/f'{name}.lsp')
         self.generation_fixture()
-        self.h.run('''(setq template (EL:Put 'panel (EL:Put 'name "dfgjhdrtyjtfgj4SADFG3" (EL:Get 'panel template))
-          (EL:Put 'circuit (EL:Put 'name "fghjftyuk" (EL:Get 'circuit template)) template)))
+        self.h.run('''(setq template (EL:Put 'panel (EL:Put 'name "ZYF_Tool_应急照明配电箱图块" (EL:Get 'panel template))
+          (EL:Put 'circuit (EL:Put 'name "ZYF_Tool_应急照明配电回路图块" (EL:Get 'circuit template)) template)))
           (setq store (EL:StoreInitial) result (EL:Put 'panel "source" result))
           (setq cs (EL:Get 'circuits result))
           (setq cs (list (EL:Put 'seed-key 's1 (EL:Put 'output-order 1 (EL:Put 'circuit-uid "u1" (car cs))))
@@ -120,7 +120,7 @@ class UpdateTests(unittest.TestCase):
         self.install_transaction()
         self.h.frames[0][':VLAX-FALSE']=0
         self.h.builtins.update({'TBLSEARCH':lambda *args:[Pair(70,0),Pair(62,7)],
-          'EL:EFFECTIVENAME':lambda e:'dfgjhdrtyjtfgj4SADFG3' if e=='panel' else 'fghjftyuk',
+          'EL:EFFECTIVENAME':lambda e:'ZYF_Tool_应急照明配电箱图块' if e=='panel' else 'ZYF_Tool_应急照明配电回路图块',
           'VLA-GET-READONLY':lambda e:0,
           'EL:ALLOWEDVALUES':lambda e:['CAP300','CAP600','CAP1000'] if e=='panel' else ['NORMAL','GROUND','RESERVE'],
           'EL:TEMPLATERUNTIMEVALID':lambda *args:True,'EL:FRESHRESULT':lambda *args:True,

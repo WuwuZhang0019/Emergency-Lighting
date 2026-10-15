@@ -550,6 +550,7 @@
   (setq title (cdr (assoc key
     '(("p_pick" . "拾取配电箱") ("p_trunk" . "拾取回路起始端导线")
       ("accept" . "保存或确定")
+      ("p_block_library_open" . "打开系统图块文件夹")
       ("cancel" . "取消或退出") ("p_generate" . "生成新系统图") ("p_diagnostic" . "导出诊断日志")
       ("f_preview" . "查看全部回路")
       ("p_capacity" . "修改配电箱容量")

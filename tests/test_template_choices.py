@@ -21,7 +21,7 @@ class TemplateChoiceTests(unittest.TestCase):
         self.cfg = self.h.lookup('CFG')
         self.messages, self.prompts, self.saved, self.updated = [], [], [], []
         self.answers = iter([])
-        self.names = {'panel': 'dfgjhdrtyjtfgj4SADFG3', 'circuit': 'fghjftyuk'}
+        self.names = {'panel': 'ZYF_Tool_应急照明配电箱图块', 'circuit': 'ZYF_Tool_应急照明配电回路图块'}
         self.properties = {
             'panel': [self.prop('可见性1', ['0.3kW', '0.6kW', '1kW'])],
             'circuit': [self.prop('可见性1', ['普通', '地面', '预留'])],
@@ -216,7 +216,7 @@ class TemplateChoiceTests(unittest.TestCase):
         self.h.builtins['TBLSEARCH'] = lambda kind, name: None if kind == 'BLOCK' else table(kind, name)
         self.assertIsNone(self.call('EL:CaptureFixedTemplate', self.cfg))
         self.assertIn('请将该图块拷入', ''.join(self.messages))
-        self.assertIn('dfgjhdrtyjtfgj4SADFG3', ''.join(self.messages))
+        self.assertIn('ZYF_Tool_应急照明配电箱图块', ''.join(self.messages))
         self.assertEqual(self.saved, [])
 
     def test_definition_only_probes_are_deleted_and_do_not_save_dead_handles(self):

@@ -5,7 +5,7 @@ import shutil
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGE_NO = 146
+PACKAGE_NO = 147
 NAME = f'应急照明-{PACKAGE_NO:03d}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 OUTPUT_ROOT = ROOT / 'output'
@@ -44,7 +44,8 @@ def embedded_resources():
     text = embedded_writer('EL:StartupEmbeddedText',
         sorted((DEST / 'src').glob('*.lsp')) + sorted((DEST / 'ui').glob('*')))
     assets = embedded_writer('EL:StartupEmbeddedAssets',
-        sorted((DEST / 'assets/default-device-library').rglob('*')))
+        sorted((DEST / 'assets/default-device-library').rglob('*'))
+        + sorted((DEST / 'templates').glob('*.dwg')))
     return (text + assets + '(defun EL:StartupEmbeddedRoot (/ base root folder marker ok)\n'
             '  (if (setq base (EL:NormalizeRoot (getenv "LOCALAPPDATA")))\n'
             '    (progn\n'
@@ -85,6 +86,12 @@ def build():
     assert len(list((defaults / 'assets').rglob('block.dwg'))) == 49
     assert len(list((defaults / 'assets').rglob('legend.sld'))) == 49
     shutil.copytree(defaults, DEST / 'assets/default-device-library', dirs_exist_ok=True)
+    # Date: 2026-10-15. Preserve the author's dynamic blocks as original DWG bytes.
+    block_library = ROOT / 'templates/系统图块库.dwg'
+    assert block_library.is_file(), '缺少 templates/系统图块库.dwg，不能生成完整交付包'
+    with block_library.open('rb') as stream:
+        assert stream.read(6) in (b'AC1015', b'AC1018', b'AC1021', b'AC1024', b'AC1027', b'AC1032'), '图块库不是 AutoCAD 2020 支持的 DWG 版本'
+    shutil.copy2(block_library, DEST / 'templates' / block_library.name)
     shutil.copy2(ROOT / 'src/diagnostic-bundle.ps1', DEST / 'src/diagnostic-bundle.ps1')
     for folder, pattern in (('src', '*.lsp'), ('ui', '*.dcl')):
         for source in (ROOT / folder).glob(pattern):
@@ -222,6 +229,8 @@ def build():
     for source in sorted((ROOT / 'tests/evidence').glob(f'????-??-??-placement-finish-checks-{PACKAGE_NO:03d}.json')):
         shutil.copy2(source, DEST / 'tests/evidence' / source.name)
     for source in sorted((ROOT / 'tests/evidence').glob(f'????-??-??-diagnostic-bundle-checks-{PACKAGE_NO:03d}.json')):
+        shutil.copy2(source, DEST / 'tests/evidence' / source.name)
+    for source in sorted((ROOT / 'tests/evidence').glob(f'????-??-??-system-block-library-checks-{PACKAGE_NO:03d}.json')):
         shutil.copy2(source, DEST / 'tests/evidence' / source.name)
     for source in sorted((ROOT / 'tests/evidence').glob('????-??-??-diagnostic-export-hang-analysis.json')):
         shutil.copy2(source, DEST / 'tests/evidence' / source.name)

@@ -78,7 +78,7 @@ class AssemblyTests(unittest.TestCase):
                 self.input = iter([n])
                 self.h.run('(c:CCKK2)')
                 reserve = 2 if n <= 6 else 1 if n == 7 else 0
-                circuits = [(e,d) for e,d in self.entities.items() if field(d,2)=='fghjftyuk']
+                circuits = [(e,d) for e,d in self.entities.items() if field(d,2)=='ZYF_Tool_应急照明配电回路图块']
                 self.assertEqual(len(circuits), n+reserve)
                 for i,(e,d) in enumerate(circuits):
                     self.assertEqual(field(d,10), [6527., -5300.-1200.*i, 0.])
@@ -127,7 +127,7 @@ class AssemblyTests(unittest.TestCase):
     def test_mid_assembly_failure_cleanup_preserves_old_entities(self):
         self.vars['CLAYER']='SYS_系统标注_E'
         self.h.frames[0]['*EL:CCKK2CREATED*']=None
-        panel=self.call('EL:CCKK2Insert','dfgjhdrtyjtfgj4SADFG3',None)
+        panel=self.call('EL:CCKK2Insert','ZYF_Tool_应急照明配电箱图块',None)
         self.allowed=['普通']
         with self.assertRaises(RuntimeError):
             self.call('EL:CCKK2Build',panel,self.call('EL:CCKK2Rows',2))

@@ -170,3 +170,6 @@ config/power-input-*.eld
 /output/ELDIAG-*.zip.status
 /output/ELDIAG-*.zip.status.tmp
 /output/ELDIAG-*.zip.cancel
+
+/output/应急照明-147/
+/output/应急照明-147.zip

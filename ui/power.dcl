@@ -68,7 +68,7 @@ el_devices : dialog {
   }
 }
 
-// Date: 2026-10-14. Review and edit the device library in one dialog.
+// Date: 2026-10-15. Review inputs and export diagnostics only on request.
 el_panel : dialog {
   label = "应急照明：回路核对与设备库";
   : row {
@@ -107,6 +107,9 @@ el_panel : dialog {
     : text { key = "p_error"; width = 46; fixed_width = true; }
     : text { key = "p_error1"; width = 46; fixed_width = true; }
     : text { key = "p_error2"; width = 46; fixed_width = true; }
+    : button { key = "p_diagnostic"; label = "导出诊断日志"; }
+    : text { key = "p_diagnostic_status"; width = 46; fixed_width = true; }
+    : text { key = "p_diagnostic_status1"; width = 46; fixed_width = true; }
     : row {
       // Date: 2026-10-15. Generation includes saving; no standalone draft action.
       : button { key = "p_generate"; label = "生成新系统图"; is_default = true; }

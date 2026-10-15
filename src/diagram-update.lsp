@@ -195,7 +195,7 @@
   (EL:SyncDiagramScoped result cfg powers capacity generate interactive *EL:FreshScope*))
 (defun EL:CCKK2DeferredSource (result cfg record generate interactive)
   ;; Date: 2026-10-14. An accepted panel submission may defer the second scan
-  ;; to CreateDiagram's mandatory post-placement contact/source check.
+  ;; to CreateDiagram's check immediately after the native placement click.
   (and generate interactive *EL:CCKK2Request* *EL:GenerationPreflight*
     (equal (EL:Get 'engine result) 'fixed)
     (not (EL:Get 'identity-ambiguous result))
@@ -284,22 +284,29 @@
             record (EL:RecordNumberInputs record result nil)
             record (EL:DLPersist result record)
             store (EL:Put 'fixed-template template store))
-          (setq record (EL:InputRecord record)
-            context (EL:TransactionVerifiedStore
-            (if *EL:CCKK2Request* 'EL:CCKK2CreateDiagram 'EL:CreateDiagram)
-            (list result template capacity plan record store))
-            outcome (EL:Get 'outcome context))
+          (setq record (EL:InputRecord record))
+          (if *EL:PlacementOnly*
+            (setq outcome (EL:Transaction 'EL:CCKK2CreateDiagram
+              (list result template capacity plan record store)))
+            (setq context (EL:TransactionVerifiedStore
+              (if *EL:CCKK2Request* 'EL:CCKK2CreateDiagram 'EL:CreateDiagram)
+              (list result template capacity plan record store))
+              outcome (EL:Get 'outcome context)))
           (if (and outcome (listp outcome)
               (EL:Get 'panel-output-handle outcome)
-              (equal outcome (EL:DiagramForPanel (EL:Get 'panel result)
-                (EL:TransactionVerifiedRead context))))
+              (or *EL:PlacementOnly*
+                (equal outcome (EL:DiagramForPanel (EL:Get 'panel result)
+                  (EL:TransactionVerifiedRead context)))))
             (progn
               (setq *EL:LastGeneratedId* (EL:Get 'diagram-id outcome))
+              (EL:RememberDiagramDiagnostic outcome store)
               (princ (strcat "\n已生成新系统图："
                 (itoa (length (EL:Get 'circuits result))) " 条实际回路，"
                 (itoa (- (length (EL:Get 'rows plan))
                   (length (EL:Get 'circuits result)))) " 条预留，无预留功率文字。"))
-              (if interactive (EL:ShowDiagram outcome store)) T)
+              ;; Date: 2026-10-15. Keep the user's placement view. Regenerating
+              ;; and zooming the whole drawing adds work after all output exists.
+              T)
             (progn
               (EL:LogEvent "GENERATION_NOT_COMMITTED"
                 (list (cons 'panel (EL:Get 'panel result))))

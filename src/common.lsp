@@ -137,6 +137,7 @@
     (progn
       (setq tick (vl-catch-all-apply 'getvar (list "MILLISECS")))
       (setq *EL:PerfActive* T *EL:PerfCommand* commandname *EL:PerfStarted* (if (numberp tick) tick 0)
+        *EL:DiagnosticsDeferred* nil *EL:DeferredLogEvents* nil
         *EL:PerfMetrics* nil *EL:PerfStages* nil *EL:PerfPending* nil *EL:PerfMarks* nil *EL:StoreReadCache* nil *EL:NetworkMemo* nil *EL:CollectMemo* nil *EL:StatisticsMemo* nil *EL:SplitCache* nil *EL:DLCache* nil *EL:DLSessionSnapshot* nil
         *EL:PerfWaitMS* 0 *EL:PerfWaitDepth* 0 *EL:PerfSerial* 0 *EL:PerfOutcome* nil
         *EL:StoreReadScope* (1+ (cond (*EL:StoreReadScope*) (T 0))))
@@ -296,12 +297,27 @@
           (cons 'total-ms elapsed) (cons 'interaction-ms waited) (cons 'program-ms (max 0 (- elapsed waited)))
           (cons 'after-submit (EL:PerfMarkDuration "panel-submit"))
           (cons 'after-placement (EL:PerfMarkDuration "placement-confirmed"))
+          (cons 'after-graphics (EL:PerfMarkDuration "graphics-complete"))
           (cons 'metrics *EL:PerfMetrics*) (cons 'stages *EL:PerfStages*)))
       ;; Snapshot before reporting: summary I/O is outside all business measurements.
       (setq *EL:PerfLastSummary* summary *EL:PerfActive* nil *EL:PerfPending* nil
         *EL:PerfMetrics* nil *EL:PerfStages* nil *EL:PerfMarks* nil *EL:PerfLogOwner* nil *EL:StoreReadCache* nil)
-      (vl-catch-all-apply 'EL:PerfReport (list summary))
-      (EL:MonitorReport summary)))
+      (if *EL:DiagnosticsDeferred*
+        ;; Date: 2026-10-15. Do not format or write diagnostics on the exit
+        ;; path. Keep one completed run per open drawing for the export button.
+        (if (or *EL:MonitorError* (EL:Get 'after-submit summary)
+            (> (cond ((EL:Get "recognize-fixed-calls" (EL:Get 'metrics summary))) (T 0)) 0)
+            (not (EL:Get (namedobjdict) *EL:DiagnosticRuns*)))
+          (setq *EL:DiagnosticRuns* (EL:Put (namedobjdict)
+          (list (cons 'summary summary) (cons 'rows *EL:MonitorRows*)
+            (cons 'origin *EL:PerfStarted*) (cons 'stamp *EL:MonitorStamp*)
+            (cons 'error *EL:MonitorError*) (cons 'events *EL:DeferredLogEvents*)
+            (cons 'load-summary *EL:MonitorLoadSummary*) (cons 'load-rows *EL:MonitorLoadRows*)
+            (cons 'load-origin *EL:MonitorLoadOrigin*) (cons 'load-stamp *EL:MonitorLoadStamp*))
+          *EL:DiagnosticRuns*)))
+        (progn
+          (vl-catch-all-apply 'EL:PerfReport (list summary))
+          (EL:MonitorReport summary)))))
   (setq *EL:StoreReadCache* nil *EL:NetworkMemo* nil *EL:CollectMemo* nil *EL:StatisticsMemo* nil *EL:SplitCache* nil *EL:DLCache* nil *EL:DLSessionSnapshot* nil) nil)
 (defun c:ELPERF (/ option)
   (if *EL:PerfActive* (princ "\n请结束当前统计或生成后再调整性能采样。")
@@ -347,20 +363,24 @@
           (if (and (not (vl-catch-all-error-p result)) result)
             (setq result (vl-catch-all-apply 'EL:LogAppend (list line))))
           (and (not (vl-catch-all-error-p result)) result))))))
+(defun EL:LogVisible (stage)
+  (or *EL:LogVerbose* (not (member stage
+    '("POLYLINE_DXF_ROW" "POLYLINE_SEGMENT" "POLYLINE_INPUT" "POLYLINE_DATA_RESULT"
+      "ENTER POLYLINE_TRANS" "LEAVE POLYLINE_TRANS" "POLYLINE_TRANS_RESULT"
+      "ENTER CURVE_TRANS" "LEAVE CURVE_TRANS" "CURVE_TRANS_RESULT"
+      "ENTER INSERT_TRANS" "LEAVE INSERT_TRANS" "INSERT_TRANS_RESULT" "INSERT_MATRIX_INPUT"
+      "ENTER SOLID_TRANS" "LEAVE SOLID_TRANS" "SOLID_TRANS_RESULT" "POLYLINE_NORMAL"
+      "CONTOUR_ENTITY" "CONTOUR_FILTER_INPUT" "CONTOUR_NEXT"
+      "ENTER CONTOUR_TRANSFORM" "LEAVE CONTOUR_TRANSFORM" "CONTOUR_TRANSFORM_RESULT")))))
 (defun EL:LogEvent (stage context / line result started)
   (if *EL:LogActive*
     (progn
       (setq *EL:LogSequence* (1+ *EL:LogSequence*)
             *EL:LogLast* (list stage context))
       ;; Keep current failure context in memory; avoid per-vertex file I/O by default.
-      (if (and (not *EL:PerfLogsOff*) *EL:LogPath* (or *EL:LogVerbose* (not (member stage
-          '("POLYLINE_DXF_ROW" "POLYLINE_SEGMENT" "POLYLINE_INPUT" "POLYLINE_DATA_RESULT"
-            "ENTER POLYLINE_TRANS" "LEAVE POLYLINE_TRANS" "POLYLINE_TRANS_RESULT"
-            "ENTER CURVE_TRANS" "LEAVE CURVE_TRANS" "CURVE_TRANS_RESULT"
-            "ENTER INSERT_TRANS" "LEAVE INSERT_TRANS" "INSERT_TRANS_RESULT" "INSERT_MATRIX_INPUT"
-            "ENTER SOLID_TRANS" "LEAVE SOLID_TRANS" "SOLID_TRANS_RESULT" "POLYLINE_NORMAL"
-            "CONTOUR_ENTITY" "CONTOUR_FILTER_INPUT" "CONTOUR_NEXT"
-            "ENTER CONTOUR_TRANSFORM" "LEAVE CONTOUR_TRANSFORM" "CONTOUR_TRANSFORM_RESULT")))))
+      (if (and (not *EL:PerfLogsOff*) *EL:DiagnosticsDeferred* (EL:LogVisible stage))
+        (setq *EL:DeferredLogEvents* (cons (list *EL:LogSequence* stage context) *EL:DeferredLogEvents*)))
+      (if (and (not *EL:PerfLogsOff*) (not *EL:DiagnosticsDeferred*) *EL:LogPath* (EL:LogVisible stage))
         (progn
           (if (and *EL:PerfActive* *EL:PerfDetail*) (setq started (EL:Tick)))
           (setq line (strcat (itoa *EL:LogSequence*) " | " stage " | " (EL:LogText context)))
@@ -378,7 +398,7 @@
   (EL:LogEvent "BEGIN" (list (cons 'command "ELSTAT/ELTRACE/ELPOWER") (cons 'diagnostics "031") (cons 'verbose *EL:LogVerbose*)
     (cons 'date (if (numberp stamp) stamp "unavailable")))))
 (defun EL:LogAttach (/ stamp)
-  (if (and *EL:LogActive* (not *EL:LogPath*) (not *EL:LogIOFailed*)
+  (if (and *EL:LogActive* (not *EL:DiagnosticsDeferred*) (not *EL:LogPath*) (not *EL:LogIOFailed*)
            (equal (type *EL:Root*) 'STR) (/= *EL:Root* ""))
     (progn
       (vl-catch-all-apply 'vl-mkdir (list (strcat *EL:Root* "output")))
@@ -421,6 +441,7 @@
     (progn
       (EL:LogEvent "END" status)
       (cond
+        (*EL:DiagnosticsDeferred* nil)
         (*EL:PerfLogsOff* nil)
         (*EL:LogIOFailed* (princ "\n诊断日志写入失败；请保留命令行的失败阶段和上下文。"))
         (*EL:LogWritten* (princ (strcat "\n诊断日志：" *EL:LogPath*)))
@@ -529,7 +550,7 @@
   (setq title (cdr (assoc key
     '(("p_pick" . "拾取配电箱") ("p_trunk" . "拾取回路起始端导线")
       ("accept" . "保存或确定")
-      ("cancel" . "取消或退出") ("p_generate" . "生成新系统图")
+      ("cancel" . "取消或退出") ("p_generate" . "生成新系统图") ("p_diagnostic" . "导出诊断日志")
       ("f_preview" . "查看全部回路")
       ("p_capacity" . "修改配电箱容量")
       ("dl_rows" . "选择设备库条目") ("dl_query" . "搜索设备库")
@@ -582,13 +603,22 @@
   (EL:MonitorLine (strcat "总耗时 " (EL:MonitorSeconds (EL:Get 'total-ms summary))
     " 秒；程序 " (EL:MonitorSeconds (EL:Get 'program-ms summary)) " 秒；交互 "
     (EL:MonitorSeconds (EL:Get 'interaction-ms summary)) " 秒。") file)
+  (if (EL:Get 'after-graphics summary)
+    (EL:MonitorLine (strcat "全部图块和文字完成后的收尾："
+      (EL:MonitorSeconds (EL:Get 'inclusive-ms (EL:Get 'after-graphics summary))) " 秒。") file))
   (if *EL:MonitorError* (EL:MonitorLine (strcat "错误或取消原因：" (EL:MonitorCell *EL:MonitorError*)) file))
   (EL:MonitorLine "动作 0：命令开始，相对时间 0.000 秒。" file)
   (EL:MonitorTable file *EL:MonitorRows* *EL:PerfStarted*)
   (EL:MonitorLine (strcat "退出：" (EL:MonitorSeconds (EL:Get 'total-ms summary)) " 秒。") file)
   (EL:MonitorLine "" file) (EL:MonitorLine "## 工作量及计数" file)
   (foreach row (EL:Get 'metrics summary)
-    (EL:MonitorLine (strcat "- " (car row) "：" (EL:MonitorCell (cdr row))) file)))
+    (EL:MonitorLine (strcat "- " (car row) "：" (EL:MonitorCell (cdr row))) file))
+  (if *EL:DiagnosticLogEvents*
+    (progn
+      (EL:MonitorLine "" file) (EL:MonitorLine "## 诊断事件" file)
+      (foreach row (reverse *EL:DiagnosticLogEvents*)
+        (EL:MonitorLine (strcat (itoa (car row)) " | " (cadr row) " | "
+          (EL:MonitorCell (EL:LogText (caddr row)))) file)))))
 (defun EL:MonitorLine (text ignored)
   (setq *EL:MonitorLines* (cons (strcat text "\r\n") *EL:MonitorLines*)))
 (defun EL:MonitorJoin (parts / joined)
@@ -645,6 +675,24 @@
   (while (findfile path)
     (setq suffix (1+ suffix) path (strcat base "-" (itoa suffix) ".md")))
   (if (EL:MonitorWrite path summary) (setq *EL:MonitorPath* path)))
+(defun EL:ExportDiagnosticRun (/ run path
+    *EL:MonitorRows* *EL:PerfStarted* *EL:MonitorStamp* *EL:MonitorError* *EL:DiagnosticLogEvents*
+    *EL:MonitorLoadSummary* *EL:MonitorLoadRows* *EL:MonitorLoadOrigin* *EL:MonitorLoadStamp*)
+  ;; Date: 2026-10-15. Restore the completed run locally; exporting while a
+  ;; new panel is open must neither replace nor finish that panel's timer.
+  (if (setq run (EL:Get (namedobjdict) *EL:DiagnosticRuns*))
+    (progn
+      (setq *EL:MonitorRows* (EL:Get 'rows run) *EL:PerfStarted* (EL:Get 'origin run)
+        *EL:MonitorStamp* (EL:Get 'stamp run) *EL:MonitorError* (EL:Get 'error run)
+        *EL:DiagnosticLogEvents* (EL:Get 'events run)
+        *EL:MonitorLoadSummary* (EL:Get 'load-summary run) *EL:MonitorLoadRows* (EL:Get 'load-rows run)
+        *EL:MonitorLoadOrigin* (EL:Get 'load-origin run) *EL:MonitorLoadStamp* (EL:Get 'load-stamp run))
+      (setq path (EL:MeasuredCatch 'EL:MonitorSave (list (EL:Get 'summary run) nil)))
+      (if (or (vl-catch-all-error-p path) (not path))
+        (setq path (EL:MeasuredCatch 'EL:MonitorSave (list (EL:Get 'summary run) T))))
+      (EL:Require (and (not (vl-catch-all-error-p path)) path)
+        "全过程诊断日志导出失败；内存记录已保留，请检查输出目录权限。")
+      (if path (princ (strcat "\n全过程诊断日志已导出：" path))) path)))
 (defun EL:MonitorLoadBegin (started / token)
   ;; Date: 2026-10-13. Finish the old clock before a reload changes its origin.
   ;; A cancelled command must never become the parent of later APPLOAD events.

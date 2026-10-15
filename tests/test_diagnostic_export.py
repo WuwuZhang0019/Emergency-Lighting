@@ -1,4 +1,4 @@
-"""Explicit diagnostic export is read-only. Date: 2026-10-11.
+"""Explicit diagnostic export is read-only. Date: 2026-10-15.
 
 These finite DWG checks are not native AutoCAD acceptance.
 """
@@ -17,8 +17,12 @@ class DiagnosticExportTests(unittest.TestCase):
         self.fixture.setUp()
         self.fixture.install_sync()
         self.h = self.fixture.h
+        getvar = self.h.builtins['GETVAR']
         self.exports, self.events, self.messages, self.reports = [], [], [], []
         self.h.builtins.update({
+            'GETVAR': lambda name: 1 if name == 'TILEMODE' else 2 if name == 'CVPORT' else getvar(name),
+            'GETPOINT': lambda *args: [100., 200., 0.],
+            'TRANS': lambda point, *args: point,
             'EL:ENSUREROOT': lambda: True,
             'EL:PICKENTITY': lambda prompt: ['panel', [0., 0., 0.]],
             'EL:WRITEDATA': lambda path, data: self.exports.append((path, data)) or True,

@@ -1049,17 +1049,28 @@
   (setq object (if *EL:CCKK2Panel* *EL:CCKK2Panel*
     (EL:CreateBlock space (EL:Get 'panel-name plan) (EL:Get 'position plan)
       (EL:Get 'scale plan) (EL:Get 'rotation plan) (EL:Get 'property (EL:Get 'panel template)) (EL:Get 'panel-value plan) layer)))
+  ;; Date: 2026-10-15. The output handle gives every placement an identity
+  ;; without rewriting the saved input record or reusing a previous output id.
+  (if *EL:PlacementOnly*
+    (setq record (EL:Put 'diagram-id (strcat (EL:Get 'diagram-id record)
+      "/output/" (cdr (assoc 5 (entget (vlax-vla-object->ename object))))) record)))
   (setq record (EL:Put 'panel-output-handle (EL:TagEntity object store record "panel" "panel") record))
   (if *EL:CCKK2Panel*
     (progn
       ;; Date: 2026-10-14. Native placement can run callbacks. Check the
-      ;; template and number now; the mandatory full contact/source check
-      ;; runs after regeneration and before the verified DWG write.
+      ;; template and number now; the full contact/source check runs before
+      ;; the verified DWG write without forcing a whole-drawing regeneration.
       (EL:FreshBoundary)
       (EL:Require (EL:TemplateRuntimeValid template (EL:Get 'config record))
         "TEMPLATE_CHANGED：放置期间模板变化，已停止生成。")
       (EL:Require (EL:NumberInputsCurrent result)
-        "SOURCE_NUMBER_CHANGED：放置期间平面编号变化，已停止生成。")))
+        "SOURCE_NUMBER_CHANGED：放置期间平面编号变化，已停止生成。")
+      (if *EL:PlacementOnly*
+        (progn
+          (EL:Require (EL:DLSubmissionCurrent result)
+            "设备库在放置期间变化，请核对后重试。")
+          (EL:Require (EL:FreshResult result (EL:Get 'config record))
+            "SOURCE_CHANGED：放置期间源图变化，已停止生成。")))))
   (foreach row (EL:Get 'rows plan)
     (EL:LogEvent "CCKK_ROW_BEGIN" (list (cons 'uid (EL:Get 'circuit-uid row))
       (cons 'mode (EL:Get 'mode row)) (cons 'watts (EL:Get 'watts row)) (cons 'position (EL:Get 'position row))))
@@ -1078,14 +1089,14 @@
     (EL:LogEvent "CCKK_ROW_CREATED" h))
   (setq record (EL:Put 'rows (EL:RecordRows result plan handles) (EL:Put 'plan plan record)))
   (setq record (EL:CreateCCKKLabels plan record store))
-  (princ "\n回路图形已生成，正在核对并保存记录，请稍候...")
-  (if *EL:NativePreview*
+  (EL:PerfMark "graphics-complete")
+  (if (not *EL:PlacementOnly*)
     (progn
-      (vla-Regen doc 1)
-      ;; Date: 2026-10-10. The placement click accepts the diagram.
-      (EL:Require (EL:FreshResult result (EL:Get 'config record)) "SOURCE_CHANGED：预览后源图变化。")))
-  ;; Date: 2026-10-11. Also cover creation without an interactive preview.
-  (EL:Require (EL:NumberInputsCurrent result) "SOURCE_NUMBER_CHANGED：生成期间平面编号变化，已停止本次生成。")
-  (EL:Require (equal T (EL:LogCall "SAVE_CREATED_DIAGRAM" nil 'EL:StoreWrite
-    (list (EL:StorePutDiagram record store))))
-    "系统图记录保存失败，已停止生成并回滚。") record)
+      ;; Legacy callers retain their persistent output record. The current
+      ;; panel finishes after creation and the enclosing undo group closes.
+      (if *EL:NativePreview*
+        (EL:Require (EL:FreshResult result (EL:Get 'config record)) "SOURCE_CHANGED：预览后源图变化。"))
+      (EL:Require (EL:NumberInputsCurrent result) "SOURCE_NUMBER_CHANGED：生成期间平面编号变化，已停止本次生成。")
+      (EL:Require (equal T (EL:LogCall "SAVE_CREATED_DIAGRAM" nil 'EL:StoreWrite
+        (list (EL:StorePutDiagram record store))))
+        "系统图记录保存失败，已停止生成并回滚。"))) record)

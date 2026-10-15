@@ -89,7 +89,7 @@
       (setq *EL:DLParentContext* context *EL:DLParentContinue* 'EL:DLResumePanel))
     (setq result nil))
   next)
-(defun EL:EditPanelOnce (result cfg / *error* store record powers capacity edited prepared saved ownlog syncable template resolved *EL:GenerationPreflight* *EL:LastSavedDraftId* *EL:LastGeneratedId*)
+(defun EL:EditPanelOnce (result cfg / *error* store record powers capacity edited prepared saved ownlog syncable template resolved *EL:GenerationPreflight* *EL:LastSavedDraftId* *EL:LastGeneratedId* *EL:PlacementOnly*)
   (defun *error* (msg)
     (EL:LogFailure msg)
     (vl-catch-all-apply 'EL:ClearGapPreview nil)
@@ -140,14 +140,15 @@
       (if (and (EL:DLSubmissionCurrent result)
           (or (not (EL:Get 'generate edited)) (EL:NumberInputsCurrent result)))
         (progn
-          ;; Date: 2026-10-14. Keep one draft before placement. The mandatory
-          ;; post-placement check verifies actual source geometry and contact.
+          ;; Date: 2026-10-15. Save inputs once before placement. A successful
+          ;; placement keeps output associations in memory for explicit export.
           (setq *EL:Result* result *EL:FixedConfig* cfg
             saved (EL:SaveDraft result cfg powers capacity))
           (if (and saved (EL:Get 'generate edited))
             (if syncable
               (progn
-                (setq *EL:GenerationPreflight* (list (namedobjdict) result cfg))
+                (setq *EL:GenerationPreflight* (list (namedobjdict) result cfg)
+                  *EL:PlacementOnly* T)
                 (setq saved (EL:InvokeCCKK2 result cfg powers capacity)))
               (progn
                 (princ "\n生成未执行：回路、功率或模板校验未通过；当前输入已保存，请核对后重试。")
@@ -391,7 +392,7 @@
     (redraw) (EL:ClearPickHighlights)
     (if *EL:Result* (vl-catch-all-apply 'EL:MarkStale (list (EL:Get 'panel *EL:Result*) 'update-failed)))
     (if msg (princ (strcat "\n生成新系统图停止：" msg))) (EL:PerfFinish 'failed) (princ))
-  (setq perfowner (EL:PerfStart "ELGEN"))
+  (setq perfowner (EL:PerfStart "ELGEN") *EL:DiagnosticsDeferred* T)
   (if (and *EL:Result* (EL:EnsureRoot))
     (progn
       (setq result *EL:Result* record (EL:RecordForResult result (EL:StoreRead)))
@@ -415,7 +416,7 @@
     (vl-catch-all-apply 'EL:ReleasePowerUI nil)
     (if msg (princ (strcat "\n统计已停止：" msg)))
     (EL:PerfFinish 'failed) (princ))
-  (setq perfowner (EL:PerfStart "ELSTAT"))
+  (setq perfowner (EL:PerfStart "ELSTAT") *EL:DiagnosticsDeferred* T)
   ;; Date: 2026-10-14. Open the unified panel before asking for a CAD pick.
   (if (EL:EnsureRoot)
     (setq next (EL:PerfCall "PANEL_HOME" 'EL:PanelDialog (list nil nil nil nil))))
@@ -431,9 +432,17 @@
 (defun EL:DLResumeHome ()
   (setq *EL:DLParentContext* nil *EL:DLParentContinue* nil *EL:DLSessionSnapshot* nil)
   (EL:FixedStat))
+(defun EL:RememberDiagramDiagnostic (record store)
+  ;; Date: 2026-10-15. One successful output per open DWG, no file or XRecord
+  ;; write. A failed/cancelled placement never replaces the previous output.
+  (setq *EL:DiagramDiagnostics* (EL:Put (namedobjdict)
+    (list (cons 'record record) (cons 'store
+      (list '(schema-version . 1) (cons 'drawing-uuid (EL:Get 'drawing-uuid store)))))
+    *EL:DiagramDiagnostics*)) nil)
 (defun EL:DiagnosticRecord (store / record pick tag handle)
   (if *EL:Result*
     (setq record (EL:DiagramForPanel (EL:Get 'panel *EL:Result*) store)))
+  (if (and record (not (EL:Get 'panel-output-handle record))) (setq record nil))
   (if (not record)
     (if (setq pick (EL:PickEntity "\n选择要导出的受管系统图箱体、回路或文字（Enter 取消）："))
       (progn
@@ -459,25 +468,49 @@
     ;; Exporting is read-only, so a locked layer does not prevent diagnostics.
     (EL:Require (and entity (equal (cdr (assoc 410 (entget entity))) "Model"))
       "系统图成员缺失或归属失配，未导出诊断副本。")) T)
-(defun EL:DiagnosticExport (/ store record path exported)
+(defun EL:DiagnosticExport (/ store record path exported session logpath)
   (if (EL:EnsureRoot)
     (progn
+      (setq *EL:DiagnosticExportMessage* nil
+        logpath (EL:ExportDiagnosticRun)
+        session (EL:Get (namedobjdict) *EL:DiagramDiagnostics*))
       (EL:LogAttach)
-      (setq store (EL:StoreRead))
-      (EL:Require store "本图没有可导出的 DWG 系统图主记录。")
-      (if (setq record (EL:DiagnosticRecord store))
+      (if session
+        (setq store (EL:Get 'store session) record (EL:Get 'record session))
+        (progn
+          (setq store (EL:StoreRead))
+          ;; Saved input-only records are not generated output associations.
+          (if (vl-some '(lambda (row) (EL:Get 'panel-output-handle row)) (EL:Get 'diagrams store))
+            (setq record (EL:DiagnosticRecord store)))))
+      (if record
         (progn
           (EL:DiagnosticRecordValid record store)
           (setq path (strcat *EL:Root* "output/diagram-" (EL:Hash (EL:Get 'diagram-id record)) ".eld")
             exported (EL:PerfCall "DIAGNOSTIC_EXPORT" 'EL:WriteData (list path record)))
           (if exported
             (progn
+              (setq *EL:DiagnosticExportMessage* (strcat "已导出关联记录：" path
+                (if logpath "；全过程日志已导出，路径见命令行。" "")))
               (EL:LogEvent "DIAGNOSTIC_EXPORTED" (list (cons 'diagram-id (EL:Get 'diagram-id record)) (cons 'path path)))
               (princ (strcat "\n系统图诊断副本已导出：" path)))
             (progn
               (EL:LogEvent "DIAGNOSTIC_EXPORT_FAILED" (list (cons 'diagram-id (EL:Get 'diagram-id record)) (cons 'path path)))
               (princ (strcat "\n诊断副本导出失败，请检查目录写入权限：" path)))) exported)
-        (progn (princ "\n未选择系统图，诊断导出已取消。") nil)))))
+        (if logpath
+          (progn
+            (setq *EL:DiagnosticExportMessage* "已导出全过程诊断日志；本次会话没有可导出的出图关联记录。")
+            (princ (strcat "\n" *EL:DiagnosticExportMessage*)) T)
+          (progn
+            (setq *EL:DiagnosticExportMessage* "本次会话没有诊断数据，请完成一次统计或生成后再导出。")
+            (princ (strcat "\n" *EL:DiagnosticExportMessage*)) nil))))))
+(defun EL:PanelDiagnosticExport (/ outcome)
+  ;; Export outside the DCL callback, then reopen with the same input values.
+  (setq outcome (EL:MeasuredCatch 'EL:DiagnosticExport nil))
+  (cond
+    ((vl-catch-all-error-p outcome)
+      (strcat "诊断导出失败：" (vl-catch-all-error-message outcome)))
+    (*EL:DiagnosticExportMessage*)
+    (T "诊断导出未完成，请查看命令行原因。")))
 (defun c:ELDIAG (/ *error* perfowner outcome checkpoint failed)
   (defun *error* (message)
     (EL:PerfUnwind checkpoint) (EL:ClearPickHighlights)

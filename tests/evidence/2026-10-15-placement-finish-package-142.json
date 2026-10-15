@@ -1,0 +1,34 @@
+{
+  "date": "2026-10-15",
+  "status": "passed",
+  "package": 142,
+  "files": 335,
+  "gb2312_lisp_dcl": 32,
+  "parsed_lisp": 30,
+  "loading_entry_functions": [
+    "EL:PERFSTART",
+    "EL:PERFFINISH",
+    "EL:LOGEVENT",
+    "EL:EXPORTDIAGNOSTICRUN",
+    "EL:EDITPANELONCE",
+    "EL:REMEMBERDIAGRAMDIAGNOSTIC",
+    "EL:DIAGNOSTICEXPORT",
+    "EL:PANELDIAGNOSTICEXPORT",
+    "EL:FIXEDSTAT",
+    "EL:CREATEDIAGRAM",
+    "EL:SYNCDIAGRAMSCOPED",
+    "EL:PANELDIALOG"
+  ],
+  "embedded_resources": 132,
+  "archive_sha256": "105d62e80b1ebce0152e92f97731ae56fb18dc304d32c724aab494d8d45c07ee",
+  "checks": [
+    "ZIP CRC",
+    "all archive and extracted bytes match",
+    "strict GB2312 without BOM",
+    "all LISP parsing",
+    "changed definitions match all three loading entries",
+    "embedded runtime resources match generated delivery modules"
+  ],
+  "focused_regression_cases": 33,
+  "native_cad_status": "Original DWG placement latency and diagnostic button acceptance pending"
+}

@@ -1,0 +1,35 @@
+{
+  "date": "2026-10-15",
+  "status": "passed",
+  "scope": "Finite CAD/DCL adapters; original-DWG timing and native dialog acceptance pending",
+  "cases": 33,
+  "suites": [
+    "test_placement_finish",
+    "test_diagnostic_export",
+    "test_post_stat_workflow.SelectionStoreTests",
+    "test_log_volume",
+    "test_cckk_panel_command.PanelCommandTests.test_two_to_four_creates_new_output_without_changing_placement_view",
+    "test_cckk_panel_command.PanelCommandTests.test_first_four_circuit_placement_and_save_keep_current_view",
+    "test_cckk_panel_command.PanelCommandTests.test_generation_does_not_call_unavailable_zoom",
+    "test_cckk_panel_command.PanelCommandTests.test_two_circuit_generate_click_recovers_memory_and_repeated_update",
+    "test_cckk_panel_command.PanelCommandTests.test_two_circuit_cancel_then_retry_releases_live_guard",
+    "test_cckk_panel_command.PanelCommandTests.test_power_tag_silent_write_failure_is_read_back_and_rolled_back",
+    "test_store_context.StoreContextTests.test_native_readback_difference_does_not_publish_context",
+    "test_store_context.StoreContextTests.test_commit_callback_change_discards_candidate_and_reads_current_dwg",
+    "test_monitor.MonitorTests.test_report_contains_loading_actions_exit_and_preserves_previous_file",
+    "test_monitor.MonitorTests.test_write_failure_closes_file_and_keeps_business_result"
+  ],
+  "failures": [],
+  "sha256": {
+    "src/common.lsp": "dd2ea74958365c87e5af7dea6042845e22414c2a624ddf5054e30a8118488229",
+    "src/diagram-commands.lsp": "f0a1b962aa56218381618397867638bbd9fb86e90e219c5bb1677965eac7f012",
+    "src/diagram-store.lsp": "e3da4960cba359f9778b32f0bf6c875748b44eb758858f0a51b50e3cb6def756",
+    "src/diagram-update.lsp": "b3201eabc2028e7f187e00845f1cdf69109dde03a01bf046bfa3fcf006232095",
+    "src/panel.lsp": "b85da34105f24be9657da5e97c897eba1c442aaa36af115bc68f87cdd02b0d22",
+    "ui/power.dcl": "ff80dce091fd7b140484a88b9566b930a9ac42fc190fa0299fbb277167a44dda",
+    "tests/test_placement_finish.py": "44252a3bbdc7ec7dff252bcbb0df50ad2dcfbb96a006a8923dc0b55902a554d3",
+    "tests/test_cckk_panel_command.py": "70c5640d4ea6e49360b118cf069d8b741198fd281ec207d9c9a4cfc6beeb5d55",
+    "tests/test_diagnostic_export.py": "07bebb0fd5630172f6109791f2312c4c1418d66224b316042256698c4be58c53",
+    "tests/run_placement_finish_checks.py": "8820f49f8faab57858b42b3573171863e919fde6a373fe63fccaecad2f1ef12c"
+  }
+}

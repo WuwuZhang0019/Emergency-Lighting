@@ -1,4 +1,4 @@
-"""Native CCKK2 panel dispatch and cancellation adapters. Date: 2026-10-10."""
+"""Native CCKK2 dispatch, placement view and cancellation. Date: 2026-10-15."""
 import copy
 import unittest
 from autolisp_host import Symbol, Pair, truth
@@ -105,7 +105,7 @@ class PanelCommandTests(unittest.TestCase):
         self.assertEqual(len(self.get('cckk-labels',record)),11)
         self.assertEqual(self.get('status',record),Symbol('CURRENT'))
         self.assertNotIn('DIAGRAM_REBUILD',[e[0] for e in self.view_events])
-        self.assertIn('DIAGRAM_VIEW_SHOWN',[e[0] for e in self.view_events])
+        self.assertNotIn('DIAGRAM_VIEW_SHOWN',[e[0] for e in self.view_events])
 
     def test_new_generation_leaves_old_remnants_and_unrelated_entities(self):
         old,handles=self.deleted_output_fixture(False)
@@ -187,7 +187,7 @@ class PanelCommandTests(unittest.TestCase):
         check(3)
         self.assertEqual(sum(str(field(d,1)).startswith('ZE') for e,d in self.entities.items() if e not in original_entities),13)
 
-    def test_two_to_four_creates_new_output_and_shows_only_new_entities(self):
+    def test_two_to_four_creates_new_output_without_changing_placement_view(self):
         self.install_view()
         self.placement=[1279956.,449786.,0.]  # remote output, matching the field case
         self.two_circuits()
@@ -213,16 +213,11 @@ class PanelCommandTests(unittest.TestCase):
         expected.update(self.get('block-handle',r) for r in rows)
         expected.update(self.get('text-handle',r) for r in rows[:4])
         expected.update(self.get('handle',l) for l in self.get('cckk-labels',record))
-        self.assertEqual(set(self.view_entities),expected)
         self.assertEqual(len(expected),22)  # box + six blocks + four powers + eleven labels
-        self.assertEqual(len(self.zoomed),1)
-        lo,hi=self.zoomed[0]
-        for e in expected:
-            data=self.entities[e]
-            p=field(data,11) if field(data,0)=='TEXT' else field(data,10)
-            self.assertLess(lo[0],p[0]-200.); self.assertLess(lo[1],p[1]-300.)
-            self.assertGreater(hi[0],p[0]+6000.); self.assertGreater(hi[1],p[1]+500.)
-        self.assertIn('DIAGRAM_VIEW_SHOWN',[e[0] for e in self.view_events])
+        self.assertEqual(self.view_entities,[])
+        self.assertEqual(self.zoomed,[])
+        self.assertEqual(self.regenerated,[])
+        self.assertNotIn('DIAGRAM_VIEW_SHOWN',[e[0] for e in self.view_events])
         self.assertTrue(any('已生成新系统图' in str(m) for m in self.messages))
         self.assertFalse(truth(self.h.lookup('*EL:TRANSACTIONOPEN*')))
         # Repeating the same click creates another independently managed output.
@@ -231,7 +226,7 @@ class PanelCommandTests(unittest.TestCase):
         self.assertGreater(len(self.entities),len(before))
         for handle,*_ in self.call('EL:DiagramOutputRefs',record):
             self.assertEqual(self.entities[handle],before[handle])
-        self.assertEqual(len(self.zoomed),2)
+        self.assertEqual(self.zoomed,[])
 
     def test_old_output_target_is_ignored_and_history_is_pruned(self):
         self.two_circuits()
@@ -247,17 +242,18 @@ class PanelCommandTests(unittest.TestCase):
         self.assertIsNone(self.call('EL:StoreRecord',self.get('diagram-id',first)))
         self.assertIsNone(self.call('EL:StoreRecord',self.get('diagram-id',second)))
 
-    def test_first_four_circuit_placement_shows_output_but_save_does_not_move_view(self):
+    def test_first_four_circuit_placement_and_save_keep_current_view(self):
         self.install_view(); self.two_circuits(); self.four_circuits()
         self.assertTrue(truth(self.invoke()))
         self.assertEqual(len(self.commands),7)
-        self.assertEqual(len(self.zoomed),1)
-        self.assertEqual(len(self.view_entities),22)
+        self.assertEqual(self.zoomed,[])
+        self.assertEqual(self.view_entities,[])
+        self.assertEqual(self.regenerated,[])
         self.assertTrue(truth(self.h.run("(EL:SyncDiagram result cfg nil 'cap300 nil T)")))
         self.assertTrue(truth(self.h.run("(EL:SyncDiagram result cfg nil 'cap300 nil nil)")))
-        self.assertEqual(len(self.zoomed),1)
+        self.assertEqual(self.zoomed,[])
 
-    def test_view_failure_does_not_rollback_successful_generation(self):
+    def test_generation_does_not_call_unavailable_zoom(self):
         self.install_view(); self.two_circuits(); self.four_circuits()
         def fail_zoom(*args): raise RuntimeError('zoom unavailable')
         self.h.builtins['VLA-ZOOMWINDOW']=fail_zoom
@@ -266,8 +262,8 @@ class PanelCommandTests(unittest.TestCase):
         self.assertEqual(len(self.get('rows',record)),6)
         self.assertEqual(self.get('status',record),Symbol('CURRENT'))
         self.assertNotIn('EL_FIXED_TX',self.dictionary)
-        self.assertIn('DIAGRAM_VIEW_FAILED',[e[0] for e in self.view_events])
-        self.assertTrue(any('已保存，但自动定位未完成' in str(m) for m in self.messages))
+        self.assertNotIn('DIAGRAM_VIEW_FAILED',[e[0] for e in self.view_events])
+        self.assertFalse(any('自动定位未完成' in str(m) for m in self.messages))
 
     def test_failed_generation_does_not_show_partial_output(self):
         self.install_view(); self.two_circuits(); self.four_circuits()
@@ -304,7 +300,8 @@ class PanelCommandTests(unittest.TestCase):
             (list (EL:Put 'watts 85 (car cs)) (EL:Put 'watts 20 (cadr cs)))) result))""")
 
     def assert_two_circuit_output(self):
-        record=self.h.run('(EL:DiagramForPanel "source" (EL:StoreRead))')
+        record=self.h.run("(cond ((EL:Get 'record (EL:Get (namedobjdict) *EL:DiagramDiagnostics*))) "
+                          '(T (EL:DiagramForPanel "source" (EL:StoreRead))))')
         rows=self.get('rows',record)
         self.assertEqual(len(rows),4)
         self.assertEqual([self.get('watts',r) for r in rows[:2]],[85,20])

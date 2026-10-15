@@ -176,3 +176,7 @@ config/power-input-*.eld
 
 /output/应急照明-148/
 /output/应急照明-148.zip
+
+# Date: 2026-10-15. Requested v0.1.50 trial delivery, separate from prior packages.
+/output/应急照明-149/
+/output/应急照明-149.zip

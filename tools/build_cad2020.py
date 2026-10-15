@@ -7,7 +7,7 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 # Date: 2026-10-15. Software version; PACKAGE_NO is a legacy delivery identifier.
 VERSION = '0.1.50'
-PACKAGE_NO = 148
+PACKAGE_NO = 149
 NAME = f'应急照明-{PACKAGE_NO:03d}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 OUTPUT_ROOT = ROOT / 'output'
@@ -235,6 +235,8 @@ def build():
     for source in sorted((ROOT / 'tests/evidence').glob(f'????-??-??-diagnostic-bundle-checks-{PACKAGE_NO:03d}.json')):
         shutil.copy2(source, DEST / 'tests/evidence' / source.name)
     for source in sorted((ROOT / 'tests/evidence').glob(f'????-??-??-system-block-library-checks-{PACKAGE_NO:03d}.json')):
+        shutil.copy2(source, DEST / 'tests/evidence' / source.name)
+    for source in sorted((ROOT / 'tests/evidence').glob(f'????-??-??-v{VERSION}-*.json')):
         shutil.copy2(source, DEST / 'tests/evidence' / source.name)
     for source in sorted((ROOT / 'tests/evidence').glob('????-??-??-diagnostic-export-hang-analysis.json')):
         shutil.copy2(source, DEST / 'tests/evidence' / source.name)

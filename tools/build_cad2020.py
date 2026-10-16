@@ -12,6 +12,7 @@ NAME = f'应急照明-v{VERSION}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 OUTPUT_ROOT = ROOT / 'output'
 DEST = OUTPUT_ROOT / NAME
+MODULES = ('common', 'config', 'geometry', 'topology', 'statistics', 'device-library', 'device-assets', 'device-defaults', 'device-ui', 'device-recognition', 'device-inputs', 'device-migration', 'generation', 'main', 'simple', 'circuit-number', 'fixed', 'panel', 'store-compact', 'diagram-store', 'store-split', 'diagram-update', 'diagram-commands', 'insert-circuit', 'startup')
 LOAD_COMPLETION = (
     '(EL:MonitorLoadEnd (if *EL:MonitorLoadReady* \'load-finished \'load-failed))\n'
     '(EL:StartupCommandHint *EL:MonitorLoadReady*)\n(princ)\n'
@@ -74,6 +75,30 @@ def diagnostic_script_definition():
     return '(defun EL:DiagnosticScriptText () (EL:MonitorJoin \'(\n' + chunks + '\n)))\n'
 
 
+def cad2020_bytes(source):
+    """Date: 2026-10-16. Shared strict conversion for full and lite deliveries."""
+    text = source.read_text(encoding='utf-8')
+    if source.name == 'load.lsp':
+        text = replace_once(text, '(if (and *EL:Root* (>= (getvar "LISPSYS") 1))', '(if *EL:Root*')
+        text = replace_once(text, '需要 AutoCAD 2021+ Windows、LISPSYS=1/2（更改后重启）及完整插件目录。', '请选择本包的 src/load.lsp，并保留完整插件目录。')
+        text = replace_once(text, '已加载：', f'已加载（CAD2020 v{VERSION}）：')
+    if source.name == 'config.lsp':
+        text = replace_once(text, '(open path "r" "utf8")', '(open path "r")')
+        text = replace_once(text, '(open tmp "w" "utf8")', '(open tmp "w")')
+    if source.name == 'common.lsp':
+        text = replace_once(text, '(open *EL:LogPath* "a" "utf8")', '(open *EL:LogPath* "a")')
+        text = replace_once(text, '(open path "a" "utf8")', '(open path "a")')
+        text = replace_once(text, 'AutoCAD 2021+, LISPSYS=1/2.', 'AutoCAD 2020 trial, GB2312 source and system-codepage data.')
+    if source.name == 'diagram-commands.lsp':
+        text = replace_once(text, '(open tmp "w" "utf8")', '(open tmp "w")')
+        text = replace_once(text, '(defun EL:DiagnosticNativeCharset () "utf-8")',
+                            '(defun EL:DiagnosticNativeCharset () "gb2312")')
+        text += '\n' + diagnostic_script_definition()
+    data = text.encode('gb2312', errors='strict')
+    assert data.decode('gb2312') == text
+    return data
+
+
 def build():
     output_root = OUTPUT_ROOT.resolve()
     assert DEST.resolve().parent == output_root and DEST.name == NAME
@@ -97,25 +122,7 @@ def build():
     shutil.copy2(ROOT / 'src/diagnostic-bundle.ps1', DEST / 'src/diagnostic-bundle.ps1')
     for folder, pattern in (('src', '*.lsp'), ('ui', '*.dcl')):
         for source in (ROOT / folder).glob(pattern):
-            text = source.read_text(encoding='utf-8')
-            if source.name == 'load.lsp':
-                text = replace_once(text, '(if (and *EL:Root* (>= (getvar "LISPSYS") 1))', '(if *EL:Root*')
-                text = replace_once(text, '需要 AutoCAD 2021+ Windows、LISPSYS=1/2（更改后重启）及完整插件目录。', '请选择本包的 src/load.lsp，并保留完整插件目录。')
-                text = replace_once(text, '已加载：', f'已加载（CAD2020 v{VERSION}）：')
-            if source.name == 'config.lsp':
-                text = replace_once(text, '(open path "r" "utf8")', '(open path "r")')
-                text = replace_once(text, '(open tmp "w" "utf8")', '(open tmp "w")')
-            if source.name == 'common.lsp':
-                text = replace_once(text, '(open *EL:LogPath* "a" "utf8")', '(open *EL:LogPath* "a")')
-                text = replace_once(text, '(open path "a" "utf8")', '(open path "a")')
-                text = replace_once(text, 'AutoCAD 2021+, LISPSYS=1/2.', 'AutoCAD 2020 trial, GB2312 source and system-codepage data.')
-            if source.name == 'diagram-commands.lsp':
-                text = replace_once(text, '(open tmp "w" "utf8")', '(open tmp "w")')
-                text = replace_once(text, '(defun EL:DiagnosticNativeCharset () "utf-8")',
-                                    '(defun EL:DiagnosticNativeCharset () "gb2312")')
-                text += '\n' + diagnostic_script_definition()
-            data = text.encode('gb2312', errors='strict')
-            assert data.decode('gb2312') == text
+            data = cad2020_bytes(source)
             (DEST / folder / source.name).write_bytes(data)
     standalone = (DEST / 'src/insert-circuit.lsp').read_bytes() + f'\n(princ "\\nCCKK / CCKK1 / CCKK2 已加载（v{VERSION}）：CCKK 回路，CCKK1 配电箱，CCKK2 整组箱体与回路。")\n(princ)\n'.encode('gb2312', errors='strict')
     (DEST / 'CCKK.lsp').write_bytes(standalone)
@@ -125,7 +132,7 @@ def build():
     (DEST / marker).write_text(f"Emergency-Lighting {PACKAGE_NO}\n", encoding="ascii")
     # Keep an existing valid data root; initialize it for a standalone update.
     # All modules are included; readiness requires a complete package directory.
-    modules = ('common', 'config', 'geometry', 'topology', 'statistics', 'device-library', 'device-assets', 'device-defaults', 'device-ui', 'device-recognition', 'device-inputs', 'device-migration', 'generation', 'main', 'simple', 'circuit-number', 'fixed', 'panel', 'store-compact', 'diagram-store', 'store-split', 'diagram-update', 'diagram-commands', 'insert-circuit', 'startup')
+    modules = MODULES
     module_texts = []
     for module in modules:
         text = (DEST / 'src' / f'{module}.lsp').read_bytes().decode('gb2312')
@@ -262,4 +269,12 @@ def build():
 
 
 if __name__ == '__main__':
-    build()
+    import argparse
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--lite', action='store_true', help='Build the CADTools lite runtime')
+    args = parser.parse_args()
+    if args.lite:
+        from cadtools_lite import build_lite
+        build_lite()
+    else:
+        build()

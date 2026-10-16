@@ -216,3 +216,7 @@ config/power-input-*.eld
 # Date: 2026-10-16. Requested v0.1.61 borderless-cancel-receiver trial delivery.
 /output/应急照明-v0.1.61/
 /output/应急照明-v0.1.61.zip
+
+# Date: 2026-10-16. CADTools lite delivery artifacts, never source files.
+/output/应急照明-lite-v*/
+/output/应急照明-lite-v*.zip

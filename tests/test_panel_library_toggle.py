@@ -118,6 +118,14 @@ class PanelLibraryToggleTests(unittest.TestCase):
     def invoke(self, f, callbacks, key):
         return f.invoke_action(callbacks, key)
 
+    def dispatch_cancel_receiver(self, f, callbacks):
+        # Model native dispatch through the declared receiver, never invent a missing callback.
+        tiles = panel_tiles(f.dialogs[-1])
+        receivers = [key for key, attributes in tiles.items() if attributes.get('is_cancel') == 'true']
+        self.assertEqual(receivers, ['cancel'])
+        self.assertIn(receivers[0], callbacks)
+        return self.invoke(f, callbacks, receivers[0])
+
     def test_layouts_share_left_controls_and_compact_has_no_library_tiles(self):
         compact, expanded = panel_tiles('el_panel_compact'), panel_tiles('el_panel')
         self.assertTrue(set(compact) < set(expanded))
@@ -128,12 +136,109 @@ class PanelLibraryToggleTests(unittest.TestCase):
             self.assertIn(key, compact)
         self.assertEqual(compact['p_diagnostic']['label'], '导出诊断日志并打开文件夹')
         for key in ('p_diagnostic_path', 'p_diagnostic_open', 'p_diagnostic_status',
-                    'p_diagnostic_action', 'p_error', 'cancel'):
+                    'p_diagnostic_action', 'p_error'):
             self.assertNotIn(key, expanded)
+        self.assertEqual(compact['cancel']['is_cancel'], 'true')
+        self.assertEqual(compact['cancel']['is_tab_stop'], 'false')
+        self.assertEqual(compact['cancel']['label'], '')
+        self.assertLessEqual(float(compact['cancel']['width']), 0.01)
+        self.assertLessEqual(float(compact['cancel']['height']), 0.01)
         self.assertFalse(any(key.startswith('dl_') for key in compact))
         self.assertNotIn('p_block_library_open', compact)
         for key in ('dl_save', 'dl_import', 'dl_export', 'dl_open', 'dl_rows', 'p_block_library_open'):
             self.assertIn(key, expanded)
+
+    def test_declared_cancel_receiver_closes_home_and_result_in_both_layouts(self):
+        for expanded in (False, True):
+            for home in (False, True):
+                with self.subTest(expanded=expanded, home=home):
+                    f, callbacks, path, _ = self.fixture(expanded=expanded)
+                    if home:
+                        f.result = None
+                    original = path.read_bytes()
+                    f.actions = [lambda: self.dispatch_cancel_receiver(f, callbacks)]
+                    self.assertIsNone(f.dialog())
+                    self.assertEqual(f.closed, 0)
+                    self.assertEqual(len(f.dialogs), 1)
+                    self.assertEqual(path.read_bytes(), original)
+
+    def test_exit_always_closes_and_keeps_valid_or_invalid_editor_input_for_reopening(self):
+        for watts, write_failure in (('17', False), ('1.5', False), ('17', True)):
+            with self.subTest(watts=watts, write_failure=write_failure):
+                f, callbacks, path, _ = self.fixture(expanded=True)
+                if write_failure:
+                    f.h.builtins['EL:DLCOMMIT'] = lambda *args: None
+                original = path.read_bytes()
+
+                def edit_and_close():
+                    f.tiles['dl_display'] = '关闭前输入'
+                    f.tiles['dl_watts'] = watts
+                    f.tiles['dl_query'] = 'LAMP'
+                    self.dispatch_cancel_receiver(f, callbacks)
+
+                f.actions = [edit_and_close]
+                self.assertIsNone(f.dialog())
+                self.assertEqual(f.closed, 0)
+                if watts == '1.5' or write_failure:
+                    self.assertEqual(path.read_bytes(), original)
+                else:
+                    saved = f.get('devices', f.call('EL:DLParse', path.read_text(encoding='utf-8')))[0]
+                    self.assertEqual(f.get('watts', saved), 17)
+
+                def check_reopened():
+                    self.assertEqual(f.tiles['dl_display'], '关闭前输入')
+                    self.assertEqual(f.tiles['dl_watts'], watts)
+                    self.assertEqual(f.tiles['dl_query'], 'LAMP')
+                    self.dispatch_cancel_receiver(f, callbacks)
+
+                f.actions = [check_reopened]
+                self.assertIsNone(f.dialog())
+
+    def test_nine_circuits_warn_once_on_open_and_block_generation_without_dropping_rows(self):
+        f, callbacks, _, _ = self.fixture(expanded=True)
+        base = f.get('circuits', f.result)[0]
+        circuits = [f.call('EL:Put', Symbol('ID'), f'R{i}', base) for i in range(9)]
+        f.result = f.call('EL:Put', Symbol('CIRCUITS'), circuits, f.result)
+        alerts = []
+        f.h.builtins.update({
+            'ALERT': alerts.append,
+            'EL:ALLCIRCUITCOLORPREVIEW': lambda result: None,
+            'EL:DLPANELSUBMISSIONREADY': lambda: self.fail('library validation hid the circuit limit'),
+        })
+
+        def preview():
+            self.assertEqual(len(alerts), 1)
+            self.assertIn('已识别 9 条实际回路', alerts[0])
+            self.assertIn('最多容纳 8 条', alerts[0])
+            self.assertNotIn('p_row8', f.tiles)
+            self.assertEqual(len(f.get('circuits', f.h.lookup('*EL:PANELDRAFT*'))), 9)
+            self.invoke(f, callbacks, 'f_preview')
+
+        def blocked_generate_and_close():
+            self.assertEqual(len(alerts), 1, 'preview return repeated the initial limit warning')
+            f.h.builtins['EL:PANELLIBRARYFLUSH'] = lambda: self.fail('editor validation hid the circuit limit')
+            self.invoke(f, callbacks, 'p_generate')
+            self.assertEqual(len(alerts), 2)
+            self.assertIn('不会截断', alerts[-1])
+            self.assertIsNone(f.closed)
+            self.assertEqual(len(f.get('circuits', f.h.lookup('*EL:PANELDRAFT*'))), 9)
+            self.dispatch_cancel_receiver(f, callbacks)
+
+        f.actions = [preview, blocked_generate_and_close]
+        self.assertIsNone(f.dialog())
+        self.assertEqual(f.closed, 0)
+
+    def test_eight_circuit_limit_boundary_reports_the_actual_count(self):
+        f, _, _, _ = self.fixture()
+        base = f.get('circuits', f.result)[0]
+        for count in (8, 9, 12):
+            result = f.call('EL:Put', Symbol('CIRCUITS'), [base] * count, f.result)
+            message = f.call('EL:PanelCircuitLimitText', result)
+            if count == 8:
+                self.assertIsNone(message)
+            else:
+                self.assertIn(f'已识别 {count} 条实际回路', message)
+            self.assertEqual(len(f.get('circuits', result)), count)
 
     def test_default_home_expands_collapses_and_preserves_position_without_writing(self):
         f, callbacks, path, opened = self.fixture()
@@ -277,7 +382,7 @@ class PanelLibraryToggleTests(unittest.TestCase):
         self.assertEqual(len(previews), 1)
         self.assertEqual(folders, ['C:/diagnostics/ELDIAG'])
         self.assertEqual(f.tiles['p_capacity'], 'p_1000')
-        self.assertNotIn('cancel', callbacks)
+        self.assertIn('cancel', callbacks)
 
     def test_expanded_choice_is_remembered_and_unreadable_library_can_be_collapsed(self):
         f, callbacks, _, _ = self.fixture()

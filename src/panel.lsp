@@ -341,6 +341,16 @@
   (or (not *EL:PanelLibraryExpanded*) (not *EL:PanelLibrarySnapshot*) (EL:DLUIFlush)))
 (defun EL:PanelLeave (status)
   (if (EL:PanelLibraryFlush) (EL:PanelClose status)))
+;; Date: 2026-10-16. Always close on Esc/X; keep even invalid editor input in session drafts.
+(defun EL:PanelExit ()
+  (if (and *EL:PanelLibraryExpanded* *EL:PanelLibrarySnapshot*)
+    (progn
+      (setq *EL:DLUIState* (EL:Put 'query (get_tile "dl_query")
+        (EL:Put 'deleted (equal (get_tile "dl_deleted") "1") *EL:DLUIState*)))
+      (EL:DLUISafe 'EL:DLUIStore)
+      ;; Keep the saved snapshot current without recomputing a panel that is closing.
+      (setq *EL:DLSessionSnapshot* (EL:Get 'snapshot *EL:DLUIState*))))
+  (EL:PanelClose 0))
 (defun EL:PanelLibraryToggle ()
   (if (EL:PanelLibraryFlush)
     (progn
@@ -356,25 +366,35 @@
   (if *EL:PanelDialogPosition*
     (new_dialog name dialog "" *EL:PanelDialogPosition*)
     (new_dialog name dialog)))
-(defun EL:PanelGenerateBody ()
+;; Date: 2026-10-16. Keep all recognized circuits and explain the fixed eight-row limit.
+(defun EL:PanelCircuitLimitText (result / count)
+  (setq count (length (EL:Get 'circuits result)))
+  (if (> count 8)
+    (strcat "已识别 " (itoa count) " 条实际回路；当前系统图最多容纳 8 条。"
+      "\n面板仅显示前 8 条，全部回路数据已保留，不会截断。"
+      "\n请拆分配电箱或重新选择回路后再生成。")))
+(defun EL:PanelGenerateBody (/ limit)
   (EL:LogEvent "PANEL_ACTION" 'generate)
-  (if (EL:DLPanelSubmissionReady)
-    (cond
-      ((not (EL:Get 'circuits *EL:PanelDraft*)) (EL:PanelError "请至少保留一条实际出线。"))
-      ((> (length (EL:Get 'circuits *EL:PanelDraft*)) 8) (EL:PanelError "本图块最多容纳8条实际回路，请拆箱后统计；不会截断回路。"))
-      ((not (EL:CircuitNumbersReady *EL:PanelDraft*))
-        (EL:PanelError (EL:NumberProblemText *EL:PanelDraft*)))
-      ((not (EL:Get 'can-generate *EL:PanelDraft*)) (EL:PanelGenerationBlocked *EL:PanelDraft*))
-      ((not (EL:SelectionsReady *EL:PanelDraft* *EL:PanelCapacity*))
-        (EL:PanelError "请先选择箱体容量。"))
-      (*EL:PanelTemplateReady* (setq *EL:PanelAction* 'generate) (EL:PanelClose 2))
-      (T (setq *EL:PanelAction* 'generate) (EL:PanelClose 4)))
+  (if (setq limit (EL:PanelCircuitLimitText *EL:PanelDraft*))
+    (EL:PanelError limit)
+    (if (EL:DLPanelSubmissionReady)
+      (cond
+        ((not (EL:Get 'circuits *EL:PanelDraft*)) (EL:PanelError "请至少保留一条实际出线。"))
+        ((not (EL:CircuitNumbersReady *EL:PanelDraft*))
+          (EL:PanelError (EL:NumberProblemText *EL:PanelDraft*)))
+        ((not (EL:Get 'can-generate *EL:PanelDraft*)) (EL:PanelGenerationBlocked *EL:PanelDraft*))
+        ((not (EL:SelectionsReady *EL:PanelDraft* *EL:PanelCapacity*))
+          (EL:PanelError "请先选择箱体容量。"))
+        (*EL:PanelTemplateReady* (setq *EL:PanelAction* 'generate) (EL:PanelClose 2))
+        (T (setq *EL:PanelAction* 'generate) (EL:PanelClose 4)))
       (alert (if *EL:DLError*
         (strcat *EL:DLError* "\n请在设备库中检查并恢复；当前面板输入保留，恢复后可再次生成。")
-        "设备库默认值已刷新，请核对当前功率和地面属性后再次生成。"))))
+        "设备库默认值已刷新，请核对当前功率和地面属性后再次生成。")))))
 (defun EL:PanelGenerate (/ outcome)
   ;; Date: 2026-10-10. Keep callback failures visible while preserving the draft.
-  (if (EL:PanelLibraryFlush) (setq outcome (vl-catch-all-apply 'EL:PanelGenerateBody nil)))
+  ;; Date: 2026-10-16. Report excess circuits before editor validation can hide the limit.
+  (if (or (EL:PanelCircuitLimitText *EL:PanelDraft*) (EL:PanelLibraryFlush))
+    (setq outcome (vl-catch-all-apply 'EL:PanelGenerateBody nil)))
   (if (vl-catch-all-error-p outcome)
     (progn
       (setq *EL:PanelAction* nil)
@@ -524,7 +544,7 @@
       (if (not (equal opened "已打开诊断文件所在位置。"))
         (alert (strcat notice "\n" opened "\n诊断资料路径：" path))))
     (alert notice)))
-(defun EL:PanelDialog (result cfg powers capacity / dialog status captured
+(defun EL:PanelDialog (result cfg powers capacity / dialog status captured limit-notice limit-shown
     *EL:PanelAction* *EL:PanelDraft* *EL:PanelPowers* *EL:PanelCapacity* *EL:PanelConfig*
     *EL:PanelTemplateReady* *EL:PanelLibrarySnapshot* *EL:PanelDialogPosition* *EL:PanelPreviewPalette*
     home)
@@ -563,6 +583,12 @@
         (EL:MonitorActionTile "p_diagnostic" "(EL:PanelLeave 17)")
         (if *EL:PanelLibraryExpanded*
           (EL:MonitorActionTile "p_block_library_open" "(EL:PanelLeave 19)"))
+        (EL:MonitorActionTile "cancel" "(EL:PanelExit)")
+        (if (and (not limit-shown) (setq limit-notice (EL:PanelCircuitLimitText *EL:PanelDraft*)))
+          (progn
+            (setq limit-shown T)
+            (EL:LogEvent "PANEL_CIRCUIT_LIMIT" (list (cons 'actual (length (EL:Get 'circuits *EL:PanelDraft*))) '(maximum . 8)))
+            (EL:PanelError limit-notice)))
         (setq *EL:PanelAction* nil status (EL:PerfInput 'start_dialog nil))
         (EL:LogEvent "PANEL_DIALOG_RETURN" (list (cons 'status status) (cons 'action *EL:PanelAction*)))
         (if (= status 21) (setq status 3))

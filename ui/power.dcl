@@ -168,9 +168,15 @@ el_panel_editor : boxed_column { label = "设备库"; fixed_height = true; align
     }
   }
 
-// Date: 2026-10-16. Export and open in one action; native Esc closes the panel.
-el_panel_diagnostics : column { fixed_width = true; fixed_height = true; alignment = top;
+// Date: 2026-10-16. Esc and title-bar close need a real is_cancel button in native DCL.
+// Keep its label empty and footprint minimal instead of restoring the visible cancel footer.
+el_panel_escape : button {
+  key = "cancel"; label = ""; is_cancel = true; is_tab_stop = false;
+  width = 0.01; height = 0.01; fixed_width = true; fixed_height = true;
+}
+el_panel_diagnostics : row { fixed_width = true; fixed_height = true; alignment = top;
     : button { key = "p_diagnostic"; label = "导出诊断日志并打开文件夹"; width = 46; fixed_width = true; }
+    el_panel_escape;
   }
 
 el_panel_paths : column {

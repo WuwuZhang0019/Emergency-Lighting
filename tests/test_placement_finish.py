@@ -215,7 +215,7 @@ class DiagnosticButtonTests(unittest.TestCase):
         self.assertEqual(f.tiles['p_capacity'], 'p_600')
         self.assertEqual(f.get('display', f.call('EL:DLUIEntry')), '保留输入')
         self.assertNotIn('p_diagnostic_status', f.tiles)
-        self.assertNotIn('cancel', callbacks)
+        self.assertIn('cancel', callbacks)
 
     def test_failed_export_does_not_open_partial_folder_and_retry_preserves_export_result(self):
         f = panel.PostStatWorkflowTests()

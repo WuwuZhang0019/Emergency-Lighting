@@ -113,14 +113,6 @@ el_panel : dialog {
         : button { key = "p_generate"; label = "生成新系统图"; width = 28; fixed_width = true; is_default = true; }
       }
     }
-    : text { key = "p_device_status"; width = 46; fixed_width = true; }
-    : text { key = "p_device_status1"; width = 46; fixed_width = true; }
-    : text { key = "p_total"; width = 46; fixed_width = true; }
-    : text { key = "p_total1"; width = 46; fixed_width = true; }
-    : text { key = "p_total2"; width = 46; fixed_width = true; }
-    : text { key = "p_total3"; width = 46; fixed_width = true; }
-    : text { key = "p_template_status"; width = 46; fixed_width = true; }
-    : text { key = "p_template_status1"; width = 46; fixed_width = true; }
   }
   : boxed_column { label = "设备库"; fixed_height = true; alignment = top;
     // Date: 2026-10-16. Device editor above library paths; keep each section together.

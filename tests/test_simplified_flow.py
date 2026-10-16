@@ -1,4 +1,4 @@
-"""Current-source draft and new-only generation checks. Date: 2026-10-15.
+"""Current-source draft and new-only generation checks. Date: 2026-10-16.
 
 Finite adapters verify store identities and untouched old output; native CAD
 geometry/contact and placement still require original-DWG acceptance.
@@ -168,11 +168,23 @@ class SimplifiedFlowTests(unittest.TestCase):
         f.result = f.call("EL:Put", Symbol("EXCLUDED-DEVICES"), ["a"], f.result)
         f.result = f.call("EL:Put", Symbol("EXCLUDED-SEEDS"),
                           [f.get("key", f.get("seed", f.get("circuits", f.result)[0]))], f.result)
-        callbacks = {}
+        callbacks, messages = {}, []
+        removed = {"p_device_status", "p_device_status1", "p_total", "p_total1",
+                   "p_total2", "p_total3", "p_template_status", "p_template_status1"}
+        set_tile = f.h.builtins["SET_TILE"]
+        def write_tile(key, value):
+            self.assertNotIn(key, removed, "write to a removed summary tile")
+            return set_tile(key, value)
+        f.h.builtins["SET_TILE"] = write_tile
+        f.h.builtins["PRINC"] = lambda *args: messages.extend(args)
         f.h.builtins["ACTION_TILE"] = lambda tile, action: callbacks.__setitem__(tile, action)
+        f.call("EL:PanelHomeFill")
         f.actions = [lambda: f.invoke_action(callbacks, "cancel")]
         f.dialog()
-        self.assertIn("已识别设备 2 个", f.tiles["p_device_status"])
+        output = "".join(messages)
+        self.assertIn("已识别设备 2 个", output)
+        self.assertIn("已识别设备合计：", output)
+        self.assertTrue(f.tiles["p_error"])
         self.assertTrue(f.tiles["p_row0"])
 
 

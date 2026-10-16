@@ -1,4 +1,4 @@
-"""Reported native panel failures. Date: 2026-10-11."""
+"""Reported native panel failures. Date: 2026-10-16."""
 import unittest
 from pathlib import Path
 from autolisp_host import Symbol
@@ -36,7 +36,6 @@ class PanelRepairTests(unittest.TestCase):
         values = [
             ('p_capacity_status', '默认 0.3kW；可按需要调整为 0.6kW 或 1kW。', 2),
             ('p_total', '已识别设备合计：170 W；连接仍待核对；实际回路 5；输出 7；已完整核对回路 80 W', 4),
-            ('p_error', 'A' * 43 + '中文提示', 3),
         ]
         for key, value, count in values:
             with self.subTest(key=key):
@@ -48,6 +47,11 @@ class PanelRepairTests(unittest.TestCase):
                     self.assertLessEqual(len(encode(line)), 44)
         self.call('EL:PanelText', 'p_total', '')
         self.assertTrue(all(self.tiles['p_total' + (str(i) if i else '')] == '' for i in range(4)))
+        messages = []
+        self.h.builtins['PRINC'] = lambda *args: messages.extend(args)
+        self.call('EL:PanelText', 'p_error', 'A' * 43 + '中文提示')
+        self.assertNotIn('p_error', self.tiles)
+        self.assertIn('A' * 43 + '中文提示', ''.join(messages))
 
     def test_screenshot_counts_total_85_even_when_connection_is_pending(self):
         self.h.run('''(setq *EL:PanelPowers* '(("A" . 5) ("B" . 1) ("C" . 1) ("D" . 1)))''')

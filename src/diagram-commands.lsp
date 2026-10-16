@@ -725,7 +725,7 @@
         (list "explorer.exe" (strcat (if (vl-file-directory-p path) "\"" "/select,\"")
           (EL:DiagnosticWindowsPath path) "\""))))
       (if (or (not outcome) (vl-catch-all-error-p outcome))
-        "无法打开文件夹，请选中路径后复制。" "已打开诊断文件所在位置。"))
+        "无法打开文件夹，请按命令行中的完整路径手动打开。" "已打开诊断文件所在位置。"))
     "诊断资料不存在，请重新导出。"))
 (defun EL:DiagnosticExport (/ store record path session logpath issue checked)
   (setq *EL:DiagnosticExportMessage* nil *EL:DiagnosticExportPath* nil *EL:DiagnosticError* nil
@@ -775,7 +775,11 @@
   (princ (strcat "\n" notice)) notice)
 (defun EL:PanelDiagnosticExport (/ outcome)
   ;; Export outside the DCL callback, then reopen with the same input values.
-  (setq outcome (EL:MeasuredCatch 'EL:DiagnosticExport nil))
+  ;; Date: 2026-10-16. A retained partial directory is not a successful export.
+  (setq *EL:DiagnosticExportSucceeded* nil
+    outcome (EL:MeasuredCatch 'EL:DiagnosticExport nil)
+    *EL:DiagnosticExportSucceeded* (and (not (vl-catch-all-error-p outcome))
+      outcome (equal outcome *EL:DiagnosticExportPath*)))
   (cond
     ((vl-catch-all-error-p outcome)
       (EL:DiagnosticSaveFailure (EL:DiagnosticFailure outcome)))

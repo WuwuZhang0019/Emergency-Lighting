@@ -68,6 +68,9 @@ class PostStatWorkflowTests(unittest.TestCase):
         return key.startswith(pattern[:-1])
 
     def invoke_action(self, callbacks, key):
+        # Date: 2026-10-16. Native Esc returns 0 after removing the visible cancel tile.
+        if key == 'cancel' and key not in callbacks:
+            return self.h.call(Symbol('DONE_DIALOG'), [0])
         # DCL supplies these variables while executing ACTION_TILE code.
         self.h.set('$KEY', key)
         self.h.set('$VALUE', self.tiles.get(key, ''))

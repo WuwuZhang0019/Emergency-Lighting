@@ -1,8 +1,7 @@
 ;; Date: 2026-10-16. Compact panel feedback; print overflow without splitting GB2312 pairs.
 (defun EL:PanelText (key value / lines line units char cost index limit legacy step width)
   (setq width (if (member key '("dl_asset" "dl_status")) 34 44))
-  (setq line "" units 0 index 1 limit (cond ((equal key "p_total") 4) ((equal key "dl_status") 3)
-    ((member key '("p_error" "p_diagnostic_status")) 1) (T 2)))
+  (setq line "" units 0 index 1 limit (cond ((equal key "p_total") 4) ((equal key "dl_status") 3) (T 2)))
   (setq legacy (= (strlen "中") 2))
   (while (<= index (strlen value))
     (setq char (substr value index 1) cost (if (> (ascii char) 127) 2 1))
@@ -12,10 +11,18 @@
       (setq lines (append lines (list line)) line "" units 0))
     (setq line (strcat line char) units (+ units cost) index (+ index step)))
   (setq lines (append lines (list line)) index 0)
-  (repeat limit
-    (set_tile (if (= index 0) key (strcat key (itoa index))) (cond ((nth index lines)) (T "")))
-    (setq index (1+ index)))
-  (if (> (length lines) limit) (princ (strcat "\n" value))))
+  ;; Date: 2026-10-16. The footer is removed; keep details in the command line.
+  (if (equal key "p_error")
+    (if (/= value "") (princ (strcat "\n" value)))
+    (progn
+      (repeat limit
+        (set_tile (if (= index 0) key (strcat key (itoa index))) (cond ((nth index lines)) (T "")))
+        (setq index (1+ index)))
+      (if (> (length lines) limit) (princ (strcat "\n" value))))))
+;; Date: 2026-10-16. Action failures stay visible without a persistent footer.
+(defun EL:PanelError (message)
+  (EL:PanelText "p_error" message)
+  (alert message))
 (defun EL:ThumbRestore (/ item checked pending)
   (foreach item *EL:ThumbHidden*
     ;; Date: 2026-10-12. A rejected hide on a locked layer needs no write to restore.
@@ -353,13 +360,13 @@
   (EL:LogEvent "PANEL_ACTION" 'generate)
   (if (EL:DLPanelSubmissionReady)
     (cond
-      ((not (EL:Get 'circuits *EL:PanelDraft*)) (EL:PanelText "p_error" "请至少保留一条实际出线。"))
-      ((> (length (EL:Get 'circuits *EL:PanelDraft*)) 8) (EL:PanelText "p_error" "本图块最多容纳8条实际回路，请拆箱后统计；不会截断回路。"))
+      ((not (EL:Get 'circuits *EL:PanelDraft*)) (EL:PanelError "请至少保留一条实际出线。"))
+      ((> (length (EL:Get 'circuits *EL:PanelDraft*)) 8) (EL:PanelError "本图块最多容纳8条实际回路，请拆箱后统计；不会截断回路。"))
       ((not (EL:CircuitNumbersReady *EL:PanelDraft*))
-        (EL:PanelText "p_error" (EL:NumberProblemText *EL:PanelDraft*)))
+        (EL:PanelError (EL:NumberProblemText *EL:PanelDraft*)))
       ((not (EL:Get 'can-generate *EL:PanelDraft*)) (EL:PanelGenerationBlocked *EL:PanelDraft*))
       ((not (EL:SelectionsReady *EL:PanelDraft* *EL:PanelCapacity*))
-        (EL:PanelText "p_error" "请先选择箱体容量。"))
+        (EL:PanelError "请先选择箱体容量。"))
       (*EL:PanelTemplateReady* (setq *EL:PanelAction* 'generate) (EL:PanelClose 2))
       (T (setq *EL:PanelAction* 'generate) (EL:PanelClose 4)))
       (alert (if *EL:DLError*
@@ -401,7 +408,7 @@
     ((not ids) "未识别到连接设备，请检查导线连接或设备图块。")
     ((and (not (assoc 'block-ground *EL:PanelDraft*)) (vl-some '(lambda (c) (EL:Get 'is-ground c)) cs))
       "沿用旧回路地面设置；修改图块地面勾选后按图块统一重算。")
-    (T "核对回路后点击生成新系统图，当前输入会自动保存。")))
+    (T "")))
   (princ (strcat "\n" total "；实际回路 " (itoa (length cs)) "；输出 " (itoa (EL:FixedOutputCount (length cs)))
     "；已完整核对回路 " (itoa (EL:Get 'box-watts *EL:PanelDraft*)) " W"))
   (set_tile "p_capacity" (cond ((equal *EL:PanelCapacity* 'cap600) "p_600")
@@ -437,7 +444,7 @@
   (EL:LogEvent "PANEL_ACTION" 'save)
   (if (and (EL:PanelLibraryFlush) (EL:DLPanelSaveReady))
     (if (EL:Get 'circuits *EL:PanelDraft*) (progn (setq *EL:PanelAction* 'save) (EL:PanelClose 1))
-      (EL:PanelText "p_error" "请至少保留一条实际出线。"))))
+      (EL:PanelError "请至少保留一条实际出线。"))))
 ;; Date: 2026-10-16. Leave power uncounted until picking, without capacity helper rows.
 (defun EL:PanelHomeFill (/ i key)
   (set_tile "p_number" "配电箱编号：请先拾取配电箱")
@@ -503,10 +510,24 @@
         (present "已打开系统图块库所在文件夹。")
         (T "已打开图块文件夹；尚缺系统图块库.dwg。")))
     "图块文件夹不存在，请重新解压完整交付包。"))
+;; Date: 2026-10-16. Open only this export's successful result, keeping failure details intact.
+(defun EL:PanelDiagnosticExportOpen (/ notice path opened)
+  (setq *EL:DiagnosticExportPath* nil *EL:DiagnosticExportMessage* nil
+    *EL:DiagnosticError* nil *EL:DiagnosticExportSucceeded* nil)
+  (setq notice (EL:PanelDiagnosticExport) path *EL:DiagnosticExportPath*)
+  (princ (strcat "\n" notice))
+  (if path (princ (strcat "\n诊断资料路径：" path)))
+  (if (and path *EL:DiagnosticExportSucceeded*)
+    (progn
+      (setq opened (EL:DiagnosticOpenFolder path))
+      (princ (strcat "\n" opened))
+      (if (not (equal opened "已打开诊断文件所在位置。"))
+        (alert (strcat notice "\n" opened "\n诊断资料路径：" path))))
+    (alert notice)))
 (defun EL:PanelDialog (result cfg powers capacity / dialog status captured
     *EL:PanelAction* *EL:PanelDraft* *EL:PanelPowers* *EL:PanelCapacity* *EL:PanelConfig*
     *EL:PanelTemplateReady* *EL:PanelLibrarySnapshot* *EL:PanelDialogPosition* *EL:PanelPreviewPalette*
-    home diagnostic-notice diagnostic-path diagnostic-action)
+    home)
   (setq home (not result)
     *EL:PanelDraft* (if result (EL:PanelCompute (EL:SelectFixedExits result nil) powers cfg))
     *EL:PanelPowers* powers *EL:PanelCapacity* (EL:CapacityDefault capacity)
@@ -533,10 +554,6 @@
         (EL:PanelCircuitColorsDraw *EL:PanelPreviewPalette*)
         (set_tile "p_library_toggle" (if *EL:PanelLibraryExpanded* "收起设备库 <<" "展开设备库 >>"))
         (if *EL:PanelLibraryExpanded* (EL:DLUIPanelBegin *EL:PanelLibrarySnapshot*))
-        (EL:PanelText "p_diagnostic_status" (cond (diagnostic-notice) (T "")))
-        (set_tile "p_diagnostic_action" (cond (diagnostic-action) (T "")))
-        (set_tile "p_diagnostic_path" (cond (diagnostic-path) (T "")))
-        (mode_tile "p_diagnostic_open" (if diagnostic-path 0 1))
         (EL:MonitorActionTile "p_pick" "(EL:PanelLeave 9)")
         (EL:MonitorActionTile "p_trunk" "(EL:PanelLeave 10)")
         (EL:MonitorActionTile "f_preview" "(EL:PanelLeave 5)")
@@ -544,10 +561,8 @@
         (EL:MonitorActionTile "p_capacity" "(EL:PanelCapacity $value)")
         (EL:MonitorActionTile "p_generate" "(EL:PanelGenerate)")
         (EL:MonitorActionTile "p_diagnostic" "(EL:PanelLeave 17)")
-        (EL:MonitorActionTile "p_diagnostic_open" "(EL:PanelLeave 18)")
         (if *EL:PanelLibraryExpanded*
           (EL:MonitorActionTile "p_block_library_open" "(EL:PanelLeave 19)"))
-        (EL:MonitorActionTile "cancel" "(EL:PanelLeave 0)")
         (setq *EL:PanelAction* nil status (EL:PerfInput 'start_dialog nil))
         (EL:LogEvent "PANEL_DIALOG_RETURN" (list (cons 'status status) (cons 'action *EL:PanelAction*)))
         (if (= status 21) (setq status 3))
@@ -564,11 +579,7 @@
         (if (= status 5)
           (progn (EL:AllCircuitColorPreview *EL:PanelDraft*) (setq status 3)))
         (if (= status 17)
-          (setq diagnostic-action nil diagnostic-notice (EL:PanelDiagnosticExport)
-            diagnostic-path *EL:DiagnosticExportPath* status 3))
-        (if (= status 18)
-          ;; Date: 2026-10-15. Folder feedback must not replace the export result.
-          (setq diagnostic-action (EL:DiagnosticOpenFolder diagnostic-path) status 3))
+          (progn (EL:PanelDiagnosticExportOpen) (setq status 3)))
         (if (= status 19)
           (setq *EL:DLUINotice* (EL:PanelOpenBlockLibrary) status 3))
         (if (= status 20)

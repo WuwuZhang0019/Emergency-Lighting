@@ -185,7 +185,7 @@ class SimplifiedFlowTests(unittest.TestCase):
         self.assertIn("已识别设备 2 个", output)
         self.assertIn("总功率：", output)
         self.assertIn("10 W", f.tiles["p_power_total"])
-        self.assertTrue(f.tiles["p_error"])
+        self.assertNotIn("p_error", f.tiles)
         self.assertTrue(f.tiles["p_row0"])
 
 

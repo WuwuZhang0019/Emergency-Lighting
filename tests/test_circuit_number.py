@@ -369,12 +369,14 @@ class NumberPresentationTests(unittest.TestCase):
           (EL:Put 'number-evidence '((candidates "ZE1" "ZE2")) (car cs)))) result))
           (setq *EL:PanelDraft* result *EL:PanelTemplateReady* T)''')
         self.assertIsNone(self.h.run("(EL:FixedPlan result template 'cap300 '(0.0 0.0 0.0) 0.0 1.0)"))
-        done, tiles = [], {}
+        done, tiles, alerts = [], {}, []
         self.h.builtins.update({'EL:PANELSTORESELECTIONS': lambda: True,
-                               'SET_TILE': lambda k, v: tiles.__setitem__(k, v), 'DONE_DIALOG': done.append})
+                               'SET_TILE': lambda k, v: tiles.__setitem__(k, v),
+                               'DONE_DIALOG': done.append, 'ALERT': alerts.append})
         self.call('EL:PanelGenerateBody')
         self.assertEqual(done, [])
-        self.assertIn('编号冲突', tiles['p_error'])
+        self.assertIn('编号冲突', ''.join(alerts))
+        self.assertNotIn('p_error', tiles)
         self.assertTrue(self.h.lookup('*EL:PANELDRAFT*'))
 
     def test_native_cckk2_panel_dispatch_uses_resolved_numbers(self):

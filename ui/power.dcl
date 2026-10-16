@@ -168,17 +168,9 @@ el_panel_editor : boxed_column { label = "设备库"; fixed_height = true; align
     }
   }
 
-// Date: 2026-10-16. Keep diagnostic controls together and reserve single-line feedback.
+// Date: 2026-10-16. Export and open in one action; native Esc closes the panel.
 el_panel_diagnostics : column { fixed_width = true; fixed_height = true; alignment = top;
-    : button { key = "p_diagnostic"; label = "导出诊断日志"; }
-    : edit_box { key = "p_diagnostic_path"; label = "路径"; edit_width = 38; edit_limit = 2048; }
-    : button { key = "p_diagnostic_open"; label = "打开所在文件夹"; is_enabled = false; }
-    : text { key = "p_error"; width = 46; fixed_width = true; fixed_height = true; }
-    : text { key = "p_diagnostic_status"; width = 46; fixed_width = true; fixed_height = true; }
-    : text { key = "p_diagnostic_action"; width = 46; fixed_width = true; fixed_height = true; }
-    : row { fixed_width = true; fixed_height = true; alignment = right;
-      : button { key = "cancel"; label = "取消"; width = 12; fixed_width = true; is_cancel = true; }
-    }
+    : button { key = "p_diagnostic"; label = "导出诊断日志并打开文件夹"; width = 46; fixed_width = true; }
   }
 
 el_panel_paths : column {

@@ -124,8 +124,12 @@ class PanelLibraryToggleTests(unittest.TestCase):
         for key, attributes in compact.items():
             self.assertEqual(attributes, expanded[key])
         for key in ('p_pick', 'p_trunk', 'p_capacity', 'f_preview', 'p_generate',
-                    'p_library_toggle', 'p_diagnostic', 'p_diagnostic_path', 'cancel'):
+                    'p_library_toggle', 'p_diagnostic', 'p_power_total'):
             self.assertIn(key, compact)
+        self.assertEqual(compact['p_diagnostic']['label'], '导出诊断日志并打开文件夹')
+        for key in ('p_diagnostic_path', 'p_diagnostic_open', 'p_diagnostic_status',
+                    'p_diagnostic_action', 'p_error', 'cancel'):
+            self.assertNotIn(key, expanded)
         self.assertFalse(any(key.startswith('dl_') for key in compact))
         self.assertNotIn('p_block_library_open', compact)
         for key in ('dl_save', 'dl_import', 'dl_export', 'dl_open', 'dl_rows', 'p_block_library_open'):
@@ -243,36 +247,37 @@ class PanelLibraryToggleTests(unittest.TestCase):
         self.assertEqual(f.get('capacity', result), Symbol('CAP600'))
         self.assertEqual(f.dialogs, ['el_panel_compact'])
 
-    def test_preview_and_diagnostic_path_survive_both_widths(self):
+    def test_preview_and_combined_diagnostic_preserve_capacity_across_widths(self):
         f, callbacks, _, _ = self.fixture()
         previews, folders = [], []
         f.h.builtins['EL:ALLCIRCUITCOLORPREVIEW'] = lambda result: previews.append(result)
 
         def export():
             f.h.set('*EL:DIAGNOSTICEXPORTPATH*', 'C:/diagnostics/ELDIAG')
+            f.h.set('*EL:DIAGNOSTICEXPORTSUCCEEDED*', True)
             return '诊断资料已导出'
 
         f.h.builtins['EL:PANELDIAGNOSTICEXPORT'] = export
-        f.h.builtins['EL:DIAGNOSTICOPENFOLDER'] = lambda path: folders.append(path) or '已打开'
+        f.h.builtins['EL:DIAGNOSTICOPENFOLDER'] = lambda path: folders.append(path) or '已打开诊断文件所在位置。'
 
         def preview():
             f.call('EL:PanelCapacity', 'p_1000')
             self.invoke(f, callbacks, 'f_preview')
 
         def check_and_toggle():
-            self.assertEqual(f.tiles['p_diagnostic_path'], 'C:/diagnostics/ELDIAG')
+            self.assertEqual(folders, ['C:/diagnostics/ELDIAG'])
+            self.assertNotIn('p_diagnostic_path', f.tiles)
             self.assertEqual(f.tiles['p_capacity'], 'p_1000')
             self.invoke(f, callbacks, 'p_library_toggle')
 
         f.actions = [preview, lambda: self.invoke(f, callbacks, 'p_diagnostic'),
                      check_and_toggle, check_and_toggle,
-                     lambda: self.invoke(f, callbacks, 'p_diagnostic_open'),
                      lambda: self.invoke(f, callbacks, 'cancel')]
         f.dialog()
         self.assertEqual(len(previews), 1)
         self.assertEqual(folders, ['C:/diagnostics/ELDIAG'])
         self.assertEqual(f.tiles['p_capacity'], 'p_1000')
-        self.assertEqual(f.tiles['p_diagnostic_action'], '已打开')
+        self.assertNotIn('cancel', callbacks)
 
     def test_expanded_choice_is_remembered_and_unreadable_library_can_be_collapsed(self):
         f, callbacks, _, _ = self.fixture()

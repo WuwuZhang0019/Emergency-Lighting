@@ -199,53 +199,73 @@ class DiagnosticButtonTests(unittest.TestCase):
         def export():
             exports.append(True)
             f.h.set('*EL:DIAGNOSTICEXPORTPATH*', path)
+            f.h.set('*EL:DIAGNOSTICEXPORTSUCCEEDED*', True)
             return '诊断已导出'
         f.h.builtins['EL:PANELDIAGNOSTICEXPORT'] = export
-        f.h.builtins['EL:DIAGNOSTICOPENFOLDER'] = lambda value: opens.append(value) or '已打开诊断位置'
+        f.h.builtins['EL:DIAGNOSTICOPENFOLDER'] = lambda value: opens.append(value) or '已打开诊断文件所在位置。'
         f.actions = [lambda: (f.tiles.__setitem__('dl_display', '保留输入'),
                               f.call('EL:PanelCapacity', 'p_600'),
                               f.invoke_action(callbacks, 'p_diagnostic')),
-                     lambda: (self.assertEqual(f.tiles['p_diagnostic_path'], path),
-                              f.tiles.__setitem__('p_diagnostic_path', 'edited display only'),
-                              f.invoke_action(callbacks, 'p_diagnostic_open')),
                      lambda: f.invoke_action(callbacks, 'cancel')]
         f.dialog()
         self.assertEqual(exports, [True])
-        self.assertEqual(f.dialogs, ['el_panel', 'el_panel', 'el_panel'])
+        self.assertEqual(f.dialogs, ['el_panel', 'el_panel'])
         self.assertEqual(opens, [path])
-        self.assertEqual(f.tiles['p_diagnostic_path'], path)
+        self.assertNotIn('p_diagnostic_path', f.tiles)
         self.assertEqual(f.tiles['p_capacity'], 'p_600')
         self.assertEqual(f.get('display', f.call('EL:DLUIEntry')), '保留输入')
-        self.assertEqual(f.tiles['p_diagnostic_status'], '诊断已导出')
-        self.assertEqual(f.tiles['p_diagnostic_action'], '已打开诊断位置')
+        self.assertNotIn('p_diagnostic_status', f.tiles)
+        self.assertNotIn('cancel', callbacks)
 
-    def test_failed_export_survives_folder_action_and_retry_replaces_old_result(self):
+    def test_failed_export_does_not_open_partial_folder_and_retry_preserves_export_result(self):
         f = panel.PostStatWorkflowTests()
         f.setUp()
-        callbacks, exports, opens = {}, [], []
+        callbacks, exports, opens, alerts = {}, [], [], []
         folder = 'C:\\中文 目录\\ELDIAG-20261015.123456'
         path = folder + '-1.zip'
         f.h.builtins['ACTION_TILE'] = lambda key, action: callbacks.__setitem__(key, action)
+        f.h.builtins['ALERT'] = alerts.append
         def export():
             exports.append(True)
+            self.assertIsNone(f.h.lookup('*EL:DIAGNOSTICEXPORTPATH*'))
+            self.assertIsNone(f.h.lookup('*EL:DIAGNOSTICEXPORTSUCCEEDED*'))
             f.h.set('*EL:DIAGNOSTICEXPORTPATH*', folder if len(exports) == 1 else path)
-            return '诊断导出失败：模拟压缩错误' if len(exports) == 1 else '诊断已导出'
+            f.h.set('*EL:DIAGNOSTICEXPORTSUCCEEDED*', None if len(exports) == 1 else True)
+            notice = '诊断导出失败：模拟收集错误' if len(exports) == 1 else '诊断已导出'
+            f.h.set('*EL:DIAGNOSTICEXPORTMESSAGE*', notice)
+            return notice
         f.h.builtins['EL:PANELDIAGNOSTICEXPORT'] = export
         f.h.builtins['EL:DIAGNOSTICOPENFOLDER'] = lambda value: opens.append(value) or '无法打开文件夹'
         def retry():
-            self.assertEqual(f.tiles['p_diagnostic_status'], '诊断导出失败：模拟压缩错误')
-            self.assertEqual(f.tiles['p_diagnostic_action'], '无法打开文件夹')
-            self.assertEqual(f.tiles['p_diagnostic_path'], folder)
+            self.assertEqual(alerts, ['诊断导出失败：模拟收集错误'])
+            self.assertEqual(opens, [])
+            self.assertEqual(f.h.lookup('*EL:DIAGNOSTICEXPORTMESSAGE*'), alerts[0])
             f.invoke_action(callbacks, 'p_diagnostic')
         f.actions = [lambda: f.invoke_action(callbacks, 'p_diagnostic'),
-                     lambda: f.invoke_action(callbacks, 'p_diagnostic_open'), retry,
+                     retry,
                      lambda: f.invoke_action(callbacks, 'cancel')]
         f.dialog()
         self.assertEqual(len(exports), 2)
-        self.assertEqual(opens, [folder])
-        self.assertEqual(f.tiles['p_diagnostic_status'], '诊断已导出')
-        self.assertEqual(f.tiles['p_diagnostic_action'], '')
-        self.assertEqual(f.tiles['p_diagnostic_path'], path)
+        self.assertEqual(opens, [path])
+        self.assertEqual(f.h.lookup('*EL:DIAGNOSTICEXPORTMESSAGE*'), '诊断已导出')
+        self.assertIn('无法打开文件夹', alerts[-1])
+        self.assertIn(path, alerts[-1])
+
+    def test_failed_export_without_new_path_never_opens_a_previous_result(self):
+        f = panel.PostStatWorkflowTests()
+        f.setUp()
+        alerts, opens = [], []
+        f.h.set('*EL:DIAGNOSTICEXPORTPATH*', 'C:/previous-export')
+        f.h.set('*EL:DIAGNOSTICEXPORTSUCCEEDED*', True)
+        f.h.builtins.update({
+            'EL:PANELDIAGNOSTICEXPORT': lambda: '诊断导出失败：模拟启动错误',
+            'EL:DIAGNOSTICOPENFOLDER': lambda path: opens.append(path),
+            'ALERT': alerts.append,
+        })
+        f.call('EL:PanelDiagnosticExportOpen')
+        self.assertEqual(opens, [])
+        self.assertEqual(alerts, ['诊断导出失败：模拟启动错误'])
+        self.assertIsNone(f.h.lookup('*EL:DIAGNOSTICEXPORTPATH*'))
 
 
 class DeferredRunTests(unittest.TestCase):

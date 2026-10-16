@@ -173,6 +173,7 @@ class DiagnosticBundleTests(unittest.TestCase):
         self.h.builtins['EL:DIAGNOSTICZIP'] = lambda *args: self.fail('folder export must not compress')
         message = self.h.run('(EL:PanelDiagnosticExport)')
         self.assertIn('已导出诊断资料文件夹', message)
+        self.assertTrue(self.h.lookup('*EL:DIAGNOSTICEXPORTSUCCEEDED*'))
         folder = Path(self.h.lookup('*EL:DIAGNOSTICEXPORTPATH*'))
         self.assertTrue((folder / 'association.eld').is_file())
         self.assertFalse(Path(str(folder) + '.zip').exists())
@@ -209,6 +210,7 @@ class DiagnosticBundleTests(unittest.TestCase):
         self.h.builtins['VLAX-INVOKE-METHOD']=fail_report
         message=self.h.run('(EL:PanelDiagnosticExport)')
         self.assertIn('original collection error',message)
+        self.assertFalse(self.h.lookup('*EL:DIAGNOSTICEXPORTSUCCEEDED*'))
         self.assertNotIn('secondary report write error',message)
         self.assertEqual(self.h.lookup('*EL:DIAGNOSTICEXPORTMESSAGE*'),message)
 

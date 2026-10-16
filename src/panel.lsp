@@ -1,7 +1,8 @@
-;; Date: 2026-10-12. Keep GB2312 byte pairs intact in the legacy CAD2020 engine.
+;; Date: 2026-10-16. Compact panel feedback; print overflow without splitting GB2312 pairs.
 (defun EL:PanelText (key value / lines line units char cost index limit legacy step width)
   (setq width (if (member key '("dl_asset" "dl_status")) 34 44))
-  (setq line "" units 0 index 1 limit (cond ((equal key "p_total") 4) ((member key '("p_error" "dl_status")) 3) (T 2)))
+  (setq line "" units 0 index 1 limit (cond ((equal key "p_total") 4) ((equal key "dl_status") 3)
+    ((member key '("p_error" "p_diagnostic_status")) 1) (T 2)))
   (setq legacy (= (strlen "中") 2))
   (while (<= index (strlen value))
     (setq char (substr value index 1) cost (if (> (ascii char) 127) 2 1))
@@ -425,8 +426,7 @@
   (set_tile "p_number" "配电箱编号：请先拾取配电箱")
   (setq i 0)
   (repeat 8 (set_tile (strcat "p_row" (itoa i)) "") (setq i (1+ i)))
-  (EL:PanelText "p_error" (if *EL:PanelLibraryExpanded*
-    "可先在右侧查看或编辑设备库。" "可展开设备库查看或编辑设备。"))
+  (EL:PanelText "p_error" "")
   (EL:PanelText "p_capacity_status" "识别后可选择配电箱容量。")
   (set_tile "p_capacity" "p_300")
   (foreach key '("p_trunk" "p_capacity" "f_preview" "p_generate") (mode_tile key 1)))

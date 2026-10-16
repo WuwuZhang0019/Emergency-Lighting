@@ -168,9 +168,9 @@ el_panel_editor : boxed_column { label = "设备库"; fixed_height = true; align
     }
   }
 
-// Date: 2026-10-16. Esc and title-bar close need a real is_cancel button in native DCL.
-// Keep its label empty and footprint minimal instead of restoring the visible cancel footer.
-el_panel_escape : button {
+// Date: 2026-10-16. A text receiver keeps the cancel action without a native button frame.
+// AutoCAD still renders a minimum frame for a button with a tiny requested size.
+el_panel_escape : text {
   key = "cancel"; label = ""; is_cancel = true; is_tab_stop = false;
   width = 0.01; height = 0.01; fixed_width = true; fixed_height = true;
 }

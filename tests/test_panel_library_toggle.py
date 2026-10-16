@@ -60,7 +60,7 @@ def panel_tiles(name):
         if 'key' in attributes:
             key = attributes['key']
             assert key not in resolved, f'duplicate DCL key: {key}'
-            resolved[key] = attributes
+            resolved[key] = dict(attributes, tile_type=kind)
         for child in children:
             visit(child)
 
@@ -141,8 +141,13 @@ class PanelLibraryToggleTests(unittest.TestCase):
         self.assertEqual(compact['cancel']['is_cancel'], 'true')
         self.assertEqual(compact['cancel']['is_tab_stop'], 'false')
         self.assertEqual(compact['cancel']['label'], '')
+        self.assertEqual(compact['cancel']['tile_type'], 'text')
         self.assertLessEqual(float(compact['cancel']['width']), 0.01)
         self.assertLessEqual(float(compact['cancel']['height']), 0.01)
+        for layout in (compact, expanded):
+            blank_buttons = [key for key, attrs in layout.items()
+                             if attrs['tile_type'] == 'button' and not attrs.get('label', '').strip()]
+            self.assertEqual(blank_buttons, [], 'a native button frame would remain visible')
         self.assertFalse(any(key.startswith('dl_') for key in compact))
         self.assertNotIn('p_block_library_open', compact)
         for key in ('dl_save', 'dl_import', 'dl_export', 'dl_open', 'dl_rows', 'p_block_library_open'):

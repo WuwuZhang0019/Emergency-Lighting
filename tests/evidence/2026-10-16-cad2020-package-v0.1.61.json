@@ -1,0 +1,52 @@
+{
+  "date": "2026-10-16",
+  "status": "passed",
+  "version": "v0.1.61",
+  "package_no": 160,
+  "archive": "output/应急照明-v0.1.61.zip",
+  "archive_bytes": 3968312,
+  "sha256": "86a3b0abdd8a03a18e17d65b02d0e13aeeb2acda1b08c2a3168bc01d97f60735",
+  "package_files": 361,
+  "gb2312_lisp_dcl_files": 32,
+  "parsed_lisp_files": 30,
+  "entrypoints": [
+    "START-CAD2020.lsp",
+    "UPDATE-160.lsp",
+    "src/load.lsp"
+  ],
+  "latest_panel_functions_checked_in_each_entry": [
+    "EL:PANELTEXT",
+    "EL:CIRCUITCOLOR",
+    "EL:PREVIEWPALETTE",
+    "EL:PANELCIRCUITCOLORSDRAW",
+    "EL:ALLCIRCUITCOLORWAIT",
+    "EL:PANELHOMEFILL",
+    "EL:PANELDIALOG",
+    "EL:PANELKNOWNTOTAL",
+    "EL:PANELERROR",
+    "EL:PANELDIAGNOSTICEXPORTOPEN",
+    "EL:PANELDIAGNOSTICEXPORT",
+    "EL:DIAGNOSTICOPENFOLDER",
+    "EL:PANELEXIT",
+    "EL:PANELCLOSE",
+    "EL:PANELLEAVE",
+    "EL:PANELCIRCUITLIMITTEXT",
+    "EL:PANELGENERATEBODY",
+    "EL:PANELGENERATE"
+  ],
+  "zip_crc_and_complete_file_list": true,
+  "zip_and_directory_bytes_match": true,
+  "source_panel_and_ui_match": true,
+  "embedded_panel_and_ui_match": true,
+  "text_cancel_receiver_declared_in_both_layouts": true,
+  "blank_native_buttons_absent": true,
+  "default_library_and_template_bytes_match": true,
+  "previous_v0_1_60_unchanged": true,
+  "previous_v0_1_60_sha256": "03ff255ae25578e126069130b08d03d4799c0bee2923110335ece0e502d26fbe",
+  "focused_tests": {
+    "passed": 11,
+    "source_commit": "d3eb9d7",
+    "scope": "borderless text receiver and no blank native buttons, home/result cancel callbacks, draft retention on invalid input or write failure, preview, diagnostics and circuit limits; finite CAD/DCL adapters"
+  },
+  "native_cad_status": "pending: AutoCAD 2020 text receiver Esc/close dispatch, no blank button frame, dialog width/focus and input retention; v0.1.60 native button receiver only was user-confirmed"
+}

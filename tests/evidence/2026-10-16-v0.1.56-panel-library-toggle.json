@@ -1,0 +1,99 @@
+{
+  "date": "2026-10-16",
+  "status": "targeted_checks_passed",
+  "software_version": "0.1.56",
+  "internal_package_no": 155,
+  "checks": 13,
+  "tests": [
+    {
+      "test": "test_library_location.LibraryLocationDialogTests.test_panel_open_automatically_saves_power_and_keeps_capacity",
+      "passed": true
+    },
+    {
+      "test": "test_library_location.LibraryLocationDialogTests.test_standalone_open_automatically_saves_power_and_returns_to_same_editor",
+      "passed": true
+    },
+    {
+      "test": "test_library_transfer.LibraryTransferDialogTests.test_main_panel_buttons_save_before_transfer_and_return_to_same_flow",
+      "passed": true
+    },
+    {
+      "test": "test_library_transfer.LibraryTransferDialogTests.test_standalone_buttons_save_before_transfer_and_return_to_same_editor",
+      "passed": true
+    },
+    {
+      "test": "test_panel_library_toggle.PanelLibraryToggleTests.test_collapse_saves_current_fields_and_restores_selection_search_and_capacity",
+      "passed": true
+    },
+    {
+      "test": "test_panel_library_toggle.PanelLibraryToggleTests.test_compact_generation_uses_current_capacity_without_flushing_hidden_controls",
+      "passed": true
+    },
+    {
+      "test": "test_panel_library_toggle.PanelLibraryToggleTests.test_default_home_expands_collapses_and_preserves_position_without_writing",
+      "passed": true
+    },
+    {
+      "test": "test_panel_library_toggle.PanelLibraryToggleTests.test_expanded_choice_is_remembered_and_unreadable_library_can_be_collapsed",
+      "passed": true
+    },
+    {
+      "test": "test_panel_library_toggle.PanelLibraryToggleTests.test_invalid_power_or_write_failure_does_not_hide_unsaved_input",
+      "passed": true
+    },
+    {
+      "test": "test_panel_library_toggle.PanelLibraryToggleTests.test_layouts_share_left_controls_and_compact_has_no_library_tiles",
+      "passed": true
+    },
+    {
+      "test": "test_panel_library_toggle.PanelLibraryToggleTests.test_preview_and_diagnostic_path_survive_both_widths",
+      "passed": true
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_dcl_keys_and_callback_syntax",
+      "passed": true
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_forms_arities_and_local_assignments",
+      "passed": true
+    }
+  ],
+  "compact_dialog": "el_panel_compact",
+  "expanded_dialog": "el_panel",
+  "compact_tile_count": 34,
+  "expanded_tile_count": 61,
+  "default_expanded": false,
+  "expanded_preference_scope": "current CAD session",
+  "layout_content_shared": true,
+  "compact_has_no_library_tiles": true,
+  "current_fields_saved_before_collapse": true,
+  "selection_search_deleted_and_capacity_preserved": true,
+  "invalid_or_unsaved_input_keeps_editor_expanded": true,
+  "unreadable_library_can_collapse_without_saving_disabled_controls": true,
+  "compact_generate_preview_and_diagnostics_verified": true,
+  "diagnostic_path_preserved": true,
+  "dialog_position_argument_contract_verified": true,
+  "standalone_import_export_and_catalog_location_regressions_passed": true,
+  "source_gb2312_encodable": [
+    "src/panel.lsp",
+    "src/device-ui.lsp",
+    "ui/power.dcl"
+  ],
+  "default_catalog_sha256": "e598e81f4286159d1a66f2bd161e738d745c95ee3f1e0489322d14d6957ceb4c",
+  "default_power_data_unchanged": true,
+  "source_sha256": {
+    "README.md": "8851144078721cea870e7aeb057cb76ad2411e17e5db8c062b67cf755f2c6fea",
+    "docs/03_加载使用与验收说明.md": "41f37cfb0d0894e625e445dff3ea5dee8bebc36955e22aecd36a8eba2c963b68",
+    "docs/更新记录/v0.1.56-设备库展开与收起.md": "c838752efd241c607a27b8263e170c941509ee85cb4cfe41331130609063b06d",
+    "src/panel.lsp": "ad487cbc313e8bd530693c14e8c6bda8846b3d0ea3428cb8b0cd856cd9298d3b",
+    "src/device-ui.lsp": "50fe776310fee473092c4c0ecdbf1e5df6f0f276778b7c87ca8cae13d5b0c9b1",
+    "ui/power.dcl": "aef79cd26f18e10126d2c3f1f54124da1b58d06445847eb8fc2380d0e139d3ad",
+    "tests/test_panel_library_toggle.py": "e09ce29f13a99ba7496e0dfd4d3404217b3891afa012748c5d73509c9845aa2e",
+    "tests/test_post_stat_workflow.py": "68a25bcd016559600dd0391d9781c91fd2c3faeb40a5aec9cefd135488739097",
+    "tools/build_cad2020.py": "f34e1b8f309c6193559ee3f9d0ec1594ffa256a7a5b6e386d229482524afeb3b"
+  },
+  "native_cad_status": "pending_user_validation",
+  "boundary": "Actual DCL subassemblies resolved into strict finite tile adapters and real temporary catalog writes; not a native DCL compiler, pixel layout, screen placement, focus, graphics or original-DWG generation acceptance.",
+  "build_executed": false,
+  "package_generated": false
+}

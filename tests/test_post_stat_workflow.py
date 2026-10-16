@@ -1,4 +1,4 @@
-"""Current-panel workflow fixture and storage checks. Date: 2026-10-15. Status: current.
+"""Current-panel workflow fixture and storage checks. Date: 2026-10-16. Status: current.
 
 Runs actual command/dialog functions with finite CAD/DCL adapters.
 """
@@ -36,6 +36,8 @@ class PostStatWorkflowTests(unittest.TestCase):
 
     def setUp(self):
         diag.FixedDiagnosticTests.setUp(self)
+        # Existing editor scenarios explicitly choose the expanded layout.
+        self.h.set('*EL:PANELLIBRARYEXPANDED*', True)
         self.capture_calls, self.actions = [], []
         self.closed = None
         self.h.builtins.update({'GET_TILE': lambda key: self.tiles.get(key, ''),

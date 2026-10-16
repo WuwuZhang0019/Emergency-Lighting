@@ -68,12 +68,8 @@ el_devices : dialog {
   }
 }
 
-// Date: 2026-10-15. Review inputs and export diagnostics only on request.
-el_panel : dialog {
-  label = "应急照明：回路核对与设备库";
-  // Date: 2026-10-16. A full-width divider separates editing from diagnostics and paths.
-  : row { children_alignment = top;
-  : column { fixed_width = true; fixed_height = true; alignment = top;
+// Date: 2026-10-16. Shared subassemblies keep compact and expanded panels identical.
+el_panel_review : column { fixed_width = true; fixed_height = true; alignment = top;
     // Date: 2026-10-15. Four visible steps retain the existing pick controls.
     : row { fixed_width = true; fixed_height = true; alignment = left;
       : image { key = "p_step1"; width = 8; height = 1.3; fixed_width = true; fixed_height = true; color = dialog_background; help_string = "第一步：拾取配电箱和回路起始端导线"; }
@@ -113,8 +109,11 @@ el_panel : dialog {
         : button { key = "p_generate"; label = "生成新系统图"; width = 28; fixed_width = true; is_default = true; }
       }
     }
-  }
-  : boxed_column { label = "设备库"; fixed_height = true; alignment = top;
+
+    : button { key = "p_library_toggle"; label = "展开设备库 >>"; width = 46; fixed_width = true; help_string = "展开或收起右侧设备库，保留当前回路与编辑资料"; }
+}
+
+el_panel_editor : boxed_column { label = "设备库"; fixed_height = true; alignment = top;
     // Date: 2026-10-16. Device editor above library paths; keep each section together.
     : column { fixed_height = true; alignment = top;
       : row { children_alignment = top;
@@ -153,10 +152,8 @@ el_panel : dialog {
       : text { key = "dl_status"; width = 76; fixed_height = true; }
     }
   }
-  }
-  : image { height = 0.12; fixed_height = true; color = 8; }
-  : row { children_alignment = top;
-  : column { fixed_width = true;
+
+el_panel_diagnostics : column { fixed_width = true;
     : text { key = "p_error"; width = 46; fixed_width = true; }
     : text { key = "p_error1"; width = 46; fixed_width = true; }
     : text { key = "p_error2"; width = 46; fixed_width = true; }
@@ -170,7 +167,8 @@ el_panel : dialog {
       : button { key = "cancel"; label = "取消"; width = 12; fixed_width = true; is_cancel = true; }
     }
   }
-  : column {
+
+el_panel_paths : column {
     : column { fixed_height = true; alignment = top;
       : text { key = "dl_root"; width = 76; fixed_height = true; }
       : row { alignment = left; fixed_height = true;
@@ -185,5 +183,17 @@ el_panel : dialog {
     }
     : text { label = "点击保存设备后核对上方结果；离开输入框时也会自动保存。"; fixed_height = true; }
   }
-  }
+
+el_panel : dialog {
+  label = "应急照明：回路核对与设备库";
+  : row { children_alignment = top; el_panel_review; el_panel_editor; }
+  : image { height = 0.12; fixed_height = true; color = 8; }
+  : row { children_alignment = top; el_panel_diagnostics; el_panel_paths; }
+}
+
+el_panel_compact : dialog {
+  label = "应急照明：回路核对";
+  el_panel_review;
+  : image { height = 0.12; fixed_height = true; color = 8; }
+  el_panel_diagnostics;
 }

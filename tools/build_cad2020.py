@@ -6,8 +6,8 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 # Date: 2026-10-16. Software version; PACKAGE_NO is an internal compatibility identifier.
-VERSION = '0.1.53'
-PACKAGE_NO = 152
+VERSION = '0.1.54'
+PACKAGE_NO = 153
 NAME = f'应急照明-v{VERSION}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 OUTPUT_ROOT = ROOT / 'output'

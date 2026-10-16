@@ -102,8 +102,7 @@
   (foreach key '("dl_pick" "dl_new" "dl_import" "dl_directory")
     (mode_tile key (if *EL:DLCaptureJob* 1 0)))
   (mode_tile "dl_delete" (if (and entry (not (equal (EL:Get 'status entry) 'deleted))) 0 1))
-  (mode_tile "dl_repair" (if (and (not *EL:DLCaptureJob*) entry (not (equal (EL:Get 'status entry) 'deleted))
-    (> (EL:Get 'asset-revision entry) 0)) 0 1))
+  (mode_tile "dl_export" (if (EL:Get 'snapshot *EL:DLUIState*) 0 1))
   (mode_tile "dl_restore" (if (and entry (equal (EL:Get 'status entry) 'deleted)) 0 1)))
 (defun EL:DLUIRowText (entry)
   (strcat (EL:Get 'block-name entry) " / " (EL:Get 'display entry) " / "
@@ -427,7 +426,7 @@
       (EL:MonitorActionTile "dl_reload" "(EL:DLUIReload)")
       (EL:MonitorActionTile "dl_directory" "(EL:DLUILeave 14)")
       (EL:MonitorActionTile "dl_pick" "(EL:DLUILeave 13)")
-      (EL:MonitorActionTile "dl_repair" "(EL:DLUILeave 16)")
+      (EL:MonitorActionTile "dl_export" "(EL:DLUILeave 16)")
       (EL:MonitorActionTile "dl_import" "(EL:DLUILeave 15)")
       (EL:MonitorActionTile "dl_open" "(EL:DLUILeave 20)")
       (EL:DLUIAutoSave)
@@ -436,7 +435,7 @@
       (set_tile "dl_root" "设备库暂不可读取")
       (set_tile "dl_status" (cond (*EL:DLError*) (T "请检查设备库目录。")))
       (foreach key '("dl_rows" "dl_new" "dl_delete" "dl_restore" "dl_query"
-          "dl_deleted" "dl_refresh" "dl_reload" "dl_directory" "dl_pick" "dl_repair"
+          "dl_deleted" "dl_refresh" "dl_reload" "dl_directory" "dl_pick" "dl_export"
           "dl_import" "dl_open" "dl_block" "dl_aliases" "dl_keep_old" "dl_display" "dl_watts"
           "dl_zero" "dl_ground" "dl_active" "dl_save")
         (mode_tile key 1)) nil)))
@@ -458,7 +457,7 @@
         (EL:MonitorActionTile "dl_refresh" "(EL:DLUIRefresh)") (EL:MonitorActionTile "dl_reload" "(EL:DLUIReload)")
         (EL:MonitorActionTile "dl_directory" "(EL:DLUILeave 4)")
         (EL:MonitorActionTile "dl_pick" "(EL:DLUILeave 3)")
-        (EL:MonitorActionTile "dl_repair" "(EL:DLUILeave 7)")
+        (EL:MonitorActionTile "dl_export" "(EL:DLUILeave 7)")
         (EL:MonitorActionTile "dl_import" "(EL:DLUILeave 6)")
         (EL:MonitorActionTile "dl_open" "(EL:DLUILeave 8)")
         (EL:MonitorActionTile "dl_close" "(EL:DLUILeave 0)")
@@ -466,12 +465,8 @@
         (setq status (start_dialog))) (setq status 0)))
     (cond
       ((= status 8) (setq *EL:DLUINotice* (EL:DLOpenCatalog) status 2))
-      ((= status 6) (EL:DLImportUI) (setq status 2))
-      ((= status 7)
-        (setq entry (EL:DLUIEntry) *EL:DLContinue* 'EL:DLUIResume
-          result (vl-catch-all-apply 'EL:DLCaptureFile (list (EL:Get 'snapshot *EL:DLUIState*) entry)))
-        (if (and (not (vl-catch-all-error-p result)) result) (setq status 5)
-          (setq *EL:DLContinue* nil *EL:DLError* "图例修复未完成，原资料和编辑输入保留。" status 2)))
+      ((= status 6) (EL:DLLibraryTransferUI nil) (setq status 2))
+      ((= status 7) (EL:DLLibraryTransferUI T) (setq status 2))
       ((= status 3)
         (setq checkpoint *EL:PerfPending* result (vl-catch-all-apply 'EL:DLPickDevices nil))
         (if (vl-catch-all-error-p result) (EL:PerfUnwind checkpoint))

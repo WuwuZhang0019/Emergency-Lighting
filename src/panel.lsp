@@ -430,19 +430,13 @@
 (defun EL:DLUIPanelRestore () (EL:DLUIChangeStatus nil))
 (defun EL:PanelLibraryExternal (status / entry result checkpoint path)
   (cond
-    ((= status 15) (EL:DLImportUI))
+    ((= status 15) (EL:DLLibraryTransferUI nil))
     ((= status 14)
       (setq *EL:DLUIDirectories* (EL:Put (EL:Get 'root (EL:Get 'snapshot *EL:DLUIState*))
         *EL:DLUIState* *EL:DLUIDirectories*))
       (setq path (getfiled "选择设备库的 catalog.eld" (strcat (EL:DLRoot) "catalog.eld") "eld" 0))
       (if path (EL:DLUISwitchRoot path)))
-    ((= status 16)
-      (setq entry (EL:DLUIEntry) *EL:DLContinue* 'EL:DLUIResume
-        result (vl-catch-all-apply 'EL:DLCaptureFile
-          (list (EL:Get 'snapshot *EL:DLUIState*) entry)))
-      (if (and (not (vl-catch-all-error-p result)) result)
-        (setq status 12)
-        (setq *EL:DLContinue* nil *EL:DLError* "图例修复未完成，原资料和输入保留。")))
+    ((= status 16) (EL:DLLibraryTransferUI T))
     ((= status 13)
       (setq checkpoint *EL:PerfPending* result (vl-catch-all-apply 'EL:DLPickDevices nil))
       (if (vl-catch-all-error-p result) (EL:PerfUnwind checkpoint))

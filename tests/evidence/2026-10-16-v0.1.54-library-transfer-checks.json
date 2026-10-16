@@ -1,0 +1,87 @@
+{
+  "date": "2026-10-16",
+  "status": "targeted_checks_passed",
+  "software_version": "0.1.54",
+  "checks": 15,
+  "tests": [
+    {
+      "test": "test_library_transfer.LibraryTransferDialogTests.test_main_panel_buttons_save_before_transfer_and_return_to_same_flow",
+      "passed": true
+    },
+    {
+      "test": "test_library_transfer.LibraryTransferDialogTests.test_standalone_buttons_save_before_transfer_and_return_to_same_editor",
+      "passed": true
+    },
+    {
+      "test": "test_library_transfer.LibraryTransferTests.test_cancel_does_not_change_library_or_write_files",
+      "passed": true
+    },
+    {
+      "test": "test_library_transfer.LibraryTransferTests.test_copy_failure_never_publishes_a_catalog_or_changes_the_source",
+      "passed": true
+    },
+    {
+      "test": "test_library_transfer.LibraryTransferTests.test_export_and_import_preserve_parameters_graphics_deleted_and_blank_entries",
+      "passed": true
+    },
+    {
+      "test": "test_library_transfer.LibraryTransferTests.test_export_collision_never_overwrites_an_existing_backup",
+      "passed": true
+    },
+    {
+      "test": "test_library_transfer.LibraryTransferTests.test_invalid_missing_or_corrupt_assets_and_conflicts_do_not_switch_library",
+      "passed": true
+    },
+    {
+      "test": "test_library_transfer.LibraryTransferTests.test_native_folder_picker_arguments_release_and_cancel_contract",
+      "passed": true
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_atomic_config_write_restores_previous_file_on_failure",
+      "passed": true
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_dcl_keys_and_callback_syntax",
+      "passed": true
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_forms_arities_and_local_assignments",
+      "passed": true
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_geometry_and_topology_do_not_mutate_drawing",
+      "passed": true
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_rollback_only_deletes_created_objects_even_if_one_delete_fails",
+      "passed": true
+    },
+    {
+      "test": "test_capture_parameter_editing.CaptureParameterEditingTests.test_only_graph_changing_actions_are_disabled_during_capture",
+      "passed": true
+    },
+    {
+      "test": "test_device_ui.DeviceUITests.test_dcl_keys_callbacks_and_cancel_preserve_store",
+      "passed": true
+    }
+  ],
+  "source_sha256": {
+    "src/common.lsp": "bf8388884aed2074861261cf5c215a564620209b7096f22afdb982a464c1eea5",
+    "src/device-migration.lsp": "c656b228abec47ed820b12e1209d448abeaaed5a9e1d218aee63ff7f5b338fac",
+    "src/device-ui.lsp": "4a006ef14d8ee125daf073394d53d4625f4170e6a409fa5c96e9ecd3a5b5d968",
+    "src/panel.lsp": "5211695b158a3ca9bb5d302f634b3c048bf0467fede8c78b68513f444f5dbc97",
+    "tests/test_capture_parameter_editing.py": "cb38325cb7eec26eab62adc7877632f04443fb5c0a64695c851aa3d1c1b097e9",
+    "tests/test_library_transfer.py": "9a1e39f9bf634952a712b57039124abaac63bd303797367378ea509e480add99",
+    "tools/build_cad2020.py": "7a594effdebe8cb1c16a1ca0c7772639769162cdb2d8f5c372eaafeb0f8de96a",
+    "ui/device-library.dcl": "1ed0233316dccfc288fe0047735535098ede74b66a185bc39862166684eee04e",
+    "ui/power.dcl": "ff866d6ae74eae93ed62275b6ab78f812f1e815db0c23136a735893c01aa9aec"
+  },
+  "transfer_scope": "Full catalog and its current DWG/SLD references plus optional recognition preset; independent imported library with original library and session preserved",
+  "checks_scope": "Real temporary files: complete round-trip, zero/blank/deleted states, exact asset bytes, cancellation, copy failure, corrupted/missing assets, concurrent source changes, locks, export collisions and registry failure; both real DCL callback routes flush power edits and return; finite Shell folder picker contract; source and DCL constraints",
+  "native_cad_status": "pending_user_validation",
+  "boundary": "Finite AutoLISP, CAD, DCL and COM adapters with real filesystem operations; not native CAD dialogs, Shell interaction or original-DWG acceptance",
+  "build_executed": false,
+  "package_generated": false,
+  "default_library_catalog_sha256": "725548bdaaea1d2974aa918d661e4a29d6ade22cd4b126c08241221692c27634",
+  "default_library_status": "unchanged pending user-resaved complete power catalog"
+}

@@ -1,4 +1,4 @@
-"""Pending legends must not lock power editing. Date: 2026-10-15. Native CAD pending."""
+"""Pending legends must not lock power editing. Date: 2026-10-16. Native CAD pending."""
 from pathlib import Path
 import tempfile
 import unittest
@@ -57,7 +57,8 @@ class CaptureParameterEditingTests(unittest.TestCase):
                 f.call('EL:DLUIFields')
                 for key in ('dl_watts','dl_display','dl_block','dl_aliases','dl_ground','dl_zero','dl_active'):
                     self.assertEqual(modes[key],0,key)
-                for key in ('dl_pick','dl_repair','dl_import','dl_directory','dl_new'):
+                self.assertEqual(modes['dl_export'],0)
+                for key in ('dl_pick','dl_import','dl_directory','dl_new'):
                     self.assertEqual(modes[key],1 if pending else 0,key)
 
     def test_two_power_edits_and_close_save_while_capture_is_pending(self):

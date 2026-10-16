@@ -37,7 +37,7 @@ el_device_library : dialog {
         : button { key = "dl_reload"; label = "重载选中项"; }
         : button { key = "dl_directory"; label = "更改库目录"; }
       }
-      : button { key = "dl_import"; label = "导入旧图块功率 / 设备资料"; }
+      : button { key = "dl_import"; label = "导入设备库"; help_string = "导入完整设备库的独立副本并切换使用，原库保留"; }
     }
     : boxed_column {
       label = "设备资料";
@@ -51,7 +51,7 @@ el_device_library : dialog {
       : toggle { key = "dl_zero"; label = "明确确认此设备为 0W"; }
       : popup_list { key = "dl_ground"; label = "是否地面"; }
       : toggle { key = "dl_active"; label = "启用名称匹配"; value = "1"; }
-      : button { key = "dl_repair"; label = "从库内图形修复图例"; }
+      : button { key = "dl_export"; label = "导出设备库"; help_string = "导出包含功率、图形和图例的设备库文件夹"; }
       : button { key = "dl_save"; label = "保存设备"; }
       : text { label = "点击保存设备后核对下方结果；离开输入框时也会自动保存。"; }
     }

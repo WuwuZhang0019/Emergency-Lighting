@@ -1,7 +1,7 @@
 # CADTools 精简运行版
 
 日期：2026-10-16
-状态：构建模式及 8 项定向检查完成；尚未生成交付包、接入 CADTools 菜单或完成原生 CAD 验收
+状态：构建模式及 8 项定向检查完成；本次交付 lite-v0.1.61，CADTools 菜单接入及原生 CAD 验收待完成
 版本：与完整版同步
 
 ## 版本与构建
@@ -62,6 +62,6 @@ python -X utf8 tools/build_cad2020.py --lite
 
 定向检查仅验证内存中的运行清单、共享转码、命令覆盖、入口依赖顺序、路径隔离及失败处理，不生成交付目录或 ZIP，也不代表原生 CAD 验收。正式打包时构建器会核对全部 LISP/DCL 的严格 GB2312 往返、ZIP 校验和及解压目录字节一致性。
 
-2026-10-16 的 `lite-v0.1.61` 内存清单为 139 个文件，内容约 2.6 MiB；8 项定向检查通过。共享转换函数生成的 29 个 LISP/DCL 与修改前转换结果逐字节一致。检查命令为 `python -X utf8 -m unittest discover -s tests -p test_cadtools_lite.py`，未运行打包命令。
+2026-10-16 的 `lite-v0.1.61` 内存清单为 139 个文件，内容约 2.6 MiB；8 项定向检查通过。共享转换函数生成的 29 个 LISP/DCL 与修改前转换结果逐字节一致。检查命令为 `python -X utf8 -m unittest discover -s tests -p test_cadtools_lite.py`。初次实现仅完成内存检查；本次按用户要求执行 `--lite` 打包，交付同版本精简目录及 ZIP，供 CADTools 项目接入。
 
 接入后仍需在普通用户权限下验证菜单调用、不同图纸加载、设备库保存、统计出图、CCKK 系列、诊断导出及升级后用户数据保留。

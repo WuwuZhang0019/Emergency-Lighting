@@ -71,8 +71,9 @@ el_devices : dialog {
 // Date: 2026-10-15. Review inputs and export diagnostics only on request.
 el_panel : dialog {
   label = "应急照明：回路核对与设备库";
-  : row {
-  : column { fixed_width = true;
+  // Date: 2026-10-16. A full-width divider separates editing from diagnostics and paths.
+  : row { children_alignment = top;
+  : column { fixed_width = true; fixed_height = true; alignment = top;
     // Date: 2026-10-15. Four visible steps retain the existing pick controls.
     : row { fixed_width = true; fixed_height = true; alignment = left;
       : image { key = "p_step1"; width = 8; height = 1.3; fixed_width = true; fixed_height = true; color = dialog_background; help_string = "第一步：拾取配电箱和回路起始端导线"; }
@@ -120,21 +121,8 @@ el_panel : dialog {
     : text { key = "p_total3"; width = 46; fixed_width = true; }
     : text { key = "p_template_status"; width = 46; fixed_width = true; }
     : text { key = "p_template_status1"; width = 46; fixed_width = true; }
-    : text { key = "p_error"; width = 46; fixed_width = true; }
-    : text { key = "p_error1"; width = 46; fixed_width = true; }
-    : text { key = "p_error2"; width = 46; fixed_width = true; }
-    : button { key = "p_diagnostic"; label = "导出诊断日志"; }
-    : text { key = "p_diagnostic_status"; width = 46; fixed_width = true; }
-    : text { key = "p_diagnostic_status1"; width = 46; fixed_width = true; }
-    : edit_box { key = "p_diagnostic_path"; label = "路径"; edit_width = 38; edit_limit = 2048; }
-    : button { key = "p_diagnostic_open"; label = "打开所在文件夹"; is_enabled = false; }
-    : text { key = "p_diagnostic_action"; width = 46; fixed_width = true; }
-    : row { fixed_width = true; fixed_height = true; alignment = right;
-      : button { key = "cancel"; label = "取消"; width = 12; fixed_width = true; is_cancel = true; }
-    }
   }
-  : boxed_column {
-    label = "设备库";
+  : boxed_column { label = "设备库"; fixed_height = true; alignment = top;
     // Date: 2026-10-16. Device editor above library paths; keep each section together.
     : column { fixed_height = true; alignment = top;
       : row { children_alignment = top;
@@ -171,7 +159,26 @@ el_panel : dialog {
       }
       : text { key = "dl_status"; width = 76; fixed_height = true; }
     }
-    : column { fixed_height = true; alignment = bottom;
+  }
+  }
+  : image { height = 0.12; fixed_height = true; color = 8; }
+  : row { children_alignment = top;
+  : column { fixed_width = true;
+    : text { key = "p_error"; width = 46; fixed_width = true; }
+    : text { key = "p_error1"; width = 46; fixed_width = true; }
+    : text { key = "p_error2"; width = 46; fixed_width = true; }
+    : button { key = "p_diagnostic"; label = "导出诊断日志"; }
+    : text { key = "p_diagnostic_status"; width = 46; fixed_width = true; }
+    : text { key = "p_diagnostic_status1"; width = 46; fixed_width = true; }
+    : edit_box { key = "p_diagnostic_path"; label = "路径"; edit_width = 38; edit_limit = 2048; }
+    : button { key = "p_diagnostic_open"; label = "打开所在文件夹"; is_enabled = false; }
+    : text { key = "p_diagnostic_action"; width = 46; fixed_width = true; }
+    : row { fixed_width = true; fixed_height = true; alignment = right;
+      : button { key = "cancel"; label = "取消"; width = 12; fixed_width = true; is_cancel = true; }
+    }
+  }
+  : column {
+    : column { fixed_height = true; alignment = top;
       : text { key = "dl_root"; width = 76; fixed_height = true; }
       : row { alignment = left; fixed_height = true;
         : text { label = "功率参数：catalog.eld"; width = 44; fixed_width = true; }

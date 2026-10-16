@@ -196,3 +196,7 @@ config/power-input-*.eld
 # Date: 2026-10-16. Requested v0.1.56 panel and bundled-library trial delivery.
 /output/应急照明-v0.1.56/
 /output/应急照明-v0.1.56.zip
+
+# Date: 2026-10-16. Requested v0.1.57 automatic default-power trial delivery.
+/output/应急照明-v0.1.57/
+/output/应急照明-v0.1.57.zip

@@ -1,4 +1,4 @@
-;; Date: 2026-10-12. Bundled defaults seed the CAD user's catalog transactionally.
+;; Date: 2026-10-16. Bundled graphics and saved powers seed the user's catalog transactionally.
 (defun EL:DLDefaultSource ()
   (if *EL:Root* (strcat (EL:NormalizeRoot *EL:Root*) "assets/default-device-library/")))
 (defun EL:DLDefaultMatch (seed catalog / keys entry found)
@@ -73,7 +73,7 @@
             (progn
               (setq snapshot loaded *EL:DLCache* nil *EL:DLDefaultCache* (list root source (EL:Get 'raw loaded)))
               (EL:LogEvent "DEFAULT_DEVICE_LIBRARY_INSTALLED" (list (cons 'root root) '(count . 49)))
-              (princ "\n默认设备库已补齐：49 项图形；设备功率请在 ELDEVLIB 中填写。"))
+              (princ "\n默认设备库已补齐：49 项图形；默认功率可在 ELDEVLIB 中查看或修改。"))
             (EL:DLFail (strcat "默认设备库安装未完成，原资料保留，请刷新重试："
               (cond (*EL:DLError*) ((vl-catch-all-error-p outcome) (vl-catch-all-error-message outcome))
                 (T "复制或索引保存失败。"))))))

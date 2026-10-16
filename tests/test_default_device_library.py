@@ -1,4 +1,4 @@
-"""Bundled defaults, upgrades and interrupted installs. Date: 2026-10-12. CAD pending."""
+"""Bundled default powers and interrupted installs. Date: 2026-10-16. CAD pending."""
 from pathlib import Path
 import tempfile
 import unittest
@@ -55,11 +55,22 @@ class DefaultDeviceLibraryTests(unittest.TestCase):
             self.assertEqual(self.get('revision', self.get('catalog', snapshot)), 1)
             self.assertEqual(self.get('selected', state), self.get('device-id', rows[0]))
             self.assertEqual(sum(bool(self.get('is-ground', row)) for row in rows), 2)
-            for row in rows:
-                self.assertIsNone(self.get('watts', row))
-                self.assertIsNone(self.get('zero-confirmed', row))
-                self.assertFalse(truth(self.get('active', row)))
-                self.assertEqual(self.get('status', row), Symbol('DRAFT'))
+            self.assertEqual(sum(self.get('watts', row) == 1 for row in rows), 35)
+            self.assertEqual(sum(self.get('watts', row) == 5 for row in rows), 11)
+            self.assertEqual(sum(self.get('status', row) == Symbol('DELETED') for row in rows), 2)
+            for seed in self.get('devices', self.defaults):
+                row = self.call('EL:DLDefaultMatch', seed, self.get('catalog', snapshot))
+                self.assertEqual(self.get('watts', row), self.get('watts', seed))
+                self.assertEqual(self.get('status', row), self.get('status', seed))
+                self.assertEqual(self.get('active', row), self.get('active', seed))
+                if self.get('watts', row) is not None:
+                    self.assertTrue(truth(self.get('active', row)))
+                    for name in self.call('EL:DLEntryNames', row):
+                        resolved = self.call('EL:DLPowerEntry', name, snapshot)
+                        self.assertEqual(self.get('watts', resolved), self.get('watts', seed))
+                else:
+                    self.assertFalse(truth(self.get('active', row)))
+                    self.assertFalse(truth(self.call('EL:DLPowerEntry', self.get('block-name', row), snapshot)))
             self.assert_assets(snapshot)
             self.assertFalse(Path(d, '.write-lock').exists())
 
@@ -100,6 +111,24 @@ class DefaultDeviceLibraryTests(unittest.TestCase):
             self.assertEqual(graphic.read_bytes(), b'AC1015user-custom-geometry')
             self.assertEqual(self.get('revision', self.get('catalog', upgraded)), 2)
             self.assertEqual(Path(d, 'history/1.eld').read_text(encoding='utf-8'), dump(catalog))
+
+    def test_complete_existing_library_keeps_disabled_and_blank_power_settings(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = self.prepare(d)
+            snapshot = self.call('EL:DLDefaultStartup')
+            catalog = self.get('catalog', snapshot)
+            for identity, watts, status in (('ELDEV2', 9, 'READY'), ('ELDEV36', None, 'DRAFT')):
+                row = self.call('EL:By', Symbol('DEVICE-ID'), identity, self.get('devices', catalog))
+                row = self.put('active', None, self.put('status', Symbol(status), self.put('watts', watts, row)))
+                catalog = self.call('EL:DLUpsert', catalog, row)
+                self.assertTrue(truth(self.call('EL:DLCommit', snapshot, catalog)))
+                snapshot = self.call('EL:DLSnapshotLoad', root)
+            before = Path(d, 'catalog.eld').read_bytes()
+            self.h.builtins['EL:DLWRITETEXT'] = lambda *a: self.fail('startup overwrote user parameters')
+            self.h.builtins['VL-FILE-COPY'] = lambda *a: self.fail('startup recopied existing graphics')
+            loaded = self.call('EL:DLDefaultSnapshot', root)
+            self.assertEqual(self.get('catalog', loaded), catalog)
+            self.assertEqual(Path(d, 'catalog.eld').read_bytes(), before)
 
     def test_saved_graphicless_draft_reuses_identity_and_preserves_power_fields(self):
         with tempfile.TemporaryDirectory() as d:
@@ -206,7 +235,8 @@ class DefaultDeviceLibraryTests(unittest.TestCase):
             unrelated = self.call('EL:Get', 'ELDEV50', drafts)
             self.assertEqual(self.get('aliases-text', unrelated), '原始;输入')
             self.assertEqual(self.get('block-name', unrelated), '未入库其他设备')
-            self.assertEqual(len(self.call('EL:DLUIRows')), 50)
+            # The two deleted defaults stay hidden; the unrelated new draft stays visible.
+            self.assertEqual(len(self.call('EL:DLUIRows')), 48)
 
     def test_utf8_stream_skips_bom_without_losing_chinese_and_preserves_invalid_reason(self):
         text = '(设备中文 "引号" \\ 路径)'

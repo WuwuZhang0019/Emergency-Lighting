@@ -1,5 +1,5 @@
 {
-  "date": "2026-10-12",
+  "date": "2026-10-16",
   "library_id": "LIB-TIANZ-e2472a835f384951b6c1a6ecedbf4c67",
   "items": [
     {
@@ -593,8 +593,13 @@
     }
   ],
   "count": 49,
-  "watts": null,
-  "status": "bundled_default_graphics_watts_pending",
+  "watts": {
+    "1": 35,
+    "5": 11,
+    "blank_panel": 1,
+    "blank_deleted": 2
+  },
+  "status": "bundled_default_graphics_and_power",
   "pending_selections": [],
   "source_sha256": {
     "Equip.DWB": "105b923ffebe510f7c71e948ef8ba7757e175cd3a78ea304f326cdcd2c65a6ef",
@@ -902,6 +907,39 @@
   "native_cad_acceptance": "pending",
   "baseline_count": 48,
   "baseline_catalog_sha256": "b9d8b61d3c74bb30feb9adba7881e561ca59023b58b14edb175e793dc73d59b6",
-  "default_version": "TIANZ-49-20261012",
-  "installation": "Merge missing defaults into the current CAD user library; preserve user fields and deleted entries."
+  "default_version": "TIANZ-49-20261016",
+  "installation": "Merge missing defaults into the current CAD user library; preserve user fields and deleted entries.",
+  "power_defaults": {
+    "date": "2026-10-16",
+    "source_archive": "设备库-op-849505406.zip",
+    "source_archive_sha256": "8f43e7ddefc205b976783f34845395341f6cb07a9fb9649b194a5d6a87b4251a",
+    "source_catalog_sha256": "0c48f1e0e38b452a0c774bac30ca4c2ed725d858a4fe488b67d0aa1d5df49855",
+    "source_library_id": "LIB-op-1110248487",
+    "source_catalog_revision": 74,
+    "previous_default_catalog_sha256": "725548bdaaea1d2974aa918d661e4a29d6ade22cd4b126c08241221692c27634",
+    "catalog_sha256": "e598e81f4286159d1a66f2bd161e738d745c95ee3f1e0489322d14d6957ceb4c",
+    "filled_source_count": 44,
+    "user_approved_1w_completion": [
+      {
+        "device_id": "ELDEV36",
+        "block_name": "$equip_U$00000611",
+        "display": "楼层标志灯 偏100",
+        "watts": 1
+      },
+      {
+        "device_id": "ELDEV44",
+        "block_name": "$equip_U$00000691",
+        "display": "吊装多信息复合标志",
+        "watts": 1
+      }
+    ],
+    "ready_enabled_lamps": 46,
+    "deleted_device_ids": [
+      "ELDEV25",
+      "ELDEV42"
+    ],
+    "panel_device_id": "ELDEV1",
+    "normalization": "Keep bundled library identity; enable complete lamp defaults for new installs; preserve exported powers, graphics, aliases, ground and deleted records; existing user fields are never overwritten.",
+    "personal_recognition_preset_bundled": false
+  }
 }

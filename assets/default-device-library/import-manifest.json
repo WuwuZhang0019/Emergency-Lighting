@@ -908,7 +908,7 @@
   "baseline_count": 48,
   "baseline_catalog_sha256": "b9d8b61d3c74bb30feb9adba7881e561ca59023b58b14edb175e793dc73d59b6",
   "default_version": "TIANZ-49-20261016",
-  "installation": "Merge missing defaults into the current CAD user library; preserve user fields and deleted entries.",
+  "installation": "Initialize missing devices and assets; automatically upgrade exact known prior default-power records in the current CAD user library; preserve subsequent user edits and deleted entries.",
   "power_defaults": {
     "date": "2026-10-16",
     "source_archive": "设备库-op-849505406.zip",
@@ -941,5 +941,15 @@
     "panel_device_id": "ELDEV1",
     "normalization": "Keep bundled library identity; enable complete lamp defaults for new installs; preserve exported powers, graphics, aliases, ground and deleted records; existing user fields are never overwritten.",
     "personal_recognition_preset_bundled": false
+  },
+  "automatic_power_upgrade": {
+    "date": "2026-10-16",
+    "software_version": "0.1.57",
+    "legacy_baseline": "legacy-defaults.eld",
+    "legacy_baseline_sha256": "725548bdaaea1d2974aa918d661e4a29d6ade22cd4b126c08241221692c27634",
+    "published_baseline": "published-power-source.eld",
+    "published_baseline_sha256": "0c48f1e0e38b452a0c774bac30ca4c2ed725d858a4fe488b67d0aa1d5df49855",
+    "policy": "Upgrade exact prior default records including their revisions. The published source also requires the same library identity. Preserve later user edits, pending drafts and deleted entries. No manual import or library switch.",
+    "catalog_and_asset_bytes_unchanged": true
   }
 }

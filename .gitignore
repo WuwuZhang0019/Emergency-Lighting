@@ -204,3 +204,7 @@ config/power-input-*.eld
 # Date: 2026-10-16. Requested v0.1.58 circuit-color and compact-panel trial delivery.
 /output/应急照明-v0.1.58/
 /output/应急照明-v0.1.58.zip
+
+# Date: 2026-10-16. Requested v0.1.59 total-power and combined-diagnostic trial delivery.
+/output/应急照明-v0.1.59/
+/output/应急照明-v0.1.59.zip

@@ -1,0 +1,43 @@
+{
+  "date": "2026-10-16",
+  "status": "passed",
+  "version": "v0.1.59",
+  "package_no": 158,
+  "archive": "output/应急照明-v0.1.59.zip",
+  "archive_bytes": 3957035,
+  "sha256": "aa62494c7e76edeae7c7a479e4ea391a2e6fa1f0216e603be2b86263267afddc",
+  "package_files": 357,
+  "gb2312_lisp_dcl_files": 32,
+  "parsed_lisp_files": 30,
+  "entrypoints": [
+    "START-CAD2020.lsp",
+    "UPDATE-158.lsp",
+    "src/load.lsp"
+  ],
+  "latest_panel_functions_checked_in_each_entry": [
+    "EL:PANELTEXT",
+    "EL:CIRCUITCOLOR",
+    "EL:PREVIEWPALETTE",
+    "EL:PANELCIRCUITCOLORSDRAW",
+    "EL:ALLCIRCUITCOLORWAIT",
+    "EL:PANELHOMEFILL",
+    "EL:PANELDIALOG",
+    "EL:PANELKNOWNTOTAL",
+    "EL:PANELERROR",
+    "EL:PANELDIAGNOSTICEXPORTOPEN",
+    "EL:PANELDIAGNOSTICEXPORT",
+    "EL:DIAGNOSTICOPENFOLDER"
+  ],
+  "zip_crc_and_complete_file_list": true,
+  "zip_and_directory_bytes_match": true,
+  "source_panel_and_ui_match": true,
+  "default_library_and_template_bytes_match": true,
+  "previous_v0_1_58_unchanged": true,
+  "previous_v0_1_58_sha256": "471470b02158c3418749dac42467c0f5d1629597dbbc996c4397da0fac81d00a",
+  "focused_tests": {
+    "passed": 26,
+    "source_commit": "3c7bad6",
+    "scope": "panel totals, combined diagnostic export/open, error retention and dialog flow; finite CAD/DCL adapters"
+  },
+  "native_cad_status": "pending: AutoCAD 2020 Esc/close behavior, input retention, display and original-DWG acceptance"
+}

@@ -208,3 +208,7 @@ config/power-input-*.eld
 # Date: 2026-10-16. Requested v0.1.59 total-power and combined-diagnostic trial delivery.
 /output/应急照明-v0.1.59/
 /output/应急照明-v0.1.59.zip
+
+# Date: 2026-10-16. Requested v0.1.60 panel-exit and circuit-limit trial delivery.
+/output/应急照明-v0.1.60/
+/output/应急照明-v0.1.60.zip

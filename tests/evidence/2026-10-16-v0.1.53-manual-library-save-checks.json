@@ -1,0 +1,163 @@
+{
+  "date": "2026-10-16",
+  "status": "targeted_checks_passed",
+  "software_version": "0.1.53",
+  "checks": 29,
+  "validation_runs": [
+    {
+      "checks": 28,
+      "result": "passed",
+      "scope": "initial manual saves plus autosave, continuous selection and source contracts"
+    },
+    {
+      "checks": 8,
+      "result": "passed",
+      "scope": "final manual save and both dialogs, including pending legends, unchanged read failures and retries"
+    },
+    {
+      "checks": 5,
+      "result": "passed",
+      "scope": "final source and DCL contracts"
+    },
+    {
+      "checks": 1,
+      "result": "passed",
+      "scope": "DCL contract against HEAD plus this task's three UI edits; concurrent layout changes excluded"
+    }
+  ],
+  "tests": [
+    {
+      "test": "test_library_manual_save.LibraryManualSaveDialogTests.test_main_panel_save_button_writes_and_keeps_the_same_dialog_and_capacity",
+      "passed": true
+    },
+    {
+      "test": "test_library_manual_save.LibraryManualSaveDialogTests.test_standalone_save_button_writes_and_keeps_the_same_editor",
+      "passed": true
+    },
+    {
+      "test": "test_library_manual_save.LibraryManualSaveTests.test_already_autosaved_value_is_checked_without_rewriting",
+      "passed": true
+    },
+    {
+      "test": "test_library_manual_save.LibraryManualSaveTests.test_click_collects_current_fields_without_a_focus_loss_callback",
+      "passed": true
+    },
+    {
+      "test": "test_library_manual_save.LibraryManualSaveTests.test_failed_unchanged_verification_keeps_input_and_blocks_close_until_verified",
+      "passed": true
+    },
+    {
+      "test": "test_library_manual_save.LibraryManualSaveTests.test_failure_never_reports_verified_success_or_discards_input",
+      "passed": true
+    },
+    {
+      "test": "test_library_manual_save.LibraryManualSaveTests.test_no_entry_or_deleted_entry_cannot_report_a_successful_save",
+      "passed": true
+    },
+    {
+      "test": "test_library_manual_save.LibraryManualSaveTests.test_pending_legend_still_allows_explicit_parameter_save",
+      "passed": true
+    },
+    {
+      "test": "test_library_autosave.LibraryAutosaveTests.test_blank_power_is_saved_as_a_draft_without_implying_zero",
+      "passed": true
+    },
+    {
+      "test": "test_library_autosave.LibraryAutosaveTests.test_close_retries_an_earlier_invalid_device_and_keeps_valid_edits",
+      "passed": true
+    },
+    {
+      "test": "test_library_autosave.LibraryAutosaveTests.test_commit_exception_is_failure_and_does_not_close_editor",
+      "passed": true
+    },
+    {
+      "test": "test_library_autosave.LibraryAutosaveTests.test_conflict_and_lock_never_overwrite_disk_or_discard_input",
+      "passed": true
+    },
+    {
+      "test": "test_library_autosave.LibraryAutosaveTests.test_invalid_power_keeps_file_and_raw_input_then_can_be_corrected",
+      "passed": true
+    },
+    {
+      "test": "test_library_autosave.LibraryAutosaveTests.test_names_aliases_ground_zero_and_activation_all_save",
+      "passed": true
+    },
+    {
+      "test": "test_library_autosave.LibraryAutosaveTests.test_power_callback_writes_catalog_without_pressing_the_save_button",
+      "passed": true
+    },
+    {
+      "test": "test_library_autosave.LibraryAutosaveTests.test_switching_saves_previous_device_and_selects_original_target",
+      "passed": true
+    },
+    {
+      "test": "test_library_autosave.LibraryAutosaveTests.test_unchanged_focus_switch_and_close_do_not_rewrite_catalog",
+      "passed": true
+    },
+    {
+      "test": "test_library_autosave.LibraryAutosaveTests.test_write_failure_retains_draft_for_automatic_retry",
+      "passed": true
+    },
+    {
+      "test": "test_library_edit_flow.LibraryEditFlowTests.test_changed_or_missing_asset_invalidates_the_editor_proof_and_keeps_input",
+      "passed": true
+    },
+    {
+      "test": "test_library_edit_flow.LibraryEditFlowTests.test_explicit_refresh_revalidates_assets",
+      "passed": true
+    },
+    {
+      "test": "test_library_edit_flow.LibraryEditFlowTests.test_focus_loss_then_rapid_selection_preserves_scrolled_indices_and_each_power",
+      "passed": true
+    },
+    {
+      "test": "test_library_edit_flow.LibraryEditFlowTests.test_parameter_commit_keeps_locked_checks_and_uses_the_verified_snapshot",
+      "passed": true
+    },
+    {
+      "test": "test_library_edit_flow.LibraryEditFlowTests.test_parameters_reuse_validated_assets_and_switching_back_does_not_reread_them",
+      "passed": true
+    },
+    {
+      "test": "test_library_edit_flow.LibraryEditFlowTests.test_rename_replaces_only_that_row_without_moving_a_filtered_list",
+      "passed": true
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_atomic_config_write_restores_previous_file_on_failure",
+      "passed": true
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_dcl_keys_and_callback_syntax",
+      "passed": true
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_forms_arities_and_local_assignments",
+      "passed": true
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_geometry_and_topology_do_not_mutate_drawing",
+      "passed": true
+    },
+    {
+      "test": "test_source_contracts.SourceContracts.test_rollback_only_deletes_created_objects_even_if_one_delete_fails",
+      "passed": true
+    }
+  ],
+  "source_sha256": {
+    "src/common.lsp": "db95cabab5299dca79097653359118bb63d8f3ad375695dc55143b429578b999",
+    "src/device-ui.lsp": "a48a363b6e37ccd01bd8d4cd638b3bdde8192ee54191420816afe0951109d35c",
+    "tests/test_library_autosave.py": "2d901562d3624f9f756043e925960e4e75aa57379986fcdaad555da4dac655fe",
+    "tests/test_library_manual_save.py": "5623396beddc3a800a4cd8d213e7d913925b7bc44140107488707082630d04bd",
+    "tools/build_cad2020.py": "14c9eca404447c0029d70d3cd895818513054ea869eb66c2564f8a1fe0c32c03",
+    "ui/device-library.dcl": "9b8f1a5fdf28a13014a64027a9f423e7f5689d3f01347c01a6f8736cf301b572",
+    "ui/power.dcl": "e41e160a39f1a29219e7d64e4613fb33b3c943929036c29a26ed0b35ecfb2700"
+  },
+  "default_library_catalog_sha256": "725548bdaaea1d2974aa918d661e4a29d6ade22cd4b126c08241221692c27634",
+  "default_library_status": "unchanged; user chose to resend a complete catalog after explicit saves",
+  "build_executed": false,
+  "package_generated": false,
+  "native_cad_status": "pending_user_validation",
+  "boundary": "Real temporary catalog file writes, unchanged-file readback and finite AutoLISP/DCL adapters; not native AutoCAD focus-loss, display, response-time or save/reopen acceptance",
+  "reported_autosave_issue": "Uploaded catalog proves 17 undeleted lights have blank power; the native callback failure point cannot be determined from this file alone",
+  "ui_power_scope": "Only the save button and two save-result labels belong to this task; concurrent diagnostic/path layout changes remain outside the commit."
+}

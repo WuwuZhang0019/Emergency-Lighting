@@ -1,4 +1,4 @@
-"""Library autosave through real catalog writes. Date: 2026-10-15. Native DCL pending."""
+"""Library autosave through real catalog writes. Date: 2026-10-16. Native DCL pending."""
 from pathlib import Path
 import tempfile
 import unittest
@@ -50,7 +50,7 @@ class LibraryAutosaveTests(unittest.TestCase):
         self.tiles[key] = value
         return self.h.run(self.callbacks[key])
 
-    def test_power_callback_writes_catalog_and_reopens_without_saving_button(self):
+    def test_power_callback_writes_catalog_without_pressing_the_save_button(self):
         with tempfile.TemporaryDirectory() as folder:
             self.editor(folder)
             other = self.rows()[1]
@@ -59,7 +59,7 @@ class LibraryAutosaveTests(unittest.TestCase):
             self.assertEqual(self.rows()[1], other)
             self.assertIn('已自动保存', self.tiles['dl_status'])
             self.assertIsNone(self.call('EL:DLUIDraft'))
-            self.assertNotIn('dl_save', self.callbacks)
+            self.assertIn('dl_save', self.callbacks)
 
     def test_names_aliases_ground_zero_and_activation_all_save(self):
         with tempfile.TemporaryDirectory() as folder:

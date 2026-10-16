@@ -34,8 +34,9 @@
 (defun EL:DLUIForget (identity / draft)
   (if (and (setq draft (EL:Get identity (EL:Get 'drafts *EL:DLUIState*))) (EL:Get 'captured draft))
     (EL:DLCaptureCleanup (EL:Get 'captured draft)))
-  (setq *EL:DLUIState* (EL:Put 'drafts (vl-remove-if '(lambda (p) (equal (car p) identity))
-    (EL:Get 'drafts *EL:DLUIState*)) *EL:DLUIState*)))
+  (setq *EL:DLUIState* (EL:Put 'verify-pending (vl-remove identity (EL:Get 'verify-pending *EL:DLUIState*))
+    (EL:Put 'drafts (vl-remove-if '(lambda (p) (equal (car p) identity))
+      (EL:Get 'drafts *EL:DLUIState*)) *EL:DLUIState*))))
 (defun EL:DLUIStore (/ entry key ground)
   (if (setq entry (EL:DLUIEntry))
     (progn
@@ -95,7 +96,7 @@
     (preview "图例显示失败，请修复或重新拾取图形")
     ((> (EL:Get 'asset-revision entry) 0) "图例缺失或损坏，请修复或重新拾取图形")
     (T "未登记图形，请从 CAD 拾取设备图块")))
-  (foreach key '("dl_block" "dl_display" "dl_watts" "dl_aliases" "dl_zero" "dl_ground" "dl_active" "dl_keep_old")
+  (foreach key '("dl_block" "dl_display" "dl_watts" "dl_aliases" "dl_zero" "dl_ground" "dl_active" "dl_keep_old" "dl_save")
     (mode_tile key (if (and entry (not (equal (EL:Get 'status entry) 'deleted))) 0 1)))
   ;; A pending worker only locks graph-changing actions; existing parameters remain editable.
   (foreach key '("dl_pick" "dl_new" "dl_import" "dl_directory")
@@ -172,7 +173,15 @@
     ((or (not draft) (equal (EL:Get 'status draft) 'deleted)) T)
     ((and (not (EL:Get 'captured draft))
         (setq converted T entry (EL:DLUIToEntry draft)) (equal entry old))
-      (EL:DLUIForget (EL:Get 'device-id draft)) T)
+      ;; Date: 2026-10-16. An explicit save also verifies already-autosaved values on disk.
+      (if (or (not (or *EL:DLUIManualSave*
+            (member (EL:Get 'device-id draft) (EL:Get 'verify-pending *EL:DLUIState*))))
+          (EL:DLSnapshotCurrent snapshot))
+        (progn (EL:DLUIForget (EL:Get 'device-id draft)) T)
+        (progn
+          (setq *EL:DLUIState* (EL:Put 'verify-pending (EL:Unique (cons (EL:Get 'device-id draft)
+            (EL:Get 'verify-pending *EL:DLUIState*))) *EL:DLUIState*))
+          (EL:DLUIStatus "保存核对未通过：文件已变化、被占用或无法读取；输入保留，请刷新后重试。") nil)))
     ((or (findfile (strcat (EL:Get 'root snapshot) ".write-lock"))
         (and (EL:Get 'captured draft) (not (EL:DLSnapshotCurrent snapshot))))
       (EL:DLUIStatus "自动保存未完成：设备库已变化或正在被占用，请刷新后重试；当前输入保留。") nil)
@@ -197,9 +206,24 @@
   (setq previous (EL:Get 'snapshot *EL:DLUIState*) saved (EL:DLUISafe 'EL:DLUISaveWork))
   (if (and saved (equal *EL:DLUIHost* 'panel)
       (not (equal previous (EL:Get 'snapshot *EL:DLUIState*))) (EL:PanelLibraryReconcile)) (EL:PanelFill)) saved)
+(defun EL:DLUISave (/ entry *EL:DLUIManualSave*)
+  ;; Date: 2026-10-16. Read the controls even if their focus-loss callback did not run.
+  (setq entry (EL:DLUIEntry) *EL:DLUIManualSave* T)
+  (if (and entry (not (equal (EL:Get 'status entry) 'deleted)))
+    (progn
+      (setq *EL:DLUIState* (EL:Put 'verify-pending (EL:Unique (cons (EL:Get 'device-id entry)
+        (EL:Get 'verify-pending *EL:DLUIState*))) *EL:DLUIState*))
+      (if (EL:DLUIStore)
+        (progn
+          (setq entry (EL:DLUIEntry))
+          (EL:DLUIStatus (strcat "已保存并核对：" (EL:Get 'display entry) "，"
+            (if (numberp (EL:Get 'watts entry)) (strcat (itoa (EL:Get 'watts entry)) " W。")
+              "功率未填写（草稿）。"))) T)))
+    (progn (EL:DLUIStatus "请选择未删除的设备后保存。") nil)))
 (defun EL:DLUIAutoBind (/ key)
   (foreach key '("dl_block" "dl_aliases" "dl_keep_old" "dl_display" "dl_watts" "dl_zero" "dl_ground" "dl_active")
-    (EL:MonitorActionTile key "(EL:DLUIStore)")))
+    (EL:MonitorActionTile key "(EL:DLUIStore)"))
+  (EL:MonitorActionTile "dl_save" "(EL:DLUISafe 'EL:DLUISave)"))
 (defun EL:DLUIFlush (/ selected pair failed notice)
   ;; Closing/exporting also retries older drafts; failure stays visible in this editor.
   (setq selected (EL:Get 'selected *EL:DLUIState*))
@@ -391,7 +415,7 @@
       (EL:DLUIFill)
       (EL:DLUIStatus (cond (*EL:DLError*)
         (*EL:DLCaptureJob* "图例任务尚未完成；可直接修改已有设备资料并自动保存。") (*EL:DLUINotice*)
-        (T "选择设备编辑；离开输入框后自动保存。")))
+        (T "修改后点击保存设备，核对设备名和功率；离开输入框时也会自动保存。")))
       (EL:MonitorActionTile "dl_rows" "(EL:DLUISelect $value)")
       (EL:MonitorActionTile "dl_new" "(EL:DLUINew)")
       (EL:DLUIAutoBind)
@@ -414,7 +438,7 @@
       (foreach key '("dl_rows" "dl_new" "dl_delete" "dl_restore" "dl_query"
           "dl_deleted" "dl_refresh" "dl_reload" "dl_directory" "dl_pick" "dl_repair"
           "dl_import" "dl_open" "dl_block" "dl_aliases" "dl_keep_old" "dl_display" "dl_watts"
-          "dl_zero" "dl_ground" "dl_active")
+          "dl_zero" "dl_ground" "dl_active" "dl_save")
         (mode_tile key 1)) nil)))
 (defun EL:DLUIRun (/ dialog status entity entry result checkpoint)
   (setq dialog (load_dialog (strcat *EL:Root* "ui/device-library.dcl"))
@@ -425,7 +449,7 @@
         (start_list "dl_ground") (mapcar 'add_list '("待确认" "非地面" "地面")) (end_list)
         (EL:DLUIFill) (EL:DLUIStatus (cond (*EL:DLError*)
           (*EL:DLCaptureJob* "图例任务尚未完成；可直接修改已有设备资料并自动保存。") (*EL:DLUINotice*)
-          (T "拾取图形直接入库；离开输入框后自动保存设备资料。")))
+          (T "修改后点击保存设备，核对设备名和功率；离开输入框时也会自动保存。")))
         (EL:MonitorActionTile "dl_rows" "(EL:DLUISelect $value)") (EL:MonitorActionTile "dl_new" "(EL:DLUINew)")
         (EL:DLUIAutoBind)
         (EL:MonitorActionTile "dl_delete" "(EL:DLUIChangeStatus T)") (EL:MonitorActionTile "dl_restore" "(EL:DLUIChangeStatus nil)")

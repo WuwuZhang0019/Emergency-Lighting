@@ -1,4 +1,4 @@
-// Date: 2026-10-15. Status: automatic persistence in both library editors.
+// Date: 2026-10-16. Status: explicit save with verification plus automatic persistence.
 el_device_library_locked : dialog {
   label = "独立设备库 - 占用恢复";
   : text { key = "dl_lock_root"; width = 104; }
@@ -17,7 +17,7 @@ el_device_library : dialog {
   : column { fixed_height = true; alignment = top;
     : text { key = "dl_root"; width = 104; fixed_height = true; }
     : row { fixed_height = true;
-      : text { label = "功率参数：catalog.eld；自动保存成功后可发送此文件作为默认值来源。"; }
+      : text { label = "功率参数：catalog.eld；点击保存设备并核对成功后发送此文件。"; }
       : button { key = "dl_open"; label = "打开所在文件夹"; }
     }
   }
@@ -52,7 +52,8 @@ el_device_library : dialog {
       : popup_list { key = "dl_ground"; label = "是否地面"; }
       : toggle { key = "dl_active"; label = "启用名称匹配"; value = "1"; }
       : button { key = "dl_repair"; label = "从库内图形修复图例"; }
-      : text { label = "离开输入框后自动保存；缺资料时保存为草稿。"; }
+      : button { key = "dl_save"; label = "保存设备"; }
+      : text { label = "点击保存设备后核对下方结果；离开输入框时也会自动保存。"; }
     }
   }
   : text { key = "dl_status"; width = 104; }

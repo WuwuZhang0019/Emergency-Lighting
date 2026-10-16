@@ -155,6 +155,7 @@ el_panel : dialog {
           : popup_list { key = "dl_ground"; label = "是否地面"; }
           : toggle { key = "dl_active"; label = "启用名称匹配"; value = "1"; }
           : button { key = "dl_repair"; label = "修复图例"; }
+          : button { key = "dl_save"; label = "保存设备"; }
         }
       }
       : text { key = "dl_status"; width = 76; fixed_height = true; }
@@ -188,9 +189,9 @@ el_panel : dialog {
         : text { label = "图块图纸：系统图块库.dwg"; width = 44; fixed_width = true; }
         : button { key = "p_block_library_open"; label = "打开所在文件夹"; width = 24; fixed_width = true; }
       }
-      : text { label = "默认功率反馈：自动保存成功后，发送 catalog.eld。"; fixed_height = true; }
+      : text { label = "默认功率反馈：点击保存设备并核对成功后，发送 catalog.eld。"; fixed_height = true; }
     }
-    : text { label = "离开输入框后自动保存；勾选和下拉选项修改后立即保存。"; fixed_height = true; }
+    : text { label = "点击保存设备后核对上方结果；离开输入框时也会自动保存。"; fixed_height = true; }
   }
   }
 }

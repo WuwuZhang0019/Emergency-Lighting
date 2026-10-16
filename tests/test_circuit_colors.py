@@ -1,4 +1,5 @@
-"""Temporary circuit display copies and source-color avoidance. Date: 2026-10-11."""
+"""Temporary circuit display copies and source-color avoidance. Date: 2026-10-16."""
+import colorsys
 import unittest
 from autolisp_host import Symbol, Pair
 from test_fixed_exit_preview import FixedExitPreviewTests
@@ -65,7 +66,7 @@ class CircuitColorTests(unittest.TestCase):
         def pause(*args):
             paused.append(True)
             copies = [self.objects[k] for k in self.created if k in self.objects]
-            self.assertEqual([o['color'] for o in copies], [4, 4, 4, 4, 6])
+            self.assertEqual([o['color'] for o in copies], [4, 4, 4, 4, 2])
             self.assertTrue(all(self.objects[k]['visible'] == 0 for k in ('w1', 'w2', 'a', 'b')))
             self.assertTrue(all(self.objects[k]['color'] == 256 for k in ('w1', 'w2', 'a', 'b')))
             return ''
@@ -107,6 +108,39 @@ class CircuitColorTests(unittest.TestCase):
 
     def test_palette_is_distinct(self):
         self.assertEqual(len({self.call('EL:CircuitColor', i) for i in range(24)}), 24)
+
+    def test_palette_excludes_red_green_and_magenta_families(self):
+        palette = self.call('EL:PreviewPalette', self.result)
+        self.assertGreaterEqual(len(palette), 24)
+        for color in palette:
+            rgb = self.call('EL:ACIColorRGB', color)
+            hue = colorsys.rgb_to_hsv(*(value / 255 for value in rgb))[0] * 360
+            self.assertTrue(29 <= hue <= 61 or 179 <= hue <= 271, (color, rgb, hue))
+
+    def test_swatch_colors_are_reused_for_preview_without_reallocating(self):
+        self.entities['w1'] += [Pair(62, 4)]
+        palette = self.call('EL:PreviewPalette', self.result)
+        self.assertNotIn(4, palette)
+        self.h.set('*EL:PANELPREVIEWPALETTE*', palette)
+        swatches, current = {}, []
+        self.h.builtins.update({
+            'DIMX_TILE': lambda key: 16, 'DIMY_TILE': lambda key: 12,
+            'START_IMAGE': lambda key: current.__setitem__(slice(None), [key]),
+            'END_IMAGE': lambda: None,
+            'FILL_IMAGE': lambda x, y, width, height, color: swatches.__setitem__(current[0], color),
+        })
+        self.call('EL:PanelCircuitColorsDraw', palette)
+        self.assertEqual([swatches[f'p_color{i}'] for i in range(8)], palette[:8])
+        self.h.builtins['EL:PREVIEWPALETTE'] = lambda _: self.fail('preview reallocated the displayed colors')
+
+        def pause(*args):
+            colors = [self.objects[key]['color'] for key in self.created if key in self.objects]
+            self.assertEqual(colors, [swatches['p_color0']] * 4 + [swatches['p_color1']])
+            return ''
+
+        self.h.builtins['GETSTRING'] = pause
+        self.call('EL:AllCircuitColorPreview', self.result)
+        self.assert_clean()
 
     def test_palette_avoids_red_even_on_unrecognized_wires(self):
         self.entities['unrecognized'] = [Pair(0, 'LINE'), Pair(5, 'unrecognized'), Pair(62, 1)]

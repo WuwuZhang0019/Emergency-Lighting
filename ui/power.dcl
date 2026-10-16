@@ -68,6 +68,13 @@ el_devices : dialog {
   }
 }
 
+// Date: 2026-10-16. Circuit rows share compact swatches and thin dividers.
+el_panel_circuit_swatch : image {
+  width = 2.5; height = 0.8; fixed_width = true; fixed_height = true;
+  alignment = center; color = dialog_background;
+}
+el_panel_circuit_separator : image { height = 0.06; fixed_height = true; color = 8; }
+
 // Date: 2026-10-16. Shared subassemblies keep compact and expanded panels identical.
 el_panel_review : column { fixed_width = true; fixed_height = true; alignment = top;
     // Date: 2026-10-15. Four visible steps retain the existing pick controls.
@@ -92,14 +99,22 @@ el_panel_review : column { fixed_width = true; fixed_height = true; alignment = 
     : text { key = "p_capacity_status"; width = 46; fixed_width = true; }
     : text { key = "p_capacity_status1"; width = 46; fixed_width = true; }
     : boxed_column { label = "识别结果：回路编号 / 功率"; fixed_height = true; alignment = top;
-      : row { : text { label = "回路1"; width = 7; } : text { key = "p_row0"; width = 22; } }
-      : row { : text { label = "回路2"; width = 7; } : text { key = "p_row1"; width = 22; } }
-      : row { : text { label = "回路3"; width = 7; } : text { key = "p_row2"; width = 22; } }
-      : row { : text { label = "回路4"; width = 7; } : text { key = "p_row3"; width = 22; } }
-      : row { : text { label = "回路5"; width = 7; } : text { key = "p_row4"; width = 22; } }
-      : row { : text { label = "回路6"; width = 7; } : text { key = "p_row5"; width = 22; } }
-      : row { : text { label = "回路7"; width = 7; } : text { key = "p_row6"; width = 22; } }
-      : row { : text { label = "回路8"; width = 7; } : text { key = "p_row7"; width = 22; } }
+      : row { fixed_height = true; alignment = left; : text { label = "ZE1"; width = 4; fixed_width = true; } : el_panel_circuit_swatch { key = "p_color0"; } : text { key = "p_row0"; width = 22; } }
+      el_panel_circuit_separator;
+      : row { fixed_height = true; alignment = left; : text { label = "ZE2"; width = 4; fixed_width = true; } : el_panel_circuit_swatch { key = "p_color1"; } : text { key = "p_row1"; width = 22; } }
+      el_panel_circuit_separator;
+      : row { fixed_height = true; alignment = left; : text { label = "ZE3"; width = 4; fixed_width = true; } : el_panel_circuit_swatch { key = "p_color2"; } : text { key = "p_row2"; width = 22; } }
+      el_panel_circuit_separator;
+      : row { fixed_height = true; alignment = left; : text { label = "ZE4"; width = 4; fixed_width = true; } : el_panel_circuit_swatch { key = "p_color3"; } : text { key = "p_row3"; width = 22; } }
+      el_panel_circuit_separator;
+      : row { fixed_height = true; alignment = left; : text { label = "ZE5"; width = 4; fixed_width = true; } : el_panel_circuit_swatch { key = "p_color4"; } : text { key = "p_row4"; width = 22; } }
+      el_panel_circuit_separator;
+      : row { fixed_height = true; alignment = left; : text { label = "ZE6"; width = 4; fixed_width = true; } : el_panel_circuit_swatch { key = "p_color5"; } : text { key = "p_row5"; width = 22; } }
+      el_panel_circuit_separator;
+      : row { fixed_height = true; alignment = left; : text { label = "ZE7"; width = 4; fixed_width = true; } : el_panel_circuit_swatch { key = "p_color6"; } : text { key = "p_row6"; width = 22; } }
+      el_panel_circuit_separator;
+      : row { fixed_height = true; alignment = left; : text { label = "ZE8"; width = 4; fixed_width = true; } : el_panel_circuit_swatch { key = "p_color7"; } : text { key = "p_row7"; width = 22; } }
+      el_panel_circuit_separator;
       : row { fixed_width = true; fixed_height = true; alignment = left;
         : image { key = "p_step3"; width = 8; height = 1.3; fixed_width = true; fixed_height = true; color = dialog_background; help_string = "第三步：在图面查看全部回路"; }
         : button { key = "f_preview"; label = "在图面查看全部回路"; width = 28; fixed_width = true; }

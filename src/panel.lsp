@@ -118,8 +118,9 @@
   (EL:Put 'candidate-keys keys (EL:Put 'excluded-seeds excluded (EL:Put 'circuits circuits
     (EL:Put 'complete (and circuits (not (EL:Get 'issues (EL:Get 'snapshot result)))
       (vl-every '(lambda (c) (EL:Get 'complete c)) circuits)) result)))))
+;; Date: 2026-10-16. Keep red, green and magenta families out of circuit previews.
 (defun EL:CircuitColor (index)
-  (nth (fix (rem index 24)) '(1 3 5 6 2 4 30 140 210 80 10 170 40 150 220 90 20 180 50 160 230 100 60 190)))
+  (nth (fix (rem index 24)) '(4 2 5 30 190 140 40 180 150 160 31 41 51 131 141 151 161 171 181 191 32 42 52 132)))
 ;; Date: 2026-10-11. Resolve source ByLayer/true colors before choosing preview colors.
 (defun EL:ACIColorRGB (index / hue sector fraction high low middle value)
   (cond ((<= index 9) (nth index '((255 255 255) (255 0 0) (255 255 0) (0 255 0)
@@ -141,23 +142,37 @@
       (if (setq rgb (cdr (assoc 420 data)))
         (list (logand 255 (fix (/ rgb 65536))) (logand 255 (fix (/ rgb 256))) (logand 255 rgb))
         (EL:ACIColorRGB (abs (cond ((cdr (assoc 62 data))) (T 7))))))))
-(defun EL:PreviewPalette (result / ids wire circuit id colors rgb choices palette used candidate)
+(defun EL:PreviewPalette (result / ids wire circuit id colors rgb choices palette used candidate index)
   (foreach wire (EL:Get 'wires (EL:Get 'snapshot result))
     (setq ids (cons (cond ((EL:Get 'source-wire wire)) ((EL:Get 'id wire))) ids)))
   (if (not ids)
     (foreach circuit (EL:Get 'circuits result) (setq ids (append ids (EL:Get 'wires circuit)))))
   (foreach id (EL:Unique ids)
     (if (setq rgb (EL:PreviewEntityRGB id)) (setq colors (cons rgb colors))))
-  (setq choices '(4 6 2 5 3 30 140 210 80 170 40 150 220 90 20 180 50 160 230 100 60 190 7 1)
-    candidate 10)
-  (repeat 48 (setq choices (append choices (list candidate))
-    candidate (+ candidate (if (= (rem candidate 10) 0) 1 9))))
+  (setq index 0)
+  (repeat 24 (setq choices (append choices (list (EL:CircuitColor index))) index (1+ index)))
+  ;; Only orange/yellow (30-59) and cyan/blue/violet (130-199), including shades.
+  (setq candidate 30)
+  (repeat 30 (setq choices (append choices (list candidate)) candidate (1+ candidate)))
+  (setq candidate 130)
+  (repeat 70 (setq choices (append choices (list candidate)) candidate (1+ candidate)))
   (foreach candidate choices
     (setq rgb (EL:ACIColorRGB candidate))
     (if (and (not (member rgb used))
         (not (vl-some '(lambda (source) (< (EL:Dot (EL:V- rgb source) (EL:V- rgb source)) 10000.0)) colors)))
       (setq palette (append palette (list candidate)) used (cons rgb used))))
   palette)
+;; Date: 2026-10-16. The panel and drawing preview consume the same ordered palette.
+(defun EL:PanelCircuitColorsDraw (palette / index key color width height)
+  (setq index 0)
+  (repeat 8
+    (setq key (strcat "p_color" (itoa index)) color (nth index palette)
+      width (dimx_tile key) height (dimy_tile key))
+    (start_image key)
+    (fill_image 0 0 width height 8)
+    (fill_image 1 1 (max 1 (- width 2)) (max 1 (- height 2)) (if color color -15))
+    (end_image)
+    (setq index (1+ index))))
 (defun EL:ColorPreviewCleanup (/ item checked pending)
   (foreach item *EL:ColorPreviewCopies*
     (setq checked (vl-catch-all-apply 'vla-Delete (list item)))
@@ -208,7 +223,7 @@
   (EL:ClearGapPreview) (EL:ClearPickHighlights)
   ;; Shared objects have no unambiguous circuit color: reject before any writes.
   (EL:Require (<= (length (EL:Get 'circuits result)) 24) "当前分色支持最多 24 条回路。")
-  (setq palette (EL:PreviewPalette result))
+  (setq palette (cond (*EL:PanelPreviewPalette*) (T (EL:PreviewPalette result))))
   (EL:Require (>= (length palette) (length (EL:Get 'circuits result)))
     "原导线颜色过多，无法分配清晰的回路预览颜色。")
   (foreach circuit (EL:Get 'circuits result)
@@ -230,7 +245,7 @@
       (setq wire (EL:By 'id id (EL:Get 'wires snapshot)))
       (if (EL:Get 'source-wire wire) (EL:ColorPreviewWire wire color)
         (EL:ColorPreviewEntity id color)))
-    (princ (strcat "\n回路 " (itoa (1+ index)) "：预览颜色 " (itoa color)))
+    (princ (strcat "\nZE" (itoa (1+ index)) "：预览颜色 " (itoa color)))
     (setq index (1+ index)))
   (redraw)
   (EL:PerfInput 'getstring (list "\n已识别路径已改为区别于原导线的颜色；保留原色的部分未纳入回路。按 Enter 或 Esc 返回：")))
@@ -488,11 +503,12 @@
     "图块文件夹不存在，请重新解压完整交付包。"))
 (defun EL:PanelDialog (result cfg powers capacity / dialog status captured
     *EL:PanelAction* *EL:PanelDraft* *EL:PanelPowers* *EL:PanelCapacity* *EL:PanelConfig*
-    *EL:PanelTemplateReady* *EL:PanelLibrarySnapshot* *EL:PanelDialogPosition*
+    *EL:PanelTemplateReady* *EL:PanelLibrarySnapshot* *EL:PanelDialogPosition* *EL:PanelPreviewPalette*
     home diagnostic-notice diagnostic-path diagnostic-action)
   (setq home (not result)
     *EL:PanelDraft* (if result (EL:PanelCompute (EL:SelectFixedExits result nil) powers cfg))
     *EL:PanelPowers* powers *EL:PanelCapacity* (EL:CapacityDefault capacity)
+    *EL:PanelPreviewPalette* (EL:PreviewPalette *EL:PanelDraft*)
     *EL:PanelConfig* cfg
     *EL:PanelTemplateReady* (if result (EL:TemplateReady (EL:Get 'template cfg) cfg))
     *EL:PanelLibrarySnapshot* (cond (home (EL:DLSnapshot))
@@ -512,6 +528,7 @@
             (set_tile "p_number" (strcat "配电箱编号：" (EL:PanelNumber *EL:PanelDraft*)))))
         (EL:TrunkButtonDraw)
         (EL:StepLabelsDraw)
+        (EL:PanelCircuitColorsDraw *EL:PanelPreviewPalette*)
         (set_tile "p_library_toggle" (if *EL:PanelLibraryExpanded* "收起设备库 <<" "展开设备库 >>"))
         (if *EL:PanelLibraryExpanded* (EL:DLUIPanelBegin *EL:PanelLibrarySnapshot*))
         (EL:PanelText "p_diagnostic_status" (cond (diagnostic-notice) (T "")))

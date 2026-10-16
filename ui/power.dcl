@@ -135,8 +135,43 @@ el_panel : dialog {
   }
   : boxed_column {
     label = "设备库";
-    // Date: 2026-10-15. Keep header rows compact; the editor receives the spare height.
+    // Date: 2026-10-16. Device editor above library paths; keep each section together.
     : column { fixed_height = true; alignment = top;
+      : row { children_alignment = top;
+        : column {
+          : edit_box { key = "dl_query"; label = "搜索图块名 / 设备名"; edit_width = 20; }
+          : toggle { key = "dl_deleted"; label = "显示已删除"; }
+          : list_box { key = "dl_rows"; label = "图块名 / 设备名 / 状态"; width = 34; height = 17; }
+          : button { key = "dl_pick"; label = "拾取设备入库"; }
+          : row {
+            : button { key = "dl_new"; label = "新增"; }
+            : button { key = "dl_delete"; label = "删除"; }
+            : button { key = "dl_restore"; label = "恢复"; }
+          }
+          : row {
+            : button { key = "dl_refresh"; label = "刷新"; }
+            : button { key = "dl_reload"; label = "重载选中项"; }
+          }
+          : button { key = "dl_directory"; label = "更改库目录"; }
+          : button { key = "dl_import"; label = "导入旧资料"; }
+        }
+        : column {
+          : image { key = "dl_image"; width = 34; height = 7; fixed_width = true; fixed_height = true; color = 0; }
+          : text { key = "dl_asset"; width = 38; }
+          : edit_box { key = "dl_block"; label = "图块名"; edit_width = 24; }
+          : edit_box { key = "dl_aliases"; label = "别名（分号分隔）"; edit_width = 24; }
+          : toggle { key = "dl_keep_old"; label = "改名时保留旧名"; value = "1"; }
+          : edit_box { key = "dl_display"; label = "设备名"; edit_width = 24; }
+          : edit_box { key = "dl_watts"; label = "单个功率（整数 W）"; edit_width = 12; }
+          : toggle { key = "dl_zero"; label = "确认此设备为 0W"; }
+          : popup_list { key = "dl_ground"; label = "是否地面"; }
+          : toggle { key = "dl_active"; label = "启用名称匹配"; value = "1"; }
+          : button { key = "dl_repair"; label = "修复图例"; }
+        }
+      }
+      : text { key = "dl_status"; width = 76; fixed_height = true; }
+    }
+    : column { fixed_height = true; alignment = bottom;
       : text { key = "dl_root"; width = 76; fixed_height = true; }
       : row { alignment = left; fixed_height = true;
         : text { label = "功率参数：catalog.eld"; width = 44; fixed_width = true; }
@@ -148,39 +183,6 @@ el_panel : dialog {
       }
       : text { label = "默认功率反馈：自动保存成功后，发送 catalog.eld。"; fixed_height = true; }
     }
-    : row { children_alignment = top;
-      : column {
-        : edit_box { key = "dl_query"; label = "搜索图块名 / 设备名"; edit_width = 20; }
-        : toggle { key = "dl_deleted"; label = "显示已删除"; }
-        : list_box { key = "dl_rows"; label = "图块名 / 设备名 / 状态"; width = 34; height = 17; }
-        : button { key = "dl_pick"; label = "拾取设备入库"; }
-        : row {
-          : button { key = "dl_new"; label = "新增"; }
-          : button { key = "dl_delete"; label = "删除"; }
-          : button { key = "dl_restore"; label = "恢复"; }
-        }
-        : row {
-          : button { key = "dl_refresh"; label = "刷新"; }
-          : button { key = "dl_reload"; label = "重载选中项"; }
-        }
-        : button { key = "dl_directory"; label = "更改库目录"; }
-        : button { key = "dl_import"; label = "导入旧资料"; }
-      }
-      : column {
-        : image { key = "dl_image"; width = 34; height = 7; fixed_width = true; fixed_height = true; color = 0; }
-        : text { key = "dl_asset"; width = 38; }
-        : edit_box { key = "dl_block"; label = "图块名"; edit_width = 24; }
-        : edit_box { key = "dl_aliases"; label = "别名（分号分隔）"; edit_width = 24; }
-        : toggle { key = "dl_keep_old"; label = "改名时保留旧名"; value = "1"; }
-        : edit_box { key = "dl_display"; label = "设备名"; edit_width = 24; }
-        : edit_box { key = "dl_watts"; label = "单个功率（整数 W）"; edit_width = 12; }
-        : toggle { key = "dl_zero"; label = "确认此设备为 0W"; }
-        : popup_list { key = "dl_ground"; label = "是否地面"; }
-        : toggle { key = "dl_active"; label = "启用名称匹配"; value = "1"; }
-        : button { key = "dl_repair"; label = "修复图例"; }
-      }
-    }
-    : text { key = "dl_status"; width = 76; fixed_height = true; }
     : text { label = "离开输入框后自动保存；勾选和下拉选项修改后立即保存。"; fixed_height = true; }
   }
   }

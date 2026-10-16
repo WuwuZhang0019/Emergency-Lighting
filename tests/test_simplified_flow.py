@@ -100,7 +100,7 @@ class SimplifiedFlowTests(unittest.TestCase):
         result = f.call("EL:PanelDialog", None, None, None, None)
         self.assertTrue(f.get("pick-panel", result))
         self.assertIn("dl_rows", callbacks)
-        self.assertNotIn("dl_save", callbacks)
+        self.assertIn("dl_save", callbacks)
         self.assertIn("dl_watts", callbacks)
         self.assertEqual(f.get("display", f.call("EL:DLUIEntry")), "待保存设备名")
 
@@ -183,7 +183,8 @@ class SimplifiedFlowTests(unittest.TestCase):
         f.dialog()
         output = "".join(messages)
         self.assertIn("已识别设备 2 个", output)
-        self.assertIn("已识别设备合计：", output)
+        self.assertIn("总功率：", output)
+        self.assertIn("10 W", f.tiles["p_power_total"])
         self.assertTrue(f.tiles["p_error"])
         self.assertTrue(f.tiles["p_row0"])
 

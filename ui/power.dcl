@@ -96,8 +96,6 @@ el_panel_review : column { fixed_width = true; fixed_height = true; alignment = 
       : radio_button { key = "p_600"; width = 10; fixed_width = true; label = "0.6kW"; }
       : radio_button { key = "p_1000"; width = 10; fixed_width = true; label = "1kW"; }
     }
-    : text { key = "p_capacity_status"; width = 46; fixed_width = true; }
-    : text { key = "p_capacity_status1"; width = 46; fixed_width = true; }
     : boxed_column { label = "识别结果：回路编号 / 功率"; fixed_height = true; alignment = top;
       : row { fixed_height = true; alignment = left; : text { label = "ZE1"; width = 4; fixed_width = true; } : el_panel_circuit_swatch { key = "p_color0"; } : text { key = "p_row0"; width = 22; } }
       el_panel_circuit_separator;
@@ -115,6 +113,8 @@ el_panel_review : column { fixed_width = true; fixed_height = true; alignment = 
       el_panel_circuit_separator;
       : row { fixed_height = true; alignment = left; : text { label = "ZE8"; width = 4; fixed_width = true; } : el_panel_circuit_swatch { key = "p_color7"; } : text { key = "p_row7"; width = 22; } }
       el_panel_circuit_separator;
+      // Date: 2026-10-16. One power summary between the circuit rows and step three.
+      : text { key = "p_power_total"; label = "总功率：未统计"; width = 40; fixed_width = true; fixed_height = true; }
       : row { fixed_width = true; fixed_height = true; alignment = left;
         : image { key = "p_step3"; width = 8; height = 1.3; fixed_width = true; fixed_height = true; color = dialog_background; help_string = "第三步：在图面查看全部回路"; }
         : button { key = "f_preview"; label = "在图面查看全部回路"; width = 28; fixed_width = true; }

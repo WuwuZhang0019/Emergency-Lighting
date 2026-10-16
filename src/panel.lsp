@@ -374,7 +374,7 @@
       (EL:LogEvent "PANEL_GENERATE_ERROR" (vl-catch-all-error-message outcome))
       (EL:PanelText "p_error" (strcat "生成未开始：" (vl-catch-all-error-message outcome)))
       (alert (strcat "生成未开始：" (vl-catch-all-error-message outcome) "\n当前设置已保留，请查看诊断日志。")))))
-(defun EL:PanelFill (/ cs i c key ids circuit)
+(defun EL:PanelFill (/ cs i c key ids circuit total)
   (setq cs (EL:Get 'circuits *EL:PanelDraft*) i 0)
   (repeat 8
     (setq c (nth i cs) key (itoa i))
@@ -387,7 +387,9 @@
           (strcat "预留" (itoa (1+ (- i (length cs))))) "")))
     (setq i (1+ i)))
   (foreach circuit cs (setq ids (append ids (EL:Get 'devices circuit))))
-  ;; Date: 2026-10-16. Keep summaries in the command line, outside the compact panel.
+  ;; Date: 2026-10-16. Show deduplicated power below the rows; keep counts in the command line.
+  (setq total (EL:PanelKnownTotal))
+  (set_tile "p_power_total" total)
   (princ (strcat "\n已识别设备 " (itoa (length (EL:Unique ids)))
     " 个；待核对设备 " (itoa (length (EL:Get 'library-pending *EL:PanelDraft*))) " 种。"))
   (EL:PanelText "p_error" (cond
@@ -400,11 +402,10 @@
     ((and (not (assoc 'block-ground *EL:PanelDraft*)) (vl-some '(lambda (c) (EL:Get 'is-ground c)) cs))
       "沿用旧回路地面设置；修改图块地面勾选后按图块统一重算。")
     (T "核对回路后点击生成新系统图，当前输入会自动保存。")))
-  (princ (strcat "\n" (EL:PanelKnownTotal) "；实际回路 " (itoa (length cs)) "；输出 " (itoa (EL:FixedOutputCount (length cs)))
+  (princ (strcat "\n" total "；实际回路 " (itoa (length cs)) "；输出 " (itoa (EL:FixedOutputCount (length cs)))
     "；已完整核对回路 " (itoa (EL:Get 'box-watts *EL:PanelDraft*)) " W"))
   (set_tile "p_capacity" (cond ((equal *EL:PanelCapacity* 'cap600) "p_600")
     ((equal *EL:PanelCapacity* 'cap1000) "p_1000") (T "p_300")))
-  (EL:PanelText "p_capacity_status" "默认 0.3kW；可按需要调整为 0.6kW 或 1kW。")
   (princ (strcat "\n" (if *EL:PanelTemplateReady* "模板已验证，生成时自动切换状态。"
     "模板未设置或已变化：点击生成时设置；不影响当前统计。")))
   (setq i 0)
@@ -424,7 +425,8 @@
       (if (> watts (/ (- 2147483647 total) (EL:Get 'count row))) (setq overflow T)
         (setq total (+ total (* watts (EL:Get 'count row)))))
       (setq missing (+ missing (EL:Get 'count row)) kinds (1+ kinds))))
-  (strcat "已识别设备合计：" (if overflow "超出整数范围" (strcat (itoa total) " W"))
+  (strcat (if (and (= missing 0) (EL:Get 'complete *EL:PanelDraft*)) "总功率：" "已知总功率：")
+    (if overflow "超出整数范围" (strcat (itoa total) " W"))
     (if (> missing 0) (strcat "；尚有 " (itoa kinds) " 种 / " (itoa missing) " 个设备未填功率") "")
     (if (EL:Get 'complete *EL:PanelDraft*) "" "；连接仍待核对")))
 (defun EL:PanelCapacity (value)
@@ -436,13 +438,13 @@
   (if (and (EL:PanelLibraryFlush) (EL:DLPanelSaveReady))
     (if (EL:Get 'circuits *EL:PanelDraft*) (progn (setq *EL:PanelAction* 'save) (EL:PanelClose 1))
       (EL:PanelText "p_error" "请至少保留一条实际出线。"))))
-;; Date: 2026-10-16. Open the same dialog without the removed summary placeholders.
+;; Date: 2026-10-16. Leave power uncounted until picking, without capacity helper rows.
 (defun EL:PanelHomeFill (/ i key)
   (set_tile "p_number" "配电箱编号：请先拾取配电箱")
   (setq i 0)
   (repeat 8 (set_tile (strcat "p_row" (itoa i)) "") (setq i (1+ i)))
+  (set_tile "p_power_total" "总功率：未统计")
   (EL:PanelText "p_error" "")
-  (EL:PanelText "p_capacity_status" "识别后可选择配电箱容量。")
   (set_tile "p_capacity" "p_300")
   (foreach key '("p_trunk" "p_capacity" "f_preview" "p_generate") (mode_tile key 1)))
 (defun EL:PanelLibraryReconcile (/ snapshot resolved)

@@ -122,6 +122,15 @@ el_panel_review : column { fixed_width = true; fixed_height = true; alignment = 
         : image { key = "p_step3"; width = 8; height = 1.3; fixed_width = true; fixed_height = true; color = dialog_background; help_string = "第三步：在图面查看全部回路"; }
         : button { key = "f_preview"; label = "在图面查看全部回路"; width = 28; fixed_width = true; }
       }
+      // Date: 2026-10-21. Library access requires this explicit action.
+      : boxed_column { label = "系统图块来源（默认使用本图已有图块）";
+        : row {
+          : button { key = "p_system_drawing"; label = "检查本图图块"; }
+          : button { key = "p_system_import"; label = "从图库补入缺项"; }
+        }
+        : text { key = "p_system_blocks"; width = 40; fixed_width = true; }
+        : text { key = "p_system_styles"; width = 40; fixed_width = true; }
+      }
       : row { fixed_width = true; fixed_height = true; alignment = left;
         : image { key = "p_step4"; width = 8; height = 1.3; fixed_width = true; fixed_height = true; color = dialog_background; help_string = "第四步：生成新系统图"; }
         : button { key = "p_generate"; label = "生成新系统图"; width = 28; fixed_width = true; is_default = true; }

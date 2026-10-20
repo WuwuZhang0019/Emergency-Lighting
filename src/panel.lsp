@@ -453,6 +453,7 @@
     "；已完整核对回路 " (itoa (EL:Get 'box-watts *EL:PanelDraft*)) " W"))
   (set_tile "p_capacity" (cond ((equal *EL:PanelCapacity* 'cap600) "p_600")
     ((equal *EL:PanelCapacity* 'cap1000) "p_1000") (T "p_300")))
+  (EL:PanelSystemFill)
   (princ (strcat "\n" (if *EL:PanelTemplateReady* "模板已验证，生成时自动切换状态。"
     "模板未设置或已变化：点击生成时设置；不影响当前统计。")))
   (setq i 0)
@@ -495,7 +496,9 @@
   (set_tile "p_power_total" "总功率：未统计")
   (EL:PanelText "p_error" "")
   (set_tile "p_capacity" "p_300")
-  (foreach key '("p_trunk" "p_capacity" "f_preview" "p_generate" "p_power_review") (mode_tile key 1)))
+  (EL:PanelSystemFill)
+  (foreach key '("p_trunk" "p_capacity" "f_preview" "p_generate" "p_power_review"
+      "p_system_drawing" "p_system_import") (mode_tile key 1)))
 (defun EL:PanelLibraryReconcile (/ snapshot resolved)
   (setq snapshot (EL:Get 'snapshot *EL:DLUIState*))
   (if snapshot
@@ -566,9 +569,42 @@
       (if (not (equal opened "已打开诊断文件所在位置。"))
         (alert (strcat notice "\n" opened "\n诊断资料路径：" path))))
     (alert notice)))
-(defun EL:PanelDialog (result cfg powers capacity / dialog status captured limit-notice limit-shown
+(defun EL:PanelSystemMissingText (kind names / text row)
+  ;; Date: 2026-10-21. Full names are printed by EnsureSystemBlocks on action.
+  (setq text "")
+  (foreach row names
+    (if (not (tblsearch kind (car row)))
+      (setq text (strcat text (if (= text "") "" " / ") (cadr row))))) text)
+(defun EL:PanelSystemFill (/ blocks styles)
+  (setq blocks (EL:PanelSystemMissingText "BLOCK"
+      '(("ZYF_Tool_应急照明配电箱图块" "配电箱") ("ZYF_Tool_应急照明配电回路图块" "配电回路")))
+    styles (EL:PanelSystemMissingText "STYLE" '(("_TEL_DIM" "_TEL_DIM") ("ICDA-STYLE1" "ICDA-STYLE1"))))
+  (set_tile "p_system_blocks" (cond ((/= blocks "") (strcat "缺少图块：" blocks))
+    (*EL:PanelSystemNotice* "模板未准备完成，具体原因见命令行") (T "图块：使用本图已有定义")))
+  (set_tile "p_system_styles" (cond ((/= styles "") (strcat "缺少样式：" styles))
+    (*EL:PanelTemplateReady* "模板已准备，可继续生成") (T "默认不打开图库；缺项可点上方补入"))))
+(defun EL:PanelPrepareSystemTemplate (source / captured *EL:SystemBlockSource* *EL:SystemBlockNotice* *EL:TemplateNotice*)
+  ;; One explicit import action grants access only to this preparation call.
+  ;; Result, power overrides and capacity remain owned by the open panel flow.
+  (setq *EL:SystemBlockSource* source *EL:PanelSystemNotice* nil)
+  (setq captured (EL:MeasuredCatch 'EL:PerfCall
+    (list "TEMPLATE_CAPTURE" 'EL:CaptureFixedTemplate (list *EL:PanelConfig*))))
+  (EL:ClearPickHighlights)
+  (if (and (not (vl-catch-all-error-p captured)) captured)
+    (progn
+      (setq *EL:PanelConfig* (EL:Put 'template captured *EL:PanelConfig*) *EL:PanelTemplateReady* T)
+      T)
+    (progn
+      (setq *EL:PanelTemplateReady* nil *EL:PanelSystemNotice*
+        (cond ((vl-catch-all-error-p captured) (vl-catch-all-error-message captured))
+          (*EL:SystemBlockNotice*) (*EL:TemplateNotice*) (T "模板准备未完成，请核对图块动态属性与文字样式。")))
+      (princ (strcat "\n" *EL:PanelSystemNotice*
+        "\n已返回原面板，当前识别结果、功率和容量已保留。")) nil)))
+(defun EL:PanelDialog (result cfg powers capacity)
+  (EL:WithTemplateScope 'EL:PanelDialogWork (list result cfg powers capacity)))
+(defun EL:PanelDialogWork (result cfg powers capacity / dialog status limit-notice limit-shown
     *EL:PanelAction* *EL:PanelDraft* *EL:PanelPowers* *EL:PanelCapacity* *EL:PanelConfig*
-    *EL:PanelTemplateReady* *EL:PanelLibrarySnapshot* *EL:PanelDialogPosition* *EL:PanelPreviewPalette*
+    *EL:PanelTemplateReady* *EL:PanelLibrarySnapshot* *EL:PanelDialogPosition* *EL:PanelPreviewPalette* *EL:PanelSystemNotice*
     home)
   (setq home (not result)
     *EL:PanelDraft* (if result (EL:PanelCompute (EL:SelectFixedExits result nil) powers cfg))
@@ -600,6 +636,8 @@
         (EL:MonitorActionTile "p_trunk" "(EL:PanelLeave 10)")
         (EL:MonitorActionTile "f_preview" "(EL:PanelLeave 5)")
         (EL:MonitorActionTile "p_power_review" "(EL:PanelLeave 22)")
+        (EL:MonitorActionTile "p_system_drawing" "(EL:PanelLeave 23)")
+        (EL:MonitorActionTile "p_system_import" "(EL:PanelLeave 24)")
         (EL:MonitorActionTile "p_library_toggle" "(EL:PanelLibraryToggle)")
         (EL:MonitorActionTile "p_capacity" "(EL:PanelCapacity $value)")
         (EL:MonitorActionTile "p_generate" "(EL:PanelGenerate)")
@@ -617,14 +655,12 @@
         (if (= status 21) (setq status 3))
         (if (= status 4)
           (progn
-            (princ "\n正在检查系统图块；缺少定义时从随包图块库自动导入。")
-            (setq captured (vl-catch-all-apply 'EL:CaptureFixedTemplate (list *EL:PanelConfig*)))
-            (EL:ClearPickHighlights)
-            (if (and (not (vl-catch-all-error-p captured)) captured)
-              (setq *EL:PanelConfig* (EL:Put 'template captured *EL:PanelConfig*)
-                *EL:PanelTemplateReady* T status 2)
-              (progn (princ "\n模板设置未完成，返回统计面板；当前功率和选择已保留。")
-                (setq status 3)))))
+            (princ "\n正在检查本图系统图块；缺项时保留输入，请在面板选择从图库补入缺项。")
+            (setq status (if (EL:PanelPrepareSystemTemplate 'drawing) 2 3))))
+        (if (member status '(23 24))
+          (progn
+            (EL:PanelPrepareSystemTemplate (if (= status 24) 'library 'drawing))
+            (setq status 3)))
         (if (= status 22)
           (progn (EL:PanelPowerReview dialog) (setq status 3)))
         (if (= status 5)

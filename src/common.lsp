@@ -144,6 +144,10 @@
       (setq stamp (vl-catch-all-apply 'getvar (list "CDATE")))
       (setq *EL:MonitorRows* nil *EL:MonitorError* nil *EL:MonitorUIStack* nil
         *EL:MonitorStamp* (if (numberp stamp) (rtos stamp 2 6) "unavailable"))
+      ;; Date: 2026-10-21. Association evidence must identify the exact run,
+      ;; including two commands that start within the same CDATE second.
+      (setq *EL:PerfRunSequence* (1+ (cond (*EL:PerfRunSequence*) (T 0)))
+        *EL:PerfRunID* (list *EL:MonitorStamp* *EL:PerfStarted* *EL:PerfRunSequence*))
       (EL:PerfSet "date" (if (numberp stamp) stamp "unavailable"))
       (EL:PerfSet "clock-available" (if (numberp tick) T nil))
       (foreach key '("recognize-fixed-calls" "store-read-calls" "store-write-calls"
@@ -288,13 +292,21 @@
   (if (and (not (vl-catch-all-error-p written)) written)
     (princ (strcat "\n性能记录：" path))
     (princ "\n性能记录写入失败；汇总保留在 *EL:PerfLastSummary*。")) nil)
-(defun EL:PerfFinish (status / elapsed waited summary)
+(defun EL:PerfBusinessOutcome (status)
+  ;; Date: 2026-10-21. Native completion is not a successful recognition.
+  (cond
+    ((equal status 'failed) (if (equal *EL:PerfOutcome* 'cancelled) 'cancelled 'failed))
+    ((member status '(cancelled interrupted-by-load load-failed)) status)
+    (*EL:PerfOutcome*) (T 'not-recorded)))
+(defun EL:PerfFinish (status / elapsed waited summary outcome)
   (if *EL:PerfActive*
     (progn
       (EL:PerfUnwind nil)
       (setq elapsed (EL:PerfDelta *EL:PerfStarted* (EL:Tick)) waited (EL:PerfWaiting)
-        summary (list '(schema . 1) (cons 'command *EL:PerfCommand*) (cons 'status status)
-          (cons 'last-outcome *EL:PerfOutcome*) (cons 'package *EL:PackageMarker*)
+        outcome (EL:PerfBusinessOutcome status)
+        summary (list '(schema . 2) (cons 'run-id *EL:PerfRunID*)
+          (cons 'command *EL:PerfCommand*) (cons 'status status) (cons 'command-status status)
+          (cons 'business-outcome outcome) (cons 'last-outcome outcome) (cons 'package *EL:PackageMarker*)
           (cons 'detail (if *EL:PerfDetail* T nil)) (cons 'business-logs (if *EL:PerfLogsOff* 'off 'on))
           (cons 'total-ms elapsed) (cons 'interaction-ms waited) (cons 'program-ms (max 0 (- elapsed waited)))
           (cons 'after-submit (EL:PerfMarkDuration "panel-submit"))
@@ -438,7 +450,10 @@
     (cons 'dxf (vl-remove-if-not '(lambda (pair) (member (car pair)
       '(0 2 5 8 10 11 38 40 41 42 43 50 51 60 70 90 210 410))) data))))
 (defun EL:LogFinish (status)
-  (if *EL:PerfActive* (setq *EL:PerfOutcome* status))
+  ;; Date: 2026-10-21. A catch can return to the outer command after failure.
+  ;; Keep that business result when its native wrapper subsequently returns.
+  (if (and *EL:PerfActive* (not (equal status 'command-finished)))
+    (setq *EL:PerfOutcome* status))
   (if *EL:LogActive*
     (progn
       (EL:LogEvent "END" status)
@@ -450,13 +465,19 @@
         (T (princ "\n未建立日志文件；请保留命令行信息。")))))
   (setq *EL:LogActive* nil *EL:LogStack* nil)
   (if *EL:PerfLogOwner* (EL:PerfFinish status)))
+(defun EL:CancelledMessage (message)
+  ;; Date: 2026-10-21. EXIT/abort may be a validation failure, so only known
+  ;; native user-cancel messages receive the cancelled outcome.
+  (and (equal (type message) 'STR)
+    (member (strcase (vl-string-trim " *\t\r\n" message))
+      '("FUNCTION CANCELLED" "FUNCTION CANCELED" "CONSOLE BREAK" "USER BREAK" "函数已取消"))))
 (defun EL:LogFailure (message / laststate stack)
   (setq *EL:MonitorError* message)
   (setq laststate *EL:LogLast* stack *EL:LogStack*)
   (EL:LogEvent "ERROR" (list (cons 'message message) (cons 'stack stack) (cons 'last-event laststate)))
   (princ (strcat "\n原始错误：" (EL:LogText message)
     "\n失败阶段：" (EL:LogText stack) "\n最后上下文：" (EL:LogText laststate)))
-  (EL:LogFinish 'failed))
+  (EL:LogFinish (if (EL:CancelledMessage message) 'cancelled 'failed)))
 
 ;; Date: 2026-10-09. Managed outputs never enter source recognition.
 (defun EL:DiagramTag (entity / data)
@@ -592,8 +613,8 @@
   (setq stamp *EL:MonitorStamp*)
   (EL:MonitorLine "# 应急照明全过程动作耗时" file)
   (EL:MonitorLine (strcat "日期：" (substr stamp 1 4) "-" (substr stamp 5 2) "-" (substr stamp 7 2)) file)
-  (EL:MonitorLine (strcat "状态：" (EL:MonitorCell (EL:Get 'status summary))
-    "；业务结果：" (EL:MonitorCell (EL:Get 'last-outcome summary))) file)
+  (EL:MonitorLine (strcat "原生命令状态：" (EL:MonitorCell (EL:Get 'status summary))
+    "；本轮业务结果：" (EL:MonitorCell (EL:Get 'last-outcome summary))) file)
   (EL:MonitorLine (strcat "启动时间 CDATE：" stamp "；命令：" (EL:Get 'command summary)
     "；交付版本：" (EL:MonitorCell (EL:Get 'package summary))) file)
   (EL:MonitorLine "" file)

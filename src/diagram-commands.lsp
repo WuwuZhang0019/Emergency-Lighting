@@ -436,8 +436,12 @@
 (defun EL:RememberDiagramDiagnostic (record store)
   ;; Date: 2026-10-15. One successful output per open DWG, no file or XRecord
   ;; write. A failed/cancelled placement never replaces the previous output.
+  ;; Date: 2026-10-21. Keep the successful association's own run identity;
+  ;; a later cancelled recognition must not inherit its success evidence.
+  (if *EL:PerfActive* (setq *EL:PerfOutcome* 'diagram-generated))
   (setq *EL:DiagramDiagnostics* (EL:Put (namedobjdict)
-    (list (cons 'record record) (cons 'store
+    (list (cons 'record record) (cons 'run-id (if *EL:PerfActive* *EL:PerfRunID*))
+      (cons 'captured-at (getvar "CDATE")) (cons 'store
       (list '(schema-version . 1) (cons 'drawing-uuid (EL:Get 'drawing-uuid store)))))
     *EL:DiagramDiagnostics*)) nil)
 (defun EL:DiagnosticRequire (condition message)
@@ -658,6 +662,24 @@
       (if (equal outcome "OK") "ZIP 文件不存在或为空" "详细原因见本目录 bundle-error.txt")
       "；原始资料保留在：" (EL:DiagnosticWindowsPath folder)))
   (EL:DiagnosticWindowsPath path))
+(defun EL:DiagnosticRunMetadata (record run / session summary current)
+  ;; Date: 2026-10-21. VERIFIED describes only the exported association.
+  ;; Match the exact generating run, never a block name, box or old result.
+  (setq session (EL:Get (namedobjdict) *EL:DiagramDiagnostics*)
+    summary (EL:Get 'summary run)
+    current (and record (EL:Get 'run-id summary) (EL:Get 'run-id session)
+      (equal record (EL:Get 'record session))
+      (equal (EL:Get 'run-id summary) (EL:Get 'run-id session))))
+  (list (cons 'run-id (EL:Get 'run-id summary))
+    (cons 'run-command-status (EL:Get 'status summary))
+    (cons 'run-business-outcome (EL:Get 'last-outcome summary))
+    (cons 'association-scope (cond (current 'current-run-generated)
+      (record 'recent-success-or-selected) (T 'unavailable)))
+    (cons 'association-current-run (if current T nil))
+    (cons 'association-run-id (if (and record (equal record (EL:Get 'record session)))
+      (EL:Get 'run-id session)))
+    (cons 'association-captured-at (if (and record (equal record (EL:Get 'record session)))
+      (EL:Get 'captured-at session)))))
 (defun EL:DiagnosticBundle (record store logpath issue / folder run files entry source target notes stamp metadata
     *EL:DiagnosticProgressPath*)
   (setq folder (EL:DiagnosticFolder) *EL:DiagnosticExportPath* (EL:DiagnosticWindowsPath folder)
@@ -696,6 +718,7 @@
     (cons 'drawing (getvar "DWGNAME")) (cons 'drawing-folder (getvar "DWGPREFIX"))
     (cons 'acad-version (getvar "ACADVER")) (cons 'association-status (if record 'verified 'unavailable))
     (cons 'association-issue issue) (cons 'files (append '("README.md" "manifest.eld") (reverse files)))))
+  (setq metadata (append metadata (EL:DiagnosticRunMetadata record run)))
   (EL:DiagnosticWriteData (strcat folder "/manifest.eld") metadata)
   (EL:DiagnosticWriteText (strcat folder "/README.md")
     (strcat "# 应急照明诊断资料\r\n日期：" (substr stamp 1 4) "-" (substr stamp 5 2) "-" (substr stamp 7 2)
@@ -704,13 +727,14 @@
       "timeline.md：当前图纸最近有效运行的耗时、错误、事件及加载时间轴。\r\n"
       "run.eld：同一次运行的完整事件和计时原始数据，未做日志文本截断。\r\n"
       "load.eld：本次会话最近一次插件加载的计时和原始动作；可能晚于 run.eld。\r\n"
-      "association.eld：当前图纸最近成功出图或选中旧系统图的已核对关联。\r\n"
+      "association.eld：当前图纸最近成功出图或选中旧系统图的已核对关联；VERIFIED 不证明本轮识别或生成成功。\r\n"
+      "manifest.eld 的 association-scope/current-run 区分本轮生成与历史关联；本轮原生命令状态和业务结果分别记录。\r\n"
       "drawing-store.eld：当前图纸已保存记录的只读快照，不代表所有旧图成员已核对。\r\n"
       "current-result.eld：当前识别结果的业务字段与源图数量；可能与最近一次成功出图不同。\r\n"
       "完整保存记录和出图关联保留在 drawing-store.eld / association.eld，不重复展开内存几何、网络证明及设备库缓存。\r\n"
       "progress.log：逐文件导出检查点；中断时可定位最后进入的阶段。\r\n"
       "runtime / active / temp 日志：已有共享历史文件，可能含此前命令或其他图纸；以 run.eld 为本次运行依据。\r\n"
-      "manifest.eld：版本、图纸、导出时间、关联状态和文件清单。\r\n"
+      "manifest.eld：版本、图纸、导出时间、本轮业务结果、关联范围与状态和文件清单。\r\n"
       "本次生成的 .eld / .md 为 UTF-8；复制的历史 .log 保持原编码。\r\n"
       "内存记录在关闭图纸后不再保留，缺少资料不会伪造补全。\r\n\r\n"
       (if issue (strcat "关联读取或核对问题：" issue "\r\n") "")

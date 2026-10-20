@@ -363,8 +363,65 @@
     (cons 'definition-key (EL:Get 'definition-key shape))
     (cons 'definition-geometry (EL:Get 'definition-geometry shape))
     (cons 'issues (EL:Get 'issues shape))))
-(defun EL:DeviceContactShape (block / id saved shape entity matrix key origin template context data definition local-shape reusable)
-  (setq id (EL:Get 'id block) saved (assoc id *EL:DeviceContactCache*))
+(defun EL:DeviceDefinitionFacts (name stack / header entity data rows nested)
+  ;; Date: 2026-10-21. Exact typed source, including nested headers/flags.
+  ;; Handles and owners identify objects, not visible definition geometry.
+  (if (or (member name stack) (>= (length stack) 16)) (list 'recursive name)
+    (progn
+      (setq header (tblsearch "BLOCK" name) entity (cdr (assoc -2 header)))
+      (while (and entity (/= (cdr (assoc 0 (entget entity))) "ENDBLK"))
+        (setq data (vl-remove-if '(lambda (row) (member (car row) '(-1 5 330))) (entget entity)) nested nil)
+        (if (equal (cdr (assoc 0 data)) "INSERT")
+          (setq nested (EL:DeviceDefinitionFacts (cdr (assoc 2 data)) (cons name stack))))
+        (setq rows (cons (list data nested) rows) entity (entnext entity)))
+      (list (vl-remove-if '(lambda (row) (member (car row) '(-1 -2 5 330))) header) (reverse rows)))))
+(defun EL:DeviceCacheContext ()
+  (list (namedobjdict) *EL:FreshEpoch* (EL:DeviceContourTolerance)))
+(defun EL:ExactCoordinateShift (value offset / moved virtual)
+  ;; Date: 2026-10-21. Knuth TwoSum: zero residual proves exact addition.
+  (setq moved (+ value offset) virtual (- moved value))
+  (= (+ (- value (- moved virtual)) (- offset virtual)) 0.0))
+(defun EL:PoseTranslationSafe (shape offset origin matrix / bounds points point moved good actual local world a b i)
+  ;; Date: 2026-10-21. Prove exact translation, without changing any epsilon.
+  ;; Large coordinates, nested/analytic mixes and any rounding use the old path.
+  (setq bounds (EL:Get 'segment-bounds shape)
+    local (EL:Get 'pose-local-segments shape) world (EL:Get 'segments shape)
+    actual (EL:AffineCompose '(1.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0) matrix)
+    good (and bounds local (not (EL:Get 'curves shape)) (= (length local) (length world))
+      (equal (mapcar '(lambda (i) (nth i actual)) '(0 1 2 3 7))
+        (mapcar '(lambda (i) (nth i (EL:Get 'pose-matrix shape))) '(0 1 2 3 7))))
+    points (append bounds (list origin offset)))
+  (foreach point points
+    (if (vl-some '(lambda (value) (> (abs value) 1.0e6)) point) (setq good nil)))
+  (foreach point bounds
+    (setq moved (EL:V+ point offset))
+    (if (or (vl-some '(lambda (value) (> (abs value) 1.0e6)) moved)
+        (not (equal point (EL:V- moved offset) 1.0e-9))) (setq good nil)))
+  ;; Exact WCS reproduction and exact addition are separate obligations.
+  ;; Merely matching bounds, tolerances or angles is insufficient.
+  (while (and good local)
+    (setq a (car local) b (car world) local (cdr local) world (cdr world))
+    (foreach i '(0 1)
+      (setq point (nth i b) moved (EL:V+ point offset))
+      (if (or (not (equal moved (EL:AffinePoint (nth i a) actual)))
+          (not (vl-every '(lambda (ok) ok) (mapcar 'EL:ExactCoordinateShift point offset))))
+        (setq good nil))))
+  good)
+(defun EL:TranslatePoseShape (shape offset)
+  ;; The first instance's WCS rings, holes and spatial tree stay shared.
+  (list (cons 'contact-template shape) (cons 'contact-offset offset)
+    (cons 'contact-ready T) (cons 'contact-lazy T)
+    (cons 'curves (EL:TranslateCurves (EL:Get 'curves shape) offset))
+    (cons 'segment-bounds (mapcar '(lambda (point) (EL:V+ point offset)) (EL:Get 'segment-bounds shape)))
+    (cons 'sampled-curves (EL:Get 'sampled-curves shape))
+    (cons 'definition-key (EL:Get 'definition-key shape))
+    (cons 'definition-geometry (EL:Get 'definition-geometry shape))
+    (cons 'issues (EL:Get 'issues shape))))
+(defun EL:DeviceContactShape (block / id saved shape entity matrix key origin template context data definition local-shape reusable
+    cache-context source definition-key pose-key offset started)
+  (setq id (EL:Get 'id block) cache-context (EL:DeviceCacheContext)
+    saved (assoc id *EL:DeviceContactCache*))
+  (if (and saved (not (equal cache-context (EL:Get 'cache-context (cdr saved))))) (setq saved nil))
   (if saved (cdr saved)
     (progn
       (setq entity (cond ((EL:Get 'entity block)) (T (handent id)))
@@ -375,50 +432,88 @@
         (progn
           (setq matrix (vl-catch-all-apply 'EL:InsertMatrix (list entity)))
           (if (and matrix (not (vl-catch-all-error-p matrix)))
-            (setq key (cons 'pose (mapcar '(lambda (code) (assoc code data)) '(2 41 42 43 50 210)))
-              origin (list (nth 4 matrix) (nth 5 matrix) (nth 6 matrix))
-              template (assoc key *EL:DeviceTemplateCache*)))))
+            (progn
+              (setq started (EL:Tick) source (EL:DeviceDefinitionFacts (cdr (assoc 2 data)) nil))
+              (EL:PerfCount "device-definition-check-ms" (EL:Elapsed started))
+              (setq definition-key (list 'definition cache-context (cdr (assoc 2 data)) source)
+                pose-key (list 'pose-v1 (cdr (assoc 2 data))
+                  (mapcar '(lambda (i) (nth i matrix)) '(0 1 2 3 7))
+                  (mapcar '(lambda (code) (assoc code data)) '(41 42 43 50 210)) (EL:DeviceContourTolerance))
+                key (list 'pose cache-context pose-key source)
+                origin (list (nth 4 matrix) (nth 5 matrix) (nth 6 matrix))
+                template (assoc key *EL:DeviceTemplateCache*))
+              (if template
+                (progn (setq offset (EL:V- origin (cadr template)) started (EL:Tick))
+                  (if (and (EL:Get 'sampled-curves (caddr template))
+                      (not (EL:PoseTranslationSafe (caddr template) offset origin matrix)))
+                    (progn (setq template nil) (EL:PerfCount "device-pose-fallbacks" 1)))
+                  (EL:PerfCount "device-pose-verify-ms" (EL:Elapsed started))))))))
       (if template
         (progn
           (EL:PerfCount "device-template-reuses" 1)
-          (setq shape (EL:TranslateDeviceShape (caddr template) (EL:V- origin (cadr template))))
+          (EL:PerfCount "device-pose-reuses" 1)
+          (setq shape (if (EL:Get 'sampled-curves (caddr template))
+            (EL:TranslatePoseShape (caddr template) offset)
+            (EL:TranslateDeviceShape (caddr template) offset)))
           (EL:LogEvent "DEVICE_TEMPLATE_REUSE" context))
         (progn
-          (if (and key (setq definition (assoc (list 'definition (cdr (assoc 2 data))) *EL:DeviceTemplateCache*)))
-            (progn (setq local-shape (cadr definition)) (EL:PerfCount "device-template-reuses" 1))
+          (if (and key (setq definition (assoc definition-key *EL:DeviceTemplateCache*)))
+            (progn (setq local-shape (cadr definition)) (EL:PerfCount "device-definition-reuses" 1))
             (if key
               (progn
                 (EL:PerfCount "device-contour-reads" 1)
+                (setq started (EL:Tick))
                 (setq local-shape (vl-catch-all-apply 'EL:DeviceDefinitionContour (list entity)))
-                (if (vl-catch-all-error-p local-shape) (setq local-shape nil))
+                (EL:PerfCount "device-definition-build-ms" (EL:Elapsed started))
+                ;; An interrupted definition probe cannot seed a successful pose.
+                (if (vl-catch-all-error-p local-shape) (setq local-shape nil key nil))
                 (if (and (EL:ShapeGeometry local-shape) (not (EL:Get 'issues local-shape)))
                   (progn
-                    (setq *EL:DeviceTemplateCache* (cons (list (list 'definition (cdr (assoc 2 data))) local-shape)
+                    (setq *EL:DeviceTemplateCache* (cons (list definition-key local-shape)
                       *EL:DeviceTemplateCache*)))))))
           (if (and (EL:ShapeGeometry local-shape) (not (EL:Get 'issues local-shape)))
             (progn
-              (setq shape (EL:TransformShape local-shape matrix) reusable (and shape T))
+              (setq shape (EL:TransformShape local-shape matrix) reusable (if shape 'definition))
               ;; Region tolerance is measured in WCS; scaling may open or close tiny gaps.
               (if (and shape (EL:Get 'segments shape) (not (EL:Get 'issues shape)))
-                (setq shape (EL:Put 'regions (append (EL:Get 'regions shape)
-                  (EL:LogCall "DEVICE_REGIONS" context 'EL:ClosedRings (list (EL:Get 'segments shape)))) shape)))))
+                (progn
+                  (setq started (EL:Tick) shape (EL:Put 'regions (append (EL:Get 'regions shape)
+                    (EL:LogCall "DEVICE_REGIONS" context 'EL:ClosedRings (list (EL:Get 'segments shape)))) shape))
+                  (EL:PerfCount "device-regions-build-ms" (EL:Elapsed started))))))
           (if (not shape)
             (progn
               (EL:PerfCount "device-contour-reads" 1)
+              (setq started (EL:Tick))
               (setq shape (vl-catch-all-apply 'EL:DeviceContour (list entity)))
+              (EL:PerfCount "device-instance-build-ms" (EL:Elapsed started))
               (if (vl-catch-all-error-p shape) (setq shape nil))
               (if (and (EL:Get 'segments shape) (not (EL:Get 'issues shape)))
-                (setq shape (EL:Put 'regions (append (EL:Get 'regions shape)
-                  (EL:LogCall "DEVICE_REGIONS" context 'EL:ClosedRings (list (EL:Get 'segments shape)))) shape)))))
+                (progn
+                  (setq started (EL:Tick) shape (EL:Put 'regions (append (EL:Get 'regions shape)
+                    (EL:LogCall "DEVICE_REGIONS" context 'EL:ClosedRings (list (EL:Get 'segments shape)))) shape))
+                  (EL:PerfCount "device-regions-build-ms" (EL:Elapsed started))))))
+          ;; Sampled definition transforms remain forbidden. A fully built WCS
+          ;; instance may nevertheless seed another instance of this exact pose.
+          (if (and key (EL:ShapeGeometry shape) (not (EL:Get 'issues shape)) (not reusable)
+              (EL:Get 'sampled-curves shape) (EL:Get 'pose-local-segments shape) (not (EL:Get 'curves shape)))
+            (setq reusable 'pose))
           (if (EL:ShapeGeometry shape)
-            (setq shape (EL:PrepareContactBlock (EL:Put 'contact-envelope (EL:Get 'bounds block)
-              (EL:Put 'id id (EL:Put 'name (EL:Get 'name block) shape))))))
-          (setq shape (EL:Put 'definition-key (if reusable (list 'definition (cdr (assoc 2 data))) (list 'instance id))
-            (EL:Put 'definition-geometry (EL:GeometryFacts (if reusable local-shape shape)) shape)))
-          (if (and key reusable (EL:ShapeGeometry shape) (not (EL:Get 'issues shape)))
-            (setq *EL:DeviceTemplateCache* (cons (list key origin shape) *EL:DeviceTemplateCache*)))))
+            (progn
+              (setq started (EL:Tick) shape (EL:PrepareContactBlock (EL:Put 'contact-envelope (EL:Get 'bounds block)
+                (EL:Put 'id id (EL:Put 'name (EL:Get 'name block) shape)))))
+              (EL:PerfCount "device-contact-prepare-ms" (EL:Elapsed started))))
+          (setq shape (EL:Put 'definition-key (cond ((equal reusable 'pose) pose-key)
+              (reusable (list 'definition (cdr (assoc 2 data)))) (T (list 'instance id)))
+            (EL:Put 'definition-geometry (if (equal reusable 'pose) source
+              (EL:GeometryFacts (if reusable local-shape shape))) shape)))
+          (if (and key reusable (EL:ShapeGeometry shape) (EL:Get 'contact-ready shape)
+              (not (EL:Get 'issues shape)) (equal cache-context (EL:DeviceCacheContext)))
+            (progn
+              (EL:PerfCount "device-pose-builds" 1)
+              (setq *EL:DeviceTemplateCache* (cons (list key origin shape) *EL:DeviceTemplateCache*))))))
       (setq shape (EL:Put 'id id (EL:Put 'name (EL:Get 'name block)
-        (EL:Put 'instance-transform (list matrix (mapcar '(lambda (code) (assoc code data)) '(2 10 41 42 43 50 210))) shape))))
+        (EL:Put 'cache-context cache-context
+        (EL:Put 'instance-transform (list matrix (mapcar '(lambda (code) (assoc code data)) '(2 10 41 42 43 50 210))) shape)))))
       (if (or (not (EL:ShapeGeometry shape)) (EL:Get 'issues shape))
         (EL:LogEvent "DEVICE_CONTACT_GEOMETRY" (list id (EL:Get 'issues shape) 'no-bounds-fallback)))
       (setq *EL:DeviceContactCache* (cons (cons id shape) *EL:DeviceContactCache*))
@@ -439,7 +534,8 @@
 (defun EL:WideDevicePathHit (wire shape cfg / strip hit)
   (foreach strip (EL:Get 'contact-strips wire)
     (if (or (EL:ContourPathHit strip shape cfg)
-        (vl-some '(lambda (seg) (EL:ContourPointHit (car seg) strip cfg)) (EL:Get 'segments shape))
+        (vl-some '(lambda (seg) (EL:ContourPointHit (car (EL:ContactWorldSegment seg shape)) strip cfg))
+          (EL:ContactRawSegments shape))
         (vl-some '(lambda (curve) (EL:ContourPointHit (EL:CurvePoint curve (nth 2 curve)) strip cfg))
           (EL:Get 'curves shape))) (setq hit T)))
   hit)
@@ -480,9 +576,9 @@
 (defun EL:DevicesTouch (a b / sa sb seg edge hit segments candidates tol)
   (setq sa (EL:DeviceContactShape a) sb (EL:DeviceContactShape b)
     tol (if (numberp *EL:DeviceContactTolerance*) *EL:DeviceContactTolerance* (EL:DeviceContactTolerance nil)))
-  (setq segments (EL:Get 'segments sa))
+  (setq segments (EL:ContactRawSegments sa))
   (while (and segments (not hit))
-    (setq seg (car segments) segments (cdr segments)
+    (setq seg (EL:ContactWorldSegment (car segments) sa) segments (cdr segments)
       candidates (EL:ContactSegmentsTolerance sb (EL:SegmentBounds (list seg)) tol))
     (while (and candidates (not hit))
       (setq edge (car candidates) candidates (cdr candidates))
@@ -490,10 +586,12 @@
   (if (not hit)
     (setq hit (or
       (vl-some '(lambda (curve)
-        (or (vl-some '(lambda (seg) (EL:CurveSegmentHit seg curve tol)) (EL:Get 'segments sb))
+        (or (vl-some '(lambda (seg) (EL:CurveSegmentHit (EL:ContactWorldSegment seg sb) curve tol))
+            (EL:ContactRawSegments sb))
           (vl-some '(lambda (other) (EL:CurvesTouchTolerance curve other tol)) (EL:Get 'curves sb)))) (EL:Get 'curves sa))
       (vl-some '(lambda (curve)
-        (vl-some '(lambda (seg) (EL:CurveSegmentHit seg curve tol)) (EL:Get 'segments sa))) (EL:Get 'curves sb)))))
+        (vl-some '(lambda (seg) (EL:CurveSegmentHit (EL:ContactWorldSegment seg sa) curve tol))
+          (EL:ContactRawSegments sa))) (EL:Get 'curves sb)))))
   hit)
 (defun EL:DeviceCandidateScope (snapshot cfg panel edges tree / block other wire ep endpoints limit rows)
   ;; Date: 2026-10-10. Conservative reachability only, never final connectivity.
@@ -600,11 +698,11 @@
         (not (EL:Get 'issues (cdr row))))) *EL:DeviceContactCache*))
     (setq *EL:NetworkMemo* (list key result (EL:DeviceContactEvidence *EL:DeviceContactCache*)))
     (setq *EL:NetworkMemo* nil))
-  ;; Date: 2026-10-15. Share fresh definition geometry only with the next
-  ;; split in this synchronous recognition call. Never persist this cache.
+  ;; Date: 2026-10-21. Share successful definitions, poses and instances with
+  ;; the next split of this synchronous recognition. Never persist this cache.
   (if *EL:RecognitionPass*
     (setq *EL:RecognitionContacts* (list result (namedobjdict) *EL:FreshEpoch*
-      (vl-remove-if-not '(lambda (row) (equal (caar row) 'definition)) *EL:DeviceTemplateCache*))))
+      *EL:DeviceTemplateCache* *EL:DeviceContactCache*)))
   result)
 (defun EL:SimpleGapSnapshot (snapshot)
   ;; Date: 2026-10-13. Virtual continuation joins only the two free wire ends.

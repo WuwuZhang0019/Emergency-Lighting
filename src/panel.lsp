@@ -67,14 +67,15 @@
   (EL:Put 'signature (EL:LogCall "SNAPSHOT_SIGNATURE" nil 'EL:FixedSourceSignature (list snapshot)) (EL:Put 'blocks (reverse blocks) snapshot)))
 (defun EL:SplitNetwork (network cfg / snapshot panel edges seeds wire block i circuits result circuit
     *EL:DeviceContactCache* *EL:DeviceTemplateCache* *EL:DeviceTemplateEnabled*)
-  ;; Date: 2026-10-15. Reuse definitions only for this call's identical
-  ;; network, DWG owner and epoch. Keep original instance/pose creation order
-  ;; and arithmetic; standalone splits still start with fresh caches.
+  ;; Date: 2026-10-21. Share complete successful poses and instances only with
+  ;; this synchronous recognition's identical network, DWG owner and epoch.
+  ;; Standalone splits and every input/write boundary start with fresh caches.
   (if (and *EL:RecognitionPass* *EL:RecognitionContacts*
       (eq network (car *EL:RecognitionContacts*))
       (equal (namedobjdict) (cadr *EL:RecognitionContacts*))
       (equal *EL:FreshEpoch* (caddr *EL:RecognitionContacts*)))
-    (setq *EL:DeviceTemplateCache* (nth 3 *EL:RecognitionContacts*)))
+    (setq *EL:DeviceTemplateCache* (nth 3 *EL:RecognitionContacts*)
+      *EL:DeviceContactCache* (nth 4 *EL:RecognitionContacts*)))
   (setq snapshot (EL:CircuitSnapshot (EL:Get 'snapshot network) (EL:Get 'panel network))
         panel (EL:Get 'panel network) block (EL:By 'id panel (EL:Get 'blocks snapshot)) i 0)
   (foreach wire (vl-sort (EL:Get 'wires snapshot) '(lambda (a b) (< (EL:Get 'id a) (EL:Get 'id b))))

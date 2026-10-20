@@ -158,6 +158,10 @@
           "source-collect-calls" "source-selection-entities" "source-block-bounds-reads"
           "source-native-entity-checks" "source-native-bounds-checks" "source-derived-reuses"
           "source-wire-record-reads" "device-contour-reads" "device-template-reuses"
+          ;; Date: 2026-10-21. Definitions, complete poses and numeric fallbacks differ.
+          "device-definition-reuses" "device-pose-builds" "device-pose-reuses" "device-pose-fallbacks"
+          "device-definition-check-ms" "device-pose-verify-ms" "device-definition-build-ms"
+          "device-instance-build-ms" "device-regions-build-ms" "device-contact-prepare-ms"
           "network-build-calls" "network-verified-reuses" "network-geometry-checks"
           "number-scopes" "number-source-handles" "number-problems"
           "number-source-read-attempts" "number-source-read-failures" "number-freshness-checks"

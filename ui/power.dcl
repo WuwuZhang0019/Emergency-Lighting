@@ -115,6 +115,9 @@ el_panel_review : column { fixed_width = true; fixed_height = true; alignment = 
       el_panel_circuit_separator;
       // Date: 2026-10-16. One power summary between the circuit rows and step three.
       : text { key = "p_power_total"; label = "总功率：未统计"; width = 40; fixed_width = true; fixed_height = true; }
+      // Date: 2026-10-21. Power review uses the current recognition snapshot.
+      : button { key = "p_power_review"; label = "查看/补填设备功率"; }
+      : text { label = "缺功率回路生成时留空，可补填后直接重算。"; }
       : row { fixed_width = true; fixed_height = true; alignment = left;
         : image { key = "p_step3"; width = 8; height = 1.3; fixed_width = true; fixed_height = true; color = dialog_background; help_string = "第三步：在图面查看全部回路"; }
         : button { key = "f_preview"; label = "在图面查看全部回路"; width = 28; fixed_width = true; }
@@ -206,4 +209,24 @@ el_panel_compact : dialog {
   el_panel_review;
   : image { height = 0.12; fixed_height = true; color = 8; }
   el_panel_diagnostics;
+}
+
+// Date: 2026-10-21. Inspect connected devices without repeating circuit recognition.
+el_panel_power_review : dialog {
+  label = "本箱设备功率核对";
+  : text { label = "缺项排在前面；按图块名补填本箱单个功率，无需重新识别回路。"; }
+  : list_box { key = "q_rows"; label = "图块名 / 数量 / 单个功率"; width = 90; height = 10; }
+  : list_box { key = "q_details"; label = "所选设备详情"; width = 90; height = 5; }
+  : list_box { key = "q_instances"; label = "设备句柄 / 所在回路（可单独定位）"; width = 90; height = 4; }
+  : row {
+    : edit_box { key = "q_watts"; label = "单个功率 W（整数，可留空）"; edit_width = 12; }
+    : toggle { key = "q_zero"; label = "确认 0W"; }
+  }
+  : text { key = "q_status"; width = 90; }
+  : row {
+    : button { key = "q_apply"; label = "应用本箱同名设备功率"; }
+    : button { key = "q_locate"; label = "图面定位所选设备"; }
+    : button { key = "cancel"; label = "返回回路面板"; is_cancel = true; }
+  }
+  : text { label = "应用后保留在本次核对中，不修改设备库；未应用的输入仅在此窗口保留。"; }
 }

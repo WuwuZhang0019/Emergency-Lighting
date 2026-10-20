@@ -82,7 +82,7 @@
 ;; Date: 2026-10-13. Pure per-circuit reuse; never caches a DWG freshness decision.
 (defun EL:StatisticsCircuitInput (circuit)
   (vl-remove-if '(lambda (pair) (member (car pair)
-    '(counts watts power-values-complete power-complete power-issues over-limit power-status))) circuit))
+    '(counts watts power-values-complete power-complete power-issues over-limit power-status power-omitted))) circuit))
 (defun EL:CircuitStatisticsScoped (circuit blocks excluded cfg library current / identities row key cached value)
   (if (not *EL:StatisticsScopeEnabled*)
     (EL:CircuitStatistics circuit blocks excluded cfg library current)

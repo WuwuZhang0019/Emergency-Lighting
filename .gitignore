@@ -240,3 +240,7 @@ config/power-input-*.eld
 # Date: 2026-10-20. Pick retry and preset migration full test package.
 /output/应急照明-v0.1.65/
 /output/应急照明-v0.1.65.zip
+
+# Date: 2026-10-21. Requested power-review trial package.
+/output/应急照明-v0.1.66/
+/output/应急照明-v0.1.66.zip

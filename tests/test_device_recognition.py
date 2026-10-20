@@ -1,4 +1,4 @@
-"""Name-based defaults, overrides and material rows. Date: 2026-10-11."""
+"""Name-based defaults, overrides and material rows. Date: 2026-10-21."""
 from pathlib import Path
 import tempfile
 import unittest
@@ -46,7 +46,8 @@ class DeviceRecognitionTests(unittest.TestCase):
     def test_unknown_block_keeps_missing_power_but_defaults_to_non_ground(self):
         result,powers,_=self.model(('Unknown',))
         computed=self.call('EL:PanelCompute',result,powers,None)
-        self.assertFalse(truth(self.get('can-generate',computed)))
+        self.assertTrue(truth(self.get('can-generate',computed)))
+        self.assertTrue(truth(self.get('power-omitted', self.get('circuits', computed)[0])))
         row=self.call('EL:DLMaterialRows',computed,powers)[0]
         self.assertEqual(self.get('ids',row),['D0'])
         self.assertIsNone(self.get('watts',row));self.assertTrue(truth(self.get('ground-known',row)))

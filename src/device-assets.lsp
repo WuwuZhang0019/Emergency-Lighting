@@ -24,14 +24,17 @@
     (+ (nth index bytes) (* 256 (nth (1+ index) bytes)))))
 (defun EL:DLSLDSize (path / bytes prefix index swapped)
   (setq bytes (if (findfile path) (EL:DLBytes path 31)) index 0)
-  (repeat 17 (setq prefix (cons (nth index bytes) prefix) index (1+ index)))
-  (if (and (= (length bytes) 31) (equal (reverse prefix) '(65 117 116 111 67 65 68 32 83 108 105 100 101 13 10 26 0))
-      ;; The documented hex dump uses 0x56 = 86, not decimal 56 (0x38).
-      (= (nth 17 bytes) 86) (= (nth 18 bytes) 2)
-      (or (equal (list (nth 29 bytes) (nth 30 bytes)) '(52 18))
-          (equal (list (nth 29 bytes) (nth 30 bytes)) '(18 52))))
-    (progn (setq swapped (= (nth 29 bytes) 18))
-      (list (1+ (EL:DLSLDWord bytes 19 swapped)) (1+ (EL:DLSLDWord bytes 21 swapped))))))
+  ;; Date: 2026-10-21. Missing or truncated slides have no readable header.
+  (if (= (length bytes) 31)
+    (progn
+      (repeat 17 (setq prefix (cons (nth index bytes) prefix) index (1+ index)))
+      (if (and (equal (reverse prefix) '(65 117 116 111 67 65 68 32 83 108 105 100 101 13 10 26 0))
+          ;; The documented hex dump uses 0x56 = 86, not decimal 56 (0x38).
+          (= (nth 17 bytes) 86) (= (nth 18 bytes) 2)
+          (or (equal (list (nth 29 bytes) (nth 30 bytes)) '(52 18))
+              (equal (list (nth 29 bytes) (nth 30 bytes)) '(18 52))))
+        (progn (setq swapped (= (nth 29 bytes) 18))
+          (list (1+ (EL:DLSLDWord bytes 19 swapped)) (1+ (EL:DLSLDWord bytes 21 swapped))))))))
 (defun EL:DLChecksum (path / size bytes hash byte)
   (setq size (if (findfile path) (vl-file-size path)))
   (if (and size (> size 0) (<= size 8388608) (setq bytes (EL:DLBytes path -1)) (= size (length bytes)))

@@ -1,4 +1,4 @@
-"""Owned assets and preview job boundaries. Date: 2026-10-12. CAD export itself is native-only."""
+"""Owned assets and preview job boundaries. Date: 2026-10-21. CAD export itself is native-only."""
 from pathlib import Path
 import tempfile
 import unittest
@@ -60,7 +60,8 @@ class DeviceAssetsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             self.fs(d); self.binary()
             path = str(Path(d)/'preview.sld')
-            for content in (b'', b'bad', self.slide().replace(b'Slide', b'slide'), self.slide()[:25]):
+            self.assertFalse(truth(self.call('EL:DLSLDSize', path)))
+            for content in (b'', b'bad', self.slide().replace(b'Slide', b'slide'), self.slide()[:17], self.slide()[:25], self.slide()[:30]):
                 Path(path).write_bytes(content)
                 self.assertFalse(truth(self.call('EL:DLSLDSize', path)))
             Path(path).write_bytes(self.slide())

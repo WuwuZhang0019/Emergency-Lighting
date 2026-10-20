@@ -24,7 +24,10 @@
       (foreach row powers
         (if (numberp (cdr row)) (setq merged (EL:Put (car row) (cdr row) merged))))
       (EL:WriteData (strcat *EL:Root* "config/block-powers.eld") (list '(version . 1) (cons 'powers merged))))))
-(defun EL:SaveDraft (result cfg powers capacity / store record context)
+(defun EL:SaveDraft (result cfg powers capacity)
+  ;; Date: 2026-10-21. Include input preparation and verified transaction readback.
+  (EL:PerfCall "SAVE_GENERATION_DRAFT" 'EL:SaveDraftWork (list result cfg powers capacity)))
+(defun EL:SaveDraftWork (result cfg powers capacity / store record context)
   (setq *EL:LastSavedDraftId* nil)
   (if (assoc 'effective-powers result) (setq powers (EL:Get 'effective-powers result)))
   (setq capacity (EL:CapacityDefault capacity))
@@ -93,7 +96,7 @@
 (defun EL:EditPanelOnce (result cfg)
   ;; Date: 2026-10-21. Share template work only inside this controlled call.
   (EL:WithTemplateScope 'EL:EditPanelOnceWork (list result cfg)))
-(defun EL:EditPanelOnceWork (result cfg / *error* store record powers capacity edited prepared saved ownlog syncable template resolved *EL:GenerationPreflight* *EL:LastSavedDraftId* *EL:LastGeneratedId* *EL:PlacementOnly*)
+(defun EL:EditPanelOnceWork (result cfg / *error* store record powers capacity edited prepared saved ownlog syncable template resolved perf *EL:GenerationPreflight* *EL:LastSavedDraftId* *EL:LastGeneratedId* *EL:PlacementOnly*)
   (defun *error* (msg)
     (EL:LogFailure msg)
     (vl-catch-all-apply 'EL:ClearGapPreview nil)
@@ -130,6 +133,8 @@
     'EL:PanelDialog (list prepared cfg powers capacity)))
   (if (and edited (not (EL:Get 'pick-panel edited)) (not (EL:Get 'library-suspended edited)))
     (progn
+      ;; Date: 2026-10-21. Starts after the dialog; excludes save and placement.
+      (setq perf (EL:PerfBegin "PANEL_SUBMIT_PREPARE"))
       (setq result (EL:Get 'result edited) powers (EL:Get 'powers edited)
         capacity (EL:Get 'capacity edited) cfg (EL:Get 'config edited)
         syncable (and (EL:Get 'can-generate result) (EL:CircuitNumbersReady result)
@@ -144,6 +149,7 @@
       (if (and (EL:DLSubmissionCurrent result)
           (or (not (EL:Get 'generate edited)) (EL:NumberInputsCurrent result)))
         (progn
+          (EL:PerfEnd perf 'returned)
           ;; Date: 2026-10-15. Save inputs once before placement. A successful
           ;; placement keeps output associations in memory for explicit export.
           (setq *EL:Result* result *EL:FixedConfig* cfg
@@ -163,6 +169,7 @@
               "\n当前输入已保存到本图；关闭图纸前请保存 DWG。"))
             (princ "\n本次保存或生成未完成；请查看上方原因后重试。")))
         (progn
+          (EL:PerfEnd perf 'returned)
           (EL:MarkStale (EL:Get 'panel result) 'source-changed)
           (EL:PerfInput 'alert (list (if (EL:DLSubmissionCurrent result)
             "平面编号已变化，请重新拾取；当前功率已尝试单独记住。"

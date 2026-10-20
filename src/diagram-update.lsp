@@ -202,24 +202,29 @@
     (not (EL:Get 'identity-ambiguous result))
     (equal (list (namedobjdict) result cfg) *EL:GenerationPreflight*)))
 (defun EL:GenerationSourceCurrent (result cfg deferred)
+  ;; Date: 2026-10-21. Parent includes its existing source/number subchecks.
+  (EL:PerfCall "GENERATION_SOURCE_VERIFY" 'EL:GenerationSourceCheck (list result cfg deferred)))
+(defun EL:GenerationSourceCheck (result cfg deferred)
   (if deferred
     (and (equal (car *EL:GenerationPreflight*) (namedobjdict))
       (equal cfg (EL:CurrentJunctionConfig cfg))
       (EL:LogCall "COMPARE_SOURCE_NUMBER" nil 'EL:NumberInputsCurrent (list result)))
     (EL:FreshResult result cfg)))
-(defun EL:SyncDiagramScoped (result cfg powers capacity generate interactive scope / store record template point transform plan context outcome deferred *EL:NativePreview* *EL:FreshScope* *EL:FreshScopeEnabled*)
+(defun EL:SyncDiagramScoped (result cfg powers capacity generate interactive scope / store record template point transform plan context outcome deferred perf *EL:NativePreview* *EL:FreshScope* *EL:FreshScopeEnabled*)
   (if (assoc 'effective-powers result) (setq powers (EL:Get 'effective-powers result)))
   (setq *EL:FreshScope* scope *EL:FreshScopeEnabled* T
     capacity (EL:CapacityDefault capacity))
   (if (not generate)
     (EL:SaveDraft result cfg powers capacity)
     (progn
+      (setq perf (EL:PerfBegin "GENERATION_CONTEXT"))
       (setq *EL:LastGeneratedId* nil
         store (cond ((EL:StoreForResult result)) (T (EL:StoreInitial)))
         record (cond ((EL:RecordForResult result store)) (T (EL:NewRecord (EL:Get 'panel result) store)))
         template (cond ((EL:Get 'template cfg)) ((EL:Get 'template record)))
         deferred (EL:CCKK2DeferredSource result cfg record generate interactive)
-        result (EL:PreparedResult result record))
+        result (EL:PerfCall "GENERATION_PREPARE" 'EL:PreparedResult (list result record)))
+      (EL:PerfEnd perf 'returned)
       (cond
         ((not (EL:CircuitNumbersReady result))
           (princ (strcat "\n" (EL:NumberProblemText result)))
@@ -268,6 +273,7 @@
             "SOURCE_CHANGED：提交前源图变化，未生成。")
           (EL:Require (EL:DLSubmissionCurrent result)
             "设备库已变化，当前输入保留；请重新核对后生成。")
+          (setq perf (EL:PerfBegin "GENERATION_RECORD"))
           (setq record (EL:Put 'draft-circuits nil (EL:Put 'draft-capacity nil
             (EL:Put 'capacity-option capacity (EL:Put 'template template
               (EL:Put 'config cfg (EL:Put 'engine (EL:Get 'engine result)
@@ -286,6 +292,7 @@
             record (EL:DLPersist result record)
             store (EL:Put 'fixed-template template store))
           (setq record (EL:InputRecord record))
+          (EL:PerfEnd perf 'returned)
           (if *EL:PlacementOnly*
             (setq outcome (EL:Transaction 'EL:CCKK2CreateDiagram
               (list result template capacity plan record store)))

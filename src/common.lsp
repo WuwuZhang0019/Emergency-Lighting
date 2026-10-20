@@ -243,8 +243,13 @@
         "STORE_COMPACT" "STORE_PACK_INTS" "STORE_NATIVE_ENCODE" "STORE_NATIVE_DECODE" "STORE_EXPAND"
         "STORE_UNPACK_INTS" "STORE_VALUE_DECODE"
         "DIAGRAM_VIEW" "DIAGNOSTIC_EXPORT" "DEVICE_LIBRARY_LOAD" "DEVICE_LEGEND"
-        "SYSTEM_LIBRARY_OPEN" "SYSTEM_BLOCK_COPY" "SYSTEM_STYLE_COPY" "TEMPLATE_CAPTURE"
-        "COLLECT_SPATIAL_TREE" "COLLECT_CANDIDATE_DEDUP" "COLLECT_DEVICE_EXPAND"))
+        "SYSTEM_LIBRARY_OPEN" "SYSTEM_BLOCK_COPY" "SYSTEM_STYLE_COPY" "TEMPLATE_CAPTURE" "TEMPLATE_VALIDATE"
+        "COLLECT_SPATIAL_TREE" "COLLECT_CANDIDATE_DEDUP" "COLLECT_DEVICE_EXPAND"
+        "PANEL_SUBMIT_PREPARE" "GENERATION_CONTEXT" "GENERATION_PREPARE" "GENERATION_SOURCE_VERIFY"
+        "GENERATION_PLAN" "GENERATION_RECORD" "PLACEMENT_PLAN_REBUILD"
+        "NATIVE_INSERT" "PANEL_DYNAMIC_SET" "CIRCUIT_DYNAMIC_SET"
+        "PLACEMENT_TEMPLATE_VERIFY" "PLACEMENT_NUMBER_VERIFY" "PLACEMENT_LIBRARY_VERIFY" "PLACEMENT_SOURCE_VERIFY"
+        "CREATE_CIRCUITS" "CREATE_POWER_TEXT" "CREATE_CAPTIONS" "DIAGRAM_FINALIZE" "TX_MARKER_CLEANUP" "TX_COMMIT"))
       (and *EL:PerfDetail* (member stage
         '("STORE_SCHEMA" "STORE_REPLACE_PAYLOAD" "CCKK2_INSERT_BLOCK" "CCKK_POWER_TEXT"
           "TAG_ENTITY" "UNDO_BEGIN" "UNDO_END" "COMPARE_SOURCE" "SNAPSHOT_SIGNATURE" "CIRCUIT_TRACE")))))
@@ -531,7 +536,7 @@
 ;; Date: 2026-10-13. Bounded business-stage timeline; no per-entity file I/O.
 (defun EL:MonitorTitle (stage / name)
   (setq name (cdr (assoc stage
-    '(("USER_INPUT" . "等待拾取或面板操作") ("PLACEMENT_INPUT" . "等待系统图放置")
+    '(("USER_INPUT" . "等待拾取或面板操作") ("PLACEMENT_INPUT" . "原生系统图放置（含 CAD 处理与操作）")
       ("UI_ACTION" . "处理面板动作") ("LOAD_MODULE" . "加载源码模块")
       ("LOAD_ROOT" . "确认目录及释放内置资源") ("LOAD_LIBRARY" . "初始化默认设备库")
       ("LOAD_ROOT_SEARCH" . "查找并确认交付目录") ("LOAD_RUNTIME" . "建立本地运行目录")
@@ -580,6 +585,20 @@
       ("DEVICE_LIBRARY_LOAD" . "读取设备库") ("DEVICE_LEGEND" . "加载设备图例")
       ("SYSTEM_LIBRARY_OPEN" . "打开系统图块库") ("SYSTEM_BLOCK_COPY" . "补入缺少系统图块")
       ("SYSTEM_STYLE_COPY" . "补入缺少文字样式") ("TEMPLATE_CAPTURE" . "准备系统图模板")
+      ("TEMPLATE_VALIDATE" . "完整复核系统图模板")
+      ("PANEL_SUBMIT_PREPARE" . "面板提交后的同步准备")
+      ("GENERATION_CONTEXT" . "读取并准备生成上下文") ("GENERATION_PREPARE" . "整理生成回路数据")
+      ("GENERATION_SOURCE_VERIFY" . "生成前源图和编号核对")
+      ("GENERATION_PLAN" . "构建系统图完整计划") ("GENERATION_RECORD" . "准备本次生成记录")
+      ("PLACEMENT_PLAN_REBUILD" . "按原生实际位置重建计划")
+      ("NATIVE_INSERT" . "固定位置原生插入")
+      ("PANEL_DYNAMIC_SET" . "切换箱体动态状态") ("CIRCUIT_DYNAMIC_SET" . "切换回路动态状态")
+      ("PLACEMENT_TEMPLATE_VERIFY" . "放置后复核模板") ("PLACEMENT_NUMBER_VERIFY" . "放置后核对编号")
+      ("PLACEMENT_LIBRARY_VERIFY" . "放置后核对设备库") ("PLACEMENT_SOURCE_VERIFY" . "放置后核对源图")
+      ("CREATE_CIRCUITS" . "创建全部回路及功率文字") ("CREATE_POWER_TEXT" . "创建实际回路功率文字")
+      ("CREATE_CAPTIONS" . "创建箱号、编号和用途文字")
+      ("DIAGRAM_FINALIZE" . "图文完成后的记录处理")
+      ("TX_MARKER_CLEANUP" . "清理事务标记") ("TX_COMMIT" . "提交撤销组和事务上下文")
       ("DIAGNOSTIC_EXPORT" . "导出诊断数据")))))
   (if name name stage))
 (defun EL:MonitorActionTile (key code)

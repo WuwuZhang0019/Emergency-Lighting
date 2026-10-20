@@ -245,7 +245,10 @@
     (setq index (1+ index) reserve (1+ reserve) text (EL:DefaultCircuitNumber index used)
       used (cons (EL:NumberKey text) used) out (append out (list (list
       (cons 'label (strcat "reserve-" (itoa reserve))) (cons 'circuit-number text) '(mode . reserve)))))) out)
-(defun EL:FixedPlan (result template capacity origin rotation scale / plan rows row i c spec position layout slot outputs)
+(defun EL:FixedPlan (result template capacity origin rotation scale)
+  ;; Date: 2026-10-21. Include outputs and fixed row layout in plan timing.
+  (EL:PerfCall "GENERATION_PLAN" 'EL:FixedPlanBuild (list result template capacity origin rotation scale)))
+(defun EL:FixedPlanBuild (result template capacity origin rotation scale / plan rows row i c spec position layout slot outputs)
   (if (and (EL:CircuitNumbersReady result) (EL:FixedTemplate template)
       (setq layout (EL:CCKK2Rows (length (EL:Get 'circuits result)))))
     (progn
@@ -299,7 +302,7 @@
       (tblsearch "STYLE" "ICDA-STYLE1")
       (vl-every '(lambda (state) (equal (EL:Get 'text state) (EL:FixedText)))
         (EL:Get 'states (EL:Get 'circuit template))))
-    (progn (setq checked (vl-catch-all-apply 'EL:TemplateRuntimeValid (list template cfg)))
+    (progn (setq checked (EL:MeasuredCatch 'EL:TemplateRuntimeValid (list template cfg)))
       (and (not (vl-catch-all-error-p checked)) checked))))
 (defun c:ELTEMPLATE (/ *error* cfg template)
   (defun *error* (msg) (EL:ClearPickHighlights) (if msg (princ msg)) (princ))

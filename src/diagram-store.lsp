@@ -802,9 +802,11 @@
   (setq outcome (EL:LogCall "TX_WRITE" nil function args))
   ;; Date: 2026-10-10. NIL is failure too. Retain the marker until rollback.
   (if outcome
-    (progn
-      (EL:Require (dictremove (namedobjdict) "EL_FIXED_TX") "无法清理事务记录。")
-      (EL:Require (entdel marker) "无法删除事务记录。"))) outcome)
+    (EL:PerfCall "TX_MARKER_CLEANUP" 'EL:TransactionMarkerCleanup (list marker))) outcome)
+(defun EL:TransactionMarkerCleanup (marker)
+  ;; Date: 2026-10-21. Time required cleanup separately from completed graphics.
+  (EL:Require (dictremove (namedobjdict) "EL_FIXED_TX") "无法清理事务记录。")
+  (EL:Require (entdel marker) "无法删除事务记录。"))
 (defun EL:TransactionStart (doc / state)
   ;; Date: 2026-10-09. Close an existing mark without undoing its edits.
   ;; PRINC returns its argument in native AutoLISP: failures MUST return nil.
@@ -829,11 +831,12 @@
     (progn
       (setq outcome (EL:TransactionBody function args))
       (if outcome
-        (progn
-          (EL:LogCall "UNDO_END" nil 'vla-EndUndoMark (list doc))
-          (setq *EL:TransactionOpen* nil *EL:TransactionDirty* nil *EL:Created* nil)
-          (EL:StoreContextCommit)))
+        (EL:PerfCall "TX_COMMIT" 'EL:TransactionCommit (list doc)))
       outcome)))
+(defun EL:TransactionCommit (doc)
+  (EL:LogCall "UNDO_END" nil 'vla-EndUndoMark (list doc))
+  (setq *EL:TransactionOpen* nil *EL:TransactionDirty* nil *EL:Created* nil)
+  (EL:StoreContextCommit))
 (defun EL:ArchiveInterruptedTransaction (/ entry entity name index)
   ;; Date: 2026-10-09. Preserve the record and every existing drawing object.
   (if (setq entry (dictsearch (namedobjdict) "EL_FIXED_TX"))
@@ -986,15 +989,20 @@
         'EL:PerfWrite (list 'EL:CCKK2Insert (list name (if point (trans point 0 1))))))
     object (vlax-ename->vla-object entity)
     *EL:Created* (cons object *EL:Created*))
-  (EL:DynamicUpdate entity (EL:Get 'property definition) value) object)
+  ;; Date: 2026-10-21. Native insert and dynamic state have separate costs.
+  ;; PLACEMENT_INPUT remains native CAD processing plus user interaction;
+  ;; the native command does not expose a reliable preview-ready callback.
+  (EL:PerfCall (if point "CIRCUIT_DYNAMIC_SET" "PANEL_DYNAMIC_SET")
+    'EL:DynamicUpdate (list entity (EL:Get 'property definition) value)) object)
 (defun EL:CCKK2CreateBody (result template capacity plan record store / *EL:CCKK2Panel* transform)
   (princ "\nCCKK2：移动鼠标预览配电箱，左键放置后按实际功率生成回路，Esc 取消。")
   (setq *EL:CCKK2Panel* (EL:CCKK2ManagedBlock (EL:Get 'panel-name plan) nil
     (EL:Get 'panel template) (EL:Get 'panel-value plan))
     transform (EL:DiagramTransform (vlax-vla-object->ename *EL:CCKK2Panel*)))
   (EL:Require transform "当前坐标系不支持受管系统图，请切换到世界坐标系后重试。")
-  (setq plan (EL:FixedPlan result template capacity (EL:Get 'position transform)
-    (EL:Get 'rotation transform) (EL:Get 'scale transform)))
+  (setq plan (EL:PerfCall "PLACEMENT_PLAN_REBUILD" 'EL:FixedPlan
+    (list result template capacity (EL:Get 'position transform)
+      (EL:Get 'rotation transform) (EL:Get 'scale transform))))
   (EL:Require plan "CCKK2 实际回路计划无效。")
   (EL:CreateDiagram result template capacity plan record store))
 (defun EL:CCKK2CreateDiagram (result template capacity plan record store / saved item outcome *EL:CCKK2Created*)
@@ -1043,7 +1051,7 @@
         (equal (cdr (assoc 41 data)) 0.7 1.0e-8) (equal (cdr (assoc 72 data)) 1)
         (equal (cdr (assoc 73 data)) 0) (equal (EL:TextPoint entity) (EL:CCKKPoint block 10983.0 -450.0) 1.0e-6))
         "CCKK 功率文字回读不符，停止生成。") object)))
-(defun EL:CreateDiagram (result template capacity plan record store / doc space layer object handles row h)
+(defun EL:CreateDiagram (result template capacity plan record store / doc space layer object handles)
   (setq doc (vla-get-ActiveDocument (vlax-get-acad-object)) space (vla-get-ModelSpace doc) layer (EL:Get 'layer template))
   (if (not (tblsearch "LAYER" layer)) (vla-Add (vla-get-Layers doc) layer))
   (setq object (if *EL:CCKK2Panel* *EL:CCKK2Panel*
@@ -1061,16 +1069,26 @@
       ;; template and number now; the full contact/source check runs before
       ;; the verified DWG write without forcing a whole-drawing regeneration.
       (EL:FreshBoundary)
-      (EL:Require (EL:TemplateRuntimeValid template (EL:Get 'config record))
+      (EL:Require (EL:PerfCall "PLACEMENT_TEMPLATE_VERIFY" 'EL:TemplateRuntimeValid
+          (list template (EL:Get 'config record)))
         "TEMPLATE_CHANGED：放置期间模板变化，已停止生成。")
-      (EL:Require (EL:NumberInputsCurrent result)
+      (EL:Require (EL:PerfCall "PLACEMENT_NUMBER_VERIFY" 'EL:NumberInputsCurrent (list result))
         "SOURCE_NUMBER_CHANGED：放置期间平面编号变化，已停止生成。")
       (if *EL:PlacementOnly*
         (progn
-          (EL:Require (EL:DLSubmissionCurrent result)
+          (EL:Require (EL:PerfCall "PLACEMENT_LIBRARY_VERIFY" 'EL:DLSubmissionCurrent (list result))
             "设备库在放置期间变化，请核对后重试。")
-          (EL:Require (EL:FreshResult result (EL:Get 'config record))
+          (EL:Require (EL:PerfCall "PLACEMENT_SOURCE_VERIFY" 'EL:FreshResult
+              (list result (EL:Get 'config record)))
             "SOURCE_CHANGED：放置期间源图变化，已停止生成。")))))
+  (setq handles (EL:PerfCall "CREATE_CIRCUITS" 'EL:CreateDiagramRows
+    (list space layer result template plan record store)))
+  (setq record (EL:Put 'rows (EL:RecordRows result plan handles) (EL:Put 'plan plan record)))
+  (setq record (EL:PerfCall "CREATE_CAPTIONS" 'EL:CreateCCKKLabels (list plan record store)))
+  (EL:PerfMark "graphics-complete")
+  (EL:PerfCall "DIAGRAM_FINALIZE" 'EL:FinalizeCreatedDiagram (list result record store)))
+(defun EL:CreateDiagramRows (space layer result template plan record store / object handles row h)
+  ;; Date: 2026-10-21. Batch timing retains row order and native per-row checks.
   (foreach row (EL:Get 'rows plan)
     (EL:LogEvent "CCKK_ROW_BEGIN" (list (cons 'uid (EL:Get 'circuit-uid row))
       (cons 'mode (EL:Get 'mode row)) (cons 'watts (EL:Get 'watts row)) (cons 'position (EL:Get 'position row))))
@@ -1082,14 +1100,12 @@
       h (list (cons 'circuit-uid (EL:Get 'circuit-uid row))
         (cons 'block-handle (EL:TagEntity object store record "circuit" (EL:Get 'circuit-uid row)))))
     (if (EL:Get 'text row)
-      (setq h (EL:Put 'text-handle (EL:TagEntity (EL:CreatePowerAnnotation space row plan layer
-          (vlax-vla-object->ename object))
+      (setq h (EL:Put 'text-handle (EL:TagEntity (EL:PerfCall "CREATE_POWER_TEXT" 'EL:CreatePowerAnnotation
+          (list space row plan layer (vlax-vla-object->ename object)))
         store record "text" (EL:Get 'circuit-uid row)) h)))
     (setq handles (cons h handles))
-    (EL:LogEvent "CCKK_ROW_CREATED" h))
-  (setq record (EL:Put 'rows (EL:RecordRows result plan handles) (EL:Put 'plan plan record)))
-  (setq record (EL:CreateCCKKLabels plan record store))
-  (EL:PerfMark "graphics-complete")
+    (EL:LogEvent "CCKK_ROW_CREATED" h)) handles)
+(defun EL:FinalizeCreatedDiagram (result record store)
   (if (not *EL:PlacementOnly*)
     (progn
       ;; Legacy callers retain their persistent output record. The current

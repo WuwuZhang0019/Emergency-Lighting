@@ -219,7 +219,10 @@
           (vl-remove-if '(lambda (item) (equal name (car item))) *EL:TemplateDefinitionMemo*))))))
   (EL:PerfCount "template-definition-check-ms" (EL:Elapsed started))
   (list source signature))
-(defun EL:TemplateRuntimeValid (template cfg / good definition b obj property state layer style proof owner)
+(defun EL:TemplateRuntimeValid (template cfg)
+  ;; Date: 2026-10-21. Keep every existing check; measure its full boundary.
+  (EL:PerfCall "TEMPLATE_VALIDATE" 'EL:TemplateRuntimeCheck (list template cfg)))
+(defun EL:TemplateRuntimeCheck (template cfg / good definition b obj property state layer style proof owner)
   (setq *EL:TemplateNotice* nil good (EL:TemplateValid template) layer (EL:Get 'layer template)
     owner (car (EL:TemplateScopeContext)))
   (if good

@@ -1,4 +1,4 @@
-"""Bundled default powers and interrupted installs. Date: 2026-10-16. CAD pending."""
+"""Bundled default powers and interrupted installs. Date: 2026-10-20. CAD pending."""
 from pathlib import Path
 import tempfile
 import unittest
@@ -21,6 +21,7 @@ class DefaultDeviceLibraryTests(unittest.TestCase):
     binary = assets.DeviceAssetsTests.binary
 
     def prepare(self, folder):
+        self.h.step_limit = 20_000_000
         root = self.fs(folder)
         self.binary()
         self.h.set('*EL:ROOT*', ROOT.as_posix() + '/')
@@ -40,7 +41,7 @@ class DefaultDeviceLibraryTests(unittest.TestCase):
                 self.assertEqual((root / self.get(key, row)).read_bytes(),
                                  (SOURCE / self.get(key, seed)).read_bytes())
 
-    def test_first_open_in_a_different_windows_user_library_installs_all_49(self):
+    def test_first_open_in_a_different_windows_user_library_installs_all_53(self):
         with tempfile.TemporaryDirectory() as d:
             root = self.prepare(d)
             self.h.builtins['GETFILED'] = lambda *a: self.fail('first open asked for a library')
@@ -50,13 +51,13 @@ class DefaultDeviceLibraryTests(unittest.TestCase):
             state = self.h.lookup('*EL:DLUISTATE*')
             snapshot = self.get('snapshot', state)
             rows = self.get('devices', self.get('catalog', snapshot))
-            self.assertEqual(len(rows), 49)
+            self.assertEqual(len(rows), 53)
             self.assertEqual(self.get('root', snapshot), root)
             self.assertEqual(self.get('revision', self.get('catalog', snapshot)), 1)
             self.assertEqual(self.get('selected', state), self.get('device-id', rows[0]))
-            self.assertEqual(sum(bool(self.get('is-ground', row)) for row in rows), 2)
-            self.assertEqual(sum(self.get('watts', row) == 1 for row in rows), 35)
-            self.assertEqual(sum(self.get('watts', row) == 5 for row in rows), 11)
+            self.assertEqual(sum(bool(self.get('is-ground', row)) for row in rows), 4)
+            self.assertEqual(sum(self.get('watts', row) == 1 for row in rows), 38)
+            self.assertEqual(sum(self.get('watts', row) == 5 for row in rows), 12)
             self.assertEqual(sum(self.get('status', row) == Symbol('DELETED') for row in rows), 2)
             for seed in self.get('devices', self.defaults):
                 row = self.call('EL:DLDefaultMatch', seed, self.get('catalog', snapshot))
@@ -106,7 +107,7 @@ class DefaultDeviceLibraryTests(unittest.TestCase):
             graphic.write_bytes(b'AC1015user-custom-geometry')
             upgraded = self.call('EL:DLDefaultSnapshot', root)
             self.assertEqual(self.get('library-id', self.get('catalog', upgraded)), self.get('library-id', catalog))
-            self.assertEqual(len(self.get('devices', self.get('catalog', upgraded))), 49)
+            self.assertEqual(len(self.get('devices', self.get('catalog', upgraded))), 53)
             self.assertEqual(self.get('devices', self.get('catalog', upgraded))[0], original)
             self.assertEqual(graphic.read_bytes(), b'AC1015user-custom-geometry')
             self.assertEqual(self.get('revision', self.get('catalog', upgraded)), 2)
@@ -154,7 +155,7 @@ class DefaultDeviceLibraryTests(unittest.TestCase):
             self.assertTrue(truth(self.call('EL:DLCommit', snapshot, catalog)))
             upgraded = self.call('EL:DLDefaultSnapshot', root)
             rows = self.get('devices', self.get('catalog', upgraded))
-            self.assertEqual(len(rows), 49)
+            self.assertEqual(len(rows), 53)
             self.assertEqual(rows[0], self.get('devices', catalog)[0])
             self.assertFalse(Path(d, 'assets/ELDEV1').exists())
 
@@ -199,7 +200,7 @@ class DefaultDeviceLibraryTests(unittest.TestCase):
             self.assertFalse(Path(d, '.write-lock').exists())
             self.h.builtins['VL-FILE-COPY'] = copy
             retried = self.call('EL:DLDefaultSnapshot', root)
-            self.assertEqual(len(self.get('devices', self.get('catalog', retried))), 50)
+            self.assertEqual(len(self.get('devices', self.get('catalog', retried))), 54)
             self.assert_assets(retried)
 
     def test_locked_or_corrupt_library_is_preserved_and_default_install_is_blocked(self):
@@ -232,11 +233,11 @@ class DefaultDeviceLibraryTests(unittest.TestCase):
             rebound = self.call('EL:Get', 'ELDEV49', drafts)
             self.assertEqual(self.get('watts-text', rebound), '7.5 invalid raw')
             self.assertTrue(truth(self.call('EL:DLEntryAssets', rebound)))
-            unrelated = self.call('EL:Get', 'ELDEV50', drafts)
+            unrelated = self.call('EL:Get', 'ELDEV54', drafts)
             self.assertEqual(self.get('aliases-text', unrelated), '原始;输入')
             self.assertEqual(self.get('block-name', unrelated), '未入库其他设备')
             # The two deleted defaults stay hidden; the unrelated new draft stays visible.
-            self.assertEqual(len(self.call('EL:DLUIRows')), 48)
+            self.assertEqual(len(self.call('EL:DLUIRows')), 52)
 
     def test_utf8_stream_skips_bom_without_losing_chinese_and_preserves_invalid_reason(self):
         text = '(设备中文 "引号" \\ 路径)'

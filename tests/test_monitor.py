@@ -1,4 +1,4 @@
-"""Focused action timeline checks. Date: 2026-10-13. Synthetic clock, not CAD timing."""
+"""Focused action timeline checks. Date: 2026-10-20. Synthetic clock, not CAD timing."""
 from pathlib import Path
 import tempfile
 import unittest
@@ -71,6 +71,25 @@ class MonitorTests(unittest.TestCase):
         self.assertEqual(self.h.lookup('*EL:PERFWAITDEPTH*'), 0)
         self.assertTrue(all(self.get('status', r) == Symbol('INTERRUPTED')
                             for r in self.h.lookup('*EL:MONITORROWS*')))
+
+    def test_reentered_recognition_suspends_an_outer_native_pick_wait(self):
+        self.call('EL:PerfStart', 'ELSTAT')
+        outer = self.call('EL:PerfBegin', 'USER_INPUT')
+        self.clock = 100
+        work = self.call('EL:PerfBegin', 'RECOGNIZE_FIXED_RUN')
+        self.clock = 120
+        nested = self.call('EL:PerfBegin', 'USER_INPUT')
+        self.clock = 130
+        self.call('EL:PerfEnd', nested, Symbol('RETURNED'))
+        self.clock = 160
+        self.call('EL:PerfEnd', work, Symbol('RETURNED'))
+        self.clock = 200
+        self.call('EL:PerfEnd', outer, Symbol('RETURNED'))
+        rows = self.h.lookup('*EL:MONITORROWS*')
+        actual = next(r for r in rows if self.get('stage', r) == 'RECOGNIZE_FIXED_RUN')
+        self.assertEqual(self.get('program-ms', actual), 50)
+        self.assertEqual(self.call('EL:PerfWaiting'), 150)
+        self.assertEqual(self.h.lookup('*EL:PERFWAITDEPTH*'), 0)
 
     def test_registered_callback_keeps_value_and_original_dialog_action(self):
         registered = {}

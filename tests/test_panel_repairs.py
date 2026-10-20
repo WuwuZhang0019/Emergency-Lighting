@@ -1,4 +1,4 @@
-"""Reported native panel failures. Date: 2026-10-16."""
+"""Reported native panel failures. Date: 2026-10-20."""
 import unittest
 from pathlib import Path
 from autolisp_host import Symbol
@@ -69,6 +69,23 @@ class PanelRepairTests(unittest.TestCase):
         self.assertIn('85 W', text)
         self.assertIn('连接仍待核对', text)
         self.assertNotIn('170', text)
+
+    def test_empty_actual_circuit_does_not_pass_as_confirmed_zero_watts(self):
+        circuit = self.h.run('\'((id . "R4") (complete . T) (wires "23867") (devices))')
+        computed = self.call('EL:CircuitStatistics', circuit, None, None, self.cfg, None, None)
+        self.assertFalse(self.get('power-complete', computed))
+        self.assertEqual(self.get('code', self.get('power-issues', computed)[0]), Symbol('NO_RECOGNIZED_DEVICES'))
+        self.assertEqual(self.call('EL:PanelCircuitPowerText', computed), '未识别设备')
+        self.h.set('*EL:PANELDRAFT*', self.h.run('\'((complete . T) (circuits ((id . "R4") (devices))))'))
+        self.h.set('*EL:PANELPOWERS*', None)
+        self.assertIn('1 条回路未识别到设备', self.call('EL:PanelKnownTotal'))
+        self.assertTrue(self.call('EL:PanelKnownTotal').startswith('已知总功率'))
+
+    def test_unknown_power_and_confirmed_zero_are_distinct(self):
+        unknown = self.h.run('\'((devices "lamp") (watts . 0) (power-values-complete))')
+        confirmed = self.h.run('\'((devices "lamp") (watts . 0) (power-values-complete . T))')
+        self.assertEqual(self.call('EL:PanelCircuitPowerText', unknown), '功率待核对')
+        self.assertEqual(self.call('EL:PanelCircuitPowerText', confirmed), '0W')
 
 
 

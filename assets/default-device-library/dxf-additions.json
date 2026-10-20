@@ -1,0 +1,69 @@
+{
+  "date": "2026-10-20",
+  "status": "isolated DXF and SLD readback passed; native CAD pending",
+  "source_filename": "【电气】商业照明.dxf",
+  "source_sha256": "528d67c6f2a9b129fd6c6af6af892f5728f48db2a168e49b7789da9c2837cd00",
+  "additions": [
+    {
+      "device_id": "ELDEV50",
+      "source_block": "f",
+      "display": "单向地面疏散标志灯",
+      "watts": 1,
+      "is_ground": true,
+      "source_types": {
+        "ELLIPSE": 1,
+        "LWPOLYLINE": 1,
+        "WIPEOUT": 1
+      },
+      "graphic_sha256": "24dcbe8ee2d16eb774270d9a842dd215919350763c323b8613e2646055193e94",
+      "legend_sha256": "77771c87f82ce209ac94e729831af816faa20449c165feb2b513f5e66f009284"
+    },
+    {
+      "device_id": "ELDEV51",
+      "source_block": "$equip_U$00000719(Zhangyufeng)",
+      "display": "双向地面疏散标志灯",
+      "watts": 1,
+      "is_ground": true,
+      "source_types": {
+        "LWPOLYLINE": 2,
+        "ELLIPSE": 1,
+        "ATTDEF": 2,
+        "WIPEOUT": 1
+      },
+      "graphic_sha256": "c5abb73e7b0f20ae76b32c96f4032e8e8caa74106a2ab4ec69675198383b3b53",
+      "legend_sha256": "e057f08d13274985a1ae23321412318141e0023d1743624a6d34a7dc2d58b164"
+    },
+    {
+      "device_id": "ELDEV52",
+      "source_block": "$equip$00003228",
+      "display": "应急灯（专用回路）",
+      "watts": 5,
+      "is_ground": false,
+      "source_types": {
+        "SOLID": 6,
+        "CIRCLE": 1,
+        "LINE": 2,
+        "ATTDEF": 2
+      },
+      "graphic_sha256": "54ad782e873b99e8c66a775c88a65b4eb09cebc1ef5709aaf6569c372885c737",
+      "legend_sha256": "204c19382d2d0fd7e45591e5b678c856f79f8617d1b4b934212587c2108f6f9f"
+    },
+    {
+      "device_id": "ELDEV53",
+      "source_block": "$equip_U$00000601(zhangyuf)",
+      "display": "楼层标志灯",
+      "watts": 1,
+      "is_ground": false,
+      "source_types": {
+        "TEXT": 1,
+        "LWPOLYLINE": 1,
+        "LINE": 4,
+        "POINT": 4,
+        "ATTDEF": 2
+      },
+      "graphic_sha256": "9a9e906766bc55617c6b9af97b883d435a2e6572586104f36aa803f2cb3d4595",
+      "legend_sha256": "d7841b2dfda63050de71c2914f680c129fb5bca78b43c77afeb287afbcc92b89"
+    }
+  ],
+  "existing_assets_unchanged": true
+}

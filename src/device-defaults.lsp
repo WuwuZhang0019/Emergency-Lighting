@@ -95,7 +95,7 @@
     ((or (not source) (not (findfile (strcat source "catalog.eld")))) snapshot)
     ((equal (list root source (EL:Get 'raw snapshot)) *EL:DLDefaultCache*) snapshot)
     ((not (setq defaults (EL:DLParse (EL:DLReadText (strcat source "catalog.eld"))))) snapshot)
-    ((/= (length (EL:Get 'devices defaults)) 49)
+    ((/= (length (EL:Get 'devices defaults)) 53)
       (EL:DLFail "默认设备库不完整，请重新解压完整应急照明包。") snapshot)
     ((not (setq baselines (EL:DLDefaultBaselinesRead source))) snapshot)
     ((not (EL:DLDefaultNeeded defaults snapshot baselines))
@@ -110,7 +110,7 @@
               (setq loaded (EL:DLSnapshotLoad root)))
             (progn
               (setq snapshot loaded *EL:DLCache* nil *EL:DLDefaultCache* (list root source (EL:Get 'raw loaded)))
-              (EL:LogEvent "DEFAULT_DEVICE_LIBRARY_INSTALLED" (list (cons 'root root) '(count . 49)))
+              (EL:LogEvent "DEFAULT_DEVICE_LIBRARY_INSTALLED" (list (cons 'root root) (cons 'count (length (EL:Get 'devices defaults)))))
               (princ "\n自带设备库默认功率已自动初始化或升级；可在 ELDEVLIB 中直接查看或修改。"))
             (EL:DLFail (strcat "默认设备库安装未完成，原资料保留，请刷新重试："
               (cond (*EL:DLError*) ((vl-catch-all-error-p outcome) (vl-catch-all-error-message outcome))

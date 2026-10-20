@@ -1,4 +1,4 @@
-"""Date: 2026-10-15. Library-driven recognition; picking remains a separate action."""
+"""Date: 2026-10-20. Library-driven recognition; picking remains a separate action."""
 import unittest
 from autolisp_host import Pair, Symbol, truth
 import test_auto_wire as auto
@@ -28,8 +28,17 @@ class PresetTests(unittest.TestCase):
         self.assertEqual(self.get('panel-names', data), ['$equip_U$00000398(Zhangyufeng)'])
         self.assertEqual(self.get('panel-layers', data), ['POWR_电力大设备_E'])
         self.assertEqual(self.get('wire-layers', data), ['LITE_应急照明布线_E'])
-        self.assertEqual(self.get('device-layers', data), ['LITE_照明设备_E'])
+        self.assertEqual(self.get('device-layers', data), ['LITE_照明设备_E', 'LITE_应急照明_E'])
         self.assertFalse(truth(self.call('EL:PresetValid', self.call('EL:Put', Symbol('WIRE-LAYERS'), None, data))))
+
+    def test_only_exact_legacy_default_scope_gets_the_emergency_lighting_layer(self):
+        default = self.call('EL:PresetDefault')
+        old = self.call('EL:Put', Symbol('DEVICE-LAYERS'), ['LITE_照明设备_E'], default)
+        self.assertEqual(self.call('EL:PresetUpgrade', old), default)
+        custom = self.call('EL:Put', Symbol('DEVICE-NAMES'), ['EXPLICIT'], old)
+        self.assertEqual(self.call('EL:PresetUpgrade', custom), custom)
+        self.assertEqual(self.call('EL:PresetUpgrade', self.cfg), self.cfg)
+        self.assertEqual(self.saved, [])
 
     def test_selection_filters_literal_layers_at_database_boundary(self):
         filters = []

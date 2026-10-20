@@ -1,4 +1,4 @@
-"""Actual-width contact and supplied rounded ELD replay. Date: 2026-10-11."""
+"""Actual-width contact and supplied rounded ELD replay. Date: 2026-10-20."""
 import json
 from pathlib import Path
 import unittest
@@ -44,6 +44,20 @@ class WireWidthTests(unittest.TestCase):
         zero = self.wire([[0., 0., 0.], [100., 0., 0.]], widths=[(0., 0.), (0., 0.)])
         self.assertFalse(self.get('contact-strips', zero))
 
+    def test_fresh_wire_envelope_reuse_avoids_repeat_geometry_scans(self):
+        wire = self.wire([[0., 0., 0.], [100., 0., 0.]], width=50.)
+        expected = [[0., -25., 0.], [100., 25., 0.]]
+        scans = []
+        self.h.functions[Symbol('TEST:BOUNDS')] = self.h.functions[Symbol('EL:SEGMENTBOUNDS')]
+        self.h.builtins['EL:SEGMENTBOUNDS'] = lambda segments: scans.append(segments) or self.call('TEST:BOUNDS', segments)
+        for _ in range(8):
+            self.assertEqual(self.call('EL:WireContactBounds', wire), expected)
+        self.assertEqual(scans, [])
+        # Recollecting a changed native entity must produce a fresh envelope.
+        changed = self.wire([[20., 0., 0.], [120., 0., 0.]], width=20.)
+        self.assertEqual(self.call('EL:WireContactBounds', changed), [[20., -10., 0.], [120., 10., 0.]])
+        self.assertEqual(self.call('EL:WireContactBounds', wire), expected)
+
     def test_scope_includes_device_touched_only_by_actual_width(self):
         self.block('BOX', 'P', 'panel', [-1., 0., 0.])
         self.block('LAMP', 'D', 'a', [50., 20., 0.])
@@ -56,6 +70,7 @@ class WireWidthTests(unittest.TestCase):
         piece = self.call('EL:TrunkPiece', wire, [[[50., 0., 0.], [100., 0., 0.]]], 1)
         self.assertTrue(self.hit(piece, self.shape([60., 20., 0.], [70., 20., 0.])))
         self.assertFalse(self.hit(piece, self.shape([10., 20., 0.], [20., 20., 0.])))
+        self.assertEqual(self.call('EL:WireContactBounds', piece), [[50., -25., 0.], [100., 25., 0.]])
 
     def replay(self):
         fixture = json.loads((Path(__file__).parent / 'fixtures/wide-wire-079-snapshot.json').read_text(encoding='utf-8'))

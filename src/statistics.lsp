@@ -49,6 +49,11 @@
   (foreach row counts (if (> (length (cdr row)) 1) (setq conflicts (cons (car row) conflicts)))) conflicts)
 (defun EL:CircuitStatistics (circuit blocks excluded cfg library current / rows out issues row record w total good subtotal)
   (setq rows (EL:CountRows circuit blocks excluded) total 0 good T)
+  ;; Date: 2026-10-20. No recognized load is not a confirmed zero-watt load.
+  ;; Reserved output rows are created later and never enter this calculation.
+  (if (not (EL:Get 'devices circuit))
+    (setq good nil issues (list (EL:Issue 'NO_RECOGNIZED_DEVICES
+      (EL:Get 'id circuit) (EL:Get 'wires circuit)))))
   (foreach row rows
     (setq record (EL:ResolvePower (EL:Get 'identity row) current (EL:Get 'powers cfg) library))
     (if (EL:PowerValid record)

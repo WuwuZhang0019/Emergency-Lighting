@@ -39,9 +39,10 @@ def runtime_files():
     defaults = full.ROOT / 'assets/default-device-library'
     assert (defaults / 'catalog.eld').is_file()
     assert len(list(defaults.rglob('block.dwg'))) == 49
-    assert len(list(defaults.rglob('legend.sld'))) == 49
+    assert len(list(defaults.rglob('block.dxf'))) == 4
+    assert len(list(defaults.rglob('legend.sld'))) == 53
     for source in sorted(defaults.rglob('*')):
-        if source.is_file() and source.suffix in ('.eld', '.dwg', '.sld'):
+        if source.is_file() and source.suffix in ('.eld', '.dwg', '.dxf', '.sld'):
             files[source.relative_to(full.ROOT).as_posix()] = source.read_bytes()
     template = full.ROOT / 'templates/系统图块库.dwg'
     data = template.read_bytes()

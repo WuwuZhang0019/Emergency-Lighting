@@ -24,7 +24,7 @@ class LiteTests(unittest.TestCase):
         cls.files = lite.runtime_files()
 
     def test_runtime_manifest_encoding_and_resource_fidelity(self):
-        self.assertLess(len(self.files), 145)
+        self.assertEqual(len(self.files), 148)
         self.assertLess(sum(map(len, self.files.values())), 5 * 1024 * 1024)
         self.assertEqual([p for p in self.files if p.endswith('.md')], ['使用说明.md'])
         self.assertFalse(any(p.startswith(('tests/', 'docs/', 'config/', 'output/')) for p in self.files))
@@ -50,7 +50,7 @@ class LiteTests(unittest.TestCase):
         h, *_ = self.fixture()
         self.assertTrue(truth(h.run('(EL:LiteLoad)')))
         self.assertTrue(source_commands.issubset(h.functions))
-        self.assertEqual(source_commands | {Symbol('C:ELTEST')}, lite_commands)
+        self.assertEqual(source_commands | {Symbol('C:ELTEST'), Symbol('C:ELTESTROOT')}, lite_commands)
 
     def test_version_tracks_full_and_diagnostics_remain_embedded(self):
         with patch.object(full, 'VERSION', '9.8.7'):
@@ -264,21 +264,64 @@ class LiteTests(unittest.TestCase):
         self.assertEqual(load_paths, [pinned + 'src/load.lsp'] * 2)
         self.assertEqual(dispatched, [(pinned, lite.version())] * 2)
 
-    def test_trial_cancel_or_incomplete_package_never_dispatches_old_statistics(self):
-        for failure in ('cancel', 'missing_asset'):
+    def test_trial_unknown_root_or_incomplete_package_never_prompts_or_dispatches_old_statistics(self):
+        for failure in ('unknown_root', 'missing_asset'):
             with self.subTest(failure=failure):
-                h, root, virtual, dirs, loaded, messages, env = self.fixture()
+                h, root, virtual, dirs, loaded, messages, env = self.fixture(explicit=False)
                 h.builtins['C:ELSTAT'] = lambda: self.fail('old statistics must not be dispatched')
                 h.set('C:ELSTAT', True)
-                if failure == 'cancel':
+                h.builtins['GETFILED'] = lambda *args: self.fail('ordinary ELTEST must never open a picker')
+                if failure == 'unknown_root':
                     h.builtins['VL-REGISTRY-READ'] = lambda *args: '/old-cadtools/'
-                    h.builtins['GETFILED'] = lambda *args: None
                 else:
                     del virtual[next(name for name in virtual if name.endswith('block.dwg'))]
                     h.builtins['LOAD'] = lambda path: h.body(parse(
                         virtual[posixpath.normpath(path)].decode('gb2312')))
                 h.body(parse(self.files['ELTEST.lsp'].decode('gb2312')))
                 h.run('(C:ELTEST)')
+                h.run('(C:ELTEST)')
+
+    def test_trial_retries_discovery_after_appload_closes_without_a_picker(self):
+        h, root, virtual, dirs, loaded, messages, env = self.fixture(explicit=False)
+        recent = ['/not-yet-updated/']
+        h.builtins['VL-REGISTRY-READ'] = lambda *args: recent[0]
+        h.builtins['GETFILED'] = lambda *args: self.fail('no automatic picker')
+        h.body(parse(self.files['ELTEST.lsp'].decode('gb2312')))
+        self.assertIsNone(h.lookup('*ELTEST:ROOT*'))
+        recent[0] = root + 'src/load.lsp'
+        dispatched = []
+        h.set('C:ELSTAT', True)
+        h.builtins['C:ELSTAT'] = lambda: dispatched.append(h.lookup('*EL:ROOT*'))
+        h.builtins['LOAD'] = lambda path: h.body(parse(
+            virtual[posixpath.normpath(path)].decode('gb2312')))
+        h.run('(C:ELTEST)')
+        self.assertEqual(dispatched, [root + 'src/../'])
+
+    def test_trial_finds_support_src_or_current_runtime_without_a_picker(self):
+        for source in ('support_src', 'runtime_root', 'remembered_cadtools'):
+            with self.subTest(source=source):
+                h, root, virtual, dirs, loaded, messages, env = self.fixture(explicit=False)
+                h.builtins['VL-REGISTRY-READ'] = lambda *args: None
+                h.builtins['GETFILED'] = lambda *args: self.fail('no automatic picker')
+                if source == 'support_src':
+                    original = h.builtins['FINDFILE']
+                    h.builtins['FINDFILE'] = lambda path: root + 'src/load.lsp' if path == 'load.lsp' else original(path)
+                elif source == 'runtime_root':
+                    h.set('*EL:ROOT*', root)
+                else:
+                    env['EL_CADTOOLS_' + lite.version()] = root
+                h.body(parse(self.files['ELTEST.lsp'].decode('gb2312')))
+                self.assertTrue(h.lookup('*ELTEST:ROOT*'))
+
+    def test_trial_manual_root_is_explicit_and_cancel_keeps_the_pinned_root(self):
+        h, root, virtual, dirs, loaded, messages, env = self.fixture()
+        h.body(parse(self.files['ELTEST.lsp'].decode('gb2312')))
+        pinned = h.lookup('*ELTEST:ROOT*')
+        picks = []
+        h.builtins['GETFILED'] = lambda *args: picks.append(args) or None
+        h.run('(C:ELTESTROOT)')
+        self.assertEqual(len(picks), 1)
+        self.assertEqual(h.lookup('*ELTEST:ROOT*'), pinned)
 
 
 if __name__ == '__main__':

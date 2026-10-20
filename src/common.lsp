@@ -165,7 +165,9 @@
     (progn
       ;; Date: 2026-10-13. DCL callbacks do work inside start_dialog.
       ;; Pause its input clock until the callback returns, including error unwind.
-      (if (and (equal stage "UI_ACTION") (> *EL:PerfWaitDepth* 0))
+      ;; Date: 2026-10-20. Native input can re-enter a command before its outer
+      ;; input frame returns. Any measured program work must suspend that wait.
+      (if (and (not (member stage '("USER_INPUT" "PLACEMENT_INPUT"))) (> *EL:PerfWaitDepth* 0))
         (setq paused *EL:PerfWaitDepth*
           *EL:PerfWaitMS* (EL:PerfWaiting) *EL:PerfWaitDepth* 0))
       (setq wait (member stage '("USER_INPUT" "PLACEMENT_INPUT"))

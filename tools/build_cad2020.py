@@ -6,8 +6,8 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 # Date: 2026-10-20. Source fixes only; no delivery is generated automatically.
-VERSION = '0.1.62'
-PACKAGE_NO = 161
+VERSION = '0.1.63'
+PACKAGE_NO = 162
 NAME = f'应急照明-v{VERSION}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 OUTPUT_ROOT = ROOT / 'output'
@@ -111,7 +111,8 @@ def build():
     defaults = ROOT / 'assets/default-device-library'
     assert (defaults / 'catalog.eld').is_file()
     assert len(list((defaults / 'assets').rglob('block.dwg'))) == 49
-    assert len(list((defaults / 'assets').rglob('legend.sld'))) == 49
+    assert len(list((defaults / 'assets').rglob('block.dxf'))) == 4
+    assert len(list((defaults / 'assets').rglob('legend.sld'))) == 53
     shutil.copytree(defaults, DEST / 'assets/default-device-library', dirs_exist_ok=True)
     # Date: 2026-10-15. Preserve the author's dynamic blocks as original DWG bytes.
     block_library = ROOT / 'templates/系统图块库.dwg'

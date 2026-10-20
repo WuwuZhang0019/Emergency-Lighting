@@ -74,7 +74,7 @@
     (progn
       (setq preview (EL:DLLegend entry snapshot)
         checked (and preview (EL:Get 'root snapshot)
-          (EL:DLDWGValid (strcat (EL:Get 'root snapshot) (EL:Get 'block-file entry)))))
+          (EL:DLBlockAssetValid (strcat (EL:Get 'root snapshot) (EL:Get 'block-file entry)))))
       (if (and key checked) (setq *EL:DLUIAssets* (cons (cons key (list preview checked)) *EL:DLUIAssets*)))
       (list preview checked))))
 (defun EL:DLUIFields (/ entry preview ground key size shown)
@@ -365,7 +365,7 @@
       name (vl-catch-all-apply 'EL:EffectiveName (list entity)))
     (if (and (not (vl-catch-all-error-p name)) (EL:DLNameKey name))
     (progn (setq entry (EL:DLUIPickEntry name))
-    (if (and (EL:DLDWGValid (strcat (EL:Get 'root (EL:Get 'snapshot *EL:DLUIState*)) (cond ((EL:Get 'block-file entry)) (T ""))))
+    (if (and (EL:DLBlockAssetValid (strcat (EL:Get 'root (EL:Get 'snapshot *EL:DLUIState*)) (cond ((EL:Get 'block-file entry)) (T ""))))
         (EL:DLLegend entry (EL:Get 'snapshot *EL:DLUIState*)))
       (progn (setq *EL:DLUIPickReused* (1+ *EL:DLUIPickReused*))
         (setq *EL:DLUIState* (EL:Put 'query "" (EL:Put 'selected (EL:Get 'device-id entry) *EL:DLUIState*))))

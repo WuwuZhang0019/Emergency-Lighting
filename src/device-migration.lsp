@@ -114,7 +114,7 @@
     (if (> (EL:Get 'asset-revision entry) 0)
       (progn
         (EL:Require (and (EL:DLEntryAssets entry)
-          (EL:DLDWGValid (strcat root (EL:Get 'block-file entry))) (EL:DLLegend entry snapshot))
+          (EL:DLBlockAssetValid (strcat root (EL:Get 'block-file entry))) (EL:DLLegend entry snapshot))
           (strcat "设备“" (EL:Get 'display entry) "”缺少有效图形或图例；请提供包含 assets 的完整设备库。"))
         (foreach key '(block-file legend-file)
           (setq relative (EL:Get key entry) source (strcat root relative) target (strcat destination relative))

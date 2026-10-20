@@ -224,3 +224,11 @@ config/power-input-*.eld
 # Date: 2026-10-20. Requested fixed lite trial with the ELTEST entry.
 /output/应急照明-lite-v0.1.62/
 /output/应急照明-lite-v0.1.62.zip
+
+# Date: 2026-10-20. Trial entry automatic discovery repair.
+/output/应急照明-lite-v0.1.63/
+/output/应急照明-lite-v0.1.63.zip
+
+# Date: 2026-10-20. Local DXF extraction dependencies, not runtime deliverables.
+/output/dxf-runtime/
+/output/check-v0.1.63/

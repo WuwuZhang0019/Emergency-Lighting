@@ -197,10 +197,17 @@
             (setq out (cons strip out)))))))
   (reverse out))
 (defun EL:WireContactBounds (wire / segments strip)
-  (setq segments (EL:Get 'segments wire))
-  (foreach strip (EL:Get 'contact-strips wire)
-    (setq segments (append segments (EL:Get 'segments strip))))
-  (EL:SegmentBounds segments))
+  ;; Date: 2026-10-20. Fresh wire records retain their exact derived envelope.
+  ;; Clipped trunk pieces rebuild it; old records still use the geometry path.
+  (if (assoc 'contact-bounds wire) (EL:Get 'contact-bounds wire)
+    (progn
+      (setq segments (EL:Get 'segments wire))
+      (foreach strip (EL:Get 'contact-strips wire)
+        (setq segments (append segments (EL:Get 'segments strip))))
+      (EL:SegmentBounds segments))))
+(defun EL:PrepareWireBounds (wire)
+  (EL:Put 'contact-bounds (EL:WireContactBounds
+    (vl-remove-if '(lambda (row) (equal (car row) 'contact-bounds)) wire)) wire))
 (defun EL:WireRecord (e cfg)
   (EL:WireRecordDXF e (entget e) cfg))
 (defun EL:WireRecordDXF (e d cfg / id typ pts bs closed segments ends issues normal total seg bounds profiles)
@@ -229,9 +236,9 @@
   (if (not (member typ '("LINE" "LWPOLYLINE"))) (setq bounds (EL:LogCall "ENTITY_BOUNDS" (EL:LogEntity e) 'EL:EntityBounds (list e))))
   (if (and (= typ "LWPOLYLINE") (not closed))
     (setq profiles (EL:WireWidthProfiles d pts bs)))
-  (list (cons 'id id) (cons 'layer (cdr (assoc 8 d))) (cons 'type typ)
+  (EL:PrepareWireBounds (list (cons 'id id) (cons 'layer (cdr (assoc 8 d))) (cons 'type typ)
         (cons 'width-profiles profiles) (cons 'contact-strips (EL:WireContactStrips segments profiles))
-        (cons 'segments segments) (cons 'bounds bounds) (cons 'ends ends) (cons 'issues issues) (cons 'raw (EL:Signature (EL:CanonicalVisibilityDXF d)))))
+        (cons 'segments segments) (cons 'bounds bounds) (cons 'ends ends) (cons 'issues issues) (cons 'raw (EL:Signature (EL:CanonicalVisibilityDXF d))))))
 (defun EL:TransformSegments (segments matrix)
   (mapcar '(lambda (segment) (list (EL:AffinePoint (car segment) matrix)
     (EL:AffinePoint (cadr segment) matrix))) segments))
@@ -252,6 +259,21 @@
 ;; Date: 2026-10-10. Analytic primitives: (center radius start signed-sweep hole).
 (defun EL:CurvePoint (curve angle)
   (EL:V+ (car curve) (list (* (cadr curve) (cos angle)) (* (cadr curve) (sin angle)) 0.0)))
+(defun EL:EllipseSegments (data err / center major minor normal radius start sweep points)
+  ;; Date: 2026-10-20. DXF ellipse axes are in the definition's WCS.
+  ;; Scale a unit-circle chord bound by the major radius; retain a real ellipse.
+  (setq center (cdr (assoc 10 data)) major (cdr (assoc 11 data))
+    normal (cond ((cdr (assoc 210 data))) (T '(0.0 0.0 1.0)))
+    radius (EL:Norm major) start (cdr (assoc 41 data))
+    sweep (- (cdr (assoc 42 data)) start))
+  (if (and (> radius 1.0e-12) (> (cdr (assoc 40 data)) 0.0) (<= (cdr (assoc 40 data)) 1.0))
+    (progn
+      (if (<= sweep 0.0) (setq sweep (+ sweep (* 2.0 pi))))
+      (setq minor (EL:V* (* (cdr (assoc 40 data)) (if (< (caddr normal) 0.0) -1.0 1.0))
+        (list (- (cadr major)) (car major) 0.0))
+        points (EL:ArcPoints '(0.0 0.0 0.0) 1.0 start sweep (/ err radius)))
+      (EL:Segments (mapcar '(lambda (point) (EL:V+ center
+        (EL:V+ (EL:V* (car point) major) (EL:V* (cadr point) minor)))) points)))))
 (defun EL:CurveFull (curve) (>= (abs (nth 3 curve)) (- (* 2.0 pi) 1.0e-12)))
 (defun EL:CurveAngleHas (curve point / angle delta)
   (setq angle (atan (- (cadr point) (cadr (car curve))) (- (car point) (caar curve)))
@@ -475,7 +497,7 @@
            ;; Code 60 is optional: absent means visible. EQUAL accepts nil.
            (if (not (equal (cdr (assoc 60 cd)) 1))
              (cond
-               ((member typ '("TEXT" "MTEXT" "ATTDEF" "ATTRIB" "POINT" "SEQEND")) nil)
+                ((member typ '("TEXT" "MTEXT" "ATTDEF" "ATTRIB" "POINT" "SEQEND" "WIPEOUT")) nil)
                ((and normal (> (+ (abs (car normal)) (abs (cadr normal))) 1.0e-9))
                 (setq issues (cons (EL:Issue 'UNSUPPORTED_PLANE name typ) issues)))
                ((= typ "LINE") (setq local (list (list (cdr (assoc 10 cd)) (cdr (assoc 11 cd))))))
@@ -493,7 +515,10 @@
                       (list (car pd) (cadr pd) (= 1 (logand 1 (cond ((cdr (assoc 70 cd))) (T 0)))) (/ tol (* 8.0 scale)))))
                     (if (vl-some '(lambda (bulge) (> (abs bulge) 1.0e-12)) (cadr pd)) (setq sampled T))
                     (if (not local) (setq issues (cons (EL:Issue 'CONTOUR_RESOLUTION name typ) issues))))))
-               ((member typ '("CIRCLE" "ARC"))
+                ((= typ "ELLIPSE")
+                  (setq local (EL:EllipseSegments cd (/ tol scale)) sampled T)
+                  (if (not local) (setq issues (cons (EL:Issue 'CONTOUR_RESOLUTION name typ) issues))))
+                ((member typ '("CIRCLE" "ARC"))
                 (if (and *EL:AnalyticContours* (setq curve (EL:NativeCurve cd m)))
                   (setq curves (cons curve curves))
                   (progn

@@ -157,6 +157,45 @@ class LiteTests(unittest.TestCase):
         h.set('*EL:CADTOOLSROOT*', '/broken/')
         self.assertFalse(truth(h.run('(EL:LiteFindRoot)')))
 
+    def test_failed_first_start_still_registers_manual_root_recovery(self):
+        h, root, virtual, dirs, loaded, messages, env = self.fixture()
+        h.set('*EL:CADTOOLSROOT*', '/broken/')
+        self.assertFalse(truth(h.run('(EL:LiteLoad)')))
+        self.assertTrue(Symbol('C:ELROOT') in h.functions)
+        h.builtins['GETFILED'] = lambda *args: root + 'src/load.lsp'
+        h.run('(C:ELROOT)')
+        self.assertTrue(truth(h.lookup('*EL:MONITORLOADREADY*')))
+        self.assertEqual(h.lookup('*EL:ROOT*'), root + 'src/../')
+
+    def test_registry_error_does_not_hide_a_valid_remembered_install(self):
+        h, root, virtual, dirs, loaded, messages, env = self.fixture(explicit=False)
+        env['EL_CADTOOLS_' + lite.version()] = root
+        def unavailable(*args):
+            raise RuntimeError('registry unavailable')
+        h.builtins['VL-REGISTRY-READ'] = unavailable
+        self.assertTrue(truth(h.run('(EL:LiteLoad)')), ''.join(messages))
+        self.assertEqual(h.lookup('*EL:ROOT*'), root)
+
+    def test_src_only_support_path_finds_its_own_marked_install(self):
+        h, root, virtual, dirs, loaded, messages, env = self.fixture(explicit=False)
+        original_find = h.builtins['FINDFILE']
+        h.builtins['VL-REGISTRY-READ'] = lambda *args: '/old-or-missing/'
+        h.builtins['FINDFILE'] = lambda path: (root + 'src/load.lsp'
+            if path == 'load.lsp' else original_find(path))
+        self.assertTrue(truth(h.run('(EL:LiteLoad)')), ''.join(messages))
+        self.assertEqual(h.lookup('*EL:ROOT*'), root + 'src/../')
+
+    def test_preflight_failure_after_reload_does_not_restore_an_old_error_handler(self):
+        h, *_ = self.fixture()
+        self.assertTrue(truth(h.run('(EL:LiteLoad)')))
+        h.builtins.pop('EL:MONITORLOADEND')
+        h.builtins['EL:PERFFINISH'] = lambda *args: None
+        h.set('*EL:MONITOROLDERROR*', Symbol('OLD-HANDLER'))
+        h.set('*ERROR*', Symbol('CURRENT-HANDLER'))
+        h.set('*EL:CADTOOLSROOT*', '/broken/')
+        self.assertFalse(truth(h.run('(EL:LiteLoad)')))
+        self.assertEqual(h.lookup('*ERROR*'), Symbol('CURRENT-HANDLER'))
+
     def test_missing_localappdata_and_module_error_are_reported(self):
         h, root, virtual, dirs, loaded, messages, env = self.fixture()
         env.clear()

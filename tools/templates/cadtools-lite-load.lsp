@@ -20,16 +20,19 @@
       (setq root (EL:LiteNormalize path))
       (cond ((EL:LiteRootValid root) root)
         ((and root (EL:LiteRootValid (strcat root "../"))) (strcat root "../"))))))
+(defun EL:LiteRegistryDirectory ()
+  (vl-registry-read
+    (strcat "HKEY_CURRENT_USER\\" (vlax-product-key)
+      "\\Profiles\\" (getvar "CPROFILE") "\\Dialogs\\Appload") "MainDialog"))
 (defun EL:LiteFindRoot (/ root path)
   ;; An explicit but broken install must fail, never silently load another copy.
   (if *EL:CADToolsRoot*
     (EL:LiteCandidate *EL:CADToolsRoot*)
     (progn
-      (setq path (vl-registry-read
-        (strcat "HKEY_CURRENT_USER\\" (vlax-product-key)
-          "\\Profiles\\" (getvar "CPROFILE") "\\Dialogs\\Appload") "MainDialog")
-        root (EL:LiteCandidate path))
+      (setq path (vl-catch-all-apply 'EL:LiteRegistryDirectory nil))
+      (if (not (vl-catch-all-error-p path)) (setq root (EL:LiteCandidate path)))
       (if (not root) (setq root (EL:LiteCandidate (findfile *EL:LiteMarker*))))
+      (if (not root) (setq root (EL:LiteCandidate (findfile "load.lsp"))))
       (if (not root) (setq root (EL:LiteCandidate
         (getenv (strcat "EL_CADTOOLS_" *EL:LiteVersion*))))) root)))
 (defun EL:LiteInitData (/ base folder ok)
@@ -47,6 +50,8 @@
     (if (setq root (EL:LiteCandidate path))
       (progn (setq *EL:CADToolsRoot* root) (EL:LiteLoad))
       (princ "\n所选目录不是当前精简版的完整运行目录，原目录保持不变。"))))
+;; Register recovery before preflight, including on the first failed APPLOAD.
+(defun c:ELROOT () (EL:LiteRelocate) (princ))
 (defun EL:LiteDefineModules (/ token)
   @MODULE_CODE@
   T)
@@ -58,19 +63,21 @@
     (T
       (setq *EL:Root* root)
       (EL:LiteDefineModules)
-      (defun c:ELROOT () (EL:LiteRelocate) (princ))
       (EL:ClearPickHighlights)
       (setq *EL:Result* nil *EL:DeviceResult* nil)
       (EL:PerfCall "LOAD_LIBRARY" 'EL:DLDefaultStartup nil)
       (setenv (strcat "EL_CADTOOLS_" *EL:LiteVersion*) root)
       T)))
-(defun EL:LiteLoad (/ result)
+(defun EL:LiteLoad (/ result *EL:LiteMonitorStarted*)
   (setq *EL:BootstrapTick* (getvar "MILLISECS")
     *EL:Root* nil *EL:LiteDataRoot* nil *EL:MonitorLoadReady* nil
     *EL:StartupAttempted* T *EL:StartupError* nil *EL:PackageMarker* *EL:LiteMarker*)
   (setq result (vl-catch-all-apply 'EL:LiteLoadWork nil))
   (if (vl-catch-all-error-p result)
     (setq *EL:StartupError* (vl-catch-all-error-message result) result nil))
+  ;; Startup's shared module also defines ELROOT; keep the lite recovery route
+  ;; even when a later module fails during initialization.
+  (defun c:ELROOT () (EL:LiteRelocate) (princ))
   (setq *EL:MonitorLoadReady* result)
   (if result
     (progn
@@ -78,7 +85,8 @@
       (princ (strcat "\n已加载（CAD2020 " *EL:LiteVersion* "）。数据目录：" *EL:LiteDataRoot*))
       (EL:StartupCommandHint T))
     (progn
-      (vl-catch-all-apply 'EL:MonitorLoadEnd (list 'load-failed))
+      (if *EL:LiteMonitorStarted*
+        (vl-catch-all-apply 'EL:MonitorLoadEnd (list 'load-failed)))
       (setq *EL:Root* nil)
       (princ (strcat "\n精简版启动未完成：" *EL:StartupError*)))) result)
 (EL:LiteLoad)

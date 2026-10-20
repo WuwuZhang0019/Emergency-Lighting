@@ -1,4 +1,4 @@
-"""DWG record adapter checks; no native CAD acceptance. Date: 2026-10-11."""
+"""DWG record adapter checks; no native CAD acceptance. Date: 2026-10-20."""
 import pathlib
 import copy
 import math
@@ -239,7 +239,14 @@ class StoreTests(unittest.TestCase):
         self.h.run("(setq store (EL:Put 'notes text (EL:StoreInitial)))")
         original_read=self.h.builtins['READ']
         self.h.builtins['READ']=lambda text: self.fail('strings must bypass READ') if text.startswith('"') else original_read(text)
-        self.h.builtins['VL-PRIN1-TO-STRING']=lambda *args: self.fail('native storage must bypass printer')
+        original_printer = self.h.builtins['VL-PRIN1-TO-STRING']
+        def integer_run_only(value):
+            # Current integer-tape validation prints bounded integer runs, never
+            # user strings or the complete store. Keep the original string guard.
+            if isinstance(value, list) and all(type(item) is int for item in value):
+                return original_printer(value)
+            self.fail('native strings and full records must bypass printer')
+        self.h.builtins['VL-PRIN1-TO-STRING'] = integer_run_only
         self.assertTrue(truth(self.h.run('(EL:StoreWrite store)')))
         self.assertEqual(self.h.run("(EL:Get 'notes (EL:StoreRead))"),value)
 

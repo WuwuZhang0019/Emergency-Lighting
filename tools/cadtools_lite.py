@@ -57,7 +57,8 @@ def runtime_files():
     for module in modules:
         text = files[f'src/{module}.lsp'].decode('gb2312')
         if module == 'common':
-            module_code.append(text + '\n(EL:MonitorLoadBegin *EL:BootstrapTick*)\n')
+            module_code.append(text + '\n(EL:MonitorLoadBegin *EL:BootstrapTick*)\n'
+                               '(setq *EL:LiteMonitorStarted* T)\n')
         else:
             module_code.append(
                 f'(setq *EL:MonitorLabel* "{module}.lsp" token (EL:PerfBegin "LOAD_MODULE"))\n'

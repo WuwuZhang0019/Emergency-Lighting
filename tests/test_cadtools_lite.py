@@ -50,7 +50,7 @@ class LiteTests(unittest.TestCase):
         h, *_ = self.fixture()
         self.assertTrue(truth(h.run('(EL:LiteLoad)')))
         self.assertTrue(source_commands.issubset(h.functions))
-        self.assertEqual(source_commands, lite_commands)
+        self.assertEqual(source_commands | {Symbol('C:ELTEST')}, lite_commands)
 
     def test_version_tracks_full_and_diagnostics_remain_embedded(self):
         with patch.object(full, 'VERSION', '9.8.7'):
@@ -240,6 +240,45 @@ class LiteTests(unittest.TestCase):
         self.assertTrue(truth(f.get('complete', result)))
         self.assertEqual(set(f.get('devices', f.get('circuits', result)[0])),
                          {'F099', '84B8', '8267'})
+
+    def test_trial_command_reloads_pinned_package_after_old_cadtools_commands(self):
+        h, root, virtual, dirs, loaded, messages, env = self.fixture()
+        h.set('*EL:CADTOOLSROOT*', '/old-cadtools/')
+        h.set('C:ELSTAT', True)
+        dispatched, load_paths = [], []
+        h.builtins['C:ELSTAT'] = lambda: dispatched.append(
+            (h.lookup('*EL:ROOT*'), h.lookup('*EL:LITEVERSION*')))
+        def reload(path):
+            load_paths.append(path)
+            return h.body(parse(virtual[posixpath.normpath(path)].decode('gb2312')))
+        h.builtins['LOAD'] = reload
+        h.body(parse(self.files['ELTEST.lsp'].decode('gb2312')))
+        self.assertEqual(load_paths, [], 'APPLOAD should only register the trial command')
+        pinned = h.lookup('*ELTEST:ROOT*')
+        for _ in range(2):
+            h.set('*EL:ROOT*', '/old-cadtools/')
+            h.set('*EL:LITEVERSION*', 'lite-v0.1.61')
+            h.set('*EL:MONITORLOADREADY*', True)
+            h.run('(C:ELTEST)')
+            self.assertEqual(h.lookup('*EL:CADTOOLSROOT*'), '/old-cadtools/')
+        self.assertEqual(load_paths, [pinned + 'src/load.lsp'] * 2)
+        self.assertEqual(dispatched, [(pinned, lite.version())] * 2)
+
+    def test_trial_cancel_or_incomplete_package_never_dispatches_old_statistics(self):
+        for failure in ('cancel', 'missing_asset'):
+            with self.subTest(failure=failure):
+                h, root, virtual, dirs, loaded, messages, env = self.fixture()
+                h.builtins['C:ELSTAT'] = lambda: self.fail('old statistics must not be dispatched')
+                h.set('C:ELSTAT', True)
+                if failure == 'cancel':
+                    h.builtins['VL-REGISTRY-READ'] = lambda *args: '/old-cadtools/'
+                    h.builtins['GETFILED'] = lambda *args: None
+                else:
+                    del virtual[next(name for name in virtual if name.endswith('block.dwg'))]
+                    h.builtins['LOAD'] = lambda path: h.body(parse(
+                        virtual[posixpath.normpath(path)].decode('gb2312')))
+                h.body(parse(self.files['ELTEST.lsp'].decode('gb2312')))
+                h.run('(C:ELTEST)')
 
 
 if __name__ == '__main__':

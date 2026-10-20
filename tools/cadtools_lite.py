@@ -49,6 +49,8 @@ def runtime_files():
     files['templates/系统图块库.dwg'] = data
     marker = f'{version()}.marker'
     files[marker] = f'Emergency-Lighting {version()} package-{full.PACKAGE_NO:03d}\n'.encode('ascii')
+    test_entry = (full.ROOT / 'tools/templates/cadtools-lite-test.lsp').read_text(encoding='utf-8')
+    files['ELTEST.lsp'] = test_entry.replace('@VERSION@', version()).replace('@MARKER@', marker).encode('gb2312', errors='strict')
     # Startup and batch numbering are retained, including every public command.
     modules = (*full.MODULES, 'batch-number')
     # One trusted entry, like the full edition: no per-module LOAD/security dialogs.

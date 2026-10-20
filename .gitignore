@@ -220,3 +220,7 @@ config/power-input-*.eld
 # Date: 2026-10-16. CADTools lite delivery artifacts, never source files.
 /output/应急照明-lite-v*/
 /output/应急照明-lite-v*.zip
+
+# Date: 2026-10-20. Requested fixed lite trial with the ELTEST entry.
+/output/应急照明-lite-v0.1.62/
+/output/应急照明-lite-v0.1.62.zip

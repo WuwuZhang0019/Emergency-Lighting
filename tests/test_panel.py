@@ -1,4 +1,4 @@
-"""Circuit draft and identity checks. Date: 2026-10-12."""
+"""Circuit draft and identity checks. Date: 2026-10-21."""
 import unittest
 import test_simple_flow as simple
 from autolisp_host import Symbol, truth
@@ -40,8 +40,9 @@ class PanelTests(unittest.TestCase):
         self.plan()
         result=self.call('EL:SplitNetwork',simple.SimpleFlowTests.network(self),self.cfg)
         self.h.frames[0]['RESULT']=result
-        for power in ('nil', '\'(("LAMP" . 100))'):
-            self.assertFalse(truth(self.h.run(f"(EL:Get 'can-generate (EL:PanelCompute result {power} cfg))")))
+        self.assertTrue(truth(self.h.run("(EL:Get 'can-generate (EL:PanelCompute result nil cfg))")))
+        self.assertTrue(truth(self.h.run("(EL:Get 'power-omitted (car (EL:Get 'circuits (EL:PanelCompute result nil cfg))))")))
+        self.assertFalse(truth(self.h.run("(EL:Get 'can-generate (EL:PanelCompute result '((\"LAMP\" . 100)) cfg))")))
         self.assertTrue(truth(self.h.run('(EL:Get \'can-generate (EL:PanelCompute result \'(("LAMP" . 0)) cfg))')))
 
     def test_pick_phase_collects_explicit_start_and_opens_real_circuit_panel(self):

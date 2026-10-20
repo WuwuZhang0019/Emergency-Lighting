@@ -25,8 +25,10 @@
     (setq textdata (strcat textdata (if (= textdata "") "" "、")
       (cond ((EL:Get 'display row)) ((EL:Get 'name row)) (T "设备")) "×" (itoa (EL:Get 'count row))))) textdata)
 (defun EL:FormatCircuitText (formattext label circuit)
-  (EL:ReplaceAll (EL:ReplaceAll (EL:ReplaceAll formattext "{回路功率W}" (itoa (EL:Get 'watts circuit)))
-    "{回路编号}" label) "{设备数量摘要}" (EL:CountSummary circuit)))
+  ;; Date: 2026-10-21. Omit the entire unknown annotation, including its unit.
+  (if (not (EL:Get 'power-omitted circuit))
+    (EL:ReplaceAll (EL:ReplaceAll (EL:ReplaceAll formattext "{回路功率W}" (itoa (EL:Get 'watts circuit)))
+      "{回路编号}" label) "{设备数量摘要}" (EL:CountSummary circuit))))
 (defun EL:State (option definition) (EL:By 'option option (EL:Get 'states definition)))
 (defun EL:ContourValid (segments / good seg)
   (setq good (and (listp segments) segments))
@@ -89,7 +91,7 @@
           (cons 'value (EL:Get 'value state)) (cons 'position position) (cons 'connection target)
           (cons 'contour (EL:Get 'contour state)) (cons 'annotation annotation)
           (cons 'text-position (EL:LocalPoint (EL:Get 'offset annotation) position rotation scale)) (cons 'text textdata)
-          (cons 'watts (if id (EL:Get 'watts circuit)))) rows))))
+          (cons 'watts (if (and id (not (EL:Get 'power-omitted circuit))) (EL:Get 'watts circuit)))) rows))))
     (setq index (1+ index)))
   (if (or (/= (length seen) (length actual)) (vl-some '(lambda (id) (not (member id seen))) actual)) (setq good nil))
   (if good

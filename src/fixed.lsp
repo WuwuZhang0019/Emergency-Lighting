@@ -159,7 +159,7 @@
               spec (EL:Put 'align 1 (EL:Put 'offset '(10983.0 -450.0 0.0) (EL:Get 'annotation row)))
               row (EL:Put 'position position (EL:Put 'annotation spec row))
               row (EL:Put 'text-position (if c (EL:LocalPoint '(10983.0 -450.0 0.0) position rotation scale)) row)
-              row (EL:Put 'text (if c (strcat (itoa (EL:Get 'watts c)) "W")) row)
+              row (EL:Put 'text (if (and c (not (EL:Get 'power-omitted c))) (strcat (itoa (EL:Get 'watts c)) "W")) row)
               row (EL:Put 'circuit-number (EL:Get 'circuit-number (nth i outputs)) row)
               row (EL:Put 'circuit-uid (if c (EL:Get 'circuit-uid c) (EL:Get 'label row)) row)
               rows (cons row rows) i (1+ i)))

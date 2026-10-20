@@ -117,7 +117,7 @@ el_panel_review : column { fixed_width = true; fixed_height = true; alignment = 
       : text { key = "p_power_total"; label = "总功率：未统计"; width = 40; fixed_width = true; fixed_height = true; }
       // Date: 2026-10-21. Power review uses the current recognition snapshot.
       : button { key = "p_power_review"; label = "查看/补填设备功率"; }
-      : text { label = "缺功率回路生成时留空，可补填后直接重算。"; }
+      : text { label = "待核对回路功率留空，其他回路正常生成。"; }
       : row { fixed_width = true; fixed_height = true; alignment = left;
         : image { key = "p_step3"; width = 8; height = 1.3; fixed_width = true; fixed_height = true; color = dialog_background; help_string = "第三步：在图面查看全部回路"; }
         : button { key = "f_preview"; label = "在图面查看全部回路"; width = 28; fixed_width = true; }

@@ -5,10 +5,10 @@ import shutil
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-# Date: 2026-10-20. Source fixes only; no delivery is generated automatically.
-VERSION = '0.1.66'
-PACKAGE_NO = 165
-FULL_TEST_COMMAND = 'ELFULL66'
+# Date: 2026-10-21. Local performance trial; no merge or publication.
+VERSION = '0.1.67'
+PACKAGE_NO = 166
+FULL_TEST_COMMAND = 'ELFULL67'
 NAME = f'应急照明-v{VERSION}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 OUTPUT_ROOT = ROOT / 'output'

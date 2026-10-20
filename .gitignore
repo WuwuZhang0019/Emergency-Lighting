@@ -244,3 +244,7 @@ config/power-input-*.eld
 # Date: 2026-10-21. Requested power-review trial package.
 /output/应急照明-v0.1.66/
 /output/应急照明-v0.1.66.zip
+
+# Date: 2026-10-21. Performance-branch original-DWG trial, never committed.
+/output/应急照明-v0.1.67/
+/output/应急照明-v0.1.67.zip

@@ -162,6 +162,10 @@
           "device-definition-reuses" "device-pose-builds" "device-pose-reuses" "device-pose-fallbacks"
           "device-definition-check-ms" "device-pose-verify-ms" "device-definition-build-ms"
           "device-instance-build-ms" "device-regions-build-ms" "device-contact-prepare-ms"
+          "template-sample-find-ms" "template-sample-scans"
+          "template-definition-check-ms" "template-definition-builds" "template-definition-reuses"
+          "template-dynamic-check-ms" "template-dynamic-checks" "template-dynamic-reuses"
+          "template-probe-ms" "template-probes" "template-probe-reuses"
           "network-build-calls" "network-verified-reuses" "network-geometry-checks"
           "number-scopes" "number-source-handles" "number-problems"
           "number-source-read-attempts" "number-source-read-failures" "number-freshness-checks"
@@ -237,7 +241,8 @@
         "STORE_MIGRATE_BACKUP" "STORE_STAGE_BUILD"
         "STORE_COMPACT" "STORE_PACK_INTS" "STORE_NATIVE_ENCODE" "STORE_NATIVE_DECODE" "STORE_EXPAND"
         "STORE_UNPACK_INTS" "STORE_VALUE_DECODE"
-        "DIAGRAM_VIEW" "DIAGNOSTIC_EXPORT" "DEVICE_LIBRARY_LOAD" "DEVICE_LEGEND"))
+        "DIAGRAM_VIEW" "DIAGNOSTIC_EXPORT" "DEVICE_LIBRARY_LOAD" "DEVICE_LEGEND"
+        "SYSTEM_LIBRARY_OPEN" "SYSTEM_BLOCK_COPY" "SYSTEM_STYLE_COPY" "TEMPLATE_CAPTURE"))
       (and *EL:PerfDetail* (member stage
         '("STORE_SCHEMA" "STORE_REPLACE_PAYLOAD" "CCKK2_INSERT_BLOCK" "CCKK_POWER_TEXT"
           "TAG_ENTITY" "UNDO_BEGIN" "UNDO_END" "COMPARE_SOURCE" "SNAPSHOT_SIGNATURE" "CIRCUIT_TRACE")))))
@@ -568,16 +573,21 @@
       ("UNDO_BEGIN" . "开始撤销组") ("UNDO_END" . "结束撤销组")
       ("TX_MARKER_CREATE" . "建立事务标记") ("DIAGRAM_VIEW" . "定位完整系统图")
       ("DEVICE_LIBRARY_LOAD" . "读取设备库") ("DEVICE_LEGEND" . "加载设备图例")
+      ("SYSTEM_LIBRARY_OPEN" . "打开系统图块库") ("SYSTEM_BLOCK_COPY" . "补入缺少系统图块")
+      ("SYSTEM_STYLE_COPY" . "补入缺少文字样式") ("TEMPLATE_CAPTURE" . "准备系统图模板")
       ("DIAGNOSTIC_EXPORT" . "导出诊断数据")))))
   (if name name stage))
 (defun EL:MonitorActionTile (key code)
   ;; Keep original callback expressions in the same DCL scope, including $value.
   (action_tile key (strcat "(EL:MonitorUIBegin $key $value) " code " (EL:MonitorUIEnd)")))
 (defun EL:MonitorUIBegin (key value / *EL:MonitorLabel* title)
+  ;; Date: 2026-10-21. No proof survives a user action or unknown callback.
+  (EL:FreshBoundary)
   (setq title (cdr (assoc key
     '(("p_pick" . "拾取配电箱") ("p_trunk" . "拾取回路起始端导线")
       ("accept" . "保存或确定")
       ("p_block_library_open" . "打开系统图块文件夹")
+      ("p_system_drawing" . "检查本图系统图块") ("p_system_import" . "从图库补入系统图缺项")
       ("cancel" . "取消或退出") ("p_generate" . "生成新系统图") ("p_diagnostic" . "导出诊断日志")
       ("f_preview" . "查看全部回路")
       ("p_capacity" . "修改配电箱容量")
@@ -594,7 +604,8 @@
     *EL:MonitorUIStack* (cons (EL:PerfBegin "UI_ACTION") *EL:MonitorUIStack*)))
 (defun EL:MonitorUIEnd ()
   (EL:PerfEnd (car *EL:MonitorUIStack*) 'returned)
-  (setq *EL:MonitorUIStack* (cdr *EL:MonitorUIStack*)))
+  (setq *EL:MonitorUIStack* (cdr *EL:MonitorUIStack*))
+  (EL:FreshBoundary))
 (defun EL:MonitorSeconds (milliseconds / fraction)
   ;; DIMZIN must not strip the leading/trailing zeroes in timing columns.
   (setq fraction (strcat "00" (itoa (fix (rem milliseconds 1000)))))

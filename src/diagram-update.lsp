@@ -192,7 +192,8 @@
         (EL:Get 'panel-output-handle record) "，插入点："
         (vl-prin1-to-string (EL:Get 'position (EL:Get 'plan record))) "。请查看诊断日志。")) nil)))
 (defun EL:SyncDiagram (result cfg powers capacity generate interactive)
-  (EL:SyncDiagramScoped result cfg powers capacity generate interactive *EL:FreshScope*))
+  ;; Date: 2026-10-21. Native placement and writes retain their epoch boundaries.
+  (EL:WithTemplateScope 'EL:SyncDiagramScoped (list result cfg powers capacity generate interactive *EL:FreshScope*)))
 (defun EL:CCKK2DeferredSource (result cfg record generate interactive)
   ;; Date: 2026-10-14. An accepted panel submission may defer the second scan
   ;; to CreateDiagram's check immediately after the native placement click.

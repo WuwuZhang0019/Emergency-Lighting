@@ -53,6 +53,8 @@ class FreshCallbackBoundaryTests(unittest.TestCase):
         result = self.result()
         self.h.frames[0]['*EL:FRESHSCOPEENABLED*'] = True
         self.h.load_definitions(db.ROOT / 'src' / 'fixed.lsp')
+        # Date: 2026-10-21. Fixed-block checks use the shared template scope API.
+        self.h.load_definitions(db.ROOT / 'src' / 'generation.lsp')
         sampled = []
         deleted = []
 

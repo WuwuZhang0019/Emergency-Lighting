@@ -90,7 +90,10 @@
       (setq *EL:DLParentContext* context *EL:DLParentContinue* 'EL:DLResumePanel))
     (setq result nil))
   next)
-(defun EL:EditPanelOnce (result cfg / *error* store record powers capacity edited prepared saved ownlog syncable template resolved *EL:GenerationPreflight* *EL:LastSavedDraftId* *EL:LastGeneratedId* *EL:PlacementOnly*)
+(defun EL:EditPanelOnce (result cfg)
+  ;; Date: 2026-10-21. Share template work only inside this controlled call.
+  (EL:WithTemplateScope 'EL:EditPanelOnceWork (list result cfg)))
+(defun EL:EditPanelOnceWork (result cfg / *error* store record powers capacity edited prepared saved ownlog syncable template resolved *EL:GenerationPreflight* *EL:LastSavedDraftId* *EL:LastGeneratedId* *EL:PlacementOnly*)
   (defun *error* (msg)
     (EL:LogFailure msg)
     (vl-catch-all-apply 'EL:ClearGapPreview nil)

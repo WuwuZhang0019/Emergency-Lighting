@@ -1,4 +1,4 @@
-"""Missing system-block import and red step drawing. Date: 2026-10-15.
+"""Explicit system-block import and drawing-first source policy. Date: 2026-10-21.
 
 Finite COM/DCL adapters only; no native AutoCAD acceptance.
 """
@@ -15,8 +15,10 @@ STYLES = ["_TEL_DIM", "ICDA-STYLE1"]
 class SystemBlockImportTests(unittest.TestCase):
     def setUp(self):
         self.h = Host()
+        self.h.load_definitions(ROOT / "src/common.lsp")
         self.h.load_definitions(ROOT / "src/insert-circuit.lsp")
         self.h.set("*EL:ROOT*", "C:/中文 工具包/")
+        self.h.set("*EL:SYSTEMBLOCKSOURCE*", Symbol("LIBRARY"))
         self.h.set("VLAX-VBOBJECT", 9)
         self.target = {"BLOCK": {}, "STYLE": {}}
         self.source = {"BLOCK": {name: ("BLOCK", name) for name in BLOCKS},
@@ -104,6 +106,48 @@ class SystemBlockImportTests(unittest.TestCase):
         self.assertEqual([event[1] for event in copies], ["BLOCK", "STYLE"])
         self.assertTrue(all(event[0] != "copy" for event in self.events[:6]))
         self.assertEqual(self.released, ["dbx"])
+        self.assertIsNone(self.h.lookup("*EL:SYSTEMBLOCKNOTICE*"))
+        self.assertGreaterEqual(self.h.lookup("*EL:FRESHEPOCH*"), 6)
+
+    def test_default_drawing_and_unknown_sources_report_names_without_library_lookup(self):
+        for source in (None, Symbol("DRAWING"), Symbol("UNKNOWN"), "library", 1):
+            with self.subTest(source=source):
+                self.setUp()
+                self.h.set("*EL:SYSTEMBLOCKSOURCE*", source)
+                self.h.builtins["FINDFILE"] = lambda path: self.fail("drawing source must not search library paths")
+                self.assertFalse(truth(self.call()))
+                self.assertEqual(self.events, [])
+                self.assertEqual(self.released, [])
+                self.assertEqual(self.target, {"BLOCK": {}, "STYLE": {}})
+                notice = self.h.lookup("*EL:SYSTEMBLOCKNOTICE*")
+                for name in BLOCKS + STYLES:
+                    self.assertIn(name, notice)
+                self.assertIn("当前输入保留", notice)
+
+    def test_drawing_source_with_existing_definitions_succeeds_and_clears_old_notice(self):
+        self.h.set("*EL:SYSTEMBLOCKSOURCE*", None)
+        self.h.set("*EL:SYSTEMBLOCKNOTICE*", "old failure")
+        self.target = {"BLOCK": dict.fromkeys(BLOCKS, "existing"), "STYLE": dict.fromkeys(STYLES, "existing")}
+        self.h.builtins["FINDFILE"] = lambda path: self.fail("existing definitions must not search library paths")
+        self.assertTrue(truth(self.call()))
+        self.assertIsNone(self.h.lookup("*EL:SYSTEMBLOCKNOTICE*"))
+        self.assertEqual(self.events, [])
+
+    def test_drawing_failure_can_retry_explicit_library_without_losing_existing_symbols(self):
+        self.target["BLOCK"][BLOCKS[0]] = "keep-panel"
+        self.target["STYLE"][STYLES[0]] = "keep-style"
+        self.h.set("*EL:SYSTEMBLOCKSOURCE*", Symbol("DRAWING"))
+        self.assertFalse(truth(self.call()))
+        notice = self.h.lookup("*EL:SYSTEMBLOCKNOTICE*")
+        self.assertNotIn(BLOCKS[0], notice)
+        self.assertNotIn(STYLES[0], notice)
+        self.assertIn(BLOCKS[1], notice)
+        self.assertIn(STYLES[1], notice)
+        self.h.set("*EL:SYSTEMBLOCKSOURCE*", Symbol("LIBRARY"))
+        self.assertTrue(truth(self.call()))
+        self.assertEqual(self.target["BLOCK"][BLOCKS[0]], "keep-panel")
+        self.assertEqual(self.target["STYLE"][STYLES[0]], "keep-style")
+        self.assertIsNone(self.h.lookup("*EL:SYSTEMBLOCKNOTICE*"))
 
     def test_existing_definitions_skip_source_and_com(self):
         for kind, names in (("BLOCK", BLOCKS), ("STYLE", STYLES)):
@@ -140,6 +184,27 @@ class SystemBlockImportTests(unittest.TestCase):
         self.assertFalse(any(e[0] == "copy" for e in self.events))
         self.assertEqual(self.released, ["dbx"])
         self.assertIn(STYLES[1], "".join(self.messages))
+        self.assertIn(STYLES[1], self.h.lookup("*EL:SYSTEMBLOCKNOTICE*"))
+
+    def test_definitions_appearing_during_library_open_are_preserved(self):
+        original_open = self.open_database
+
+        def open_with_symbols(*args):
+            original_open(*args)
+            self.target["BLOCK"][BLOCKS[0]] = "arrived-panel"
+            self.target["STYLE"][STYLES[0]] = "arrived-style"
+
+        self.h.builtins["VLAX-INVOKE-METHOD"] = open_with_symbols
+        self.assertTrue(truth(self.call()))
+        self.assertEqual(self.target["BLOCK"][BLOCKS[0]], "arrived-panel")
+        self.assertEqual(self.target["STYLE"][STYLES[0]], "arrived-style")
+
+    def test_library_operations_have_separate_timing_stages(self):
+        stages = []
+        self.h.builtins["EL:PERFCALL"] = lambda stage, function, args: (
+            stages.append(stage), self.h.call(function, args or []))[1]
+        self.assertTrue(truth(self.call()))
+        self.assertEqual(stages, ["SYSTEM_LIBRARY_OPEN", "SYSTEM_BLOCK_COPY", "SYSTEM_STYLE_COPY"])
 
     def test_com_errors_are_not_success_and_open_database_is_released(self):
         for stage in ("interface", "open", "copy"):
@@ -148,7 +213,9 @@ class SystemBlockImportTests(unittest.TestCase):
                 self.fail_stage = stage
                 self.assertFalse(truth(self.call()))
                 self.assertEqual(self.released, [] if stage == "interface" else ["dbx"])
-                self.assertIn("自动导入失败", "".join(self.messages))
+                self.assertIn("导入失败", "".join(self.messages))
+                self.assertIn("当前输入保留", self.h.lookup("*EL:SYSTEMBLOCKNOTICE*"))
+                self.assertGreaterEqual(self.h.lookup("*EL:FRESHEPOCH*"), 2)
 
     def test_ignored_copy_cannot_pass_table_readback_and_retry_can_succeed(self):
         self.ignore_copy = True
@@ -160,6 +227,7 @@ class SystemBlockImportTests(unittest.TestCase):
 
     def test_capture_imports_before_style_checks_and_keeps_config_on_failure(self):
         self.h.load_definitions(ROOT / "src/fixed.lsp")
+        self.h.load_definitions(ROOT / "src/generation.lsp")
         calls = []
         self.h.builtins["EL:ENSURESYSTEMBLOCKS"] = lambda blocks, styles: calls.append((blocks, styles)) or None
         self.h.builtins["TBLSEARCH"] = lambda *args: self.fail("style/template check ran after import failure")

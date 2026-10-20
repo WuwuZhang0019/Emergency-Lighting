@@ -1,4 +1,12 @@
-;; Date: 2026-10-15. Import missing definitions; never insert the library as a wrapper block.
+;; Date: 2026-10-21. Drawing definitions are the default; library import is explicit.
+(defun EL:SystemBlockSource ()
+  (if (equal *EL:SystemBlockSource* 'library) 'library 'drawing))
+(defun EL:SystemMissingText (blocks styles / text name)
+  (setq text "")
+  (foreach name blocks (setq text (strcat text "\n图块：" name)))
+  (foreach name styles (setq text (strcat text "\n文字样式：" name))) text)
+(defun EL:SystemBlockNotice (message)
+  (setq *EL:SystemBlockNotice* message) (princ (strcat "\n" message)) nil)
 (defun EL:SystemBlockLibraryPath (/ path)
   (cond
     ((and (equal (type *EL:Root*) 'STR) (/= *EL:Root* ""))
@@ -9,9 +17,15 @@
 (defun EL:SystemMissingSymbols (kind names / name missing)
   (foreach name names (if (not (tblsearch kind name)) (setq missing (cons name missing))))
   (reverse missing))
-(defun EL:SystemSourceObjects (database kind names / table name objects)
+(defun EL:SystemSourceObjects (database kind names / table name objects object)
   (setq table (if (equal kind "BLOCK") (vla-get-Blocks database) (vla-get-TextStyles database)))
-  (foreach name names (setq objects (cons (vla-Item table name) objects)))
+  (foreach name names
+    (setq object (vl-catch-all-apply 'vla-Item (list table name)))
+    (if (vl-catch-all-error-p object)
+      (setq *EL:SystemBlockNotice* (strcat (if *EL:SystemBlockNotice* *EL:SystemBlockNotice* "")
+        "\n系统图库无法读取" (if (equal kind "BLOCK") "图块：" "文字样式：") name
+        "（" (vl-catch-all-error-message object) "）"))
+      (setq objects (cons object objects))))
   (reverse objects))
 (defun EL:SystemCopySymbols (database target kind objects / array index object)
   (if objects
@@ -19,39 +33,65 @@
       (setq array (vlax-make-safearray vlax-vbObject (cons 0 (1- (length objects)))) index 0)
       (foreach object objects
         (vlax-safearray-put-element array index object) (setq index (1+ index)))
+      (EL:FreshBoundary)
       (vla-CopyObjects database array
-        (if (equal kind "BLOCK") (vla-get-Blocks target) (vla-get-TextStyles target))))))
+        (if (equal kind "BLOCK") (vla-get-Blocks target) (vla-get-TextStyles target)))
+      (EL:FreshBoundary))))
 (defun EL:SystemImportWork (path blocks styles / application target block-objects style-objects)
   (setq application (vlax-get-acad-object) target (vla-get-ActiveDocument application)
     *EL:SystemLibraryDBX* (vla-GetInterfaceObject application
       (strcat "ObjectDBX.AxDbDocument." (itoa (atoi (getvar "ACADVER"))))))
-  (vlax-invoke-method *EL:SystemLibraryDBX* 'Open path)
+  (EL:PerfCall "SYSTEM_LIBRARY_OPEN" 'vlax-invoke-method (list *EL:SystemLibraryDBX* 'Open path))
+  ;; Recheck after opening the library; never replace definitions already present.
+  (setq blocks (EL:SystemMissingSymbols "BLOCK" blocks) styles (EL:SystemMissingSymbols "STYLE" styles))
   ;; Complete both source-table lookups before any target-table write.
   (setq block-objects (EL:SystemSourceObjects *EL:SystemLibraryDBX* "BLOCK" blocks)
     style-objects (EL:SystemSourceObjects *EL:SystemLibraryDBX* "STYLE" styles))
-  (EL:SystemCopySymbols *EL:SystemLibraryDBX* target "BLOCK" block-objects)
-  ;; A cloned block may already have brought in a requested text style.
-  (EL:SystemCopySymbols *EL:SystemLibraryDBX* target "STYLE"
-    (EL:SystemSourceObjects *EL:SystemLibraryDBX* "STYLE" (EL:SystemMissingSymbols "STYLE" styles)))
-  (and (not (EL:SystemMissingSymbols "BLOCK" blocks)) (not (EL:SystemMissingSymbols "STYLE" styles))))
-(defun EL:EnsureSystemBlocks (blocks styles / missing-blocks missing-styles path result *EL:SystemLibraryDBX*)
-  (setq missing-blocks (EL:SystemMissingSymbols "BLOCK" blocks)
+  (if (not *EL:SystemBlockNotice*)
+    (progn
+      (EL:PerfCall "SYSTEM_BLOCK_COPY" 'EL:SystemCopySymbols
+        (list *EL:SystemLibraryDBX* target "BLOCK" block-objects))
+      ;; A cloned block may already have brought in a requested text style.
+      (setq style-objects (EL:SystemSourceObjects *EL:SystemLibraryDBX* "STYLE"
+        (EL:SystemMissingSymbols "STYLE" styles)))
+      (if (not *EL:SystemBlockNotice*)
+        (EL:PerfCall "SYSTEM_STYLE_COPY" 'EL:SystemCopySymbols
+          (list *EL:SystemLibraryDBX* target "STYLE" style-objects)))
+      (and (not *EL:SystemBlockNotice*) (not (EL:SystemMissingSymbols "BLOCK" blocks))
+        (not (EL:SystemMissingSymbols "STYLE" styles))))))
+(defun EL:EnsureSystemBlocks (blocks styles / missing-blocks missing-styles path result pending *EL:SystemLibraryDBX*)
+  (setq *EL:SystemBlockNotice* nil missing-blocks (EL:SystemMissingSymbols "BLOCK" blocks)
     missing-styles (EL:SystemMissingSymbols "STYLE" styles))
   (cond
     ((not (or missing-blocks missing-styles)) T)
+    ((not (equal (EL:SystemBlockSource) 'library))
+      (EL:SystemBlockNotice (strcat "当前图纸缺少系统图定义："
+        (EL:SystemMissingText missing-blocks missing-styles)
+        "\n请选择从图库补入缺少图块并准备模板；当前输入保留。")))
     ((not (and (setq path (EL:SystemBlockLibraryPath)) (findfile path)))
-      (princ "\n缺少 templates/系统图块库.dwg，请重新解压完整交付包；当前输入保留。") nil)
+      (EL:SystemBlockNotice (strcat "缺少 templates/系统图块库.dwg，请重新解压完整交付包。"
+        (EL:SystemMissingText missing-blocks missing-styles) "\n当前输入保留。")))
     (T
       (vl-load-com)
-      (princ "\n正在从系统图块库.dwg 自动导入缺少的系统图块和文字样式。")
+      (princ "\n正在从系统图块库.dwg 导入缺少的系统图块和文字样式。")
+      (setq pending *EL:PerfPending*)
+      (EL:FreshBoundary)
       (setq result (vl-catch-all-apply 'EL:SystemImportWork (list path missing-blocks missing-styles)))
       (if *EL:SystemLibraryDBX* (vl-catch-all-apply 'vlax-release-object (list *EL:SystemLibraryDBX*)))
+      (EL:FreshBoundary)
+      (EL:PerfUnwind pending)
       (cond
         ((vl-catch-all-error-p result)
-          (princ (strcat "\n系统图块库自动导入失败：" (vl-catch-all-error-message result)
-            "；请检查图块图纸中的新块名和文字样式。当前输入保留。")) nil)
-        ((not result) (princ "\n系统图块库导入后未读到全部所需定义，已停止生成；当前输入保留。") nil)
-        (T (princ "\n所需系统图块和文字样式已导入，继续检查模板。") T)))))
+          (EL:SystemBlockNotice (strcat "系统图块库导入失败：" (vl-catch-all-error-message result)
+            (EL:SystemMissingText (EL:SystemMissingSymbols "BLOCK" blocks)
+              (EL:SystemMissingSymbols "STYLE" styles)) "\n当前输入保留。")))
+        ((not result)
+          (EL:SystemBlockNotice (strcat (if *EL:SystemBlockNotice* *EL:SystemBlockNotice*
+            "系统图块库导入后未读到全部所需定义，已停止生成。")
+            (EL:SystemMissingText (EL:SystemMissingSymbols "BLOCK" blocks)
+              (EL:SystemMissingSymbols "STYLE" styles)) "\n当前输入保留。")))
+        (T (setq *EL:SystemBlockNotice* nil)
+          (princ "\n所需系统图块和文字样式已导入，继续检查模板。") T)))))
 ;; Date: 2026-10-09. Standalone circuit/panel insertion with centered labels.
 (defun EL:CCKKLayer (name / row)
   (if (not (tblsearch "LAYER" name))

@@ -21,9 +21,10 @@
   (vl-some '(lambda (row) (if (equal e (nth 2 row)) row)) *EL:TemplateLiveProbes*))
 (defun EL:TemplateProbeSample (name / owner saved e)
   (setq owner (car (EL:TemplateScopeContext))
-    saved (vl-some '(lambda (row) (if (and (equal owner (car row)) (equal name (cadr row))) row)) *EL:TemplateLiveProbes*)
-    e (nth 2 saved))
-  (if (and owner saved (EL:FixedSampleValid name e) (equal (nth 3 saved) (cdr (assoc 2 (entget e))))) e))
+    saved (vl-some '(lambda (row) (if (and (equal owner (car row)) (equal name (cadr row))) row)) *EL:TemplateLiveProbes*))
+  ;; Date: 2026-10-21. Native NTH rejects NIL; an empty probe cache is a miss.
+  (if (and owner saved (setq e (nth 2 saved)) (EL:FixedSampleValid name e)
+      (equal (nth 3 saved) (cdr (assoc 2 (entget e))))) e))
 (defun EL:RememberFixedSample (name handle / owner e actual)
   (setq owner (car (EL:TemplateScopeContext)) e (if handle (handent handle)))
   (if (and owner (EL:FixedSampleValid name e) (not (EL:TemplateProbeEntity e)))
@@ -74,12 +75,12 @@
         (setq good nil *EL:TemplateNotice* (strcat "系统图块 " (EL:Get 'name definition) " 的动态属性“"
           (EL:Get 'property definition) "”缺少允许状态“" (EL:TemplateValueText (EL:Get 'value state)) "”。")))))) good)
 (defun EL:FixedRuntimeDefinitionValid (definition source / name saved sample e)
-  (setq name (EL:Get 'name definition) saved (assoc name *EL:TemplateDynamicMemo*)
-    sample (nth 3 saved))
+  (setq name (EL:Get 'name definition) saved (assoc name *EL:TemplateDynamicMemo*))
+  ;; Date: 2026-10-21. A first validation has no memo and must read the source.
   (if (and *EL:TemplateScopeEnabled* (EL:TemplateScopeContext) saved (equal (EL:TemplateScopeContext) (nth 1 saved))
       (equal source (nth 2 saved))
       (assoc (EL:Get 'property definition) (nth 4 saved))
-      sample (setq e (handent (car sample))) (EL:FixedSampleValid name e)
+      (setq sample (nth 3 saved)) (setq e (handent (car sample))) (EL:FixedSampleValid name e)
       (equal (cadr sample) (entget e)))
     (progn
       (EL:PerfCount "template-dynamic-reuses" 1)

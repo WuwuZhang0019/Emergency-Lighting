@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / 'tests/fixtures/commercial-contact-162.json'
 
 
-def fixture(legacy=False):
+def fixture(legacy=False, saved_names=False):
     f = ActualContactFixture(path=FIXTURE)
     f.h.load_definitions(ROOT / 'src/fixed.lsp')
     f.h.step_limit = 100_000_000
@@ -20,6 +20,10 @@ def fixture(legacy=False):
         'VLAX-PROPERTY-AVAILABLE-P': lambda *a: False,
         'VLA-GET-NAME': lambda e: f.dxf(e, 2)})
     defaults = f.call('EL:PresetDefault')
+    if saved_names:
+        defaults = f.put('device-layers', ['LITE_照明设备_E'], defaults)
+        defaults = f.put('device-names', ['$equip_U$00000309(Zhangyufeng)'], defaults)
+        defaults = f.call('EL:PresetUpgrade', defaults)
     for key in ('panel-layers', 'panel-names', 'wire-layers', 'device-layers'):
         f.cfg = f.put(key, f.get(key, defaults), f.cfg)
     catalog = parse((ROOT / 'assets/default-device-library/catalog.eld').read_text('utf-8'))[0]
@@ -49,7 +53,7 @@ class CommercialContactTests(unittest.TestCase):
         self.assertEqual([len(f.get('devices', c) or []) for c in f.get('circuits', result)], [0, 3, 0, 0])
 
     def test_current_scope_reaches_lamp_and_touching_stair_devices(self):
-        f = fixture()
+        f = fixture(saved_names=True)
         result = f.call('EL:RecognizeFixed', f.cfg, 'F072')
         ids = {h for c in f.get('circuits', result) for h in f.get('devices', c) or []}
         self.assertIn('1111D', ids)
@@ -57,9 +61,9 @@ class CommercialContactTests(unittest.TestCase):
         self.assertIn('77C9', ids)
         self.assertIn('784A', ids)
         circuits = f.get('circuits', result)
-        self.assertEqual([len(f.get('devices', c) or []) for c in circuits], [0, 3, 3, 16])
-        # Original R1 ends 330 mm below the nearest sign: never force a bridge.
-        self.assertFalse(f.get('devices', circuits[0]))
+        self.assertEqual([len(f.get('devices', c) or []) for c in circuits], [3, 3, 3, 16])
+        # 54C7 has negative OCS X and a negative normal; it is in the WCS subset.
+        self.assertIn('54C7', f.get('devices', circuits[0]))
 
 
 class ImportedGraphicsTests(unittest.TestCase):

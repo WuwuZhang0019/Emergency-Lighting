@@ -236,3 +236,7 @@ config/power-input-*.eld
 # Date: 2026-10-20. Requested full v0.1.64 package with standalone command.
 /output/应急照明-v0.1.64/
 /output/应急照明-v0.1.64.zip
+
+# Date: 2026-10-20. Pick retry and preset migration full test package.
+/output/应急照明-v0.1.65/
+/output/应急照明-v0.1.65.zip

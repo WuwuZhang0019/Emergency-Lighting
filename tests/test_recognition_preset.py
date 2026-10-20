@@ -31,12 +31,16 @@ class PresetTests(unittest.TestCase):
         self.assertEqual(self.get('device-layers', data), ['LITE_照明设备_E', 'LITE_应急照明_E'])
         self.assertFalse(truth(self.call('EL:PresetValid', self.call('EL:Put', Symbol('WIRE-LAYERS'), None, data))))
 
-    def test_only_exact_legacy_default_scope_gets_the_emergency_lighting_layer(self):
+    def test_legacy_default_layer_scope_upgrades_even_with_saved_device_names(self):
         default = self.call('EL:PresetDefault')
         old = self.call('EL:Put', Symbol('DEVICE-LAYERS'), ['LITE_照明设备_E'], default)
         self.assertEqual(self.call('EL:PresetUpgrade', old), default)
         custom = self.call('EL:Put', Symbol('DEVICE-NAMES'), ['EXPLICIT'], old)
-        self.assertEqual(self.call('EL:PresetUpgrade', custom), custom)
+        upgraded = self.call('EL:PresetUpgrade', custom)
+        self.assertEqual(self.get('device-names', upgraded), ['EXPLICIT'])
+        self.assertIn('LITE_应急照明_E', self.get('device-layers', upgraded))
+        custom_layer = self.call('EL:Put', Symbol('DEVICE-LAYERS'), ['USER_LAYER'], custom)
+        self.assertEqual(self.call('EL:PresetUpgrade', custom_layer), custom_layer)
         self.assertEqual(self.call('EL:PresetUpgrade', self.cfg), self.cfg)
         self.assertEqual(self.saved, [])
 

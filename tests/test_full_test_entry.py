@@ -29,12 +29,12 @@ class FullEntryTests(unittest.TestCase):
             calls.append('embedded')
             if error:
                 raise RuntimeError('runtime write denied')
-            return None if fail else 'C:/用户/运行目录/runtime-163/'
+            return None if fail else f'C:/用户/运行目录/runtime-{builder.PACKAGE_NO}/'
         h.builtins['EL:STARTUPEMBEDDEDROOT'] = embedded
         h.builtins['OPEN-PANEL'] = lambda: calls.append('panel')
-        startup = '''
+        startup = f'''
 (defun c:ELSTAT () (OPEN-PANEL))
-(setq *EL:MonitorLoadReady* (EL:StartupRoot "package-163.marker"))
+(setq *EL:MonitorLoadReady* (EL:StartupRoot "package-{builder.PACKAGE_NO}.marker"))
 '''
         raw = builder.full_test_entry(startup)
         h.run(raw.decode('gb2312'))
@@ -43,22 +43,22 @@ class FullEntryTests(unittest.TestCase):
     def test_load_only_registers_then_command_uses_embedded_fallback(self):
         h, calls = self.fixture()
         self.assertEqual(calls, [])
-        h.call(Symbol('C:ELFULL64'), [])
+        h.call(Symbol('C:' + builder.FULL_TEST_COMMAND), [])
         self.assertEqual(calls, ['embedded', 'panel'])
-        self.assertIn('runtime-163', h.lookup('*EL:ROOT*'))
+        self.assertIn(f'runtime-{builder.PACKAGE_NO}', h.lookup('*EL:ROOT*'))
 
     def test_failed_fallback_does_not_dispatch_stale_panel(self):
         for error in (False, True):
             h, calls = self.fixture(fail=True, error=error)
             h.set('*EL:MONITORLOADREADY*', True)
-            h.call(Symbol('C:ELFULL64'), [])
+            h.call(Symbol('C:' + builder.FULL_TEST_COMMAND), [])
             self.assertEqual(calls, ['embedded'])
             self.assertFalse(truth(h.lookup('*EL:MONITORLOADREADY*')))
 
     def test_command_reinstalls_own_business_code_after_another_package(self):
         h, calls = self.fixture()
         h.run('(defun c:ELSTAT () (GETFILED "old" "" "" 0))')
-        h.call(Symbol('C:ELFULL64'), [])
+        h.call(Symbol('C:' + builder.FULL_TEST_COMMAND), [])
         self.assertEqual(calls, ['embedded', 'panel'])
 
 

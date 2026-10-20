@@ -1,6 +1,6 @@
 {
   "date": "2026-10-20",
-  "status": "original DXF subset; body candidate extents from ezdxf; finite adapter only; native CAD pending",
+  "status": "original DXF subset; negative-normal INSERT 54C7 retained in OCS and transformed by native adapter; native runtime evidence in output (17).zip",
   "source_filename": "【电气】商业照明.dxf",
   "source_sha256": "528d67c6f2a9b129fd6c6af6af892f5728f48db2a168e49b7789da9c2837cd00",
   "native_entget": {
@@ -16081,6 +16081,80 @@
         100,
         "AcDbBlockEnd"
       ]
+    ],
+    "54C7": [
+      [
+        0,
+        "INSERT"
+      ],
+      [
+        5,
+        "54C7"
+      ],
+      [
+        330,
+        "2"
+      ],
+      [
+        100,
+        "AcDbEntity"
+      ],
+      [
+        8,
+        "LITE_照明设备_E"
+      ],
+      [
+        100,
+        "AcDbBlockReference"
+      ],
+      [
+        66,
+        1
+      ],
+      [
+        2,
+        "$equip_U$00000601(zhangyuf)"
+      ],
+      [
+        10,
+        [
+          -211080.4573380681,
+          172841.9654265565,
+          0.0
+        ]
+      ],
+      [
+        41,
+        500.0
+      ],
+      [
+        42,
+        500.0
+      ],
+      [
+        43,
+        500.0
+      ],
+      [
+        210,
+        [
+          0.0,
+          0.0,
+          -1.0
+        ]
+      ],
+      [
+        1001,
+        "light"
+      ],
+      [
+        1000,
+        "T"
+      ],
+      [
+        410,
+        "Model"
+      ]
     ]
   },
   "blocks": {
@@ -17309,7 +17383,8 @@
     "1346D",
     "1346E",
     "1346F",
-    "23867"
+    "23867",
+    "54C7"
   ],
   "bounds": {
     "54CB": [
@@ -18521,6 +18596,18 @@
       [
         215405.6132817868,
         177200.2890912213,
+        0.0
+      ]
+    ],
+    "54C7": [
+      [
+        210710.45733808208,
+        172841.96158040265,
+        0.0
+      ],
+      [
+        211450.45733808324,
+        173258.8885034802,
         0.0
       ]
     ]

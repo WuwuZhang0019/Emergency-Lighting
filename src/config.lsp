@@ -204,8 +204,19 @@
     (vl-catch-all-apply 'redraw (list entity 4)))
   (setq *EL:PickHighlights* nil)
   (princ))
+(defun EL:PickEntityInput (prompt / pick done)
+  ;; Date: 2026-10-20. ENTSEL nil + ERRNO 7 means a miss, not Enter.
+  ;; Reset before every attempt: Enter must not inherit the previous miss.
+  ;; Esc propagates to the existing cancellation handler.
+  (while (not done)
+    (setvar "ERRNO" 0)
+    (setq pick (entsel prompt))
+    (if (and (not pick) (= (getvar "ERRNO") 7))
+      (princ "\n未选中对象，请继续点选；按 Enter 才完成，Esc 取消。")
+      (setq done T)))
+  pick)
 (defun EL:PickEntity (prompt / pick data)
-  (if (setq pick (EL:PerfInput 'entsel (list prompt)))
+  (if (setq pick (EL:PerfInput 'EL:PickEntityInput (list prompt)))
     (progn
       (EL:HighlightPick (car pick))
       (setq data (entget (car pick)))
@@ -448,12 +459,12 @@
     '(panel-names "$equip_U$00000398(Zhangyufeng)")
     '(wire-layers "LITE_应急照明布线_E") '(device-layers "LITE_照明设备_E" "LITE_应急照明_E") '(device-names)))
 (defun EL:PresetUpgrade (data / defaults)
-  ;; Date: 2026-10-20. Upgrade only the exact old shipped preset in memory.
-  ;; Custom scopes and names stay explicit; loading never rewrites a preset.
+  ;; Date: 2026-10-20. Upgrade the old shipped layer/panel scope in memory.
+  ;; Saved device names are independent of layer scope and remain unchanged.
   (setq defaults (EL:PresetDefault))
   (if (and (equal (EL:Get 'device-layers data) '("LITE_照明设备_E"))
       (vl-every '(lambda (key) (equal (EL:Get key data) (EL:Get key defaults)))
-        '(schema panel-layers panel-names wire-layers device-names)))
+        '(schema panel-layers panel-names wire-layers)))
     (EL:Put 'device-layers (EL:Get 'device-layers defaults) data) data))
 (defun EL:PresetValid (data / good key)
   (setq good (and (EL:OnlyKeys data '(schema panel-layers panel-names wire-layers device-layers device-names))

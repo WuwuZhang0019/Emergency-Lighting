@@ -1,4 +1,4 @@
-"""Explicit circuit start selection and search boundaries. Date: 2026-10-13.
+"""Explicit circuit start selection and search boundaries. Date: 2026-10-20.
 
 Finite CAD adapters only; original DWG acceptance remains pending.
 """
@@ -128,6 +128,47 @@ class CircuitStartTests(unittest.TestCase):
     def picks(self, values):
         sequence = iter(values)
         self.h.builtins['EL:PICKMODEL'] = lambda *a: next(sequence)
+
+    def native_picks(self, values):
+        self.h.builtins.pop('EL:PICKMODEL', None)
+        sequence = iter(values)
+        error = [7]  # A stale native error must not turn Enter into another miss.
+        previous = self.h.builtins['GETVAR']
+        self.h.builtins['GETVAR'] = lambda key: error[0] if key == 'ERRNO' else previous(key)
+        self.h.builtins['SETVAR'] = lambda key, value: error.__setitem__(0, value)
+        def select(prompt):
+            value = next(sequence)
+            if value == 'miss':
+                error[0] = 7
+                return None
+            if value == 'escape':
+                raise RuntimeError('Function cancelled')
+            return value
+        self.h.builtins['ENTSEL'] = select
+
+    def test_blank_click_between_wire_picks_does_not_finish_selection(self):
+        self.native_picks([['w1', [1., 0., 0.]], 'miss', 'miss',
+                           ['w1', [9., 0., 0.]], None])
+        cfg = self.call('EL:PickCircuitStarts', self.cfg)
+        rows = self.get('circuit-starts', cfg)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(self.get('end', rows[0]), Symbol('END'))
+        self.assertEqual(self.opened, [])
+
+    def test_enter_after_miss_finishes_with_existing_selection(self):
+        self.native_picks([['w1', [1., 0., 0.]], 'miss', None])
+        cfg = self.call('EL:PickCircuitStarts', self.cfg)
+        self.assertEqual(len(self.get('circuit-starts', cfg)), 1)
+        self.native_picks([None])
+        self.assertIsNone(self.call('EL:PickCircuitStarts', self.cfg))
+
+    def test_escape_after_miss_never_starts_recognition(self):
+        self.call('EL:RememberStartPanel', 'panel', '箱三')
+        self.native_picks([['w1', [1., 0., 0.]], 'miss', 'escape'])
+        self.call('EL:FixedStartPick')
+        self.assertEqual(self.opened, [])
+        self.assertEqual(self.writes, [])
+        self.assertEqual(self.get('number', self.call('EL:StartPickContext')), '箱三')
 
     def test_actual_panel_number_then_continuous_starts_reaches_editor(self):
         self.trunk()

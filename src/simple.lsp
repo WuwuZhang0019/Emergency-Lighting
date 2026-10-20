@@ -235,6 +235,9 @@
     *EL:CollectBlockNames*)
   ;; Date: 2026-10-10. Filter wires by inferred style; only the selected panel
   ;; uses its contour. Device geometry is checked lazily during network tracing.
+  ;; Date: 2026-10-20. Retain the actual pre-filter scope in diagnostic exports.
+  (EL:LogEvent "RECOGNITION_SCOPE" (mapcar '(lambda (key) (cons key (EL:Get key cfg)))
+    '(preset-scoped panel-layers panel-names wire-layers device-layers device-names)))
   (setq ss (EL:PresetSelection cfg "INSERT,LINE,LWPOLYLINE" '(wire-layers panel-layers device-layers)) i 0)
   (EL:PerfCount "source-collect-calls" 1)
   (EL:PerfCount "source-selection-entities" (if ss (sslength ss) 0))

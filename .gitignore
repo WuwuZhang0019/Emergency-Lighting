@@ -232,3 +232,7 @@ config/power-input-*.eld
 # Date: 2026-10-20. Local DXF extraction dependencies, not runtime deliverables.
 /output/dxf-runtime/
 /output/check-v0.1.63/
+
+# Date: 2026-10-20. Requested full v0.1.64 package with standalone command.
+/output/应急照明-v0.1.64/
+/output/应急照明-v0.1.64.zip

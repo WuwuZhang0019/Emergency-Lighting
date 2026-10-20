@@ -6,8 +6,9 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 # Date: 2026-10-20. Source fixes only; no delivery is generated automatically.
-VERSION = '0.1.63'
-PACKAGE_NO = 162
+VERSION = '0.1.64'
+PACKAGE_NO = 163
+FULL_TEST_COMMAND = 'ELFULL64'
 NAME = f'应急照明-v{VERSION}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 OUTPUT_ROOT = ROOT / 'output'
@@ -73,6 +74,17 @@ def diagnostic_script_definition():
     script = (ROOT / 'src/diagnostic-bundle.ps1').read_text(encoding='utf-8')
     chunks = '\n'.join(lisp_string(script[i:i + 192]) for i in range(0, len(script), 192))
     return '(defun EL:DiagnosticScriptText () (EL:MonitorJoin \'(\n' + chunks + '\n)))\n'
+
+
+def full_test_entry(startup):
+    """Date: 2026-10-20. Register only; command owns the complete fallback payload."""
+    template = (ROOT / 'tools/templates/full-test.lsp').read_text(encoding='utf-8')
+    for key, value in {
+        '@COMMAND@': FULL_TEST_COMMAND, '@VERSION@': VERSION,
+        '@MARKER@': f'package-{PACKAGE_NO:03d}.marker', '@STARTUP@': startup,
+    }.items():
+        template = template.replace(key, value)
+    return template.encode('gb2312', errors='strict')
 
 
 def cad2020_bytes(source):
@@ -160,6 +172,7 @@ def build():
                               '请根据上方具体错误修复后重新加载启动文件。')
     (DEST / 'START-CAD2020.lsp').write_bytes(startup.encode('gb2312', errors='strict'))
     (DEST / 'src/load.lsp').write_bytes(startup.encode('gb2312', errors='strict'))
+    (DEST / f'{FULL_TEST_COMMAND}.lsp').write_bytes(full_test_entry(startup))
     guide = (ROOT / 'docs/03_加载使用与验收说明.md').read_text(encoding='utf-8')
     guide = guide.replace('状态：源码及自动检查已交付，CAD 实测待执行。', f'状态：AutoCAD 2020 兼容试用包 v{VERSION}，真实 CAD 验收待完成。')
     guide = guide.replace('目标为 Windows AutoCAD 2021+，`LISPSYS=1` 或 `2`（修改后需重启）', '本包供简体中文 Windows AutoCAD 2020 试用，LISP/DCL 已转换为 GB2312，无需设置 LISPSYS')

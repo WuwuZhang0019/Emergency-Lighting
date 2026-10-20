@@ -168,15 +168,14 @@ el_panel_editor : boxed_column { label = "设备库"; fixed_height = true; align
     }
   }
 
-// Date: 2026-10-16. A text receiver keeps the cancel action without a native button frame.
-// AutoCAD still renders a minimum frame for a button with a tiny requested size.
-el_panel_escape : text {
-  key = "cancel"; label = ""; is_cancel = true; is_tab_stop = false;
-  width = 0.01; height = 0.01; fixed_width = true; fixed_height = true;
+// Date: 2026-10-20. Native Esc/X dispatch requires a button, not a text tile.
+el_panel_escape : button {
+  key = "cancel"; label = "关闭"; is_cancel = true; is_tab_stop = true;
+  width = 8; fixed_width = true; fixed_height = true;
 }
-el_panel_diagnostics : row { fixed_width = true; fixed_height = true; alignment = top;
+el_panel_diagnostics : column { fixed_width = true; fixed_height = true; alignment = top;
     : button { key = "p_diagnostic"; label = "导出诊断日志并打开文件夹"; width = 46; fixed_width = true; }
-    el_panel_escape;
+    : row { alignment = right; spacer; el_panel_escape; }
   }
 
 el_panel_paths : column {

@@ -1,4 +1,4 @@
-"""CADTools runtime manifest and optional delivery writer. Date: 2026-10-16."""
+"""CADTools runtime manifest and optional delivery writer. Date: 2026-10-20."""
 from pathlib import Path
 import re
 import zipfile
@@ -51,12 +51,23 @@ def runtime_files():
     files[marker] = f'Emergency-Lighting {version()} package-{full.PACKAGE_NO:03d}\n'.encode('ascii')
     # Startup and batch numbering are retained, including every public command.
     modules = (*full.MODULES, 'batch-number')
+    # One trusted entry, like the full edition: no per-module LOAD/security dialogs.
+    # Keep module files for diagnostics; embed exactly the same converted bytes.
+    module_code = []
+    for module in modules:
+        text = files[f'src/{module}.lsp'].decode('gb2312')
+        if module == 'common':
+            module_code.append(text + '\n(EL:MonitorLoadBegin *EL:BootstrapTick*)\n')
+        else:
+            module_code.append(
+                f'(setq *EL:MonitorLabel* "{module}.lsp" token (EL:PerfBegin "LOAD_MODULE"))\n'
+                + text + "\n(EL:PerfEnd token 'returned) (setq *EL:MonitorLabel* nil)\n")
     loader = (full.ROOT / 'tools/templates/cadtools-lite-load.lsp').read_text(encoding='utf-8')
     for key, value in {
         '@VERSION@': version(),
         '@MARKER@': marker,
-        '@MODULES@': ' '.join(full.lisp_string(module) for module in modules),
         '@FILES@': '\n    '.join(full.lisp_string(name) for name in sorted((*files, 'src/load.lsp'))),
+        '@MODULE_CODE@': '\n'.join(module_code),
     }.items():
         loader = loader.replace(key, value)
     files['src/load.lsp'] = loader.encode('gb2312', errors='strict')

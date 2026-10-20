@@ -1,4 +1,4 @@
-"""Date: 2026-10-16. In-memory runtime/loader checks; no delivery or native CAD."""
+"""Date: 2026-10-20. In-memory runtime/loader checks; no delivery or native CAD."""
 from pathlib import Path
 import posixpath
 import sys
@@ -25,7 +25,7 @@ class LiteTests(unittest.TestCase):
 
     def test_runtime_manifest_encoding_and_resource_fidelity(self):
         self.assertLess(len(self.files), 145)
-        self.assertLess(sum(map(len, self.files.values())), 3 * 1024 * 1024)
+        self.assertLess(sum(map(len, self.files.values())), 5 * 1024 * 1024)
         self.assertEqual([p for p in self.files if p.endswith('.md')], ['使用说明.md'])
         self.assertFalse(any(p.startswith(('tests/', 'docs/', 'config/', 'output/')) for p in self.files))
         for absent in ('START-CAD2020.lsp', full.UPDATE_NAME, 'CCKK.lsp', 'src/diagnostic-bundle.ps1'):
@@ -46,6 +46,10 @@ class LiteTests(unittest.TestCase):
                                        for p in (ROOT / 'src').glob('*.lsp')))
         lite_commands = set().union(*(commands(data.decode('gb2312'))
                                      for name, data in self.files.items() if name.endswith('.lsp')))
+        # ELROOT belongs to the guarded loader body, evaluated only after validation.
+        h, *_ = self.fixture()
+        self.assertTrue(truth(h.run('(EL:LiteLoad)')))
+        self.assertTrue(source_commands.issubset(h.functions))
         self.assertEqual(source_commands, lite_commands)
 
     def test_version_tracks_full_and_diagnostics_remain_embedded(self):
@@ -70,10 +74,13 @@ class LiteTests(unittest.TestCase):
         install_dirs = {posixpath.dirname(path) for path in virtual}
         env = {'LOCALAPPDATA': '/Users/test'}
         def load(path):
-            loaded.append(path)
-            for form in definitions(virtual[posixpath.normpath(path)].decode('gb2312')):
-                h.evaluate(form)
-            return True
+            self.fail(f'entry must not LOAD another executable: {path}')
+        def begin(tick):
+            loaded.append('common')
+        def perf_begin(label):
+            if label == 'LOAD_MODULE':
+                loaded.append(h.lookup('*EL:MONITORLABEL*').removesuffix('.lsp'))
+            return 1
         def mkdir(path):
             self.assertTrue(path.startswith('/Users/test/'))
             dirs.add(path.rstrip('/'))
@@ -92,9 +99,9 @@ class LiteTests(unittest.TestCase):
             'VL-REGISTRY-READ': lambda key, name: root + 'src/load.lsp' if name == 'MainDialog' else None,
             'LOAD': load,
             'PRINC': lambda *args: messages.extend(args),
-            'EL:MONITORLOADBEGIN': lambda *args: None,
+            'EL:MONITORLOADBEGIN': begin,
             'EL:MONITORLOADEND': lambda *args: None,
-            'EL:PERFBEGIN': lambda *args: 1,
+            'EL:PERFBEGIN': perf_begin,
             'EL:PERFEND': lambda *args: None,
             'EL:PERFCALL': lambda label, fn, args: h.call(fn, args or []),
             'EL:DLDEFAULTSTARTUP': lambda: True,
@@ -110,7 +117,8 @@ class LiteTests(unittest.TestCase):
     def test_loader_order_readonly_install_and_persistent_data_paths(self):
         h, root, virtual, dirs, loaded, messages, env = self.fixture()
         self.assertTrue(truth(h.run('(EL:LiteLoad)')))
-        self.assertEqual(loaded, [root + f'src/{m}.lsp' for m in (*full.MODULES, 'batch-number')])
+        self.assertEqual(loaded, [*full.MODULES, 'batch-number'])
+        self.assertTrue(h.lookup('*EL:SPLITSTORAGELOADED*'))
         data_root = '/Users/test/Emergency-Lighting/CADTools/'
         self.assertEqual(h.lookup('*EL:LITEDATAROOT*'), data_root)
         self.assertTrue(truth(h.run('(EL:RootValid *EL:Root*)')))
@@ -156,13 +164,43 @@ class LiteTests(unittest.TestCase):
         self.assertEqual(loaded, [])
         self.assertIn('LOCALAPPDATA', ''.join(messages))
         env['LOCALAPPDATA'] = '/Users/test'
-        def fail(path):
-            raise RuntimeError('load denied')
-        h.builtins['LOAD'] = fail
+        def fail():
+            raise RuntimeError('module initialization failed')
+        h.builtins['EL:LITEDEFINEMODULES'] = fail
         self.assertFalse(truth(h.run('(EL:LiteLoad)')))
         self.assertIsNone(h.lookup('*EL:ROOT*'))
         self.assertFalse(truth(h.lookup('*EL:MONITORLOADREADY*')))
-        self.assertIn('load denied', ''.join(messages))
+        self.assertIn('module initialization failed', ''.join(messages))
+
+    def test_embedded_modules_keep_exact_shared_text_and_have_no_nested_load(self):
+        loader = self.files['src/load.lsp'].decode('gb2312')
+        def calls(form):
+            if isinstance(form, list):
+                if form and form[0] == 'LOAD':
+                    yield form
+                for part in form:
+                    yield from calls(part)
+        self.assertEqual(list(calls(parse(loader))), [])
+        last = -1
+        for module in (*full.MODULES, 'batch-number'):
+            text = self.files[f'src/{module}.lsp'].decode('gb2312')
+            position = loader.index(text)
+            self.assertGreater(position, last)
+            last = position
+
+    def test_lite_entry_replays_original_touching_device_and_downstream_wire_chain(self):
+        from actual_contact_fixture import ActualContactFixture
+        h, *_ = self.fixture()
+        self.assertTrue(truth(h.run('(EL:LiteLoad)')))
+        f = ActualContactFixture(host=h)
+        network = f.build_case('tiny_device_chain')
+        self.assertEqual({f.get('id', b) for b in f.get('devices', network)},
+                         {'F099', '84B8', '8267'})
+        self.assertEqual(set(f.get('wire-ids', network)), {'F097', 'F159', 'F15A'})
+        result = f.split(network)
+        self.assertTrue(truth(f.get('complete', result)))
+        self.assertEqual(set(f.get('devices', f.get('circuits', result)[0])),
+                         {'F099', '84B8', '8267'})
 
 
 if __name__ == '__main__':

@@ -1,13 +1,13 @@
-"""Build the AutoCAD 2020 trial package. Date: 2026-10-16."""
+"""Build the AutoCAD 2020 trial package. Date: 2026-10-20."""
 from pathlib import Path
 import base64
 import shutil
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-# Date: 2026-10-16. Software version; PACKAGE_NO is an internal compatibility identifier.
-VERSION = '0.1.61'
-PACKAGE_NO = 160
+# Date: 2026-10-20. Source fixes only; no delivery is generated automatically.
+VERSION = '0.1.62'
+PACKAGE_NO = 161
 NAME = f'应急照明-v{VERSION}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 OUTPUT_ROOT = ROOT / 'output'

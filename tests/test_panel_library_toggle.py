@@ -1,4 +1,4 @@
-"""Expandable panel with strict finite DCL tiles and real catalogs. Date: 2026-10-16.
+"""Expandable panel with strict finite DCL tiles and real catalogs. Date: 2026-10-20.
 
 Native AutoCAD sizing, focus and screen placement still need manual acceptance.
 """
@@ -121,7 +121,8 @@ class PanelLibraryToggleTests(unittest.TestCase):
     def dispatch_cancel_receiver(self, f, callbacks):
         # Model native dispatch through the declared receiver, never invent a missing callback.
         tiles = panel_tiles(f.dialogs[-1])
-        receivers = [key for key, attributes in tiles.items() if attributes.get('is_cancel') == 'true']
+        receivers = [key for key, attributes in tiles.items()
+                     if attributes.get('is_cancel') == 'true' and attributes['tile_type'] == 'button']
         self.assertEqual(receivers, ['cancel'])
         self.assertIn(receivers[0], callbacks)
         return self.invoke(f, callbacks, receivers[0])
@@ -139,11 +140,9 @@ class PanelLibraryToggleTests(unittest.TestCase):
                     'p_diagnostic_action', 'p_error'):
             self.assertNotIn(key, expanded)
         self.assertEqual(compact['cancel']['is_cancel'], 'true')
-        self.assertEqual(compact['cancel']['is_tab_stop'], 'false')
-        self.assertEqual(compact['cancel']['label'], '')
-        self.assertEqual(compact['cancel']['tile_type'], 'text')
-        self.assertLessEqual(float(compact['cancel']['width']), 0.01)
-        self.assertLessEqual(float(compact['cancel']['height']), 0.01)
+        self.assertEqual(compact['cancel']['is_tab_stop'], 'true')
+        self.assertEqual(compact['cancel']['label'], '关闭')
+        self.assertEqual(compact['cancel']['tile_type'], 'button')
         for layout in (compact, expanded):
             blank_buttons = [key for key, attrs in layout.items()
                              if attrs['tile_type'] == 'button' and not attrs.get('label', '').strip()]

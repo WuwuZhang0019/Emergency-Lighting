@@ -1,4 +1,4 @@
-;; Date: 2026-10-16. UTF-8 source template; build emits strict GB2312.
+;; Date: 2026-10-20. UTF-8 source template; build emits strict GB2312.
 ;; CADTools sets *EL:CADToolsRoot* to this module's installation directory.
 (setq *EL:BootstrapTick* (getvar "MILLISECS"))
 (vl-load-com)
@@ -47,21 +47,17 @@
     (if (setq root (EL:LiteCandidate path))
       (progn (setq *EL:CADToolsRoot* root) (EL:LiteLoad))
       (princ "\n所选目录不是当前精简版的完整运行目录，原目录保持不变。"))))
-(defun EL:LiteLoadWork (/ root module token)
+(defun EL:LiteDefineModules (/ token)
+  @MODULE_CODE@
+  T)
+(defun EL:LiteLoadWork (/ root)
   (setq root (EL:LiteFindRoot))
   (cond
     ((not root) (setq *EL:StartupError* "精简版运行文件不完整或目录未指定，请检查 CADTools 安装目录。") nil)
     ((not (EL:LiteInitData)) (setq *EL:StartupError* "无法建立当前用户数据目录，请检查 LOCALAPPDATA。") nil)
     (T
       (setq *EL:Root* root)
-      (foreach module '(@MODULES@)
-        (if (equal module "common")
-          (progn (load (strcat root "src/common.lsp"))
-            (EL:MonitorLoadBegin *EL:BootstrapTick*))
-          (progn
-            (setq *EL:MonitorLabel* (strcat module ".lsp") token (EL:PerfBegin "LOAD_MODULE"))
-            (load (strcat root "src/" module ".lsp"))
-            (EL:PerfEnd token 'returned) (setq *EL:MonitorLabel* nil))))
+      (EL:LiteDefineModules)
       (defun c:ELROOT () (EL:LiteRelocate) (princ))
       (EL:ClearPickHighlights)
       (setq *EL:Result* nil *EL:DeviceResult* nil)

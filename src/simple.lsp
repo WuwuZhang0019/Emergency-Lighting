@@ -197,6 +197,41 @@
   (vl-remove-if '(lambda (row) (equal (car row) 'template)) cfg))
 (defun EL:CollectLayerFacts (cfg)
   (mapcar '(lambda (layer) (list layer (tblsearch "LAYER" layer))) (EL:Get 'wire-layers cfg)))
+(defun EL:CandidateIndexPut (code child branches)
+  ;; Compare only the bounded character keys, never whole growing subtrees.
+  (cond ((not branches) (list (cons code child)))
+    ((= code (car (car branches))) (cons (cons code child) (cdr branches)))
+    (T (cons (car branches) (EL:CandidateIndexPut code child (cdr branches))))))
+(defun EL:CandidateIndexInsert (codes node / branch child)
+  ;; Date: 2026-10-21. A trie retains every character and a separate terminal
+  ;; bit: handles sharing a prefix cannot collide. Native DXF handles have at
+  ;; most sixteen different character branches; no COM dictionary or intern.
+  (if codes
+    (progn
+      (setq *EL:CandidateIndexSteps* (1+ *EL:CandidateIndexSteps*)
+        branch (assoc (car codes) (cdr node))
+        child (EL:CandidateIndexInsert (cdr codes) (cdr branch)))
+      (if *EL:CandidateIndexNew*
+        (cons (car node) (EL:CandidateIndexPut (car codes) child (cdr node))) node))
+    (if (car node) node
+      (progn (setq *EL:CandidateIndexNew* T) (cons T (cdr node))))))
+(defun EL:CandidateIndexAdd (id / *EL:CandidateIndexNew*)
+  ;; Date: 2026-10-21. The caller owns the dynamic index for one collection.
+  ;; Keep exact equality for malformed/non-string adapter keys as well; native
+  ;; entity handles always use the bounded-character string path above.
+  (setq *EL:CandidateIndexLookups* (1+ *EL:CandidateIndexLookups*))
+  (if (equal (type id) 'STR)
+    (setq *EL:CandidateIndex* (EL:CandidateIndexInsert (vl-string->list id) *EL:CandidateIndex*))
+    (if (not (member id *EL:CandidateIndexOther*))
+      (setq *EL:CandidateIndexOther* (cons id *EL:CandidateIndexOther*) *EL:CandidateIndexNew* T)))
+  (if (not *EL:CandidateIndexNew*)
+    (setq *EL:CandidateIndexDuplicates* (1+ *EL:CandidateIndexDuplicates*))) *EL:CandidateIndexNew*)
+(defun EL:CandidateIndexMetrics ()
+  ;; Date: 2026-10-21. Flush aggregate work once per batch, without per-ID logs.
+  (EL:PerfCount "source-candidate-index-lookups" *EL:CandidateIndexLookups*)
+  (EL:PerfCount "source-candidate-index-steps" *EL:CandidateIndexSteps*)
+  (EL:PerfCount "source-candidate-index-duplicates" *EL:CandidateIndexDuplicates*)
+  (setq *EL:CandidateIndexLookups* 0 *EL:CandidateIndexSteps* 0 *EL:CandidateIndexDuplicates* 0))
 (defun EL:CollectSourceCurrent (cfg result / memo ss i e d facts fact good name saved *EL:CollectBlockNames*)
   ;; Date: 2026-10-15. Re-read the entire native selection, bounds, names and
   ;; panel contour. Equality skips derived wire/candidate calculations only.
@@ -231,14 +266,16 @@
         (setq good (equal (EL:Get 'panel-shape memo)
           (EL:PanelContactShape (handent (EL:Get 'auto-panel cfg)) cfg))))
       (if good (progn (EL:PerfCount "source-derived-reuses" 1) (EL:Get 'input memo))))))
-(defun EL:SimpleCollect (cfg / ss i e d bounds items tree wires ends blocks candidates wire candidate id issues block queue current shape perf name facts snapshot
-    *EL:CollectBlockNames*)
+(defun EL:SimpleCollect (cfg / ss i e d bounds items tree wires ends blocks wire candidate id issues block queue current shape perf candidateperf name facts snapshot
+    *EL:CollectBlockNames* *EL:CandidateIndex* *EL:CandidateIndexOther*
+    *EL:CandidateIndexLookups* *EL:CandidateIndexSteps* *EL:CandidateIndexDuplicates*)
   ;; Date: 2026-10-10. Filter wires by inferred style; only the selected panel
   ;; uses its contour. Device geometry is checked lazily during network tracing.
   ;; Date: 2026-10-20. Retain the actual pre-filter scope in diagnostic exports.
   (EL:LogEvent "RECOGNITION_SCOPE" (mapcar '(lambda (key) (cons key (EL:Get key cfg)))
     '(preset-scoped panel-layers panel-names wire-layers device-layers device-names)))
-  (setq ss (EL:PresetSelection cfg "INSERT,LINE,LWPOLYLINE" '(wire-layers panel-layers device-layers)) i 0)
+  (setq ss (EL:PresetSelection cfg "INSERT,LINE,LWPOLYLINE" '(wire-layers panel-layers device-layers)) i 0
+    *EL:CandidateIndexLookups* 0 *EL:CandidateIndexSteps* 0 *EL:CandidateIndexDuplicates* 0)
   (EL:PerfCount "source-collect-calls" 1)
   (EL:PerfCount "source-selection-entities" (if ss (sslength ss) 0))
   (setq perf (EL:PerfBegin "COLLECT_ENTITY_READ"))
@@ -267,32 +304,40 @@
       (if (not (cdr (assoc "EL_FIXED_V1" (cdr (assoc -3 d)))))
         (setq facts (cons (list d bounds) facts)))))
   (EL:PerfEnd perf 'returned)
-  (setq perf (EL:PerfBegin "COLLECT_CANDIDATES") tree (EL:SpatialTree items 0))
+  (setq perf (EL:PerfBegin "COLLECT_CANDIDATES") candidateperf (EL:PerfBegin "COLLECT_SPATIAL_TREE")
+    tree (EL:SpatialTree items 0))
+  (EL:PerfEnd candidateperf 'returned)
+  ;; The batch includes the unchanged wire box/ray queries and block records,
+  ;; rather than timing/logging every individual membership operation.
+  (setq candidateperf (EL:PerfBegin "COLLECT_CANDIDATE_DEDUP"))
   (foreach wire wires
     (foreach candidate (EL:SimpleBlockCandidates wire tree cfg)
-      (if (not (member (EL:Get 'key candidate) candidates))
+      (if (EL:CandidateIndexAdd (EL:Get 'key candidate))
         (progn
           (setq id (EL:Get 'key candidate) *EL:SimpleEntity* (list id 'block-name)
-                candidates (cons id candidates)
                 block (list (cons 'entity (EL:Get 'entity candidate)) (cons 'id id)
                   (cons 'name (cond ((EL:Get 'name candidate))
                     (T (EL:CollectBlockName (EL:Get 'entity candidate) (EL:Get 'definition-name candidate)))))
                   (cons 'layer (EL:Get 'layer candidate)) (cons 'bounds (EL:Get 'bounds candidate)) (cons 'whole-block T)))
           (setq blocks (cons block blocks))))))
+  (EL:CandidateIndexMetrics)
+  (EL:PerfEnd candidateperf 'returned)
   ;; Date: 2026-10-10. Expand the candidate set along touching device chains.
-  (setq queue blocks)
+  (setq queue blocks candidateperf (EL:PerfBegin "COLLECT_DEVICE_EXPAND"))
   (while queue
     (setq current (car queue) queue (cdr queue))
     (foreach candidate (EL:SpatialBoxQuery tree (EL:Get 'bounds current) (EL:DeviceContactTolerance cfg))
       (setq id (EL:Get 'key candidate))
-      (if (not (member id candidates))
+      (if (EL:CandidateIndexAdd id)
         (progn
-          (setq candidates (cons id candidates) *EL:SimpleEntity* (list id 'block-name)
+          (setq *EL:SimpleEntity* (list id 'block-name)
                 block (list (cons 'entity (EL:Get 'entity candidate)) (cons 'id id)
                   (cons 'name (cond ((EL:Get 'name candidate))
                     (T (EL:CollectBlockName (EL:Get 'entity candidate) (EL:Get 'definition-name candidate)))))
                   (cons 'layer (EL:Get 'layer candidate)) (cons 'bounds (EL:Get 'bounds candidate)) (cons 'whole-block T))
                 blocks (cons block blocks) queue (cons block queue))))))
+  (EL:CandidateIndexMetrics)
+  (EL:PerfEnd candidateperf 'returned)
   (EL:PerfEnd perf 'returned)
   (if (EL:Get 'auto-panel cfg)
     (progn

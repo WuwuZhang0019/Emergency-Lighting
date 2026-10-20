@@ -157,6 +157,7 @@
           "store-read-cache-hits" "store-read-cache-misses"
           "source-collect-calls" "source-selection-entities" "source-block-bounds-reads"
           "source-native-entity-checks" "source-native-bounds-checks" "source-derived-reuses"
+          "source-candidate-index-lookups" "source-candidate-index-steps" "source-candidate-index-duplicates"
           "source-wire-record-reads" "device-contour-reads" "device-template-reuses"
           ;; Date: 2026-10-21. Definitions, complete poses and numeric fallbacks differ.
           "device-definition-reuses" "device-pose-builds" "device-pose-reuses" "device-pose-fallbacks"
@@ -242,7 +243,8 @@
         "STORE_COMPACT" "STORE_PACK_INTS" "STORE_NATIVE_ENCODE" "STORE_NATIVE_DECODE" "STORE_EXPAND"
         "STORE_UNPACK_INTS" "STORE_VALUE_DECODE"
         "DIAGRAM_VIEW" "DIAGNOSTIC_EXPORT" "DEVICE_LIBRARY_LOAD" "DEVICE_LEGEND"
-        "SYSTEM_LIBRARY_OPEN" "SYSTEM_BLOCK_COPY" "SYSTEM_STYLE_COPY" "TEMPLATE_CAPTURE"))
+        "SYSTEM_LIBRARY_OPEN" "SYSTEM_BLOCK_COPY" "SYSTEM_STYLE_COPY" "TEMPLATE_CAPTURE"
+        "COLLECT_SPATIAL_TREE" "COLLECT_CANDIDATE_DEDUP" "COLLECT_DEVICE_EXPAND"))
       (and *EL:PerfDetail* (member stage
         '("STORE_SCHEMA" "STORE_REPLACE_PAYLOAD" "CCKK2_INSERT_BLOCK" "CCKK_POWER_TEXT"
           "TAG_ENTITY" "UNDO_BEGIN" "UNDO_END" "COMPARE_SOURCE" "SNAPSHOT_SIGNATURE" "CIRCUIT_TRACE")))))
@@ -549,6 +551,9 @@
       ("RECOGNIZE_FIXED" . "识别配电箱回路") ("RECOGNIZE_TRUNK" . "识别集中引出线")
       ("RECOGNIZE_FIXED_RUN" . "执行整箱识别") ("SIMPLE_COLLECT" . "收集图纸候选对象")
       ("COLLECT_ENTITY_READ" . "读取候选实体") ("COLLECT_CANDIDATES" . "过滤候选对象")
+      ("COLLECT_SPATIAL_TREE" . "建立候选图块空间树")
+      ("COLLECT_CANDIDATE_DEDUP" . "查询、去重并读取导线及断口候选")
+      ("COLLECT_DEVICE_EXPAND" . "扩展贴临设备候选链")
       ("SIMPLE_NETWORK" . "准备连接网络") ("NETWORK_BUILD" . "建立连接网络")
       ("COMPONENT_INDEX" . "建立连通关系索引")
       ("NETWORK_WIRE_CONTACT" . "检查导线接触") ("NETWORK_CANDIDATE_SCOPE" . "筛选设备范围")

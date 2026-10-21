@@ -131,14 +131,17 @@
   (if (< (caddr normal) 0.0)
     (setq bulges (mapcar '- bulges)))
   (list (reverse points) (reverse bulges)))
-(defun EL:PolylineSegments (points bulges closed err / out tail bs part)
+(defun EL:PolylineSegments (points bulges closed err / out tail bs part segment)
+  ;; Date: 2026-10-21. Accumulate sampled pieces once, preserving source order.
   (setq tail (if closed (append points (list (car points))) points) bs bulges)
   (while (cdr tail)
     (EL:LogEvent "POLYLINE_SEGMENT" (list (cons 'start (car tail)) (cons 'end (cadr tail))
       (cons 'bulge (car bs)) (cons 'error-bound err)))
     (setq part (EL:BulgePoints (car tail) (cadr tail) (cond ((car bs)) (T 0.0)) err))
-    (if part (setq out (append out (EL:Segments part))) (setq out nil tail nil))
-    (setq tail (cdr tail) bs (cdr bs))) out)
+    (if part
+      (foreach segment (EL:Segments part) (setq out (cons segment out)))
+      (setq out nil tail nil))
+    (setq tail (cdr tail) bs (cdr bs))) (reverse out))
 (defun EL:MakeEnd (id side points bulges layer / p q b rest state direction)
   ;; Last vertex has no outgoing segment: use the penultimate original bulge.
   (if (equal side 'end) (setq points (reverse points) bulges (cdr (reverse bulges))))
@@ -180,11 +183,19 @@
           (EL:V- a (EL:V* (/ start 2.0) normal)))
         ring (EL:Segments (append points (list (car points)))))
       (list (cons 'segments ring) (cons 'regions (list ring))))))
-(defun EL:WireContactStrips (segments profiles / out segment profile base length start end strip)
+(defun EL:WireContactStrips (segments profiles / out segment profile base length start end strip prepared first repeated)
+  ;; Date: 2026-10-21. Reuse only this call's immutable profile baselines.
+  ;; Prepare lazily during the first segment, retaining original error order.
+  (setq first T)
   (foreach segment segments
-    (foreach profile profiles
-      (setq base (list (list (car profile) (cadr profile)))
-        length (EL:Norm (EL:V- (cadr profile) (car profile))))
+    (if first (setq repeated (cdr segments)))
+    (foreach profile (if first profiles prepared)
+      (if first
+        (progn
+          (setq base (list (list (car profile) (cadr profile)))
+            length (EL:Norm (EL:V- (cadr profile) (car profile))))
+          (if repeated (setq prepared (cons (list profile base length) prepared))))
+        (setq base (cadr profile) length (caddr profile) profile (car profile)))
       (if (and (> length 1.0e-9)
           (EL:Touches (car segment) base (EL:GapEpsilon) (EL:GapEpsilon))
           (EL:Touches (cadr segment) base (EL:GapEpsilon) (EL:GapEpsilon)))
@@ -194,16 +205,22 @@
             end (+ (nth 2 profile) (* (- (nth 3 profile) (nth 2 profile))
             (/ (EL:Norm (EL:V- (cadr segment) (car profile))) length))))
           (if (setq strip (EL:WireStrip (car segment) (cadr segment) start end))
-            (setq out (cons strip out)))))))
+            (setq out (cons strip out))))))
+    (if first (setq prepared (if repeated (reverse prepared)) first nil)))
   (reverse out))
-(defun EL:WireContactBounds (wire / segments strip)
-  ;; Date: 2026-10-20. Fresh wire records retain their exact derived envelope.
-  ;; Clipped trunk pieces rebuild it; old records still use the geometry path.
+(defun EL:WireContactBounds (wire / segments strip segment)
+  ;; Date: 2026-10-21. Build the same ordered bound input once for wide wires.
+  ;; Fresh records reuse their envelope; clipped trunk pieces still rebuild it.
   (if (assoc 'contact-bounds wire) (EL:Get 'contact-bounds wire)
     (progn
       (setq segments (EL:Get 'segments wire))
-      (foreach strip (EL:Get 'contact-strips wire)
-        (setq segments (append segments (EL:Get 'segments strip))))
+      (if (EL:Get 'contact-strips wire)
+        (progn
+          (setq segments (reverse segments))
+          (foreach strip (EL:Get 'contact-strips wire)
+            (foreach segment (EL:Get 'segments strip)
+              (setq segments (cons segment segments))))
+          (setq segments (reverse segments))))
       (EL:SegmentBounds segments))))
 (defun EL:PrepareWireBounds (wire)
   (EL:Put 'contact-bounds (EL:WireContactBounds

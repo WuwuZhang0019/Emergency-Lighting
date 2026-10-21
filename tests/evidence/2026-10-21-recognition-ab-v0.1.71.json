@@ -1,0 +1,208 @@
+{
+  "date": "2026-10-21",
+  "status": "passed",
+  "frozen_baseline_commit": "730c9bd",
+  "kind": "finite-adapter same-input two-pass operation comparison",
+  "modes": {
+    "0": "batch clocks and single exact path",
+    "1": "detailed entity clocks and single exact path",
+    "2": "batch clocks and v70 single bounds path",
+    "3": "detailed entity clocks and v70 single bounds path"
+  },
+  "order": [
+    3,
+    1,
+    2,
+    0,
+    0,
+    2,
+    1,
+    3
+  ],
+  "controlled_conditions": [
+    "same source, seven native entity fixtures, configuration and selected order",
+    "fresh identical host and cache for each run",
+    "same collection, wire and one device geometry",
+    "synthetic clock starts at same wrap boundary with same native operation costs",
+    "opposite mode order on the second pass",
+    "both complete output and native operation sequence compare exactly"
+  ],
+  "rows": [
+    {
+      "mode": 3,
+      "detail_enabled": 1,
+      "single_bounds_baseline": 1,
+      "profile_clock_reads": 28,
+      "all_collect_and_prefix_tick_calls": 40,
+      "entity_batch_synthetic_ms": 80.0,
+      "prefix_builds": 33,
+      "prefix_exact_tests": 13,
+      "prefix_single_bypasses": 0,
+      "native_operation_sequence_sha256": "36e9401ae3a1f570c30bd8cdb8ed0215c9a7494e47870ef7fc340eb10090e19c",
+      "complete_output_sha256": "7731ecf17ae1bcc0f2c6632d608c48e81908123e81ea2118e541ce17972f278d",
+      "boundary": [
+        7.990000000223517,
+        "a"
+      ]
+    },
+    {
+      "mode": 1,
+      "detail_enabled": 1,
+      "single_bounds_baseline": 0,
+      "profile_clock_reads": 28,
+      "all_collect_and_prefix_tick_calls": 40,
+      "entity_batch_synthetic_ms": 80.0,
+      "prefix_builds": 0,
+      "prefix_exact_tests": 33,
+      "prefix_single_bypasses": 33,
+      "native_operation_sequence_sha256": "36e9401ae3a1f570c30bd8cdb8ed0215c9a7494e47870ef7fc340eb10090e19c",
+      "complete_output_sha256": "7731ecf17ae1bcc0f2c6632d608c48e81908123e81ea2118e541ce17972f278d",
+      "boundary": [
+        7.990000000223517,
+        "a"
+      ]
+    },
+    {
+      "mode": 2,
+      "detail_enabled": 0,
+      "single_bounds_baseline": 1,
+      "profile_clock_reads": 0,
+      "all_collect_and_prefix_tick_calls": 12,
+      "entity_batch_synthetic_ms": 80.0,
+      "prefix_builds": 33,
+      "prefix_exact_tests": 13,
+      "prefix_single_bypasses": 0,
+      "native_operation_sequence_sha256": "36e9401ae3a1f570c30bd8cdb8ed0215c9a7494e47870ef7fc340eb10090e19c",
+      "complete_output_sha256": "7731ecf17ae1bcc0f2c6632d608c48e81908123e81ea2118e541ce17972f278d",
+      "boundary": [
+        7.990000000223517,
+        "a"
+      ]
+    },
+    {
+      "mode": 0,
+      "detail_enabled": 0,
+      "single_bounds_baseline": 0,
+      "profile_clock_reads": 0,
+      "all_collect_and_prefix_tick_calls": 12,
+      "entity_batch_synthetic_ms": 80.0,
+      "prefix_builds": 0,
+      "prefix_exact_tests": 33,
+      "prefix_single_bypasses": 33,
+      "native_operation_sequence_sha256": "36e9401ae3a1f570c30bd8cdb8ed0215c9a7494e47870ef7fc340eb10090e19c",
+      "complete_output_sha256": "7731ecf17ae1bcc0f2c6632d608c48e81908123e81ea2118e541ce17972f278d",
+      "boundary": [
+        7.990000000223517,
+        "a"
+      ]
+    },
+    {
+      "mode": 0,
+      "detail_enabled": 0,
+      "single_bounds_baseline": 0,
+      "profile_clock_reads": 0,
+      "all_collect_and_prefix_tick_calls": 12,
+      "entity_batch_synthetic_ms": 80.0,
+      "prefix_builds": 0,
+      "prefix_exact_tests": 33,
+      "prefix_single_bypasses": 33,
+      "native_operation_sequence_sha256": "36e9401ae3a1f570c30bd8cdb8ed0215c9a7494e47870ef7fc340eb10090e19c",
+      "complete_output_sha256": "7731ecf17ae1bcc0f2c6632d608c48e81908123e81ea2118e541ce17972f278d",
+      "boundary": [
+        7.990000000223517,
+        "a"
+      ]
+    },
+    {
+      "mode": 2,
+      "detail_enabled": 0,
+      "single_bounds_baseline": 1,
+      "profile_clock_reads": 0,
+      "all_collect_and_prefix_tick_calls": 12,
+      "entity_batch_synthetic_ms": 80.0,
+      "prefix_builds": 33,
+      "prefix_exact_tests": 13,
+      "prefix_single_bypasses": 0,
+      "native_operation_sequence_sha256": "36e9401ae3a1f570c30bd8cdb8ed0215c9a7494e47870ef7fc340eb10090e19c",
+      "complete_output_sha256": "7731ecf17ae1bcc0f2c6632d608c48e81908123e81ea2118e541ce17972f278d",
+      "boundary": [
+        7.990000000223517,
+        "a"
+      ]
+    },
+    {
+      "mode": 1,
+      "detail_enabled": 1,
+      "single_bounds_baseline": 0,
+      "profile_clock_reads": 28,
+      "all_collect_and_prefix_tick_calls": 40,
+      "entity_batch_synthetic_ms": 80.0,
+      "prefix_builds": 0,
+      "prefix_exact_tests": 33,
+      "prefix_single_bypasses": 33,
+      "native_operation_sequence_sha256": "36e9401ae3a1f570c30bd8cdb8ed0215c9a7494e47870ef7fc340eb10090e19c",
+      "complete_output_sha256": "7731ecf17ae1bcc0f2c6632d608c48e81908123e81ea2118e541ce17972f278d",
+      "boundary": [
+        7.990000000223517,
+        "a"
+      ]
+    },
+    {
+      "mode": 3,
+      "detail_enabled": 1,
+      "single_bounds_baseline": 1,
+      "profile_clock_reads": 28,
+      "all_collect_and_prefix_tick_calls": 40,
+      "entity_batch_synthetic_ms": 80.0,
+      "prefix_builds": 33,
+      "prefix_exact_tests": 13,
+      "prefix_single_bypasses": 0,
+      "native_operation_sequence_sha256": "36e9401ae3a1f570c30bd8cdb8ed0215c9a7494e47870ef7fc340eb10090e19c",
+      "complete_output_sha256": "7731ecf17ae1bcc0f2c6632d608c48e81908123e81ea2118e541ce17972f278d",
+      "boundary": [
+        7.990000000223517,
+        "a"
+      ]
+    }
+  ],
+  "original_log_operation_projection": {
+    "source": "output (25).zip / 7850 entities, 3320 bounds, 3067 wire records",
+    "formula": "2 * (7850 + 3320 + 3067)",
+    "detailed_clock_reads": 28474,
+    "default_detailed_clock_reads": 0,
+    "scope": "operation projection only, not a replay of the original DWG"
+  },
+  "frozen_algorithm_checks": {
+    "collection": "test_collect_read_timing: frozen730c9bd complete output, native order and batch frames",
+    "single_candidate": "test_number_prefix_bounds: frozen730c9bd / default / forced baseline",
+    "single_candidate_prefix_builds": [
+      33,
+      0
+    ],
+    "single_candidate_native_bounds_validations": [
+      34,
+      0
+    ],
+    "optimized_single_candidate_slices_and_exact_tests": 33,
+    "two_candidate_convergence_prefix_builds": [
+      33,
+      2
+    ]
+  },
+  "existing_exclusion": {
+    "test": "test_performance.PerformanceFlowTests.test_no_change_update_is_measured_with_zero_entity_and_master_writes",
+    "current_and_frozen730c9bd": "20 != 0 entity writes",
+    "reason": "existing fixture expects no-change update while invocation creates a new diagram; unchanged by this task"
+  },
+  "source_sha256": {
+    "src/common.lsp": "3baebba3879d06c8f8da7bc6d80cec8ab6b4f7e704b28b2c51f1f8557db01089",
+    "src/simple.lsp": "8fc6af2c66c0cfb34c1ac85d72dc5fc647e7499495cd29785643c27390951c66",
+    "src/geometry.lsp": "082c0eb1e1f863fdbaddcb7ccc594aa4ec505d8d51fce8908771e8bb39c680e2",
+    "src/circuit-number.lsp": "6264b7431b3604fd0e529c36b6b60e7550da6dba79ac9e987a6849f3fbd74e13",
+    "tests/test_collect_read_timing.py": "73114e4515945a833e9215714e9343305d3ef018b6d571f2a98511b7eefa9a93",
+    "tests/test_number_prefix_bounds.py": "3ee23166fd2385826c5ec048bae64942fe1f4c669442f303a0da390e2fc28fc7",
+    "tests/test_performance_compare.py": "c9620bd76715db9c130ed99e2211c1639ef72b41d82a90f0cd83daf00e13de5a",
+    "tests/run_recognition_ab_checks.py": "e0916d816471eb189f4302d90b82e0cfc2113dc82615beb033c52b777c10d790"
+  },
+  "native_cad_status": "pending; original-DWG seconds, preview, generation, save/reopen and Undo require native testing"
+}

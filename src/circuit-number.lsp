@@ -249,30 +249,76 @@
           (setq edge (car candidates) candidates (cdr candidates))
           (if (EL:SegmentsTouchTolerance seg edge tol) (setq hit T)))
         (setq *EL:NumberProbeSegments* (cons (cons key hit) *EL:NumberProbeSegments*))))) hit)
+(defun EL:NumberNativeBoundsXYImpl (bounds)
+  ;; Date: 2026-10-21. Only finite ordered native boxes can reject a candidate.
+  (if (and (listp bounds) (= (length bounds) 2) (EL:Point (car bounds)) (EL:Point (cadr bounds))
+      (<= (caar bounds) (car (cadr bounds))) (<= (cadr (car bounds)) (cadr (cadr bounds)))
+      (<= (caddr (car bounds)) (caddr (cadr bounds)))) (EL:XYBounds bounds)))
+(defun EL:NumberNativeBoundsXY (bounds / checked)
+  (setq checked (vl-catch-all-apply 'EL:NumberNativeBoundsXYImpl (list bounds)))
+  (if (not (vl-catch-all-error-p checked)) checked))
+(defun EL:NumberPrefixBounds (wire / bounds strip extra)
+  ;; Rebuild from this slice, including width strips. A full-wire contact-bounds
+  ;; field inherited by NumberPathSliceMeasured must never describe a prefix.
+  (setq bounds (EL:SegmentBounds (EL:Get 'segments wire)))
+  (foreach strip (EL:Get 'contact-strips wire)
+    (if (setq extra (EL:SegmentBounds (EL:Get 'segments strip)))
+      (setq bounds (if bounds (list (mapcar 'min (car bounds) (car extra))
+        (mapcar 'max (cadr bounds) (cadr extra))) extra))))
+  (EL:NumberNativeBoundsXY bounds))
+(defun EL:NumberPrefixShapeHit (wire row bounds cfg / native margin)
+  (setq native (caddr row))
+  (if (and bounds native)
+    (progn
+      (if *EL:NumberPrefixTimed* (setq *EL:NumberPrefixTests* (1+ *EL:NumberPrefixTests*)))
+      ;; The margin only widens the broad phase. Exact contact retains cfg.
+      (setq margin (EL:ContactQueryRoundoff (append bounds native) nil))
+      (if (EL:BoundsOverlap bounds native (+ (EL:Get 'eps_boundary (EL:Get 'params cfg)) margin))
+        (progn
+          (if *EL:NumberPrefixTimed* (setq *EL:NumberPrefixExact* (1+ *EL:NumberPrefixExact*)))
+          (EL:NumberShapeHitStrict wire (cadr row) cfg))
+        (progn
+          (if *EL:NumberPrefixTimed* (setq *EL:NumberPrefixRejected* (1+ *EL:NumberPrefixRejected*))) nil)))
+    (progn
+      (if *EL:NumberPrefixTimed* (setq *EL:NumberPrefixFallbacks* (1+ *EL:NumberPrefixFallbacks*)
+        *EL:NumberPrefixExact* (1+ *EL:NumberPrefixExact*)))
+      (EL:NumberShapeHitStrict wire (cadr row) cfg))))
 (defun EL:NumberFirstDevice (wire entry target devices cfg / block shape candidates hits row low high middle slice measures
-    *EL:NumberProbeActive* *EL:NumberProbePoints* *EL:NumberProbeSegments*)
-  ;; Date: 2026-10-15. All devices share the same 32-step dyadic prefix grid.
-  ;; Search the first contact jointly; on a hit retain every device hitting
-  ;; that prefix, in original order. This preserves the exact boundary and
-  ;; original first-device tie rule without rebuilding each prefix per device.
+    bounds builds searches result *EL:NumberProbeActive* *EL:NumberProbePoints* *EL:NumberProbeSegments*
+    *EL:NumberPrefixTimed* *EL:NumberPrefixTests* *EL:NumberPrefixRejected* *EL:NumberPrefixExact* *EL:NumberPrefixFallbacks*)
+  ;; Date: 2026-10-21. Keep the joint search's exact 32-step dyadic prefix grid,
+  ;; original shape-read order and first-device tie rule. Bounds only prove misses.
+  (setq *EL:NumberPrefixTimed* *EL:PerfActive* builds 0 searches 0 *EL:NumberPrefixTests* 0
+    *EL:NumberPrefixRejected* 0 *EL:NumberPrefixExact* 0 *EL:NumberPrefixFallbacks* 0)
   (if (and devices (> (abs (- target entry)) 1.0e-12))
     (progn
-    (setq *EL:NumberProbeActive* T cfg (EL:StrictDeviceConfig cfg) measures (EL:NumberPathMeasures wire)
-      slice (EL:NumberPathSliceMeasured wire entry target measures))
-    (foreach block devices
-      (setq shape (EL:DeviceContactShape block))
-      (if (EL:NumberShapeHitStrict slice shape cfg)
-        (setq candidates (cons (cons (EL:Get 'id block) shape) candidates))))
-    (if candidates
-      (progn
-        (setq candidates (reverse candidates) low 0.0 high 1.0)
-        (repeat 32
-          (setq middle (/ (+ low high) 2.0) hits nil
-            slice (EL:NumberPathSliceMeasured wire entry (+ entry (* middle (- target entry))) measures))
-          (foreach row candidates
-            (if (EL:NumberShapeHitStrict slice (cdr row) cfg) (setq hits (cons row hits))))
-          (if hits (setq high middle candidates (reverse hits)) (setq low middle)))
-        (list (+ entry (* high (- target entry))) (caar candidates)))))))
+      (setq *EL:NumberProbeActive* T cfg (EL:StrictDeviceConfig cfg) measures (EL:NumberPathMeasures wire)
+        slice (EL:NumberPathSliceMeasured wire entry target measures) bounds (EL:NumberPrefixBounds slice))
+      (if *EL:NumberPrefixTimed* (setq builds 1 searches 1))
+      (foreach block devices
+        (setq shape (EL:DeviceContactShape block)
+          row (list (EL:Get 'id block) shape (EL:NumberNativeBoundsXY (EL:Get 'bounds block))))
+        (if (EL:NumberPrefixShapeHit slice row bounds cfg) (setq candidates (cons row candidates))))
+      (if candidates
+        (progn
+          (setq candidates (reverse candidates) low 0.0 high 1.0)
+          (repeat 32
+            (setq middle (/ (+ low high) 2.0) hits nil
+              slice (EL:NumberPathSliceMeasured wire entry (+ entry (* middle (- target entry))) measures)
+              bounds (EL:NumberPrefixBounds slice))
+            (if *EL:NumberPrefixTimed* (setq builds (1+ builds)))
+            (foreach row candidates
+              (if (EL:NumberPrefixShapeHit slice row bounds cfg) (setq hits (cons row hits))))
+            (if hits (setq high middle candidates (reverse hits)) (setq low middle)))
+          (setq result (list (+ entry (* high (- target entry))) (caar candidates)))))))
+  (if *EL:NumberPrefixTimed*
+    (progn
+      (EL:PerfCount "number-prefix-searches" searches)
+      (EL:PerfCount "number-prefix-bounds-builds" builds)
+      (EL:PerfCount "number-prefix-bounds-tests" *EL:NumberPrefixTests*)
+      (EL:PerfCount "number-prefix-bounds-rejected" *EL:NumberPrefixRejected*)
+      (EL:PerfCount "number-prefix-exact-tests" *EL:NumberPrefixExact*)
+      (EL:PerfCount "number-prefix-bounds-fallbacks" *EL:NumberPrefixFallbacks*))) result)
 (defun EL:NumberLinks (wire other network cfg / segments point stations mine theirs links pair a b)
   (setq segments (EL:Get 'segments wire))
   (foreach point (list (caar segments) (cadr (EL:Last segments)))

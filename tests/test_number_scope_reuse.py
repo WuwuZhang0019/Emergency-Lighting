@@ -167,7 +167,9 @@ class NumberScopeReuseTests(unittest.TestCase):
         flushed = []
         original = self.h.call
         def observe(name, args):
-            if name == 'EL:PERFCOUNT':
+            # Date: 2026-10-21. Prefix searches now publish their own batches;
+            # this assertion counts the six scope-level aggregates only.
+            if name == 'EL:PERFCOUNT' and args[0].startswith('number-scope-'):
                 flushed.append(args[0])
             return original(name, args)
         self.h.call = observe

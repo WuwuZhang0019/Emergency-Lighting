@@ -682,31 +682,66 @@
               good (and (EL:ShapeGeometry shape) (not (EL:Get 'issues shape)))))
           (setq good nil)))))
   (and good (equal contacts (EL:DeviceContactEvidence *EL:DeviceContactCache*))))
-(defun EL:NetworkProofInput (baseline proof / rows key blocks block role)
+(defun EL:NetworkRoleCodeLess (a b)
+  ;; Date: 2026-10-21. Compare numeric character codes, including full prefixes.
+  (while (and a b (= (car a) (car b))) (setq a (cdr a) b (cdr b)))
+  (and b (or (not a) (< (car a) (car b)))))
+(defun EL:NetworkRolesOrdered (blocks roles / tail ids sorted previous ordered block id)
+  ;; Date: 2026-10-21. A positional restore is safe only for unique, aligned IDs.
+  ;; Sorting bounded handle-code lists avoids a second quadratic MEMBER scan.
+  (setq tail roles ordered (= (length blocks) (length roles)))
+  (foreach block blocks
+    (if ordered
+      (progn
+        (setq id (EL:Get 'id block))
+        (if (and (equal (type id) 'STR) (equal id (car (car tail))))
+          (setq ids (cons (vl-string->list id) ids) tail (cdr tail))
+          (setq ordered nil)))))
+  (if ordered
+    (progn
+      (setq sorted (vl-sort ids 'EL:NetworkRoleCodeLess)
+        ordered (= (length ids) (length sorted)))
+      ;; Native VL-SORT may remove duplicates; host adapters may retain them.
+      ;; The length and adjacent checks reject duplicates under either behavior.
+      (while (and ordered sorted)
+        (if (and previous (equal (car previous) (car sorted))) (setq ordered nil))
+        (setq previous sorted sorted (cdr sorted))))) ordered)
+(defun EL:NetworkRestoreRoles (blocks roles / ordered tail rows block role)
+  ;; Date: 2026-10-21. Keep first-ASSOC semantics for every noncanonical table.
+  (setq ordered (EL:NetworkRolesOrdered blocks roles) tail roles)
+  (EL:PerfCount "network-role-blocks" (length blocks))
+  (EL:PerfCount (if ordered "network-role-ordered-batches" "network-role-fallback-batches") 1)
+  (foreach block blocks
+    (setq role (if ordered (cdr (car tail)) (EL:Get (EL:Get 'id block) roles)))
+    (if ordered (setq tail (cdr tail)))
+    (setq block (if role (EL:Put 'role (cdr role) block)
+      (vl-remove-if '(lambda (pair) (equal (car pair) 'role)) block)))
+    (setq rows (cons block rows))) (reverse rows))
+(defun EL:NetworkProofInput (baseline proof / rows key blocks)
   ;; Date: 2026-10-13. Restore only the fields changed by network construction.
   ;; Everything else references the existing source-signature snapshot.
   (foreach key (EL:Get 'input-keys proof)
     (cond
       ((equal key 'ends) (setq rows (cons (cons key (EL:Get 'input-ends proof)) rows)))
       ((equal key 'blocks)
-        (setq blocks nil)
-        (foreach block (EL:Get 'blocks baseline)
-          (setq role (EL:Get (EL:Get 'id block) (EL:Get 'input-roles proof)))
-          (setq block (if role (EL:Put 'role (cdr role) block)
-            (vl-remove-if '(lambda (pair) (equal (car pair) 'role)) block)))
-          (setq blocks (cons block blocks)))
-        (setq rows (cons (cons key (reverse blocks)) rows)))
+        (setq blocks (EL:PerfCall "NETWORK_ROLE_RESTORE" 'EL:NetworkRestoreRoles
+          (list (EL:Get 'blocks baseline) (EL:Get 'input-roles proof))))
+        (setq rows (cons (cons key blocks) rows)))
       (T (setq rows (cons (assoc key baseline) rows))))) (reverse rows))
-(defun EL:NetworkProofMake (input output cfg panel contacts / proof roles block)
-  (setq input (EL:StableSnapshot input) output (EL:StableSnapshot output))
+(defun EL:NetworkProofMake (input output cfg panel contacts / proof roles block restored)
+  ;; Date: 2026-10-21. Batch timings separate conversion, evidence and exact check.
+  (setq input (EL:PerfCall "NETWORK_PROOF_STABLE_INPUT" 'EL:StableSnapshot (list input))
+    output (EL:PerfCall "NETWORK_PROOF_STABLE_OUTPUT" 'EL:StableSnapshot (list output)))
   (foreach block (EL:Get 'blocks input)
     (setq roles (cons (cons (EL:Get 'id block) (assoc 'role block)) roles)))
   (setq proof (list '(version . 4) (cons 'panel panel)
     (cons 'config (EL:StableData (vl-remove-if '(lambda (row) (equal (car row) 'template)) cfg)))
     (cons 'input-keys (mapcar 'car input)) (cons 'input-ends (EL:Get 'ends input))
-    (cons 'input-roles (reverse roles)) (cons 'contacts (EL:DeviceContactEvidence contacts))))
+    (cons 'input-roles (reverse roles))
+    (cons 'contacts (EL:PerfCall "NETWORK_PROOF_CONTACTS" 'EL:DeviceContactEvidence (list contacts)))))
   ;; Any future builder mutation outside the known patch disables reuse safely.
-  (if (equal input (EL:NetworkProofInput output proof)) proof))
+  (setq restored (EL:NetworkProofInput output proof))
+  (if (EL:PerfCall "NETWORK_PROOF_COMPARE" 'equal (list input restored)) proof))
 (defun EL:SimpleNetwork (snapshot cfg panel / saved key epoch result reused proof *EL:DeviceContactCache* *EL:DeviceTemplateCache* *EL:DeviceTemplateEnabled*)
   (setq *EL:DeviceTemplateEnabled* T epoch *EL:FreshEpoch*
     ;; Date: 2026-10-13. Dialog template selection changes drawing output only;
@@ -735,7 +770,8 @@
   (if (and result (not (EL:Get 'issues snapshot))
       (vl-every '(lambda (row) (and (EL:ShapeGeometry (cdr row))
         (not (EL:Get 'issues (cdr row))))) *EL:DeviceContactCache*)
-      (setq proof (EL:NetworkProofMake snapshot (EL:Get 'snapshot result) cfg panel *EL:DeviceContactCache*)))
+      (setq proof (EL:PerfCall "NETWORK_PROOF_PREPARE" 'EL:NetworkProofMake
+        (list snapshot (EL:Get 'snapshot result) cfg panel *EL:DeviceContactCache*))))
     (setq result (EL:Put 'snapshot (EL:Put 'network-proof proof (EL:Get 'snapshot result)) result)))
   (if (and result *EL:PerfActive* (not *EL:NetworkReuseDisabled*)
       (equal epoch *EL:FreshEpoch*) (not (EL:Get 'issues snapshot))

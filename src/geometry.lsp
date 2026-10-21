@@ -634,13 +634,18 @@
   (and a b (<= (caar a) (+ (car (cadr b)) tol)) (>= (car (cadr a)) (- (caar b) tol))
     (<= (cadr (car a)) (+ (cadr (cadr b)) tol)) (>= (cadr (cadr a)) (- (cadr (car b)) tol))
     (<= (caddr (car a)) (+ (caddr (cadr b)) tol)) (>= (caddr (cadr a)) (- (caddr (car b)) tol))))
-(defun EL:SpatialBoxQuery (tree bounds tol / item result)
-  (if (and tree (EL:BoundsOverlap (list (nth 3 tree) (nth 4 tree)) bounds tol))
-    (progn
-      (setq item (car tree))
-      (if (EL:BoundsOverlap (EL:Get 'bounds item) bounds tol) (setq result (list item)))
-      (append result (EL:SpatialBoxQuery (cadr tree) bounds tol)
-                     (EL:SpatialBoxQuery (caddr tree) bounds tol)))))
+(defun EL:SpatialBoxQuery (tree bounds tol / node stack item result)
+  ;; Date: 2026-10-21. Retain node/left/right order without copying child lists.
+  (if tree (setq stack (list tree)))
+  (while stack
+    (setq node (car stack) stack (cdr stack))
+    (if (EL:BoundsOverlap (list (nth 3 node) (nth 4 node)) bounds tol)
+      (progn
+        (setq item (car node))
+        (if (EL:BoundsOverlap (EL:Get 'bounds item) bounds tol) (setq result (cons item result)))
+        (if (caddr node) (setq stack (cons (caddr node) stack)))
+        (if (cadr node) (setq stack (cons (cadr node) stack))))))
+  (reverse result))
 (defun EL:RingItems (segments / items seg a b index)
   ;; Date: 2026-10-08. XY broad phase only; exact 3D endpoint tests follow.
   (setq index 0)
@@ -1013,15 +1018,20 @@
         (setq near (max near low) far (min far high))
         (if (> near far) (setq ok nil))))
     (setq axis (1+ axis))) ok)
-(defun EL:SpatialRayQuery (tree p direction limit / item bounds result)
-  (if (and tree (EL:RayBoxHits p direction limit (nth 3 tree) (nth 4 tree)))
-    (progn
-      (setq item (car tree) bounds (EL:Get 'bounds item))
-      (if (EL:RayBoxHits p direction limit
-            (if bounds (car bounds) (EL:Get 'point item))
-            (if bounds (cadr bounds) (EL:Get 'point item))) (setq result (list item)))
-      (append result (EL:SpatialRayQuery (cadr tree) p direction limit)
-                     (EL:SpatialRayQuery (caddr tree) p direction limit)))))
+(defun EL:SpatialRayQuery (tree p direction limit / node stack item bounds result)
+  ;; Date: 2026-10-21. Push right before left to preserve the original visit order.
+  (if tree (setq stack (list tree)))
+  (while stack
+    (setq node (car stack) stack (cdr stack))
+    (if (EL:RayBoxHits p direction limit (nth 3 node) (nth 4 node))
+      (progn
+        (setq item (car node) bounds (EL:Get 'bounds item))
+        (if (EL:RayBoxHits p direction limit
+              (if bounds (car bounds) (EL:Get 'point item))
+              (if bounds (cadr bounds) (EL:Get 'point item))) (setq result (cons item result)))
+        (if (caddr node) (setq stack (cons (caddr node) stack)))
+        (if (cadr node) (setq stack (cons (cadr node) stack))))))
+  (reverse result))
 (defun EL:GapPathIndex (snapshot / items item seg)
   (foreach item (append (EL:Get 'wires snapshot) (EL:Get 'blocks snapshot))
     (if (EL:Get 'whole-block item)

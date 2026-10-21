@@ -161,6 +161,9 @@
           "source-candidate-index-lookups" "source-candidate-index-steps" "source-candidate-index-duplicates"
           ;; Date: 2026-10-21. Publish one aggregate per synchronous batch.
           "source-wire-layer-reads" "source-wire-layer-cache-hits" "source-wire-layer-read-ms"
+          "source-preset-cache-hits" "source-preset-cache-misses" "source-preset-normalizations"
+          "source-preset-table-cache-hits" "source-preset-table-cache-misses"
+          "source-preset-cache-rebuilds" "source-preset-cache-miss-check-ms"
           "preview-source-ids" "preview-source-color-reads" "preview-source-rgb-duplicates" "preview-source-rgb-unique"
           "preview-layer-color-reads" "preview-layer-color-cache-hits"
           "network-role-blocks" "network-role-ordered-batches" "network-role-fallback-batches"

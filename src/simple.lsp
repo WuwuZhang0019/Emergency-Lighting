@@ -294,7 +294,10 @@
     *EL:CollectBlockNames* *EL:CandidateIndex* *EL:CandidateIndexOther*
     *EL:CandidateIndexLookups* *EL:CandidateIndexSteps* *EL:CandidateIndexDuplicates*
     *EL:WireLayerCacheEnabled* *EL:WireLayerStyles* *EL:WireLayerCacheEpoch*
-    *EL:WireLayerCacheHits* *EL:WireLayerReads* *EL:WireLayerReadMS*)
+    *EL:WireLayerCacheHits* *EL:WireLayerReads* *EL:WireLayerReadMS*
+    *EL:PresetCacheEnabled* *EL:PresetCacheCfg* *EL:PresetCacheEpoch* *EL:PresetCacheTables* *EL:PresetCacheBlocks*
+    *EL:PresetCacheHits* *EL:PresetCacheMisses* *EL:PresetCacheNormalizations*
+    *EL:PresetCacheMemberHits* *EL:PresetCacheMemberMisses* *EL:PresetCacheRebuilds* *EL:PresetCacheCheckMS*)
   ;; Date: 2026-10-10. Filter wires by inferred style; only the selected panel
   ;; uses its contour. Device geometry is checked lazily during network tracing.
   ;; Date: 2026-10-20. Retain the actual pre-filter scope in diagnostic exports.
@@ -303,7 +306,11 @@
   (setq ss (EL:PresetSelection cfg "INSERT,LINE,LWPOLYLINE" '(wire-layers panel-layers device-layers)) i 0
     *EL:CandidateIndexLookups* 0 *EL:CandidateIndexSteps* 0 *EL:CandidateIndexDuplicates* 0
     *EL:WireLayerCacheEnabled* T *EL:WireLayerCacheEpoch* *EL:FreshEpoch*
-    *EL:WireLayerCacheHits* 0 *EL:WireLayerReads* 0 *EL:WireLayerReadMS* 0)
+    *EL:WireLayerCacheHits* 0 *EL:WireLayerReads* 0 *EL:WireLayerReadMS* 0
+    *EL:PresetCacheEnabled* T *EL:PresetCacheHits* 0 *EL:PresetCacheMisses* 0 *EL:PresetCacheNormalizations* 0
+    *EL:PresetCacheMemberHits* 0 *EL:PresetCacheMemberMisses* 0 *EL:PresetCacheRebuilds* 0 *EL:PresetCacheCheckMS* 0)
+  ;; Date: 2026-10-21. Tables and positive/negative block decisions live only here.
+  (EL:PerfCall "COLLECT_PRESET_PREPARE" 'EL:PresetCachePrepare (list cfg))
   (EL:PerfCount "source-collect-calls" 1)
   (EL:PerfCount "source-selection-entities" (if ss (sslength ss) 0))
   (setq perf (EL:PerfBegin "COLLECT_ENTITY_READ"))
@@ -335,6 +342,7 @@
   (EL:PerfCount "source-wire-layer-reads" *EL:WireLayerReads*)
   (EL:PerfCount "source-wire-layer-cache-hits" *EL:WireLayerCacheHits*)
   (EL:PerfCount "source-wire-layer-read-ms" *EL:WireLayerReadMS*)
+  (EL:PresetCacheMetrics)
   (EL:PerfEnd perf 'returned)
   (setq perf (EL:PerfBegin "COLLECT_CANDIDATES") candidateperf (EL:PerfBegin "COLLECT_SPATIAL_TREE")
     tree (EL:SpatialTree items 0))

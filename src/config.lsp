@@ -492,12 +492,33 @@
   (foreach key '(panel-layers panel-names wire-layers device-layers device-names)
     (setq cfg (EL:Put key (EL:Get key preset) cfg)))
   (EL:Put 'preset-scoped T cfg))
-(defun EL:PresetMember (value values)
-  (and (equal (type value) 'STR) (member (strcase value) (mapcar 'strcase values))))
+;; Date: 2026-10-21. Only SimpleCollect binds/enables this synchronous cache.
+;; Keep original table identity and member tails; unknown tables use the old path.
+(defun EL:PresetCachePrepare (cfg / key values)
+  (setq *EL:PresetCacheCfg* cfg *EL:PresetCacheEpoch* *EL:FreshEpoch*
+    *EL:PresetCacheTables* nil *EL:PresetCacheBlocks* nil
+    *EL:PresetCacheRebuilds* (1+ *EL:PresetCacheRebuilds*))
+  (if (EL:Get 'preset-scoped cfg)
+    (foreach key '(panel-layers panel-names wire-layers device-layers device-names)
+      (setq values (EL:Get key cfg))
+      ;; Invalid tables retain lazy legacy errors instead of failing eagerly.
+      (if (and (listp values) (vl-list-length values) (EL:Strings values))
+        (setq *EL:PresetCacheTables* (cons (list values (mapcar 'strcase values)) *EL:PresetCacheTables*)
+          *EL:PresetCacheNormalizations* (1+ *EL:PresetCacheNormalizations*))))) nil)
+(defun EL:PresetMember (value values / saved)
+  (if (and *EL:PresetCacheEnabled* (equal *EL:PresetCacheEpoch* *EL:FreshEpoch*)
+      (setq saved (vl-some '(lambda (row) (if (eq values (car row)) row)) *EL:PresetCacheTables*)))
+    (progn
+      (setq *EL:PresetCacheMemberHits* (1+ *EL:PresetCacheMemberHits*))
+      (and (equal (type value) 'STR) (member (strcase value) (cadr saved))))
+    (progn
+      (if *EL:PresetCacheEnabled*
+        (setq *EL:PresetCacheMemberMisses* (1+ *EL:PresetCacheMemberMisses*)))
+      (and (equal (type value) 'STR) (member (strcase value) (mapcar 'strcase values))))))
 (defun EL:PresetBlockAllowed (entity data cfg)
   (or (not (EL:Get 'preset-scoped cfg))
     (EL:PresetBlockNameAllowed (EL:EffectiveName entity) data cfg)))
-(defun EL:PresetBlockNameAllowed (name data cfg)
+(defun EL:PresetBlockNameAllowedRaw (name data cfg)
   ;; Date: 2026-10-15. One effective-name lookup serves every role predicate.
   (or (not (EL:Get 'preset-scoped cfg))
     (EL:JunctionName name cfg)
@@ -505,6 +526,34 @@
       (EL:PresetMember name (EL:Get 'panel-names cfg)))
     (and (EL:PresetMember (cdr (assoc 8 data)) (EL:Get 'device-layers cfg))
       (EL:PresetMember name (EL:Get 'device-names cfg)))))
+(defun EL:PresetBlockNameAllowed (name data cfg / key saved value started)
+  (if *EL:PresetCacheEnabled*
+    (progn
+      ;; Config replacement (including roles/unknown fields) or any fresh epoch
+      ;; starts new tables and decisions. Nothing survives the collect scope.
+      (if (not (and (eq cfg *EL:PresetCacheCfg*) (equal *EL:PresetCacheEpoch* *EL:FreshEpoch*)))
+        (EL:PerfCall "COLLECT_PRESET_PREPARE" 'EL:PresetCachePrepare (list cfg)))
+      ;; Do not upper-case the key: registered junction identities are case-sensitive.
+      (setq key (list name (cdr (assoc 8 data))))
+      (if (setq saved (assoc key *EL:PresetCacheBlocks*))
+        (progn (setq *EL:PresetCacheHits* (1+ *EL:PresetCacheHits*)) (cadr saved))
+        (progn
+          (if *EL:PerfActive* (setq started (EL:Tick)))
+          (setq value (EL:PresetBlockNameAllowedRaw name data cfg)
+            *EL:PresetCacheBlocks* (cons (list key value) *EL:PresetCacheBlocks*)
+            *EL:PresetCacheMisses* (1+ *EL:PresetCacheMisses*))
+          (if *EL:PerfActive*
+            (setq *EL:PresetCacheCheckMS* (+ *EL:PresetCacheCheckMS* (EL:PerfDelta started (EL:Tick))))) value)))
+    (EL:PresetBlockNameAllowedRaw name data cfg)))
+(defun EL:PresetCacheMetrics ()
+  ;; Aggregate only; cache hits do not add per-entity timers or diagnostic rows.
+  (EL:PerfCount "source-preset-cache-hits" *EL:PresetCacheHits*)
+  (EL:PerfCount "source-preset-cache-misses" *EL:PresetCacheMisses*)
+  (EL:PerfCount "source-preset-normalizations" *EL:PresetCacheNormalizations*)
+  (EL:PerfCount "source-preset-table-cache-hits" *EL:PresetCacheMemberHits*)
+  (EL:PerfCount "source-preset-table-cache-misses" *EL:PresetCacheMemberMisses*)
+  (EL:PerfCount "source-preset-cache-rebuilds" *EL:PresetCacheRebuilds*)
+  (EL:PerfCount "source-preset-cache-miss-check-ms" *EL:PresetCacheCheckMS*))
 (defun EL:PresetReady (panel cfg / data names message snapshot)
   (if (EL:Get 'preset-scoped cfg)
     (progn (setq data (entget panel))

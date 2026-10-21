@@ -158,6 +158,11 @@
           "source-collect-calls" "source-selection-entities" "source-block-bounds-reads"
           "source-native-entity-checks" "source-native-bounds-checks" "source-derived-reuses"
           "source-candidate-index-lookups" "source-candidate-index-steps" "source-candidate-index-duplicates"
+          ;; Date: 2026-10-21. Publish one aggregate per synchronous batch.
+          "source-wire-layer-reads" "source-wire-layer-cache-hits" "source-wire-layer-read-ms"
+          "preview-source-ids" "preview-source-color-reads" "preview-source-rgb-duplicates" "preview-source-rgb-unique"
+          "preview-layer-color-reads" "preview-layer-color-cache-hits"
+          "network-role-blocks" "network-role-ordered-batches" "network-role-fallback-batches"
           "source-wire-record-reads" "device-contour-reads" "device-template-reuses"
           ;; Date: 2026-10-21. Definitions, complete poses and numeric fallbacks differ.
           "device-definition-reuses" "device-pose-builds" "device-pose-reuses" "device-pose-fallbacks"
@@ -245,6 +250,9 @@
         "DIAGRAM_VIEW" "DIAGNOSTIC_EXPORT" "DEVICE_LIBRARY_LOAD" "DEVICE_LEGEND"
         "SYSTEM_LIBRARY_OPEN" "SYSTEM_BLOCK_COPY" "SYSTEM_STYLE_COPY" "TEMPLATE_CAPTURE" "TEMPLATE_VALIDATE"
         "COLLECT_SPATIAL_TREE" "COLLECT_CANDIDATE_DEDUP" "COLLECT_DEVICE_EXPAND"
+        "PANEL_SELECT_EXITS" "PANEL_COMPUTE" "PANEL_PREVIEW_PALETTE" "PREVIEW_SOURCE_COLORS" "PREVIEW_PALETTE_FILTER"
+        "NETWORK_PROOF_PREPARE" "NETWORK_PROOF_STABLE_INPUT" "NETWORK_PROOF_STABLE_OUTPUT"
+        "NETWORK_PROOF_CONTACTS" "NETWORK_ROLE_RESTORE" "NETWORK_PROOF_COMPARE"
         "PANEL_SUBMIT_PREPARE" "GENERATION_CONTEXT" "GENERATION_PREPARE" "GENERATION_SOURCE_VERIFY"
         "GENERATION_PLAN" "GENERATION_RECORD" "PLACEMENT_PLAN_REBUILD"
         "NATIVE_INSERT" "PANEL_DYNAMIC_SET" "CIRCUIT_DYNAMIC_SET"
@@ -559,9 +567,16 @@
       ("COLLECT_SPATIAL_TREE" . "建立候选图块空间树")
       ("COLLECT_CANDIDATE_DEDUP" . "查询、去重并读取导线及断口候选")
       ("COLLECT_DEVICE_EXPAND" . "扩展贴临设备候选链")
+      ("PANEL_SELECT_EXITS" . "整理面板回路归属") ("PANEL_COMPUTE" . "计算面板功率及状态")
+      ("PANEL_PREVIEW_PALETTE" . "准备面板和分色预览共用配色")
+      ("PREVIEW_SOURCE_COLORS" . "读取并去重原导线颜色") ("PREVIEW_PALETTE_FILTER" . "筛选避开原导线的预览颜色")
       ("SIMPLE_NETWORK" . "准备连接网络") ("NETWORK_BUILD" . "建立连接网络")
+      ("NETWORK_PROOF_PREPARE" . "整理网络复用证明")
+      ("NETWORK_PROOF_STABLE_INPUT" . "规范网络输入快照") ("NETWORK_PROOF_STABLE_OUTPUT" . "规范网络输出快照")
+      ("NETWORK_PROOF_CONTACTS" . "整理网络接触证据") ("NETWORK_ROLE_RESTORE" . "还原网络输入角色")
+      ("NETWORK_PROOF_COMPARE" . "完整核对网络输入证明")
       ("COMPONENT_INDEX" . "建立连通关系索引")
-      ("NETWORK_WIRE_CONTACT" . "检查导线接触") ("NETWORK_CANDIDATE_SCOPE" . "筛选设备范围")
+      ("NETWORK_WIRE_CONTACT" . "检查导线接触") ("NETWORK_CANDIDATE_SCOPE" . "准备网络角色和空间索引")
       ("NETWORK_DEVICE_CONTACT" . "检查设备接触") ("NETWORK_GAPS" . "检查断线连接")
       ("NETWORK_REACHABLE_TRACE" . "沿起始导线搜索真实连接")
       ("NETWORK_CONTACT_NODES" . "合并同一接点的重复连接")

@@ -6,9 +6,9 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 # Date: 2026-10-21. Local performance trial; no merge or publication.
-VERSION = '0.1.71'
-PACKAGE_NO = 170
-FULL_TEST_COMMAND = 'ELFULL71'
+VERSION = '0.1.72'
+PACKAGE_NO = 171
+FULL_TEST_COMMAND = 'ELFULL72'
 NAME = f'应急照明-v{VERSION}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 OUTPUT_ROOT = ROOT / 'output'

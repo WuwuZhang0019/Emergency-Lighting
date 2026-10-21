@@ -340,7 +340,7 @@
     *EL:WireLayerCacheHits* 0 *EL:WireLayerReads* 0 *EL:WireLayerReadMS* 0
     *EL:PresetCacheEnabled* T *EL:PresetCacheHits* 0 *EL:PresetCacheMisses* 0 *EL:PresetCacheNormalizations* 0
     *EL:PresetCacheMemberHits* 0 *EL:PresetCacheMemberMisses* 0 *EL:PresetCacheRebuilds* 0 *EL:PresetCacheCheckMS* 0
-    *EL:CollectReadProfile* *EL:PerfActive* *EL:CollectDXFMS* 0 *EL:CollectBoundsMS* 0 *EL:CollectWireMS* 0 *EL:CollectProfileReads* 0)
+    *EL:CollectReadProfile* (and *EL:PerfActive* (EL:CollectReadDetailEnabled)) *EL:CollectDXFMS* 0 *EL:CollectBoundsMS* 0 *EL:CollectWireMS* 0 *EL:CollectProfileReads* 0)
   ;; Date: 2026-10-21. Tables and positive/negative block decisions live only here.
   (EL:PerfCall "COLLECT_PRESET_PREPARE" 'EL:PresetCachePrepare (list cfg))
   (EL:PerfCount "source-collect-calls" 1)
@@ -376,7 +376,9 @@
                  ends (append (EL:Get 'ends wire) ends) issues (append (EL:Get 'issues wire) issues))))
       (if (not (cdr (assoc "EL_FIXED_V1" (cdr (assoc -3 d)))))
         (setq facts (cons (list d bounds) facts)))))
-  ;; Date: 2026-10-21. Counts only: no per-entity frames or file writes.
+  ;; Date: 2026-10-21. Detail is explicit; disabled milliseconds are unmeasured.
+  ;; Keep batch frames in every mode, and never write a per-entity log.
+  (EL:PerfSet "source-read-profile-enabled" (if *EL:CollectReadProfile* 1 0))
   (EL:PerfCount "source-native-dxf-ms" *EL:CollectDXFMS*)
   (EL:PerfCount "source-block-bounds-ms" *EL:CollectBoundsMS*)
   (EL:PerfCount "source-wire-record-ms" *EL:CollectWireMS*)

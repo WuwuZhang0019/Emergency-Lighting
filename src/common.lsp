@@ -132,11 +132,24 @@
   (setq elapsed *EL:PerfWaitMS*)
   (if (> *EL:PerfWaitDepth* 0)
     (setq elapsed (+ elapsed (EL:PerfDelta *EL:PerfWaitStart* (EL:Tick))))) elapsed)
-(defun EL:PerfStart (commandname / stamp tick key)
+;; Date: 2026-10-21. Session-only 2x2 recognition comparison; no drawing writes.
+;; 0 optimized, 1 detailed reads, 2 old single-candidate bounds, 3 both old paths.
+(defun EL:PerformanceCompareMode (/ mode)
+  (setq mode (if (and *EL:PerfActive* (equal (type *EL:PerfCompareRunMode*) 'INT)
+      (>= *EL:PerfCompareRunMode* 0) (<= *EL:PerfCompareRunMode* 3))
+    *EL:PerfCompareRunMode* *EL:PerfCompareMode*))
+  (if (and (equal (type mode) 'INT) (>= mode 0) (<= mode 3)) mode 0))
+(defun EL:CollectReadDetailEnabled () (if (member (EL:PerformanceCompareMode) '(1 3)) T nil))
+(defun EL:NumberSingleBoundsEnabled () (if (member (EL:PerformanceCompareMode) '(2 3)) T nil))
+(defun EL:PerformanceCompareLabel (mode)
+  (cond ((= mode 1) "仅开启实体细分计时") ((= mode 2) "仅开启旧单候选粗筛")
+    ((= mode 3) "实体细分计时及旧单候选粗筛") (T "优化默认：批次计时及单候选直接精查")))
+(defun EL:PerfStart (commandname / stamp tick key comparemode)
   (if (not *EL:PerfActive*)
     (progn
-      (setq tick (vl-catch-all-apply 'getvar (list "MILLISECS")))
-      (setq *EL:PerfActive* T *EL:PerfCommand* commandname *EL:PerfStarted* (if (numberp tick) tick 0)
+      (setq comparemode (EL:PerformanceCompareMode)
+        tick (vl-catch-all-apply 'getvar (list "MILLISECS")))
+      (setq *EL:PerfCompareRunMode* comparemode *EL:PerfActive* T *EL:PerfCommand* commandname *EL:PerfStarted* (if (numberp tick) tick 0)
         *EL:DiagnosticsDeferred* nil *EL:DeferredLogEvents* nil
         *EL:PerfMetrics* nil *EL:PerfStages* nil *EL:PerfPending* nil *EL:PerfMarks* nil *EL:StoreReadCache* nil *EL:NetworkMemo* nil *EL:CollectMemo* nil *EL:StatisticsMemo* nil *EL:SplitCache* nil *EL:DLCache* nil *EL:DLSessionSnapshot* nil
         *EL:PerfWaitMS* 0 *EL:PerfWaitDepth* 0 *EL:PerfSerial* 0 *EL:PerfOutcome* nil
@@ -163,6 +176,7 @@
           ;; Date: 2026-10-21. Publish one aggregate per synchronous batch.
           "source-wire-layer-reads" "source-wire-layer-cache-hits" "source-wire-layer-read-ms"
           "source-native-dxf-ms" "source-block-bounds-ms" "source-wire-record-ms" "source-read-profile-clock-reads"
+          "source-read-profile-enabled"
           "source-preset-cache-hits" "source-preset-cache-misses" "source-preset-normalizations"
           "source-preset-table-cache-hits" "source-preset-table-cache-misses"
           "source-preset-cache-rebuilds" "source-preset-cache-miss-check-ms"
@@ -181,6 +195,7 @@
           "network-build-calls" "network-verified-reuses" "network-geometry-checks"
           "number-prefix-searches" "number-prefix-bounds-builds" "number-prefix-bounds-tests"
           "number-prefix-bounds-rejected" "number-prefix-exact-tests" "number-prefix-bounds-fallbacks"
+          "number-prefix-single-bypasses" "number-prefix-single-searches"
           "number-scope-visits" "number-scope-neighbour-scans" "number-scope-path-lengths"
           "number-scope-neighbours-ms" "number-scope-first-device-ms" "number-scope-links-ms"
           "number-annotation-scans" "number-annotation-reads" "number-annotation-orphans"
@@ -189,7 +204,9 @@
           "number-source-read-attempts" "number-source-read-failures" "number-freshness-checks"
           "device-library-loads" "device-library-writes" "device-library-matches" "device-library-unknown"
           "device-legend-loads" "device-legend-builds")
-        (EL:PerfSet key 0)) T)))
+        (EL:PerfSet key 0))
+      (EL:PerfSet "recognition-compare-mode" comparemode)
+      (EL:PerfSet "number-prefix-single-baseline" (if (EL:NumberSingleBoundsEnabled) 1 0)) T)))
 (defun EL:PerfBegin (stage / token wait parent paused)
   (if *EL:PerfActive*
     (progn
@@ -354,7 +371,7 @@
           (cons 'after-graphics (EL:PerfMarkDuration "graphics-complete"))
           (cons 'metrics *EL:PerfMetrics*) (cons 'stages *EL:PerfStages*)))
       ;; Snapshot before reporting: summary I/O is outside all business measurements.
-      (setq *EL:PerfLastSummary* summary *EL:PerfActive* nil *EL:PerfPending* nil
+      (setq *EL:PerfLastSummary* summary *EL:PerfActive* nil *EL:PerfCompareRunMode* nil *EL:PerfPending* nil
         *EL:PerfMetrics* nil *EL:PerfStages* nil *EL:PerfMarks* nil *EL:PerfLogOwner* nil *EL:StoreReadCache* nil)
       (if *EL:DiagnosticsDeferred*
         ;; Date: 2026-10-15. Do not format or write diagnostics on the exit
@@ -385,6 +402,21 @@
         ((equal option "Detail") (setq *EL:PerfDetail* T))
         ((equal option "Summary") (setq *EL:PerfDetail* nil)))
       (princ "\n仅影响本次加载会话的测量；ELPERF.log 独立保留，日志对照结束后请恢复 LogsOn。"))) (princ))
+
+;; Date: 2026-10-21. Explicit diagnostic switch; Enter/cancel keep the old choice.
+(defun c:ELPERFAB (/ mode)
+  (if *EL:PerfActive* (princ "\n请结束当前统计或生成后再调整识别对照模式。")
+    (progn
+      (setq mode (EL:PerformanceCompareMode))
+      (princ (strcat "\n当前识别对照模式 " (itoa mode) "：" (EL:PerformanceCompareLabel mode)))
+      (setq mode (getint "\n输入模式 [0优化默认/1实体细分计时/2旧单候选粗筛/3两项旧方式] <保持>："))
+      (if mode
+        (if (and (equal (type mode) 'INT) (>= mode 0) (<= mode 3))
+          (setq *EL:PerfCompareMode* mode)
+          (princ "\n模式必须为0到3，原选择保持不变。")))
+      (princ (strcat "\n后续运行模式 " (itoa (EL:PerformanceCompareMode)) "："
+        (EL:PerformanceCompareLabel (EL:PerformanceCompareMode))))
+      (princ "\n仅本次会话有效；用相同图纸及配置对照，每轮结束后ELDIAG导出，最后恢复模式0。"))) (princ))
 
 ;; Date: 2026-10-09. Diagnostics never change recognition or propagate I/O errors.
 (defun EL:LogText (value / textdata)
@@ -699,6 +731,10 @@
     "；本轮业务结果：" (EL:MonitorCell (EL:Get 'last-outcome summary))) file)
   (EL:MonitorLine (strcat "启动时间 CDATE：" stamp "；命令：" (EL:Get 'command summary)
     "；交付版本：" (EL:MonitorCell (EL:Get 'package summary))) file)
+  (if (assoc "recognition-compare-mode" (EL:Get 'metrics summary))
+    (EL:MonitorLine (strcat "识别对照模式："
+      (itoa (EL:Get "recognition-compare-mode" (EL:Get 'metrics summary))) "；"
+      (EL:PerformanceCompareLabel (EL:Get "recognition-compare-mode" (EL:Get 'metrics summary)))) file))
   (EL:MonitorLine "" file)
   (EL:MonitorLine "单位为秒，保留三位小数。父动作包含子动作，不可将各行相加。交互秒是输入等待区间，已扣除本插件面板回调处理；原生鼠标放置包含 CAD 自身处理。未单独设点的工作保留在父动作及总时间中。" file)
   (EL:MonitorLine "记录用户动作和业务阶段；导线、实体、顶点等循环按批次计时，不逐对象写文件。开始代表进入函数，已返回只表示函数返回，业务成功与否以业务结果为准。" file)

@@ -141,22 +141,52 @@
         middle (fix (+ low (* (- high low) (if (= (rem sector 2) 0) fraction (- 1.0 fraction))))))
       (nth sector (list (list high middle low) (list middle high low) (list low high middle)
         (list low middle high) (list middle low high) (list high low middle))))))
+;; Date: 2026-10-21. Cache layer facts only during one synchronous palette read.
+;; An assoc cell also remembers a missing layer; direct color reads stay fresh.
+(defun EL:PreviewLayerData (name / key saved data)
+  (if *EL:PreviewLayerCacheEnabled*
+    (progn
+      (setq key (if name (strcase name)) saved (assoc key *EL:PreviewLayerCache*))
+      (if saved
+        (progn (setq *EL:PreviewLayerHits* (1+ *EL:PreviewLayerHits*)) (cdr saved))
+        (progn
+          (setq data (tblsearch "LAYER" name)
+            *EL:PreviewLayerCache* (cons (cons key data) *EL:PreviewLayerCache*)
+            *EL:PreviewLayerReads* (1+ *EL:PreviewLayerReads*)) data)))
+    (tblsearch "LAYER" name)))
 (defun EL:PreviewEntityRGB (id / entity data color rgb)
   (if (and (setq entity (handent id)) (setq data (entget entity)))
     (progn
       (setq color (cond ((cdr (assoc 62 data))) (T 256)))
       (if (and (not (assoc 420 data)) (= color 256))
-        (setq data (tblsearch "LAYER" (cdr (assoc 8 data)))))
+        (setq data (EL:PreviewLayerData (cdr (assoc 8 data)))))
       (if (setq rgb (cdr (assoc 420 data)))
         (list (logand 255 (fix (/ rgb 65536))) (logand 255 (fix (/ rgb 256))) (logand 255 rgb))
         (EL:ACIColorRGB (abs (cond ((cdr (assoc 62 data))) (T 7))))))))
-(defun EL:PreviewPalette (result / ids wire circuit id colors rgb choices palette used candidate index)
+;; Date: 2026-10-21. Exact duplicate RGB values do not change the avoidance test.
+;; Aggregate counters once per batch; never log per source entity or color.
+(defun EL:PreviewPaletteColors (result / ids wire circuit id colors rgb reads duplicates
+    *EL:PreviewLayerCacheEnabled* *EL:PreviewLayerCache* *EL:PreviewLayerReads* *EL:PreviewLayerHits*)
+  (setq *EL:PreviewLayerCacheEnabled* T *EL:PreviewLayerReads* 0 *EL:PreviewLayerHits* 0
+    reads 0 duplicates 0)
   (foreach wire (EL:Get 'wires (EL:Get 'snapshot result))
     (setq ids (cons (cond ((EL:Get 'source-wire wire)) ((EL:Get 'id wire))) ids)))
   (if (not ids)
     (foreach circuit (EL:Get 'circuits result) (setq ids (append ids (EL:Get 'wires circuit)))))
-  (foreach id (EL:Unique ids)
-    (if (setq rgb (EL:PreviewEntityRGB id)) (setq colors (cons rgb colors))))
+  (setq ids (EL:Unique ids))
+  (foreach id ids
+    (if (setq rgb (EL:PreviewEntityRGB id))
+      (progn
+        (setq reads (1+ reads))
+        (if (member rgb colors) (setq duplicates (1+ duplicates))
+          (setq colors (cons rgb colors))))))
+  (EL:PerfCount "preview-source-ids" (length ids))
+  (EL:PerfCount "preview-source-color-reads" reads)
+  (EL:PerfCount "preview-source-rgb-duplicates" duplicates)
+  (EL:PerfCount "preview-source-rgb-unique" (length colors))
+  (EL:PerfCount "preview-layer-color-reads" *EL:PreviewLayerReads*)
+  (EL:PerfCount "preview-layer-color-cache-hits" *EL:PreviewLayerHits*) colors)
+(defun EL:PreviewPaletteChoices (colors / rgb choices palette used candidate index)
   (setq index 0)
   (repeat 24 (setq choices (append choices (list (EL:CircuitColor index))) index (1+ index)))
   ;; Only orange/yellow (30-59) and cyan/blue/violet (130-199), including shades.
@@ -170,6 +200,9 @@
         (not (vl-some '(lambda (source) (< (EL:Dot (EL:V- rgb source) (EL:V- rgb source)) 10000.0)) colors)))
       (setq palette (append palette (list candidate)) used (cons rgb used))))
   palette)
+(defun EL:PreviewPalette (result / colors)
+  (setq colors (EL:PerfCall "PREVIEW_SOURCE_COLORS" 'EL:PreviewPaletteColors (list result)))
+  (EL:PerfCall "PREVIEW_PALETTE_FILTER" 'EL:PreviewPaletteChoices (list colors)))
 ;; Date: 2026-10-16. The panel and drawing preview consume the same ordered palette.
 (defun EL:PanelCircuitColorsDraw (palette / index key color width height)
   (setq index 0)
@@ -607,9 +640,11 @@
     *EL:PanelTemplateReady* *EL:PanelLibrarySnapshot* *EL:PanelDialogPosition* *EL:PanelPreviewPalette* *EL:PanelSystemNotice*
     home)
   (setq home (not result)
-    *EL:PanelDraft* (if result (EL:PanelCompute (EL:SelectFixedExits result nil) powers cfg))
+    ;; Date: 2026-10-21. Measure each initialization batch before the dialog waits.
+    *EL:PanelDraft* (if result (EL:PerfCall "PANEL_COMPUTE" 'EL:PanelCompute
+      (list (EL:PerfCall "PANEL_SELECT_EXITS" 'EL:SelectFixedExits (list result nil)) powers cfg)))
     *EL:PanelPowers* powers *EL:PanelCapacity* (EL:CapacityDefault capacity)
-    *EL:PanelPreviewPalette* (EL:PreviewPalette *EL:PanelDraft*)
+    *EL:PanelPreviewPalette* (EL:PerfCall "PANEL_PREVIEW_PALETTE" 'EL:PreviewPalette (list *EL:PanelDraft*))
     *EL:PanelConfig* cfg
     *EL:PanelTemplateReady* (if result (EL:TemplateReady (EL:Get 'template cfg) cfg))
     *EL:PanelLibrarySnapshot* (cond (home (EL:DLSnapshot))

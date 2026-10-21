@@ -397,7 +397,7 @@
   (EL:Require (= (length ordered) (length blocks)) "按需候选顺序复核失败，请保留诊断日志。")
   (EL:PerfCount "root-scope-order-wire-reads" reads)
   (EL:PerfEnd perf 'returned) ordered)
-(defun EL:RootScopeDiscover (wires candidates cfg / snapshot original wire item block blocks items ends ep row id bounds point roots output perf owner epoch
+(defun EL:RootScopeDiscover (wires candidates cfg / snapshot original wire item block blocks items ends ep row id bounds point roots output perf batchperf owner epoch
     *EL:RootScopeActive* *EL:RootScopeFineRecords*
     *EL:WalkPanel* *EL:WalkConfig* *EL:WalkSnapshot* *EL:WalkTouch*
     *EL:WalkWireTree* *EL:WalkBlockTree* *EL:WalkEndTree* *EL:WalkJunctionTree*
@@ -410,9 +410,13 @@
     *EL:WalkTouch* (EL:Get 'eps_touch (EL:Get 'params cfg))
     *EL:DeviceContactTolerance* (EL:DeviceContactTolerance cfg) *EL:DeviceTemplateEnabled* T
     original wires roots (mapcar '(lambda (row) (EL:Get 'wire row)) (EL:Get 'circuit-starts cfg)))
+  ;; Date: 2026-10-21. Fixed batch clocks only; preserve every query and walk order.
   ;; Preserve the real panel contour and whole native INSERT bounds.
+  (setq batchperf (EL:PerfBegin "ROOT_SCOPE_PANEL_SHAPE"))
   (if *EL:WalkPanel*
     (setq *EL:RootScopePanelShape* (EL:PanelContactShape (handent *EL:WalkPanel*) cfg)))
+  (EL:PerfEnd batchperf 'returned)
+  (setq batchperf (EL:PerfBegin "ROOT_SCOPE_BLOCK_RECORDS"))
   (foreach item candidates
     (setq id (EL:Get 'key item)
       block (list (cons 'entity (EL:Get 'entity item)) (cons 'id id)
@@ -424,7 +428,9 @@
       (setq block (append (EL:Put 'whole-block nil block) *EL:RootScopePanelShape*)))
     (setq block (EL:Put 'role (EL:FixedBlockRole block *EL:WalkPanel* cfg) block)
       blocks (cons block blocks)))
+  (EL:PerfEnd batchperf 'returned)
   ;; Materialize picked roots and every possible source-side boundary contact.
+  (setq batchperf (EL:PerfBegin "ROOT_SCOPE_ROOT_PREPARE"))
   (foreach wire wires
     (if (or (not (assoc 'deferred-dxf wire)) (member (EL:Get 'id wire) roots)
         (vl-some '(lambda (row)
@@ -434,8 +440,12 @@
     (setq output (cons wire output))
     (foreach ep (EL:Get 'ends wire) (setq ends (cons ep ends))))
   (setq snapshot (list (cons 'wires (reverse output)) (cons 'blocks blocks) (cons 'ends (reverse ends))))
+  (EL:PerfEnd batchperf 'returned)
+  (setq batchperf (EL:PerfBegin "ROOT_SCOPE_START_SNAPSHOT"))
   (setq snapshot (EL:StartSnapshot snapshot cfg *EL:WalkPanel*)
     *EL:WalkSnapshot* snapshot wires (EL:Get 'wires snapshot))
+  (EL:PerfEnd batchperf 'returned)
+  (setq batchperf (EL:PerfBegin "ROOT_SCOPE_WIRE_INDEX"))
   (foreach wire wires
     (setq id (EL:Get 'id wire) bounds (EL:WireContactBounds wire)
       *EL:WalkWireRecords* (cons (cons id wire) *EL:WalkWireRecords*))
@@ -443,20 +453,32 @@
       (setq items (cons (list (cons 'key id) (cons 'wire wire) (cons 'bounds bounds)
         (cons 'point (EL:V* 0.5 (EL:V+ (car bounds) (cadr bounds))))) items))))
   (setq *EL:WalkWireTree* (EL:SpatialTree items 0) items nil)
+  (EL:PerfEnd batchperf 'returned)
+  (setq batchperf (EL:PerfBegin "ROOT_SCOPE_BLOCK_INDEX"))
   (foreach block blocks
     (setq id (EL:Get 'id block) bounds (EL:Get 'bounds block)
       *EL:WalkBlockRecords* (cons (cons id block) *EL:WalkBlockRecords*)
       items (cons (list (cons 'key id) (cons 'block block) (cons 'bounds bounds)
         (cons 'point (EL:V* 0.5 (EL:V+ (car bounds) (cadr bounds))))) items)))
-  (setq *EL:WalkBlockTree* (EL:SpatialTree items 0)
-    *EL:WalkJunctionTree* (EL:JunctionTree blocks)
-    *EL:WalkEndTree* (EL:SpatialTree (mapcar '(lambda (ep)
-      (EL:Put 'bounds (list (EL:Get 'point ep) (EL:Get 'point ep)) ep)) (EL:Get 'ends snapshot)) 0)
-    *EL:WalkGapSnapshot* (EL:SimpleGapSnapshot snapshot))
+  (setq *EL:WalkBlockTree* (EL:SpatialTree items 0))
+  (EL:PerfEnd batchperf 'returned)
+  (setq batchperf (EL:PerfBegin "ROOT_SCOPE_JUNCTION_INDEX"))
+  (setq *EL:WalkJunctionTree* (EL:JunctionTree blocks))
+  (EL:PerfEnd batchperf 'returned)
+  (setq batchperf (EL:PerfBegin "ROOT_SCOPE_END_INDEX"))
+  (setq *EL:WalkEndTree* (EL:SpatialTree (mapcar '(lambda (ep)
+      (EL:Put 'bounds (list (EL:Get 'point ep) (EL:Get 'point ep)) ep)) (EL:Get 'ends snapshot)) 0))
+  (EL:PerfEnd batchperf 'returned)
+  (setq batchperf (EL:PerfBegin "ROOT_SCOPE_GAP_SNAPSHOT"))
+  (setq *EL:WalkGapSnapshot* (EL:SimpleGapSnapshot snapshot))
+  (EL:PerfEnd batchperf 'returned)
+  (setq batchperf (EL:PerfBegin "ROOT_SCOPE_ROOT_LINKS"))
   (foreach ep (EL:Get 'ends snapshot)
     (setq *EL:WalkEndRecords* (cons (cons (EL:Get 'key ep) ep) *EL:WalkEndRecords*)))
   (foreach wire wires
     (if (member (EL:Get 'id wire) roots) (EL:WalkLink *EL:WalkPanel* (EL:Get 'id wire))))
+  (EL:PerfEnd batchperf 'returned)
+  (setq batchperf (EL:PerfBegin "ROOT_SCOPE_REACHABLE_TRACE"))
   (while *EL:WalkQueue*
     (setq id (car *EL:WalkQueue*) *EL:WalkQueue* (cdr *EL:WalkQueue*))
     (if (not (member id *EL:WalkSeen*))
@@ -465,6 +487,8 @@
         (if (setq wire (cdr (assoc id *EL:WalkWireRecords*)))
           (EL:WalkWire (EL:RootScopeResolve wire))
           (if (setq block (cdr (assoc id *EL:WalkBlockRecords*))) (EL:WalkBlock block))))))
+  (EL:PerfEnd batchperf 'returned)
+  (setq batchperf (EL:PerfBegin "ROOT_SCOPE_RESULT_ORDER"))
   (setq output nil)
   ;; Keep native relative order, including tested misses and gap competitors.
   (foreach wire original
@@ -478,7 +502,9 @@
   (EL:LogEvent "ROOT_SCOPE_DISCOVERED" (list (cons 'source-wires (length original))
     (cons 'fine-wires (length output)) (cons 'walk-objects (length *EL:WalkSeen*))
     (cons 'policy 'exact-root-dependencies)))
-  (EL:PerfEnd perf 'returned) (reverse output))
+  (setq output (reverse output))
+  (EL:PerfEnd batchperf 'returned)
+  (EL:PerfEnd perf 'returned) output)
 (defun EL:SimpleCollectFull (cfg / ss i e d bounds items tree wires ends blocks wire candidate id issues block queue current shape perf candidateperf name facts snapshot
     *EL:CollectBlockNames* *EL:CandidateIndex* *EL:CandidateIndexOther*
     *EL:CandidateIndexLookups* *EL:CandidateIndexSteps* *EL:CandidateIndexDuplicates*

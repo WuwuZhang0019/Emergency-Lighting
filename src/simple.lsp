@@ -109,10 +109,22 @@
     (EL:Put 'trunk-roots roots (EL:Put 'trunk-segments (EL:Get 'segments trunk)
       (EL:Put 'wires wires (EL:Put 'ends ends
         (EL:Put 'blocks (subst shape block (EL:Get 'blocks snapshot)) snapshot)))))))
+(defun EL:WireLayerStyle (layer / saved started lt)
+  ;; Date: 2026-10-21. Only one synchronous collect shares layer lookups.
+  (if (and *EL:WireLayerCacheEnabled* (not (equal *EL:WireLayerCacheEpoch* *EL:FreshEpoch*)))
+    (setq *EL:WireLayerStyles* nil *EL:WireLayerCacheEpoch* *EL:FreshEpoch*))
+  (if (and *EL:WireLayerCacheEnabled* (setq saved (assoc layer *EL:WireLayerStyles*)))
+    (progn (setq *EL:WireLayerCacheHits* (1+ *EL:WireLayerCacheHits*)) (cdr saved))
+    (progn
+      (setq started (if *EL:WireLayerCacheEnabled* (EL:Tick))
+        lt (strcase (cond ((cdr (assoc 6 (tblsearch "LAYER" layer)))) (T "CONTINUOUS"))))
+      (if *EL:WireLayerCacheEnabled*
+        (setq *EL:WireLayerStyles* (cons (cons layer lt) *EL:WireLayerStyles*)
+          *EL:WireLayerReads* (1+ *EL:WireLayerReads*)
+          *EL:WireLayerReadMS* (+ *EL:WireLayerReadMS* (EL:Elapsed started)))) lt)))
 (defun EL:WireStyle (d / layer lt)
   (setq layer (cdr (assoc 8 d)) lt (strcase (cond ((cdr (assoc 6 d))) (T "BYLAYER"))))
-  (if (equal lt "BYLAYER")
-    (setq lt (strcase (cond ((cdr (assoc 6 (tblsearch "LAYER" layer)))) (T "CONTINUOUS")))))
+  (if (equal lt "BYLAYER") (setq lt (EL:WireLayerStyle layer)))
   ;; Model-space entities have no parent INSERT from which to inherit ByBlock.
   (if (equal lt "BYBLOCK") (setq lt "CONTINUOUS"))
   (list layer lt))
@@ -268,14 +280,18 @@
       (if good (progn (EL:PerfCount "source-derived-reuses" 1) (EL:Get 'input memo))))))
 (defun EL:SimpleCollect (cfg / ss i e d bounds items tree wires ends blocks wire candidate id issues block queue current shape perf candidateperf name facts snapshot
     *EL:CollectBlockNames* *EL:CandidateIndex* *EL:CandidateIndexOther*
-    *EL:CandidateIndexLookups* *EL:CandidateIndexSteps* *EL:CandidateIndexDuplicates*)
+    *EL:CandidateIndexLookups* *EL:CandidateIndexSteps* *EL:CandidateIndexDuplicates*
+    *EL:WireLayerCacheEnabled* *EL:WireLayerStyles* *EL:WireLayerCacheEpoch*
+    *EL:WireLayerCacheHits* *EL:WireLayerReads* *EL:WireLayerReadMS*)
   ;; Date: 2026-10-10. Filter wires by inferred style; only the selected panel
   ;; uses its contour. Device geometry is checked lazily during network tracing.
   ;; Date: 2026-10-20. Retain the actual pre-filter scope in diagnostic exports.
   (EL:LogEvent "RECOGNITION_SCOPE" (mapcar '(lambda (key) (cons key (EL:Get key cfg)))
     '(preset-scoped panel-layers panel-names wire-layers device-layers device-names)))
   (setq ss (EL:PresetSelection cfg "INSERT,LINE,LWPOLYLINE" '(wire-layers panel-layers device-layers)) i 0
-    *EL:CandidateIndexLookups* 0 *EL:CandidateIndexSteps* 0 *EL:CandidateIndexDuplicates* 0)
+    *EL:CandidateIndexLookups* 0 *EL:CandidateIndexSteps* 0 *EL:CandidateIndexDuplicates* 0
+    *EL:WireLayerCacheEnabled* T *EL:WireLayerCacheEpoch* *EL:FreshEpoch*
+    *EL:WireLayerCacheHits* 0 *EL:WireLayerReads* 0 *EL:WireLayerReadMS* 0)
   (EL:PerfCount "source-collect-calls" 1)
   (EL:PerfCount "source-selection-entities" (if ss (sslength ss) 0))
   (setq perf (EL:PerfBegin "COLLECT_ENTITY_READ"))
@@ -303,6 +319,10 @@
                  ends (append (EL:Get 'ends wire) ends) issues (append (EL:Get 'issues wire) issues))))
       (if (not (cdr (assoc "EL_FIXED_V1" (cdr (assoc -3 d)))))
         (setq facts (cons (list d bounds) facts)))))
+  ;; Aggregate only; never add a measured frame or log write per wire.
+  (EL:PerfCount "source-wire-layer-reads" *EL:WireLayerReads*)
+  (EL:PerfCount "source-wire-layer-cache-hits" *EL:WireLayerCacheHits*)
+  (EL:PerfCount "source-wire-layer-read-ms" *EL:WireLayerReadMS*)
   (EL:PerfEnd perf 'returned)
   (setq perf (EL:PerfBegin "COLLECT_CANDIDATES") candidateperf (EL:PerfBegin "COLLECT_SPATIAL_TREE")
     tree (EL:SpatialTree items 0))

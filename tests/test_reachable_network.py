@@ -60,7 +60,7 @@ class ReachableNetworkTests(unittest.TestCase):
         self.line('root', [1., 0., 0.], [9., 0., 0.], 'W')
         self.selected = ['panel', 'a', 'root']
 
-    def test_one_hundred_remote_nodes_keep_source_records_without_reading_contours(self):
+    def test_one_hundred_remote_nodes_keep_light_facts_without_reading_geometry(self):
         self.base()
         remote_blocks, remote_wires = set(), set()
         for i in range(50):
@@ -81,8 +81,15 @@ class ReachableNetworkTests(unittest.TestCase):
         self.assertEqual(set(self.get('wire-ids', result)), {'root'})
         self.assertEqual(remote_blocks.intersection(reads), set())
         snapshot = self.get('snapshot', result)
-        self.assertTrue(remote_blocks.issubset({self.get('id', b) for b in self.get('blocks', snapshot)}))
-        self.assertTrue(remote_wires.issubset({self.get('id', w) for w in self.get('wires', snapshot)}))
+        # Date: 2026-10-21. Full source facts survive; heavy remote records do not.
+        source_ids = {self.call('EL:Get', 5, fact[0])
+                      for fact in self.get('source-selection-facts', snapshot)}
+        self.assertTrue(remote_blocks.issubset(source_ids))
+        self.assertTrue(remote_wires.issubset(source_ids))
+        self.assertFalse(remote_blocks.intersection(self.get('id', b)
+                         for b in self.get('blocks', snapshot)))
+        self.assertFalse(remote_wires.intersection(self.get('id', w)
+                         for w in self.get('wires', snapshot)))
 
     def test_bbox_empty_candidate_does_not_open_its_independent_wire_network(self):
         self.base()

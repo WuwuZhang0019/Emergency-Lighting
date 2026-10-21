@@ -31,7 +31,7 @@
             (list (+ (car hi) tolerance margin) (+ (cadr hi) tolerance margin)
                   (+ (caddr hi) (EL:GapEpsilon) margin))))))
 (defun EL:StartSnapshot (snapshot cfg panel / starts row wire ep ids kept removed ends perf batch result
-    bounds point pairs rejected exact fallback)
+    bounds point pairs rejected exact fallback removed-ids)
   ;; Date: 2026-10-21. Keep source order and exact contact; skip only distant pairs.
   (setq perf (EL:PerfBegin "START_SNAPSHOT") starts (EL:Get 'circuit-starts cfg))
   (EL:Require (and starts (EL:CircuitStartsValid starts)) "回路起始端记录无效，请重新拾取。")
@@ -75,6 +75,11 @@
   (EL:PerfCount "start-snapshot-ends" (length ends))
   (setq result (EL:Put 'circuit-starts starts (EL:Put 'start-boundary-source (reverse removed)
     (EL:Put 'wires kept (EL:Put 'ends ends snapshot)))))
+  (if (assoc 'source-wire-ids result)
+    (progn
+      (setq removed-ids (mapcar '(lambda (wire) (EL:Get 'id wire)) removed))
+      (setq result (EL:Put 'source-wire-ids
+        (vl-remove-if '(lambda (id) (member id removed-ids)) (EL:Get 'source-wire-ids result)) result))))
   (EL:PerfEnd perf 'returned) result)
 ;; Date: 2026-10-10. Infer wire style from actual panel contacts.
 ;; Date: 2026-10-10. A selected trunk is a logical panel boundary, never a circuit edge.
@@ -320,7 +325,154 @@
         (setq good (equal (EL:Get 'panel-shape memo)
           (EL:PanelContactShape (handent (EL:Get 'auto-panel cfg)) cfg))))
       (if good (progn (EL:PerfCount "source-derived-reuses" 1) (EL:Get 'input memo))))))
-(defun EL:SimpleCollect (cfg / ss i e d bounds items tree wires ends blocks wire candidate id issues block queue current shape perf candidateperf name facts snapshot
+;; Date: 2026-10-21. Explicit-root collection owns all deferred state locally.
+(defun EL:SimpleCollect (cfg / *EL:RootScopeCollecting* *EL:RootScopePanelShape* *EL:RootScopeOriginalWires* *EL:RootScopeResolvedWires*)
+  (setq *EL:RootScopeCollecting* (and (EL:Get 'auto-panel cfg) (EL:Get 'circuit-starts cfg) (EL:CircuitStartsValid (EL:Get 'circuit-starts cfg))))
+  (EL:SimpleCollectFull cfg))
+(defun EL:RootScopeResolve (wire / id saved data full)
+  (if (and *EL:RootScopeActive* wire)
+    (progn
+      (setq id (EL:Get 'id wire))
+      (if (setq saved (assoc id *EL:RootScopeFineRecords*)) (cdr saved)
+        (progn
+          (if (assoc 'deferred-dxf wire)
+            (progn
+              (setq data (EL:Get 'deferred-dxf wire))
+              (EL:PerfCount "source-wire-record-reads" 1)
+              (EL:PerfCount "root-scope-wire-materializations" 1)
+              (setq full (EL:WireRecordDXF (EL:Get 'entity wire)
+                (vl-remove-if '(lambda (row) (= (car row) -3)) data) *EL:WalkConfig*)))
+            (setq full wire))
+          (setq *EL:RootScopeFineRecords* (cons (cons id full) *EL:RootScopeFineRecords*)) full)))
+    wire))
+(defun EL:RootScopeGapIndex (a b snapshot / p q direction distance wires item)
+  ;; A rejected/non-reached wire may still block the gap. Read every corridor hit.
+  (setq p (EL:Get 'point a) q (EL:Get 'point b)
+    direction (EL:Unit (EL:V- q p)) distance (EL:Norm (EL:V- q p)))
+  (foreach item (EL:SpatialRayQuery *EL:WalkWireTree* p direction distance)
+    (setq wires (cons (EL:RootScopeResolve (EL:Get 'wire item)) wires)))
+  (EL:GapPathIndex (EL:Put 'wires (reverse wires) snapshot)))
+(defun EL:RootScopeOrder (blocks tree cfg / targets items block wire probe candidates candidate id seen ordered queue current data perf reads saved)
+  ;; Date: 2026-10-21. Unreached wires may have seeded the old candidate order.
+  ;; Reconstruct only the retained bbox component. Straight zero-width probes
+  ;; use exact raw bounds; nearby curved/wide order dependencies are read fresh.
+  (setq perf (EL:PerfBegin "ROOT_SCOPE_CANDIDATE_ORDER") reads 0)
+  (foreach block blocks
+    (setq id (EL:Get 'id block) targets (cons (cons id block) targets)
+      items (cons (list (cons 'key id) (cons 'bounds (EL:Get 'bounds block))
+        (cons 'point (EL:V* 0.5 (EL:V+ (car (EL:Get 'bounds block)) (cadr (EL:Get 'bounds block)))))) items)))
+  (setq items (EL:SpatialTree items 0))
+  (foreach wire *EL:RootScopeOriginalWires*
+    (setq saved (assoc (EL:Get 'id wire) *EL:RootScopeResolvedWires*)
+      probe (cond (saved (cdr saved)) ((EL:Get 'candidate-bounds wire)
+        (EL:Put 'contact-bounds (EL:Get 'candidate-bounds wire) wire)) (T wire)))
+    (if (EL:SimpleBlockCandidates probe items cfg)
+      (progn
+        (if (and (assoc 'deferred-dxf probe) (not (EL:Get 'candidate-bounds probe)))
+          (progn
+            (setq data (EL:Get 'deferred-dxf probe) reads (1+ reads))
+            (EL:PerfCount "source-wire-record-reads" 1)
+            (setq probe (EL:WireRecordDXF (EL:Get 'entity probe)
+              (vl-remove-if '(lambda (row) (= (car row) -3)) data) cfg))))
+        ;; Query the original full tree, retaining its exact result order.
+        (foreach candidate (EL:SimpleBlockCandidates probe tree cfg)
+          (setq id (EL:Get 'key candidate))
+          (if (and (assoc id targets) (not (member id seen)))
+            (setq seen (cons id seen) ordered (cons (cdr (assoc id targets)) ordered)))))))
+  (setq queue ordered)
+  (while queue
+    (setq current (car queue) queue (cdr queue))
+    (foreach candidate (EL:SpatialBoxQuery tree (EL:Get 'bounds current) (EL:DeviceContactTolerance cfg))
+      (setq id (EL:Get 'key candidate))
+      (if (and (assoc id targets) (not (member id seen)))
+        (setq seen (cons id seen) block (cdr (assoc id targets))
+          ordered (cons block ordered) queue (cons block queue)))))
+  (EL:Require (= (length ordered) (length blocks)) "按需候选顺序复核失败，请保留诊断日志。")
+  (EL:PerfCount "root-scope-order-wire-reads" reads)
+  (EL:PerfEnd perf 'returned) ordered)
+(defun EL:RootScopeDiscover (wires candidates cfg / snapshot original wire item block blocks items ends ep row id bounds point roots output perf owner epoch
+    *EL:RootScopeActive* *EL:RootScopeFineRecords*
+    *EL:WalkPanel* *EL:WalkConfig* *EL:WalkSnapshot* *EL:WalkTouch*
+    *EL:WalkWireTree* *EL:WalkBlockTree* *EL:WalkEndTree* *EL:WalkJunctionTree*
+    *EL:WalkWireRecords* *EL:WalkBlockRecords* *EL:WalkEndRecords*
+    *EL:WalkQueue* *EL:WalkSeen* *EL:WalkEdges* *EL:WalkEnds* *EL:WalkGapRows* *EL:WalkContactHits*
+    *EL:WalkGapSnapshot* *EL:GapPathIndex* *EL:GapIndexReady* *EL:DeviceContactTolerance*
+    *EL:DeviceContactCache* *EL:DeviceTemplateCache* *EL:DeviceTemplateEnabled*)
+  (setq perf (EL:PerfBegin "ROOT_SCOPE_DISCOVERY") owner (namedobjdict) epoch *EL:FreshEpoch*
+    *EL:RootScopeActive* T *EL:WalkConfig* cfg *EL:WalkPanel* (EL:Get 'auto-panel cfg)
+    *EL:WalkTouch* (EL:Get 'eps_touch (EL:Get 'params cfg))
+    *EL:DeviceContactTolerance* (EL:DeviceContactTolerance cfg) *EL:DeviceTemplateEnabled* T
+    original wires roots (mapcar '(lambda (row) (EL:Get 'wire row)) (EL:Get 'circuit-starts cfg)))
+  ;; Preserve the real panel contour and whole native INSERT bounds.
+  (if *EL:WalkPanel*
+    (setq *EL:RootScopePanelShape* (EL:PanelContactShape (handent *EL:WalkPanel*) cfg)))
+  (foreach item candidates
+    (setq id (EL:Get 'key item)
+      block (list (cons 'entity (EL:Get 'entity item)) (cons 'id id)
+        (cons 'name (cond ((EL:Get 'name item))
+          (T (EL:CollectBlockName (EL:Get 'entity item) (EL:Get 'definition-name item)))))
+        (cons 'layer (EL:Get 'layer item))
+        (cons 'bounds (EL:Get 'bounds item)) (cons 'whole-block T)))
+    (if (and (equal id *EL:WalkPanel*) *EL:RootScopePanelShape*)
+      (setq block (append (EL:Put 'whole-block nil block) *EL:RootScopePanelShape*)))
+    (setq block (EL:Put 'role (EL:FixedBlockRole block *EL:WalkPanel* cfg) block)
+      blocks (cons block blocks)))
+  ;; Materialize picked roots and every possible source-side boundary contact.
+  (foreach wire wires
+    (if (or (not (assoc 'deferred-dxf wire)) (member (EL:Get 'id wire) roots)
+        (vl-some '(lambda (row)
+          (EL:InBounds (EL:Get 'point row) (EL:StartBoundaryBounds wire *EL:WalkTouch*) 0.0))
+          (EL:Get 'circuit-starts cfg)))
+      (setq wire (EL:RootScopeResolve wire)))
+    (setq output (cons wire output))
+    (foreach ep (EL:Get 'ends wire) (setq ends (cons ep ends))))
+  (setq snapshot (list (cons 'wires (reverse output)) (cons 'blocks blocks) (cons 'ends (reverse ends))))
+  (setq snapshot (EL:StartSnapshot snapshot cfg *EL:WalkPanel*)
+    *EL:WalkSnapshot* snapshot wires (EL:Get 'wires snapshot))
+  (foreach wire wires
+    (setq id (EL:Get 'id wire) bounds (EL:WireContactBounds wire)
+      *EL:WalkWireRecords* (cons (cons id wire) *EL:WalkWireRecords*))
+    (if bounds
+      (setq items (cons (list (cons 'key id) (cons 'wire wire) (cons 'bounds bounds)
+        (cons 'point (EL:V* 0.5 (EL:V+ (car bounds) (cadr bounds))))) items))))
+  (setq *EL:WalkWireTree* (EL:SpatialTree items 0) items nil)
+  (foreach block blocks
+    (setq id (EL:Get 'id block) bounds (EL:Get 'bounds block)
+      *EL:WalkBlockRecords* (cons (cons id block) *EL:WalkBlockRecords*)
+      items (cons (list (cons 'key id) (cons 'block block) (cons 'bounds bounds)
+        (cons 'point (EL:V* 0.5 (EL:V+ (car bounds) (cadr bounds))))) items)))
+  (setq *EL:WalkBlockTree* (EL:SpatialTree items 0)
+    *EL:WalkJunctionTree* (EL:JunctionTree blocks)
+    *EL:WalkEndTree* (EL:SpatialTree (mapcar '(lambda (ep)
+      (EL:Put 'bounds (list (EL:Get 'point ep) (EL:Get 'point ep)) ep)) (EL:Get 'ends snapshot)) 0)
+    *EL:WalkGapSnapshot* (EL:SimpleGapSnapshot snapshot))
+  (foreach ep (EL:Get 'ends snapshot)
+    (setq *EL:WalkEndRecords* (cons (cons (EL:Get 'key ep) ep) *EL:WalkEndRecords*)))
+  (foreach wire wires
+    (if (member (EL:Get 'id wire) roots) (EL:WalkLink *EL:WalkPanel* (EL:Get 'id wire))))
+  (while *EL:WalkQueue*
+    (setq id (car *EL:WalkQueue*) *EL:WalkQueue* (cdr *EL:WalkQueue*))
+    (if (not (member id *EL:WalkSeen*))
+      (progn
+        (setq *EL:WalkSeen* (cons id *EL:WalkSeen*))
+        (if (setq wire (cdr (assoc id *EL:WalkWireRecords*)))
+          (EL:WalkWire (EL:RootScopeResolve wire))
+          (if (setq block (cdr (assoc id *EL:WalkBlockRecords*))) (EL:WalkBlock block))))))
+  (setq output nil)
+  ;; Keep native relative order, including tested misses and gap competitors.
+  (foreach wire original
+    (if (setq item (assoc (EL:Get 'id wire) *EL:RootScopeFineRecords*))
+      (setq output (cons (cdr item) output))))
+  (EL:Require (and (equal owner (namedobjdict)) (equal epoch *EL:FreshEpoch*))
+    "SOURCE_CHANGED：按需识别期间发生写入、交互或切图，请重新统计。")
+  (EL:PerfCount "root-scope-light-wires" (length original))
+  (EL:PerfCount "root-scope-fine-wires" (length output))
+  (EL:PerfCount "root-scope-skipped-wires" (- (length original) (length output)))
+  (EL:LogEvent "ROOT_SCOPE_DISCOVERED" (list (cons 'source-wires (length original))
+    (cons 'fine-wires (length output)) (cons 'walk-objects (length *EL:WalkSeen*))
+    (cons 'policy 'exact-root-dependencies)))
+  (EL:PerfEnd perf 'returned) (reverse output))
+(defun EL:SimpleCollectFull (cfg / ss i e d bounds items tree wires ends blocks wire candidate id issues block queue current shape perf candidateperf name facts snapshot
     *EL:CollectBlockNames* *EL:CandidateIndex* *EL:CandidateIndexOther*
     *EL:CandidateIndexLookups* *EL:CandidateIndexSteps* *EL:CandidateIndexDuplicates*
     *EL:WireLayerCacheEnabled* *EL:WireLayerStyles* *EL:WireLayerCacheEpoch*
@@ -329,7 +481,7 @@
     *EL:PresetCacheHits* *EL:PresetCacheMisses* *EL:PresetCacheNormalizations*
     *EL:PresetCacheMemberHits* *EL:PresetCacheMemberMisses* *EL:PresetCacheRebuilds* *EL:PresetCacheCheckMS*
     *EL:CollectReadProfile* *EL:CollectDXFMS* *EL:CollectBoundsMS* *EL:CollectWireMS* *EL:CollectProfileReads* readstarted
-    typ source-inserts source-lines source-polylines source-other source-managed source-rejected)
+    typ source-inserts source-lines source-polylines source-other source-managed source-rejected source-wire-ids)
   ;; Date: 2026-10-10. Filter wires by inferred style; only the selected panel
   ;; uses its contour. Device geometry is checked lazily during network tracing.
   ;; Date: 2026-10-20. Retain the actual pre-filter scope in diagnostic exports.
@@ -378,10 +530,15 @@
             (setq issues (cons (EL:Issue 'MISSING_BLOCK_BOUNDS id nil) issues))))
         ((equal typ "INSERT") (setq source-rejected (1+ source-rejected)))
         ((EL:WireStyleAllowed d cfg)
-          (EL:PerfCount "source-wire-record-reads" 1)
-          (setq wire (EL:WireRecordDXF e (if (assoc -3 d)
-              (vl-remove-if '(lambda (row) (= (car row) -3)) d) d) cfg) wires (cons wire wires)
-                 ends (append (EL:Get 'ends wire) ends) issues (append (EL:Get 'issues wire) issues))))
+          (setq wire (if *EL:RootScopeCollecting* (EL:RootScopeWire e d cfg)))
+          (if (not wire)
+            (progn
+              (EL:PerfCount "source-wire-record-reads" 1)
+              (if *EL:RootScopeCollecting* (EL:PerfCount "root-scope-wire-fallbacks" 1))
+              (setq wire (EL:WireRecordDXF e (if (assoc -3 d)
+                (vl-remove-if '(lambda (row) (= (car row) -3)) d) d) cfg))))
+          (setq source-wire-ids (cons (EL:Get 'id wire) source-wire-ids) wires (cons wire wires)
+            ends (append (EL:Get 'ends wire) ends) issues (append (EL:Get 'issues wire) issues))))
       (if (not (cdr (assoc "EL_FIXED_V1" (cdr (assoc -3 d)))))
         (setq facts (cons (list d bounds) facts)))))
   (EL:PerfCount "source-selection-inserts" source-inserts)
@@ -404,6 +561,17 @@
   (EL:PerfCount "source-wire-layer-read-ms" *EL:WireLayerReadMS*)
   (EL:PresetCacheMetrics)
   (EL:PerfEnd perf 'returned)
+  ;; Date: 2026-10-21. Roots discover exact dependencies before candidate expansion.
+  (if *EL:RootScopeCollecting*
+    (progn
+      (setq *EL:RootScopeOriginalWires* wires
+        wires (EL:RootScopeDiscover wires items cfg)
+        *EL:RootScopeResolvedWires* (mapcar '(lambda (wire) (cons (EL:Get 'id wire) wire)) wires) ends nil)
+      (foreach wire wires
+        (foreach candidate (EL:Get 'ends wire) (setq ends (cons candidate ends)))
+        (foreach candidate (EL:Get 'issues wire)
+          (if (not (member candidate issues)) (setq issues (cons candidate issues)))))
+      (setq ends (reverse ends))))
   (setq perf (EL:PerfBegin "COLLECT_CANDIDATES") candidateperf (EL:PerfBegin "COLLECT_SPATIAL_TREE")
     tree (EL:SpatialTree items 0))
   (EL:PerfEnd candidateperf 'returned)
@@ -438,11 +606,13 @@
                 blocks (cons block blocks) queue (cons block queue))))))
   (EL:CandidateIndexMetrics)
   (EL:PerfEnd candidateperf 'returned)
+  (if *EL:RootScopeCollecting*
+    (setq blocks (EL:RootScopeOrder blocks tree cfg)))
   (EL:PerfEnd perf 'returned)
   (if (EL:Get 'auto-panel cfg)
     (progn
       (setq id (EL:Get 'auto-panel cfg) block (EL:By 'id id blocks)
-        shape (EL:PanelContactShape (handent id) cfg))
+        shape (cond (*EL:RootScopePanelShape*) (T (EL:PanelContactShape (handent id) cfg))))
       (EL:Require shape "配电箱轮廓已变化或无法读取，请重新运行 ELSTAT 并核对箱口。")
       (if block
         (setq blocks (subst (append (EL:Put 'whole-block nil block) shape) block blocks)))))
@@ -454,6 +624,10 @@
     (cons 'accepted-wire-records (length wires)) (cons 'candidate-blocks (length blocks))))
   (EL:LogEvent "SIMPLE_COUNTS" (list (cons 'wires (length wires)) (cons 'blocks (length blocks)) (cons 'issues issues)))
   (setq snapshot (list (cons 'drawing (EL:DrawingID)) (cons 'wires wires) (cons 'blocks blocks) (cons 'ends ends) (cons 'issues issues)))
+  (if *EL:RootScopeCollecting*
+    (setq snapshot (EL:Put 'source-wire-ids source-wire-ids
+      (EL:Put 'source-selection-facts
+        (mapcar '(lambda (fact) (list (EL:CanonicalVisibilityDXF (car fact)) (cadr fact))) (reverse facts)) snapshot))))
   (setq *EL:CollectMemo* (if (not issues) (list (cons 'owner (namedobjdict))
     (cons 'drawing (EL:DrawingID)) (cons 'config (EL:CollectRules cfg))
     (cons 'layers (EL:CollectLayerFacts cfg)) (cons 'facts (reverse facts))
@@ -908,6 +1082,8 @@
 (defun EL:WalkEnd (ep / saved point junctions occupied item wire direct state)
   (if (setq saved (assoc (EL:Get 'key ep) *EL:WalkEnds*)) (cdr saved)
     (progn
+      (if *EL:RootScopeActive*
+        (EL:RootScopeResolve (cdr (assoc (EL:Get 'wire ep) *EL:WalkWireRecords*))))
       (setq point (EL:Get 'point ep)
         occupied (or (EL:StartBoundaryPoint point *EL:WalkSnapshot* *EL:WalkConfig*)
           (EL:TrunkPoint point (EL:Get 'trunk-segments *EL:WalkSnapshot*))))
@@ -915,7 +1091,7 @@
       (setq occupied (or occupied junctions))
       (if (not occupied)
         (foreach item (EL:SpatialBoxQuery *EL:WalkWireTree* (list point point) *EL:WalkTouch*)
-          (setq wire (EL:Get 'wire item))
+          (setq wire (EL:RootScopeResolve (EL:Get 'wire item)))
           (if (and (not (equal (EL:Get 'wire ep) (EL:Get 'id wire)))
               (EL:Touches point (EL:Get 'segments wire) *EL:WalkTouch* (EL:GapEpsilon)))
             (setq direct (cons (EL:Get 'id wire) direct)))))
@@ -1008,7 +1184,7 @@
             (EL:DevicesTouch block other)) (EL:WalkLink id (EL:Get 'id other))))
       (foreach item (EL:SpatialBoxQuery *EL:WalkWireTree* (EL:Get 'bounds block)
           (max *EL:WalkTouch* *EL:DeviceContactTolerance*))
-        (setq wire (EL:Get 'wire item))
+        (setq wire (EL:RootScopeResolve (EL:Get 'wire item)))
         (if (EL:WalkDevicePathHit wire block)
           (EL:WalkLink id (EL:Get 'id wire)))))))
 (defun EL:NetworkEdges (edges / row previous rows)

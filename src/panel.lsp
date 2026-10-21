@@ -169,8 +169,11 @@
     *EL:PreviewLayerCacheEnabled* *EL:PreviewLayerCache* *EL:PreviewLayerReads* *EL:PreviewLayerHits*)
   (setq *EL:PreviewLayerCacheEnabled* T *EL:PreviewLayerReads* 0 *EL:PreviewLayerHits* 0
     reads 0 duplicates 0)
-  (foreach wire (EL:Get 'wires (EL:Get 'snapshot result))
-    (setq ids (cons (cond ((EL:Get 'source-wire wire)) ((EL:Get 'id wire))) ids)))
+  ;; Date: 2026-10-21. Root scoping keeps the original lightweight color scope.
+  (if (assoc 'source-wire-ids (EL:Get 'snapshot result))
+    (setq ids (reverse (EL:Get 'source-wire-ids (EL:Get 'snapshot result))))
+    (foreach wire (EL:Get 'wires (EL:Get 'snapshot result))
+      (setq ids (cons (cond ((EL:Get 'source-wire wire)) ((EL:Get 'id wire))) ids))))
   (if (not ids)
     (foreach circuit (EL:Get 'circuits result) (setq ids (append ids (EL:Get 'wires circuit)))))
   (setq ids (EL:Unique ids))

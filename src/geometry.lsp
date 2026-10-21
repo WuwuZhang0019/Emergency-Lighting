@@ -1065,7 +1065,8 @@
   ;; Non-collinear wires do not block; whole equipment boxes do.
   (setq p (EL:Get 'point a) q (EL:Get 'point b) tdir (EL:Unit (EL:V- q p))
         len (EL:Norm (EL:V- q p)) eps (EL:GapEpsilon)
-        tree (if *EL:GapIndexReady* *EL:GapPathIndex* (EL:GapPathIndex snapshot)))
+        tree (cond (*EL:RootScopeActive* (EL:RootScopeGapIndex a b snapshot))
+          (*EL:GapIndexReady* *EL:GapPathIndex*) (T (EL:GapPathIndex snapshot))))
   (foreach item (EL:SpatialRayQuery tree p tdir len)
     (setq seg (EL:Get 'segment item))
     (if (EL:Get 'whole-block item)
@@ -1129,3 +1130,88 @@
 ;; Date: 2026-10-11. Absent DXF 60 and explicit zero both mean visible.
 (defun EL:CanonicalVisibilityDXF (data)
   (vl-remove-if '(lambda (pair) (and (= (car pair) 60) (= (cdr pair) 0))) data))
+
+
+;; Date: 2026-10-21. Root discovery uses envelopes only, never final contact.
+;; This fresh proxy avoids sampled segments, width strips and vertex logging.
+;; Unsupported planes/data return NIL so the caller retains exact collection.
+(defun EL:RootScopeWireBounds (points bulges width err / lo hi tail bs a b bulge chord mid left center radius sweep length shortest margin extra bound good)
+  (setq good (and points (cdr points) (EL:NonNegative width) (EL:Number err) (> err 0.0))
+    lo (car points) hi lo tail points bs bulges)
+  (foreach a points (setq lo (mapcar 'min lo a) hi (mapcar 'max hi a)))
+  (while (and good (cdr tail))
+    (setq a (car tail) b (cadr tail) bulge (cond ((car bs)) (T 0.0))
+      chord (EL:V- b a) length (EL:Norm chord))
+    (if (or (not (EL:Number bulge)) (not (EL:Number length))) (setq good nil)
+      (if (< (abs bulge) 1.0e-12)
+        (if (> length 1.0e-9) (setq shortest (if shortest (min shortest length) length)))
+        (progn
+          ;; The entire analytic circle encloses every old sampled arc chord.
+          (setq mid (EL:V* 0.5 (EL:V+ a b)) left (list (- (cadr chord)) (car chord) 0.0)
+            center (EL:V+ mid (EL:V* (/ (- 1.0 (* bulge bulge)) (* 4.0 bulge)) left))
+            radius (EL:Norm (EL:V- a center)) sweep (* 4.0 (atan bulge)))
+          (if (and (EL:Point center) (EL:Number radius) (> radius 1.0e-9)
+              (<= (* radius (- 1.0 (cos (/ (abs sweep) 8192.0)))) err))
+            (progn
+              (setq extra (list radius radius 0.0)
+                lo (mapcar 'min lo (EL:V- center extra)) hi (mapcar 'max hi (EL:V+ center extra))))
+            (setq good nil)))))
+    (setq tail (cdr tail) bs (cdr bs)))
+  ;; Curved/degenerate source edges never create an eligible width profile.
+  (if (not shortest) (setq width 0.0))
+  (if (and good (or shortest (> (EL:Norm (EL:V- hi lo)) 1.0e-9)))
+    (progn
+      ;; A sampled endpoint accepted by a straight profile is at most epsilon
+      ;; past that profile. Bound its possible interpolated width as well.
+      (setq margin (if (= width 0.0) 0.0 (* 0.5 width (+ 1.0 (/ (EL:GapEpsilon) shortest))))
+        extra (+ margin (EL:ContactQueryRoundoff (list lo hi) nil))
+        bound (list (EL:V- lo (list extra extra (EL:ContactQueryRoundoff (list lo hi) nil)))
+          (EL:V+ hi (list extra extra (EL:ContactQueryRoundoff (list lo hi) nil)))))
+      (if (and (EL:Point (car bound)) (EL:Point (cadr bound))) bound))))
+(defun EL:RootScopeWireImpl (entity data cfg / id typ layer normal points bulges elev flags pair point width value good bounds exact-bounds)
+  (setq id (cdr (assoc 5 data)) typ (cdr (assoc 0 data)) layer (cdr (assoc 8 data))
+    normal (cond ((cdr (assoc 210 data))) (T '(0.0 0.0 1.0)))
+    good (and (equal (type id) 'STR) (/= id "") (equal (type layer) 'STR)
+      (EL:Point normal) (equal normal '(0.0 0.0 1.0) 0.0)) width 0.0)
+  (cond
+    ((and good (equal typ "LINE"))
+      (setq points (list (cdr (assoc 10 data)) (cdr (assoc 11 data))) bulges '(0.0 0.0)
+        good (and (vl-every 'EL:Point points)
+          (<= (abs (- (caddr (car points)) (caddr (cadr points)))) (EL:Get 'eps_z (EL:Get 'params cfg))))))
+    ((and good (equal typ "LWPOLYLINE"))
+      (setq flags (cond ((cdr (assoc 70 data))) (T 0))
+        elev (cond ((cdr (assoc 38 data))) (T 0.0))
+        good (and (EL:Number elev) (equal (type flags) 'INT) (= (logand 1 flags) 0)))
+      (foreach pair data
+        (cond
+          ((= (car pair) 10)
+            (setq point (cdr pair))
+            (if (and (listp point) (member (vl-list-length point) '(2 3))
+                (EL:Number (car point)) (EL:Number (cadr point)))
+              (setq points (cons (list (car point) (cadr point) elev) points) bulges (cons 0.0 bulges))
+              (setq good nil)))
+          ((= (car pair) 42)
+            (if (and points (EL:Number (cdr pair))) (setq bulges (cons (cdr pair) (cdr bulges))) (setq good nil)))
+          ((member (car pair) '(40 41 43))
+            (setq value (cdr pair))
+            (if (EL:NonNegative value) (setq width (max width value)) (setq good nil)))))
+      (setq points (reverse points) bulges (reverse bulges)))
+    (T (setq good nil)))
+  (if (and good (setq bounds (EL:RootScopeWireBounds points bulges width
+      (/ (EL:Get 'eps_boundary (EL:Get 'params cfg)) 8.0))))
+    (progn
+      ;; Exact zero-width straight bounds also preserve old candidate ordering.
+      (if (and (= width 0.0) (vl-every '(lambda (b) (< (abs b) 1.0e-12)) bulges))
+        (setq exact-bounds (list (car points) (car points))))
+      (if exact-bounds
+        (foreach point (cdr points)
+          (setq exact-bounds (list (mapcar 'min (car exact-bounds) point)
+            (mapcar 'max (cadr exact-bounds) point)))))
+      (list (cons 'id id) (cons 'layer layer) (cons 'type typ)
+        (cons 'ends (list (EL:MakeEnd id 'start points bulges layer) (EL:MakeEnd id 'end points bulges layer)))
+        (cons 'candidate-bounds exact-bounds)
+        (cons 'contact-bounds bounds) (cons 'deferred-dxf data) (cons 'entity entity)))))
+(defun EL:RootScopeWire (entity data cfg / checked)
+  ;; No partial proxy escapes a failed envelope/endpoint proof.
+  (setq checked (vl-catch-all-apply 'EL:RootScopeWireImpl (list entity data cfg)))
+  (if (not (vl-catch-all-error-p checked)) checked))

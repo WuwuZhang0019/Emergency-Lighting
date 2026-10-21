@@ -272,3 +272,7 @@ config/power-input-*.eld
 # Date: 2026-10-21. Requested lightweight-proxy fallback repair trial package.
 /output/应急照明-v0.1.73/
 /output/应急照明-v0.1.73.zip
+
+# Date: 2026-10-21. Requested discovery timing and numbering reuse trial package.
+/output/应急照明-v0.1.74/
+/output/应急照明-v0.1.74.zip

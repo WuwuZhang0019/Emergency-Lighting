@@ -328,7 +328,8 @@
     *EL:PresetCacheEnabled* *EL:PresetCacheCfg* *EL:PresetCacheEpoch* *EL:PresetCacheTables* *EL:PresetCacheBlocks*
     *EL:PresetCacheHits* *EL:PresetCacheMisses* *EL:PresetCacheNormalizations*
     *EL:PresetCacheMemberHits* *EL:PresetCacheMemberMisses* *EL:PresetCacheRebuilds* *EL:PresetCacheCheckMS*
-    *EL:CollectReadProfile* *EL:CollectDXFMS* *EL:CollectBoundsMS* *EL:CollectWireMS* *EL:CollectProfileReads* readstarted)
+    *EL:CollectReadProfile* *EL:CollectDXFMS* *EL:CollectBoundsMS* *EL:CollectWireMS* *EL:CollectProfileReads* readstarted
+    typ source-inserts source-lines source-polylines source-other source-managed source-rejected)
   ;; Date: 2026-10-10. Filter wires by inferred style; only the selected panel
   ;; uses its contour. Device geometry is checked lazily during network tracing.
   ;; Date: 2026-10-20. Retain the actual pre-filter scope in diagnostic exports.
@@ -340,7 +341,8 @@
     *EL:WireLayerCacheHits* 0 *EL:WireLayerReads* 0 *EL:WireLayerReadMS* 0
     *EL:PresetCacheEnabled* T *EL:PresetCacheHits* 0 *EL:PresetCacheMisses* 0 *EL:PresetCacheNormalizations* 0
     *EL:PresetCacheMemberHits* 0 *EL:PresetCacheMemberMisses* 0 *EL:PresetCacheRebuilds* 0 *EL:PresetCacheCheckMS* 0
-    *EL:CollectReadProfile* (and *EL:PerfActive* (EL:CollectReadDetailEnabled)) *EL:CollectDXFMS* 0 *EL:CollectBoundsMS* 0 *EL:CollectWireMS* 0 *EL:CollectProfileReads* 0)
+    *EL:CollectReadProfile* (and *EL:PerfActive* (EL:CollectReadDetailEnabled)) *EL:CollectDXFMS* 0 *EL:CollectBoundsMS* 0 *EL:CollectWireMS* 0 *EL:CollectProfileReads* 0
+    source-inserts 0 source-lines 0 source-polylines 0 source-other 0 source-managed 0 source-rejected 0)
   ;; Date: 2026-10-21. Tables and positive/negative block decisions live only here.
   (EL:PerfCall "COLLECT_PRESET_PREPARE" 'EL:PresetCachePrepare (list cfg))
   (EL:PerfCount "source-collect-calls" 1)
@@ -354,12 +356,18 @@
        (if *EL:CollectReadProfile*
          (setq *EL:CollectDXFMS* (+ *EL:CollectDXFMS* (EL:PerfDelta readstarted (EL:Tick)))
            *EL:CollectProfileReads* (+ *EL:CollectProfileReads* 2)))
-       (setq i (1+ i) id (cdr (assoc 5 d)) name nil bounds nil
-            *EL:SimpleEntity* (list id (cdr (assoc 0 d)) (cdr (assoc 8 d))))
+       (setq i (1+ i) id (cdr (assoc 5 d)) name nil bounds nil typ (cdr (assoc 0 d))
+            *EL:SimpleEntity* (list id typ (cdr (assoc 8 d))))
+      ;; Date: 2026-10-21. Count native objects in the existing read loop,
+      ;; before filtering. These are not the selected panel's connected result.
+      (cond ((equal typ "INSERT") (setq source-inserts (1+ source-inserts)))
+        ((equal typ "LINE") (setq source-lines (1+ source-lines)))
+        ((equal typ "LWPOLYLINE") (setq source-polylines (1+ source-polylines)))
+        (T (setq source-other (1+ source-other))))
       (cond
         ;; The same selective native read includes the managed-output marker.
-        ((cdr (assoc "EL_FIXED_V1" (cdr (assoc -3 d)))) nil)
-        ((and (equal (cdr (assoc 0 d)) "INSERT")
+        ((cdr (assoc "EL_FIXED_V1" (cdr (assoc -3 d)))) (setq source-managed (1+ source-managed)))
+        ((and (equal typ "INSERT")
             (or (not (EL:Get 'preset-scoped cfg))
               (EL:PresetBlockNameAllowed (setq name (EL:CollectBlockName e (cdr (assoc 2 d)))) d cfg)))
           (EL:PerfCount "source-block-bounds-reads" 1)
@@ -368,7 +376,7 @@
               (cons 'name name) (cons 'definition-name (cdr (assoc 2 d)))
               (cons 'bounds bounds) (cons 'point (EL:V* 0.5 (EL:V+ (car bounds) (cadr bounds))))) items))
             (setq issues (cons (EL:Issue 'MISSING_BLOCK_BOUNDS id nil) issues))))
-        ((equal (cdr (assoc 0 d)) "INSERT") nil)
+        ((equal typ "INSERT") (setq source-rejected (1+ source-rejected)))
         ((EL:WireStyleAllowed d cfg)
           (EL:PerfCount "source-wire-record-reads" 1)
           (setq wire (EL:WireRecordDXF e (if (assoc -3 d)
@@ -376,6 +384,12 @@
                  ends (append (EL:Get 'ends wire) ends) issues (append (EL:Get 'issues wire) issues))))
       (if (not (cdr (assoc "EL_FIXED_V1" (cdr (assoc -3 d)))))
         (setq facts (cons (list d bounds) facts)))))
+  (EL:PerfCount "source-selection-inserts" source-inserts)
+  (EL:PerfCount "source-selection-lines" source-lines)
+  (EL:PerfCount "source-selection-polylines" source-polylines)
+  (EL:PerfCount "source-selection-other" source-other)
+  (EL:PerfCount "source-selection-managed-outputs" source-managed)
+  (EL:PerfCount "source-rejected-block-inserts" source-rejected)
   ;; Date: 2026-10-21. Detail is explicit; disabled milliseconds are unmeasured.
   ;; Keep batch frames in every mode, and never write a per-entity log.
   (EL:PerfSet "source-read-profile-enabled" (if *EL:CollectReadProfile* 1 0))
@@ -432,6 +446,12 @@
       (EL:Require shape "配电箱轮廓已变化或无法读取，请重新运行 ELSTAT 并核对箱口。")
       (if block
         (setq blocks (subst (append (EL:Put 'whole-block nil block) shape) block blocks)))))
+  (EL:PerfCount "source-candidate-blocks" (length blocks))
+  (EL:LogEvent "SOURCE_SELECTION_SCOPE" (list '(scope . model-selection) (cons 'preset-scoped (if (EL:Get 'preset-scoped cfg) T nil))
+    (cons 'selected (+ source-inserts source-lines source-polylines source-other))
+    (cons 'inserts source-inserts) (cons 'lines source-lines) (cons 'polylines source-polylines)
+    (cons 'other source-other) (cons 'managed-outputs source-managed) (cons 'rejected-inserts source-rejected)
+    (cons 'accepted-wire-records (length wires)) (cons 'candidate-blocks (length blocks))))
   (EL:LogEvent "SIMPLE_COUNTS" (list (cons 'wires (length wires)) (cons 'blocks (length blocks)) (cons 'issues issues)))
   (setq snapshot (list (cons 'drawing (EL:DrawingID)) (cons 'wires wires) (cons 'blocks blocks) (cons 'ends ends) (cons 'issues issues)))
   (setq *EL:CollectMemo* (if (not issues) (list (cons 'owner (namedobjdict))

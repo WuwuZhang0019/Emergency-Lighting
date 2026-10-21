@@ -56,6 +56,11 @@
       (EL:Get 'signature (EL:Get 'snapshot result)) *EL:CollectMemo*))))
   (EL:PerfSet "wire-count" (length (EL:Get 'wires snapshot)))
   (EL:PerfSet "block-count" (length (EL:Get 'blocks snapshot)))
+  ;; Date: 2026-10-21. Distinguish whole selection candidates from this root walk.
+  (EL:PerfSet "recognized-connected-wires" (length (EL:Get 'wire-ids network)))
+  (EL:PerfSet "recognized-connected-devices" (length (EL:Get 'devices network)))
+  (EL:LogEvent "RECOGNIZED_CONNECTED_SCOPE" (list (cons 'panel panel)
+    (cons 'wires (length (EL:Get 'wire-ids network))) (cons 'devices (length (EL:Get 'devices network)))))
   (EL:PerfEnd perf 'returned) result)
 (defun EL:FixedFreshSnapshotFull (cfg panel / snapshot network)
   ;; Date: 2026-10-11. Identical collect/network/CircuitSnapshot signature,

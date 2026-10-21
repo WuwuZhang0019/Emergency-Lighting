@@ -171,6 +171,9 @@
           "start-snapshot-source-wires" "start-snapshot-kept-wires" "start-snapshot-removed-wires" "start-snapshot-ends"
           "start-boundary-pair-checks" "start-boundary-bounds-rejected" "start-boundary-exact-checks" "start-boundary-bounds-fallback-wires"
           "source-collect-calls" "source-selection-entities" "source-block-bounds-reads"
+          "source-selection-inserts" "source-selection-lines" "source-selection-polylines" "source-selection-other"
+          "source-selection-managed-outputs" "source-rejected-block-inserts" "source-candidate-blocks"
+          "recognized-connected-wires" "recognized-connected-devices"
           "source-native-entity-checks" "source-native-bounds-checks" "source-derived-reuses"
           "source-candidate-index-lookups" "source-candidate-index-steps" "source-candidate-index-duplicates"
           ;; Date: 2026-10-21. Publish one aggregate per synchronous batch.

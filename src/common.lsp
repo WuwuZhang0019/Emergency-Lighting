@@ -155,6 +155,7 @@
           "block-create-attempts" "text-create-attempts" "transaction-starts"
           "transaction-failures" "log-open-attempts" "log-write-attempts" "log-close-attempts" "panel-submits"
           "store-read-cache-hits" "store-read-cache-misses"
+          "start-snapshot-source-wires" "start-snapshot-kept-wires" "start-snapshot-removed-wires" "start-snapshot-ends"
           "source-collect-calls" "source-selection-entities" "source-block-bounds-reads"
           "source-native-entity-checks" "source-native-bounds-checks" "source-derived-reuses"
           "source-candidate-index-lookups" "source-candidate-index-steps" "source-candidate-index-duplicates"
@@ -173,6 +174,8 @@
           "template-dynamic-check-ms" "template-dynamic-checks" "template-dynamic-reuses"
           "template-probe-ms" "template-probes" "template-probe-reuses"
           "network-build-calls" "network-verified-reuses" "network-geometry-checks"
+          "number-scope-visits" "number-scope-neighbour-scans" "number-scope-path-lengths"
+          "number-scope-neighbours-ms" "number-scope-first-device-ms" "number-scope-links-ms"
           "number-scopes" "number-source-handles" "number-problems"
           "number-source-read-attempts" "number-source-read-failures" "number-freshness-checks"
           "device-library-loads" "device-library-writes" "device-library-matches" "device-library-unknown"
@@ -249,6 +252,10 @@
         "STORE_UNPACK_INTS" "STORE_VALUE_DECODE"
         "DIAGRAM_VIEW" "DIAGNOSTIC_EXPORT" "DEVICE_LIBRARY_LOAD" "DEVICE_LEGEND"
         "SYSTEM_LIBRARY_OPEN" "SYSTEM_BLOCK_COPY" "SYSTEM_STYLE_COPY" "TEMPLATE_CAPTURE" "TEMPLATE_VALIDATE"
+        ;; Date: 2026-10-21. Recognition batches, never per-entity/probe frames.
+        "START_SNAPSHOT" "START_BOUNDARY_FILTER" "START_ENDS_BUILD" "COLLECT_PRESET_PREPARE"
+        "NETWORK_ROLE_PREPARE" "NETWORK_WIRE_INDEX" "NETWORK_BLOCK_INDEX" "NETWORK_JUNCTION_INDEX"
+        "NETWORK_END_INDEX" "NETWORK_GAP_INDEX" "NETWORK_ROOT_LINKS"
         "COLLECT_SPATIAL_TREE" "COLLECT_CANDIDATE_DEDUP" "COLLECT_DEVICE_EXPAND"
         "PANEL_SELECT_EXITS" "PANEL_COMPUTE" "PANEL_PREVIEW_PALETTE" "PREVIEW_SOURCE_COLORS" "PREVIEW_PALETTE_FILTER"
         "NETWORK_PROOF_PREPARE" "NETWORK_PROOF_STABLE_INPUT" "NETWORK_PROOF_STABLE_OUTPUT"
@@ -563,6 +570,10 @@
       ("NEW_RECORD" . "创建配电箱记录") ("PREPARE_PANEL" . "准备面板数据")
       ("RECOGNIZE_FIXED" . "识别配电箱回路") ("RECOGNIZE_TRUNK" . "识别集中引出线")
       ("RECOGNIZE_FIXED_RUN" . "执行整箱识别") ("SIMPLE_COLLECT" . "收集图纸候选对象")
+      ("START_SNAPSHOT" . "整理回路起始端边界")
+      ("START_BOUNDARY_FILTER" . "筛选起始端边界导线")
+      ("START_ENDS_BUILD" . "一次性构造起始端边界端点表")
+      ("COLLECT_PRESET_PREPARE" . "规范本轮预设名称及图层表")
       ("COLLECT_ENTITY_READ" . "读取候选实体") ("COLLECT_CANDIDATES" . "过滤候选对象")
       ("COLLECT_SPATIAL_TREE" . "建立候选图块空间树")
       ("COLLECT_CANDIDATE_DEDUP" . "查询、去重并读取导线及断口候选")
@@ -577,6 +588,13 @@
       ("NETWORK_PROOF_COMPARE" . "完整核对网络输入证明")
       ("COMPONENT_INDEX" . "建立连通关系索引")
       ("NETWORK_WIRE_CONTACT" . "检查导线接触") ("NETWORK_CANDIDATE_SCOPE" . "准备网络角色和空间索引")
+      ("NETWORK_ROLE_PREPARE" . "准备本轮图块角色及记录")
+      ("NETWORK_WIRE_INDEX" . "建立导线接触索引及记录")
+      ("NETWORK_BLOCK_INDEX" . "建立图块接触索引")
+      ("NETWORK_JUNCTION_INDEX" . "建立接线盒索引")
+      ("NETWORK_END_INDEX" . "建立导线端点索引")
+      ("NETWORK_GAP_INDEX" . "建立断口障碍索引")
+      ("NETWORK_ROOT_LINKS" . "整理端点记录及起始连接")
       ("NETWORK_DEVICE_CONTACT" . "检查设备接触") ("NETWORK_GAPS" . "检查断线连接")
       ("NETWORK_REACHABLE_TRACE" . "沿起始导线搜索真实连接")
       ("NETWORK_CONTACT_NODES" . "合并同一接点的重复连接")

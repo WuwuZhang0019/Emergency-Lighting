@@ -13,8 +13,9 @@
     (<= (EL:Norm (EL:V- point (EL:Get 'point row))) (EL:Get 'eps_touch (EL:Get 'params cfg)))
     (<= (abs (- (caddr point) (caddr (EL:Get 'point row)))) (EL:GapEpsilon))))
     (EL:Get 'circuit-starts snapshot)))
-(defun EL:StartSnapshot (snapshot cfg panel / starts row wire ep ids kept removed ends)
-  (setq starts (EL:Get 'circuit-starts cfg))
+(defun EL:StartSnapshot (snapshot cfg panel / starts row wire ep ids kept removed ends perf batch result)
+  ;; Date: 2026-10-21. Keep source order with one endpoint list reversal per batch.
+  (setq perf (EL:PerfBegin "START_SNAPSHOT") starts (EL:Get 'circuit-starts cfg))
   (EL:Require (and starts (EL:CircuitStartsValid starts)) "回路起始端记录无效，请重新拾取。")
   (foreach row starts
     (setq wire (EL:By 'id (EL:Get 'wire row) (EL:Get 'wires snapshot))
@@ -25,15 +26,26 @@
     (setq ids (cons (EL:Get 'wire row) ids)))
   ;; Retain excluded source geometry in the snapshot for exact freshness checks.
   ;; A common trunk/feeder touching a picked root must never become a path back.
+  (setq batch (EL:PerfBegin "START_BOUNDARY_FILTER"))
   (foreach wire (EL:Get 'wires snapshot)
     (if (and (not (member (EL:Get 'id wire) ids))
         (vl-some '(lambda (row) (EL:Touches (EL:Get 'point row) (EL:Get 'segments wire)
           (EL:Get 'eps_touch (EL:Get 'params cfg)) (EL:GapEpsilon))) starts))
       (setq removed (cons wire removed)) (setq kept (cons wire kept))))
   (setq kept (reverse kept))
-  (foreach wire kept (setq ends (append ends (EL:Get 'ends wire))))
-  (EL:Put 'circuit-starts starts (EL:Put 'start-boundary-source (reverse removed)
+  (EL:PerfEnd batch 'returned)
+  (setq batch (EL:PerfBegin "START_ENDS_BUILD"))
+  (foreach wire kept
+    (foreach ep (EL:Get 'ends wire) (setq ends (cons ep ends))))
+  (setq ends (reverse ends))
+  (EL:PerfEnd batch 'returned)
+  (EL:PerfCount "start-snapshot-source-wires" (length (EL:Get 'wires snapshot)))
+  (EL:PerfCount "start-snapshot-kept-wires" (length kept))
+  (EL:PerfCount "start-snapshot-removed-wires" (length removed))
+  (EL:PerfCount "start-snapshot-ends" (length ends))
+  (setq result (EL:Put 'circuit-starts starts (EL:Put 'start-boundary-source (reverse removed)
     (EL:Put 'wires kept (EL:Put 'ends ends snapshot)))))
+  (EL:PerfEnd perf 'returned) result)
 ;; Date: 2026-10-10. Infer wire style from actual panel contacts.
 ;; Date: 2026-10-10. A selected trunk is a logical panel boundary, never a circuit edge.
 (defun EL:TrunkPoint (point segments)
@@ -931,7 +943,7 @@
       (if (equal (car a) (car b)) (< (cadr a) (cadr b)) (< (car a) (car b)))))
     (if (not (equal row previous)) (setq rows (cons row rows) previous row)))
   (reverse rows))
-(defun EL:SimpleNetworkBuild (snapshot cfg panel / wires blocks block wire bounds items ends ep row pairs perf id
+(defun EL:SimpleNetworkBuild (snapshot cfg panel / wires blocks block wire bounds items ends ep row pairs perf id indexperf
     *EL:WalkPanel* *EL:WalkConfig* *EL:WalkSnapshot* *EL:WalkTouch*
     *EL:WalkWireTree* *EL:WalkBlockTree* *EL:WalkEndTree* *EL:WalkJunctionTree*
     *EL:WalkWireRecords* *EL:WalkBlockRecords* *EL:WalkEndRecords*
@@ -942,26 +954,40 @@
     *EL:WalkPanel* panel *EL:WalkConfig* cfg
     *EL:WalkTouch* (EL:Get 'eps_touch (EL:Get 'params cfg))
     perf (EL:PerfBegin "NETWORK_CANDIDATE_SCOPE"))
+  ;; Date: 2026-10-21. Split existing batches while retaining all construction order.
+  (setq indexperf (EL:PerfBegin "NETWORK_ROLE_PREPARE"))
   (foreach block (EL:Get 'blocks snapshot)
     (setq block (EL:Put 'role (EL:FixedBlockRole block panel cfg) block)
       blocks (cons block blocks) *EL:WalkBlockRecords* (cons (cons (EL:Get 'id block) block) *EL:WalkBlockRecords*)))
   (setq blocks (reverse blocks) snapshot (EL:Put 'blocks blocks snapshot) *EL:WalkSnapshot* snapshot)
+  (EL:PerfEnd indexperf 'returned)
+  (setq indexperf (EL:PerfBegin "NETWORK_WIRE_INDEX"))
   (foreach wire wires
     (setq *EL:WalkWireRecords* (cons (cons (EL:Get 'id wire) wire) *EL:WalkWireRecords*)
       bounds (EL:WireContactBounds wire))
     (if bounds (setq items (cons (list (cons 'key (EL:Get 'id wire)) (cons 'wire wire) (cons 'bounds bounds)
       (cons 'point (EL:V* 0.5 (EL:V+ (car bounds) (cadr bounds))))) items))))
   (setq *EL:WalkWireTree* (EL:SpatialTree items 0) items nil)
+  (EL:PerfEnd indexperf 'returned)
+  (setq indexperf (EL:PerfBegin "NETWORK_BLOCK_INDEX"))
   (foreach block blocks
     (if (setq bounds (EL:Get 'bounds block))
       (setq items (cons (list (cons 'key (EL:Get 'id block)) (cons 'block block) (cons 'bounds bounds)
         (cons 'point (EL:V* 0.5 (EL:V+ (car bounds) (cadr bounds))))) items))))
-  (setq *EL:WalkBlockTree* (EL:SpatialTree items 0)
-    *EL:WalkJunctionTree* (EL:JunctionTree blocks)
+  (setq *EL:WalkBlockTree* (EL:SpatialTree items 0))
+  (EL:PerfEnd indexperf 'returned)
+  (setq indexperf (EL:PerfBegin "NETWORK_JUNCTION_INDEX")
+    *EL:WalkJunctionTree* (EL:JunctionTree blocks))
+  (EL:PerfEnd indexperf 'returned)
+  (setq indexperf (EL:PerfBegin "NETWORK_END_INDEX")
     *EL:WalkEndTree* (EL:SpatialTree (mapcar '(lambda (ep)
-      (EL:Put 'bounds (list (EL:Get 'point ep) (EL:Get 'point ep)) ep)) (EL:Get 'ends snapshot)) 0)
+      (EL:Put 'bounds (list (EL:Get 'point ep) (EL:Get 'point ep)) ep)) (EL:Get 'ends snapshot)) 0))
+  (EL:PerfEnd indexperf 'returned)
+  (setq indexperf (EL:PerfBegin "NETWORK_GAP_INDEX")
     *EL:WalkGapSnapshot* (EL:SimpleGapSnapshot snapshot)
     *EL:GapPathIndex* (EL:GapPathIndex *EL:WalkGapSnapshot*) *EL:GapIndexReady* T)
+  (EL:PerfEnd indexperf 'returned)
+  (setq indexperf (EL:PerfBegin "NETWORK_ROOT_LINKS"))
   (foreach ep (EL:Get 'ends snapshot)
     (setq *EL:WalkEndRecords* (cons (cons (EL:Get 'key ep) ep) *EL:WalkEndRecords*)))
   (foreach wire wires
@@ -969,6 +995,7 @@
         ((EL:Get 'trunk-segments snapshot) (member (EL:Get 'id wire) (EL:Get 'trunk-roots snapshot)))
         (T (EL:PathBlockHit wire (cdr (assoc panel *EL:WalkBlockRecords*)) cfg)))
       (EL:WalkLink panel (EL:Get 'id wire))))
+  (EL:PerfEnd indexperf 'returned)
   (EL:PerfEnd perf 'returned)
   (setq perf (EL:PerfBegin "NETWORK_REACHABLE_TRACE"))
   (while *EL:WalkQueue*

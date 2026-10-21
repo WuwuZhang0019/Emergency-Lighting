@@ -1,0 +1,172 @@
+{
+  "date": "2026-10-21",
+  "status": "source and focused regressions; native CAD performance pending; no package",
+  "baseline_commit": "c01ea3e",
+  "implementation_commits": [
+    "e585332",
+    "fb1deea",
+    "d9dbbeb"
+  ],
+  "changed_source_sha256": {
+    "src/geometry.lsp": "fc6cad4b0cbe5fe3f982ccb509f4a3ecfebd26cddcc740a40077223cf45bac29",
+    "src/simple.lsp": "c72900e0e91713f98875519febcde6382dab0f02944d9ec62c3efe69c9ac78d7",
+    "src/common.lsp": "59649da09e276a734782c5f74a50cd06edb4f1ac4b79c4eec46b3d1c9230370e",
+    "src/panel.lsp": "6f1695a6591df1c8df75a16f9c6ede837b8763da0274b8af25dcafd6a06a5da9",
+    "tests/test_root_scope_geometry.py": "62afe5ccb6873172af258f957fb8a467aaad93fd66ffa9176930c8c693a0baa0",
+    "tests/test_root_scope_recognition.py": "e9057b8a02568ed232b0fddd2d06b52858d79393abd562629186c9380d4b4fc6",
+    "tests/test_root_scope_freshness.py": "338c54549733c6a47d90cfbf6033d8804018ba81739ff8ff7c037f20656be924",
+    "tests/test_reachable_network.py": "a0b273883e60be072cc76c8fa57f912cc11bae8d25b9806bb9177e88484c6bf7"
+  },
+  "architecture": {
+    "enabled_for": "valid explicit circuit-starts and auto-panel",
+    "light_global_facts_retained": true,
+    "fine_geometry": "root-connected and exact judgement dependencies",
+    "gap_dependencies": [
+      "all forward candidates within Dmax",
+      "reverse uniqueness",
+      "target occupancy",
+      "collinear blockers",
+      "junctions",
+      "device chains",
+      "reverse T branches"
+    ],
+    "candidate_order": "old full-tree order replay only in retained bbox component; straight zero-width exact raw probes",
+    "native_insert_bounds": "retained; no insertion-point substitute",
+    "proof_version": 4,
+    "fallback": "unprovable planes/closed/invalid or unsampleable geometry retains original eager read and global issues",
+    "cache_lifetime": "one synchronous collection; owner and epoch checked over whole interval",
+    "visibility": "implicit 60 and explicit 60=0 equivalent; 60=1 remains meaningful",
+    "preview_source_colors": "original lightweight source-wire IDs after original boundary removals"
+  },
+  "metrics": [
+    "root-scope-light-wires",
+    "root-scope-fine-wires",
+    "root-scope-skipped-wires",
+    "root-scope-wire-materializations",
+    "root-scope-wire-fallbacks",
+    "root-scope-order-wire-reads"
+  ],
+  "stages": [
+    "ROOT_SCOPE_DISCOVERY",
+    "ROOT_SCOPE_CANDIDATE_ORDER"
+  ],
+  "operation_evidence": [
+    {
+      "remote_wire_device_pairs": 0,
+      "eager_legal_wire_count_projection": 4,
+      "actual_fine_WireRecordDXF": 4,
+      "actual_PolylineDataDXF": 0,
+      "remote_device_contours": 0,
+      "same_ordered_business_and_preview_projection": true
+    },
+    {
+      "remote_wire_device_pairs": 100,
+      "eager_legal_wire_count_projection": 104,
+      "actual_fine_WireRecordDXF": 4,
+      "actual_PolylineDataDXF": 0,
+      "remote_device_contours": 0,
+      "same_ordered_business_and_preview_projection": true
+    },
+    {
+      "remote_wire_device_pairs": 1000,
+      "eager_legal_wire_count_projection": 1004,
+      "actual_fine_WireRecordDXF": 4,
+      "actual_PolylineDataDXF": 0,
+      "remote_device_contours": 0,
+      "same_ordered_business_and_preview_projection": true
+    }
+  ],
+  "operation_evidence_test": "test_root_scope_recognition.RootScopeRecognitionTests.test_remote_entity_growth_does_not_grow_precision_geometry_work",
+  "new_tests": 32,
+  "distinct_targeted_passes": 214,
+  "test_groups": [
+    {
+      "selection": [
+        "test_root_scope_geometry",
+        "test_reachable_network",
+        "test_start_boundary_bounds",
+        "test_gap_index",
+        "test_contact_junction_cycles"
+      ],
+      "count": 45,
+      "result": "passed",
+      "reproduce_from_tests": "python -B -X utf8 -m unittest test_root_scope_geometry test_reachable_network test_start_boundary_bounds test_gap_index test_contact_junction_cycles -q"
+    },
+    {
+      "selection": [
+        "test_root_scope_freshness"
+      ],
+      "count": 9,
+      "result": "passed",
+      "reproduce_from_tests": "python -B -X utf8 -m unittest test_root_scope_freshness -q"
+    },
+    {
+      "selection": [
+        "test_recognition_scope_counts",
+        "test_network_proof",
+        "test_freshness_reuse",
+        "test_collect_read_timing",
+        "test_number_annotations",
+        "test_exit_preview"
+      ],
+      "count": 30,
+      "result": "passed",
+      "reproduce_from_tests": "python -B -X utf8 -m unittest test_recognition_scope_counts test_network_proof test_freshness_reuse test_collect_read_timing test_number_annotations test_exit_preview -q"
+    },
+    {
+      "selection": [
+        "test_circuit_number",
+        "test_number_annotations",
+        "test_number_scope_reuse",
+        "test_exit_preview",
+        "test_preset_match_cache",
+        "test_recognition_preset",
+        "test_network_reuse"
+      ],
+      "count": 89,
+      "result": "88 passed; 1 existing integration failure reproduced at c01ea3e",
+      "reproduce_from_tests": "python -B -X utf8 -m unittest test_circuit_number test_number_annotations test_number_scope_reuse test_exit_preview test_preset_match_cache test_recognition_preset test_network_reuse -q"
+    },
+    {
+      "selection": [
+        "test_root_scope_recognition"
+      ],
+      "count": 14,
+      "result": "passed",
+      "reproduce_from_tests": "python -B -X utf8 -m unittest test_root_scope_recognition -q"
+    },
+    {
+      "selection": [
+        "test_wire_geometry_accumulation"
+      ],
+      "count": 11,
+      "result": "passed",
+      "reproduce_from_tests": "python -B -X utf8 -m unittest test_wire_geometry_accumulation -q"
+    },
+    {
+      "selection": [
+        "test_wire_width",
+        "test_commercial_contact.CommercialContactTests",
+        "test_circuit_colors",
+        "test_visibility_signature",
+        "test_generation_speed.NativeSourceReuseTests"
+      ],
+      "count": 30,
+      "result": "passed",
+      "reproduce_from_tests": "python -B -X utf8 -m unittest test_wire_width test_commercial_contact.CommercialContactTests test_circuit_colors test_visibility_signature test_generation_speed.NativeSourceReuseTests -q"
+    }
+  ],
+  "known_existing_failure": {
+    "id": "test_network_reuse.ScanGenerationIntegrationTests.test_new_power_update_and_noop_keep_verified_store_and_uid",
+    "current": "native-5 != native-1",
+    "frozen_c01ea3e": "same assertion; common/geometry/simple/panel DEFUNs loaded from git show into same finite hosts",
+    "assertion_unchanged": true
+  },
+  "limits": [
+    "No native DWG seconds measured",
+    "Original preset-scope lightweight enumeration and native block bounds remain",
+    "Selected geometry can exceed final connected objects due to gap, occupancy, misses and ordering dependencies",
+    "Discovery plus original formal network both counted",
+    "Existing v0.1.71 ZIP unchanged; no build merge push release"
+  ]
+}

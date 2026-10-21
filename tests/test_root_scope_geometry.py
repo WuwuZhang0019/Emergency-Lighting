@@ -21,6 +21,16 @@ def field(name, record):
                  if car(row) == Symbol(name.upper())), None)
 
 
+class StrictSymbolBindingHost(Host):
+    """Exercise native local symbol shadowing without changing the shared host."""
+    def call(self, name, values):
+        if isinstance(name, Symbol):
+            for frame in reversed(self.frames[1:]):
+                if name in frame:
+                    raise RuntimeError(f"bad function: local {name} = {frame[name]!r}")
+        return super().call(name, values)
+
+
 class RootScopeGeometryTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -159,6 +169,68 @@ class RootScopeGeometryTests(unittest.TestCase):
         for index, data in enumerate(cases):
             with self.subTest(index=index):
                 self.assertIsNone(self.call("EL:RootScopeWire", "wire", data, self.cfg))
+        self.assertEqual(self.events, [])
+
+
+    def strict_host(self):
+        strict = StrictSymbolBindingHost(step_limit=3000000)
+        strict.functions = copy.deepcopy(self.h.functions)
+        for name in ("EL:LOGEVENT", "TRANS", "MIN", "MAX"):
+            strict.builtins[name] = self.h.builtins[name]
+        self.h = strict
+
+    def test_strict_local_symbol_binding_preserves_line_and_polyline_proxies(self):
+        self.strict_host()
+        for data in (self.line(), self.polyline(((0., 0.), (10., 0.), (10., 8.))),
+                     self.polyline(((0., 0.), (10., 0.)), [.5, 0.], constant=4.)):
+            with self.subTest(kind=cdr(data[0])):
+                self.assert_hint(data)
+                self.assertIsNone(self.h.lookup(Symbol("*EL:ROOTSCOPEFALLBACKREASON*")))
+                self.assertIsNone(self.h.lookup(Symbol("*EL:ROOTSCOPEFALLBACKERROR*")))
+
+    def test_legacy_length_collision_is_caught_and_next_success_clears_diagnostics(self):
+        self.strict_host()
+        name = Symbol("EL:ROOTSCOPEWIREBOUNDS")
+        fixed = copy.deepcopy(self.h.functions[name])
+
+        def legacy(value):
+            if value == Symbol("CHORD-LENGTH"):
+                return Symbol("LENGTH")
+            if isinstance(value, list):
+                return [legacy(item) for item in value]
+            return value
+
+        self.h.functions[name] = tuple(legacy(part) for part in fixed)
+        self.assertIsNone(self.call("EL:RootScopeWire", "wire", self.line(), self.cfg))
+        self.assertEqual(self.h.lookup(Symbol("*EL:ROOTSCOPEFALLBACKREASON*")), "exception")
+        self.assertIn("local LENGTH", self.h.lookup(Symbol("*EL:ROOTSCOPEFALLBACKERROR*")))
+        self.assertEqual(self.events, [])
+        self.h.functions[name] = fixed
+        self.assert_hint(self.line())
+        self.assertIsNone(self.h.lookup(Symbol("*EL:ROOTSCOPEFALLBACKREASON*")))
+        self.assertIsNone(self.h.lookup(Symbol("*EL:ROOTSCOPEFALLBACKERROR*")))
+
+    def test_fallback_reasons_are_specific_without_per_wire_logging(self):
+        base = self.polyline(((0., 0.), (10., 0.)))
+
+        def changed(code, value):
+            return [Pair(code, value) if car(row) == code else row for row in base]
+
+        cases = [("identity", [row for row in base if car(row) != 5]),
+                 ("unsupported-plane", changed(210, [0., 0., -1.])),
+                 ("unsupported-type", changed(0, "ARC")),
+                 ("invalid-line", self.line((0., 0., 0.), (10., 0., 20.))),
+                 ("invalid-polyline-metadata", changed(38, "bad")),
+                 ("closed-polyline", changed(70, 1)),
+                 ("invalid-vertex", changed(10, [0., "bad"])),
+                 ("invalid-bulge", self.polyline(((0., 0.), (10., 0.)), ["bad", 0.])),
+                 ("invalid-width", changed(43, -1.)),
+                 ("envelope-unproven", self.line((0., 0., 0.), (0., 0., 0.)))]
+        for reason, data in cases:
+            with self.subTest(reason=reason):
+                self.assertIsNone(self.call("EL:RootScopeWire", "wire", data, self.cfg))
+                self.assertEqual(self.h.lookup(Symbol("*EL:ROOTSCOPEFALLBACKREASON*")), reason)
+                self.assertIsNone(self.h.lookup(Symbol("*EL:ROOTSCOPEFALLBACKERROR*")))
         self.assertEqual(self.events, [])
 
     def test_proxy_is_current_per_call_and_never_keeps_a_previous_dxf(self):

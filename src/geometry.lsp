@@ -1135,16 +1135,16 @@
 ;; Date: 2026-10-21. Root discovery uses envelopes only, never final contact.
 ;; This fresh proxy avoids sampled segments, width strips and vertex logging.
 ;; Unsupported planes/data return NIL so the caller retains exact collection.
-(defun EL:RootScopeWireBounds (points bulges width err / lo hi tail bs a b bulge chord mid left center radius sweep length shortest margin extra bound good)
+(defun EL:RootScopeWireBounds (points bulges width err / lo hi tail bs a b bulge chord mid left center radius sweep chord-length shortest margin extra bound good)
   (setq good (and points (cdr points) (EL:NonNegative width) (EL:Number err) (> err 0.0))
     lo (car points) hi lo tail points bs bulges)
   (foreach a points (setq lo (mapcar 'min lo a) hi (mapcar 'max hi a)))
   (while (and good (cdr tail))
     (setq a (car tail) b (cadr tail) bulge (cond ((car bs)) (T 0.0))
-      chord (EL:V- b a) length (EL:Norm chord))
-    (if (or (not (EL:Number bulge)) (not (EL:Number length))) (setq good nil)
+      chord (EL:V- b a) chord-length (EL:Norm chord))
+    (if (or (not (EL:Number bulge)) (not (EL:Number chord-length))) (setq good nil)
       (if (< (abs bulge) 1.0e-12)
-        (if (> length 1.0e-9) (setq shortest (if shortest (min shortest length) length)))
+        (if (> chord-length 1.0e-9) (setq shortest (if shortest (min shortest chord-length) chord-length)))
         (progn
           ;; The entire analytic circle encloses every old sampled arc chord.
           (setq mid (EL:V* 0.5 (EL:V+ a b)) left (list (- (cadr chord)) (car chord) 0.0)
@@ -1171,17 +1171,22 @@
 (defun EL:RootScopeWireImpl (entity data cfg / id typ layer normal points bulges elev flags pair point width value good bounds exact-bounds)
   (setq id (cdr (assoc 5 data)) typ (cdr (assoc 0 data)) layer (cdr (assoc 8 data))
     normal (cond ((cdr (assoc 210 data))) (T '(0.0 0.0 1.0)))
-    good (and (equal (type id) 'STR) (/= id "") (equal (type layer) 'STR)
-      (EL:Point normal) (equal normal '(0.0 0.0 1.0) 0.0)) width 0.0)
+    good (and (equal (type id) 'STR) (/= id "") (equal (type layer) 'STR)) width 0.0)
+  (if (not good) (setq *EL:RootScopeFallbackReason* "identity"))
+  (if (and good (not (and (EL:Point normal) (equal normal '(0.0 0.0 1.0) 0.0))))
+    (setq good nil *EL:RootScopeFallbackReason* "unsupported-plane"))
   (cond
     ((and good (equal typ "LINE"))
       (setq points (list (cdr (assoc 10 data)) (cdr (assoc 11 data))) bulges '(0.0 0.0)
         good (and (vl-every 'EL:Point points)
-          (<= (abs (- (caddr (car points)) (caddr (cadr points)))) (EL:Get 'eps_z (EL:Get 'params cfg))))))
+          (<= (abs (- (caddr (car points)) (caddr (cadr points)))) (EL:Get 'eps_z (EL:Get 'params cfg)))))
+      (if (not good) (setq *EL:RootScopeFallbackReason* "invalid-line")))
     ((and good (equal typ "LWPOLYLINE"))
       (setq flags (cond ((cdr (assoc 70 data))) (T 0))
         elev (cond ((cdr (assoc 38 data))) (T 0.0))
-        good (and (EL:Number elev) (equal (type flags) 'INT) (= (logand 1 flags) 0)))
+        good (and (EL:Number elev) (equal (type flags) 'INT)))
+      (if (not good) (setq *EL:RootScopeFallbackReason* "invalid-polyline-metadata")
+        (if (/= (logand 1 flags) 0) (setq good nil *EL:RootScopeFallbackReason* "closed-polyline")))
       (foreach pair data
         (cond
           ((= (car pair) 10)
@@ -1189,14 +1194,19 @@
             (if (and (listp point) (member (vl-list-length point) '(2 3))
                 (EL:Number (car point)) (EL:Number (cadr point)))
               (setq points (cons (list (car point) (cadr point) elev) points) bulges (cons 0.0 bulges))
-              (setq good nil)))
+              (progn (setq good nil)
+                (if (not *EL:RootScopeFallbackReason*) (setq *EL:RootScopeFallbackReason* "invalid-vertex")))))
           ((= (car pair) 42)
-            (if (and points (EL:Number (cdr pair))) (setq bulges (cons (cdr pair) (cdr bulges))) (setq good nil)))
+            (if (and points (EL:Number (cdr pair))) (setq bulges (cons (cdr pair) (cdr bulges)))
+              (progn (setq good nil)
+                (if (not *EL:RootScopeFallbackReason*) (setq *EL:RootScopeFallbackReason* "invalid-bulge")))))
           ((member (car pair) '(40 41 43))
             (setq value (cdr pair))
-            (if (EL:NonNegative value) (setq width (max width value)) (setq good nil)))))
+            (if (EL:NonNegative value) (setq width (max width value))
+              (progn (setq good nil)
+                (if (not *EL:RootScopeFallbackReason*) (setq *EL:RootScopeFallbackReason* "invalid-width")))))))
       (setq points (reverse points) bulges (reverse bulges)))
-    (T (setq good nil)))
+    (T (if good (setq *EL:RootScopeFallbackReason* "unsupported-type")) (setq good nil)))
   (if (and good (setq bounds (EL:RootScopeWireBounds points bulges width
       (/ (EL:Get 'eps_boundary (EL:Get 'params cfg)) 8.0))))
     (progn
@@ -1212,6 +1222,14 @@
         (cons 'candidate-bounds exact-bounds)
         (cons 'contact-bounds bounds) (cons 'deferred-dxf data) (cons 'entity entity)))))
 (defun EL:RootScopeWire (entity data cfg / checked)
+  ;; Date: 2026-10-21. The collector batches these details; never log each wire.
   ;; No partial proxy escapes a failed envelope/endpoint proof.
-  (setq checked (vl-catch-all-apply 'EL:RootScopeWireImpl (list entity data cfg)))
-  (if (not (vl-catch-all-error-p checked)) checked))
+  (setq *EL:RootScopeFallbackReason* nil *EL:RootScopeFallbackError* nil
+    checked (vl-catch-all-apply 'EL:RootScopeWireImpl (list entity data cfg)))
+  (cond
+    ((vl-catch-all-error-p checked)
+      (setq *EL:RootScopeFallbackReason* "exception"
+        *EL:RootScopeFallbackError* (vl-catch-all-error-message checked)) nil)
+    ((not checked)
+      (if (not *EL:RootScopeFallbackReason*) (setq *EL:RootScopeFallbackReason* "envelope-unproven")) nil)
+    (T checked)))

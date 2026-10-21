@@ -173,30 +173,74 @@
   (setq total 0.0)
   (foreach segment (EL:Get 'segments wire)
     (setq total (+ total (EL:Norm (EL:V- (cadr segment) (car segment)))))) total)
-(defun EL:NumberPathMeasures (wire / cursor segment vector length rows)
-  ;; Date: 2026-10-15. Exact segment lengths/vectors are constant across the
+(defun EL:NumberPathMeasures (wire / cursor segment vector segment-length rows)
+  ;; Date: 2026-10-21. Exact segment lengths/vectors are constant across the
   ;; 32 prefix probes; retain the original arithmetic and accumulation order.
   (setq cursor 0.0)
   (foreach segment (EL:Get 'segments wire)
-    (setq vector (EL:V- (cadr segment) (car segment)) length (EL:Norm vector)
-      rows (cons (list (car segment) vector cursor length) rows) cursor (+ cursor length)))
+    (setq vector (EL:V- (cadr segment) (car segment)) segment-length (EL:Norm vector)
+      rows (cons (list (car segment) vector cursor segment-length) rows) cursor (+ cursor segment-length)))
   (reverse rows))
+(defun EL:NumberProbeWholeSegments (measures entry target / out row point vector cursor segment-length whole low high)
+  ;; Date: 2026-10-21. Cache the original full-row slice arithmetic once per
+  ;; search. Use the initial max/min too, retaining signed-zero arithmetic.
+  ;; Partial prefixes keep their original operation order and rounding.
+  (setq low (min entry target) high (max entry target))
+  (foreach row measures
+    (setq point (car row) vector (cadr row) cursor (caddr row) segment-length (nth 3 row) whole nil)
+    (if (and (> segment-length 1.0e-12) (<= low cursor) (>= high (+ cursor segment-length)))
+      (progn
+        (setq whole (list
+          (EL:V+ point (EL:V* (/ (- (max low cursor) cursor) segment-length) vector))
+          (EL:V+ point (EL:V* (/ (- (min high (+ cursor segment-length)) cursor) segment-length) vector))))
+        (if *EL:NumberPrefixTimed* (setq *EL:NumberProbeFullBuilds* (1+ *EL:NumberProbeFullBuilds*)))))
+    (setq out (cons whole out)))
+  (reverse out))
+(defun EL:NumberSliceContactStrips (segments profiles fixed / out segment saved strips strip cacheable)
+  ;; Date: 2026-10-21. This search has fixed width profiles. Exact segment keys
+  ;; include direction; cached NIL strips are misses, not missing cache entries.
+  ;; Changing partial segments are evaluated directly and never grow the cache.
+  (foreach segment segments
+    (setq cacheable (car fixed) fixed (cdr fixed))
+    (if (and cacheable (setq saved (assoc segment *EL:NumberProbeStrips*)))
+      (progn
+        (setq strips (cdr saved))
+        (if *EL:NumberPrefixTimed* (setq *EL:NumberProbeStripReuses* (1+ *EL:NumberProbeStripReuses*))))
+      (progn
+        (setq strips (EL:WireContactStrips (list segment) profiles))
+        (if cacheable
+          (progn
+            (setq *EL:NumberProbeStrips* (cons (cons segment strips) *EL:NumberProbeStrips*))
+            (foreach strip strips (setq *EL:NumberProbeFixedStrips* (cons strip *EL:NumberProbeFixedStrips*)))))
+        (if *EL:NumberPrefixTimed* (setq *EL:NumberProbeStripBuilds* (1+ *EL:NumberProbeStripBuilds*)))))
+    (foreach strip strips (setq out (cons strip out))))
+  (reverse out))
 (defun EL:NumberPathSlice (wire start finish)
   (EL:NumberPathSliceMeasured wire start finish (EL:NumberPathMeasures wire)))
-(defun EL:NumberPathSliceMeasured (wire start finish measures / low high row point vector cursor length a b part segments)
-  (setq low (min start finish) high (max start finish))
+(defun EL:NumberPathSliceMeasured (wire start finish measures / low high row point vector cursor segment-length a b part segments profiles whole-segments whole fixed reused reuse)
+  (setq reuse (and *EL:NumberSliceReuseActive* (eq measures *EL:NumberSliceMeasures*))
+    low (min start finish) high (max start finish) profiles (EL:Get 'width-profiles wire)
+    whole-segments (if reuse *EL:NumberProbeWholeSegments*))
   (foreach row measures
-    (setq point (car row) vector (cadr row) cursor (caddr row) length (nth 3 row)
-      a (max low cursor) b (min high (+ cursor length)))
-    (if (and (> length 1.0e-12) (> b a))
+    (setq point (car row) vector (cadr row) cursor (caddr row) segment-length (nth 3 row)
+      a (max low cursor) b (min high (+ cursor segment-length))
+      whole (car whole-segments) whole-segments (cdr whole-segments) reused nil)
+    (if (and (> segment-length 1.0e-12) (> b a))
       (progn
-        (setq part (list
-          (EL:V+ point (EL:V* (/ (- a cursor) length) vector))
-          (EL:V+ point (EL:V* (/ (- b cursor) length) vector))))
-        (setq segments (cons part segments)))))
+        (if (and reuse (= a cursor) (= b (+ cursor segment-length)) whole)
+          (progn
+            (setq part whole reused T)
+            (if *EL:NumberPrefixTimed* (setq *EL:NumberProbeFullReuses* (1+ *EL:NumberProbeFullReuses*))))
+          (setq part (list
+            (EL:V+ point (EL:V* (/ (- a cursor) segment-length) vector))
+            (EL:V+ point (EL:V* (/ (- b cursor) segment-length) vector)))))
+        (setq segments (cons part segments))
+        (if (and reuse profiles) (setq fixed (cons reused fixed))))))
   (setq segments (reverse segments))
   (if (> start finish) (setq segments (mapcar '(lambda (s) (reverse s)) (reverse segments))))
-  (EL:Put 'contact-strips (EL:WireContactStrips segments (EL:Get 'width-profiles wire))
+  (setq fixed (if (> start finish) fixed (reverse fixed)))
+  (EL:Put 'contact-strips (if (and reuse profiles)
+      (EL:NumberSliceContactStrips segments profiles fixed) (EL:WireContactStrips segments profiles))
     (EL:Put 'segments segments wire)))
 (defun EL:NumberStations (point wire cfg / cursor segment vector length fraction nearest station out)
   (setq cursor 0.0)
@@ -225,7 +269,29 @@
   (EL:NumberShapeHitStrict wire shape (EL:StrictDeviceConfig cfg)))
 (defun EL:NumberShapeHitStrict (wire shape cfg)
   (or (if *EL:NumberProbeActive* (EL:NumberProbePathHit wire shape cfg) (EL:ContourPathHit wire shape cfg))
-    (EL:WideDevicePathHit wire shape cfg)))
+    (if *EL:NumberSliceReuseActive* (EL:NumberProbeWidePathHit wire shape cfg)
+      (EL:WideDevicePathHit wire shape cfg))))
+(defun EL:NumberProbeStripShapeHit (strip shape cfg)
+  ;; Date: 2026-10-21. The original three ordered WideDevicePathHit predicates.
+  (or (EL:ContourPathHit strip shape cfg)
+    (vl-some '(lambda (seg) (EL:ContourPointHit (car (EL:ContactWorldSegment seg shape)) strip cfg))
+      (EL:ContactRawSegments shape))
+    (vl-some '(lambda (curve) (EL:ContourPointHit (EL:CurvePoint curve (nth 2 curve)) strip cfg))
+      (EL:Get 'curves shape))))
+(defun EL:NumberProbeWidePathHit (wire shape cfg / strip key saved current hit cacheable)
+  ;; Date: 2026-10-21. Only immutable full-row strips enter this search cache.
+  ;; Keep the full strip traversal even after a hit; NIL is a reusable result.
+  (foreach strip (EL:Get 'contact-strips wire)
+    (setq cacheable (member strip *EL:NumberProbeFixedStrips*) key (cons strip shape))
+    (if (and cacheable (setq saved (assoc key *EL:NumberProbeWideHits*)))
+      (progn
+        (setq current (cdr saved))
+        (if *EL:NumberPrefixTimed* (setq *EL:NumberProbeWideReuses* (1+ *EL:NumberProbeWideReuses*))))
+      (progn
+        (setq current (EL:NumberProbeStripShapeHit strip shape cfg))
+        (if cacheable (setq *EL:NumberProbeWideHits* (cons (cons key current) *EL:NumberProbeWideHits*)))
+        (if *EL:NumberPrefixTimed* (setq *EL:NumberProbeWideBuilds* (1+ *EL:NumberProbeWideBuilds*)))))
+    (if current (setq hit T))) hit)
 (defun EL:NumberProbePointHit (point shape cfg / key saved hit)
   ;; Date: 2026-10-15. Exact point/shape keys; the strict config is fixed for
   ;; this one binary search. NIL is a cached miss, not an absent entry.
@@ -290,17 +356,22 @@
   (EL:NumberShapeHitStrict wire (cadr row) cfg))
 (defun EL:NumberFirstDevice (wire entry target devices cfg / block shape candidates hits row low high middle slice measures
     bounds builds searches result single-policy single single-used
-    *EL:NumberProbeActive* *EL:NumberProbePoints* *EL:NumberProbeSegments*
+    *EL:NumberProbeActive* *EL:NumberProbePoints* *EL:NumberProbeSegments* *EL:NumberProbeStrips* *EL:NumberSliceReuseActive* *EL:NumberProbeWholeSegments* *EL:NumberSliceMeasures*
+    *EL:NumberProbeFixedStrips* *EL:NumberProbeWideHits* *EL:NumberProbeWideBuilds* *EL:NumberProbeWideReuses*
+    *EL:NumberProbeFullBuilds* *EL:NumberProbeFullReuses* *EL:NumberProbeStripBuilds* *EL:NumberProbeStripReuses*
     *EL:NumberPrefixTimed* *EL:NumberPrefixTests* *EL:NumberPrefixRejected* *EL:NumberPrefixExact* *EL:NumberPrefixFallbacks*
     *EL:NumberPrefixSingleBypasses*)
   ;; Date: 2026-10-21. Preserve initial contact plus the exact 32-step prefix grid,
   ;; shape-read order and tie rule. Single candidates avoid unused broad-phase work.
   (setq *EL:NumberPrefixTimed* *EL:PerfActive* builds 0 searches 0 *EL:NumberPrefixTests* 0
     *EL:NumberPrefixRejected* 0 *EL:NumberPrefixExact* 0 *EL:NumberPrefixFallbacks* 0
-    *EL:NumberPrefixSingleBypasses* 0)
+    *EL:NumberPrefixSingleBypasses* 0 *EL:NumberProbeFullBuilds* 0 *EL:NumberProbeFullReuses* 0
+    *EL:NumberProbeStripBuilds* 0 *EL:NumberProbeStripReuses* 0 *EL:NumberProbeWideBuilds* 0 *EL:NumberProbeWideReuses* 0)
   (if (and devices (> (abs (- target entry)) 1.0e-12))
     (progn
       (setq *EL:NumberProbeActive* T cfg (EL:StrictDeviceConfig cfg) measures (EL:NumberPathMeasures wire)
+        *EL:NumberSliceMeasures* measures *EL:NumberSliceReuseActive* (not (null (cdr measures)))
+        *EL:NumberProbeWholeSegments* (if *EL:NumberSliceReuseActive* (EL:NumberProbeWholeSegments measures entry target))
         slice (EL:NumberPathSliceMeasured wire entry target measures)
         single-policy (not (EL:NumberSingleBoundsEnabled)) single (and single-policy (null (cdr devices))))
       (if single (setq single-used T) (setq bounds (EL:NumberPrefixBounds slice)))
@@ -326,6 +397,12 @@
           (setq result (list (+ entry (* high (- target entry))) (caar candidates)))))))
   (if *EL:NumberPrefixTimed*
     (progn
+      (EL:PerfCount "number-prefix-full-segment-builds" *EL:NumberProbeFullBuilds*)
+      (EL:PerfCount "number-prefix-full-segment-reuses" *EL:NumberProbeFullReuses*)
+      (EL:PerfCount "number-prefix-strip-builds" *EL:NumberProbeStripBuilds*)
+      (EL:PerfCount "number-prefix-strip-reuses" *EL:NumberProbeStripReuses*)
+      (EL:PerfCount "number-prefix-wide-builds" *EL:NumberProbeWideBuilds*)
+      (EL:PerfCount "number-prefix-wide-reuses" *EL:NumberProbeWideReuses*)
       (EL:PerfCount "number-prefix-searches" searches)
       (EL:PerfCount "number-prefix-bounds-builds" builds)
       (EL:PerfCount "number-prefix-bounds-tests" *EL:NumberPrefixTests*)

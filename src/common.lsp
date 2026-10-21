@@ -176,6 +176,7 @@
           "recognized-connected-wires" "recognized-connected-devices"
           "root-scope-light-wires" "root-scope-fine-wires" "root-scope-skipped-wires"
           "root-scope-wire-materializations" "root-scope-wire-fallbacks" "root-scope-order-wire-reads"
+          "root-scope-proxy-wires" "root-scope-all-fallback-bypass"
           "source-native-entity-checks" "source-native-bounds-checks" "source-derived-reuses"
           "source-candidate-index-lookups" "source-candidate-index-steps" "source-candidate-index-duplicates"
           ;; Date: 2026-10-21. Publish one aggregate per synchronous batch.

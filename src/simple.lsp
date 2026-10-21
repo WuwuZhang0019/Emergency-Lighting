@@ -488,7 +488,9 @@
     *EL:PresetCacheHits* *EL:PresetCacheMisses* *EL:PresetCacheNormalizations*
     *EL:PresetCacheMemberHits* *EL:PresetCacheMemberMisses* *EL:PresetCacheRebuilds* *EL:PresetCacheCheckMS*
     *EL:CollectReadProfile* *EL:CollectDXFMS* *EL:CollectBoundsMS* *EL:CollectWireMS* *EL:CollectProfileReads* readstarted
-    typ source-inserts source-lines source-polylines source-other source-managed source-rejected source-wire-ids)
+    typ source-inserts source-lines source-polylines source-other source-managed source-rejected source-wire-ids
+    root-proxies root-fallbacks root-reasons root-samples root-reason root-row root-discovery root-total-reasons root-total-row
+    *EL:RootScopeFallbackReason* *EL:RootScopeFallbackError*)
   ;; Date: 2026-10-10. Filter wires by inferred style; only the selected panel
   ;; uses its contour. Device geometry is checked lazily during network tracing.
   ;; Date: 2026-10-20. Retain the actual pre-filter scope in diagnostic exports.
@@ -501,7 +503,8 @@
     *EL:PresetCacheEnabled* T *EL:PresetCacheHits* 0 *EL:PresetCacheMisses* 0 *EL:PresetCacheNormalizations* 0
     *EL:PresetCacheMemberHits* 0 *EL:PresetCacheMemberMisses* 0 *EL:PresetCacheRebuilds* 0 *EL:PresetCacheCheckMS* 0
     *EL:CollectReadProfile* (and *EL:PerfActive* (EL:CollectReadDetailEnabled)) *EL:CollectDXFMS* 0 *EL:CollectBoundsMS* 0 *EL:CollectWireMS* 0 *EL:CollectProfileReads* 0
-    source-inserts 0 source-lines 0 source-polylines 0 source-other 0 source-managed 0 source-rejected 0)
+    source-inserts 0 source-lines 0 source-polylines 0 source-other 0 source-managed 0 source-rejected 0
+    root-proxies 0 root-fallbacks 0)
   ;; Date: 2026-10-21. Tables and positive/negative block decisions live only here.
   (EL:PerfCall "COLLECT_PRESET_PREPARE" 'EL:PresetCachePrepare (list cfg))
   (EL:PerfCount "source-collect-calls" 1)
@@ -538,10 +541,20 @@
         ((equal typ "INSERT") (setq source-rejected (1+ source-rejected)))
         ((EL:WireStyleAllowed d cfg)
           (setq wire (if *EL:RootScopeCollecting* (EL:RootScopeWire e d cfg)))
-          (if (not wire)
+          (if wire (setq root-proxies (1+ root-proxies))
             (progn
               (EL:PerfCount "source-wire-record-reads" 1)
-              (if *EL:RootScopeCollecting* (EL:PerfCount "root-scope-wire-fallbacks" 1))
+              (if *EL:RootScopeCollecting*
+                (progn
+                  (setq root-fallbacks (1+ root-fallbacks)
+                    root-reason (cond (*EL:RootScopeFallbackReason*) (T "unclassified")))
+                  (if (setq root-row (assoc root-reason root-reasons))
+                    (setq root-reasons (subst (cons root-reason (1+ (cdr root-row))) root-row root-reasons))
+                    (progn
+                      (setq root-reasons (cons (cons root-reason 1) root-reasons))
+                      (if (< (length root-samples) 3)
+                        (setq root-samples (cons (list (cons 'reason root-reason) (cons 'wire id)
+                          (cons 'type typ) (cons 'error *EL:RootScopeFallbackError*)) root-samples)))))))
               (setq wire (EL:WireRecordDXF e (if (assoc -3 d)
                 (vl-remove-if '(lambda (row) (= (car row) -3)) d) d) cfg))))
           (setq source-wire-ids (cons (EL:Get 'id wire) source-wire-ids) wires (cons wire wires)
@@ -568,17 +581,45 @@
   (EL:PerfCount "source-wire-layer-read-ms" *EL:WireLayerReadMS*)
   (EL:PresetCacheMetrics)
   (EL:PerfEnd perf 'returned)
-  ;; Date: 2026-10-21. Roots discover exact dependencies before candidate expansion.
+  ;; Date: 2026-10-21. Publish bounded fallback diagnostics once per collection.
+  ;; Keep the rooted source-facts guard even when every wire uses eager geometry.
   (if *EL:RootScopeCollecting*
     (progn
-      (setq *EL:RootScopeOriginalWires* wires
-        wires (EL:RootScopeDiscover wires items cfg)
-        *EL:RootScopeResolvedWires* (mapcar '(lambda (wire) (cons (EL:Get 'id wire) wire)) wires) ends nil)
-      (foreach wire wires
-        (foreach candidate (EL:Get 'ends wire) (setq ends (cons candidate ends)))
-        (foreach candidate (EL:Get 'issues wire)
-          (if (not (member candidate issues)) (setq issues (cons candidate issues)))))
-      (setq ends (reverse ends))))
+      (EL:PerfCount "root-scope-proxy-wires" root-proxies)
+      (EL:PerfCount "root-scope-wire-fallbacks" root-fallbacks)
+      (if *EL:PerfActive*
+        (progn
+          (setq root-total-reasons (EL:Get "root-scope-fallback-reasons" *EL:PerfMetrics*))
+          (foreach root-row root-reasons
+            (if (setq root-total-row (assoc (car root-row) root-total-reasons))
+              (setq root-total-reasons (subst
+                (cons (car root-row) (+ (cdr root-total-row) (cdr root-row))) root-total-row root-total-reasons))
+              (setq root-total-reasons (append root-total-reasons (list root-row)))))
+          (EL:PerfSet "root-scope-fallback-reasons" root-total-reasons)))
+      (if (> root-fallbacks 0)
+        (EL:LogEvent "ROOT_SCOPE_FALLBACKS" (list (cons 'fallback-wires root-fallbacks)
+          (cons 'proxy-wires root-proxies) (cons 'reasons (reverse root-reasons))
+          (cons 'samples (reverse root-samples)))))
+      (setq root-discovery (> root-proxies 0))
+      (if root-discovery
+        (progn
+          (setq *EL:RootScopeOriginalWires* wires
+            wires (EL:RootScopeDiscover wires items cfg)
+            *EL:RootScopeResolvedWires* (mapcar '(lambda (wire) (cons (EL:Get 'id wire) wire)) wires) ends nil)
+          (foreach wire wires
+            (foreach candidate (EL:Get 'ends wire) (setq ends (cons candidate ends)))
+            (foreach candidate (EL:Get 'issues wire)
+              (if (not (member candidate issues)) (setq issues (cons candidate issues)))))
+          (setq ends (reverse ends)))
+        (progn
+          ;; Eager records already preserve the old candidate order and geometry.
+          ;; Do not repeat discovery or reconstruct that same order a second time.
+          (EL:PerfCount "root-scope-light-wires" (length wires))
+          (EL:PerfCount "root-scope-fine-wires" (length wires))
+          (if (> root-fallbacks 0) (EL:PerfCount "root-scope-all-fallback-bypass" 1))
+          (EL:LogEvent "ROOT_SCOPE_BYPASSED" (list
+            (cons 'reason (if (> root-fallbacks 0) 'all-wire-fallbacks 'no-source-wires))
+            (cons 'source-wires (length wires)) (cons 'policy 'eager-collection)))))))
   (setq perf (EL:PerfBegin "COLLECT_CANDIDATES") candidateperf (EL:PerfBegin "COLLECT_SPATIAL_TREE")
     tree (EL:SpatialTree items 0))
   (EL:PerfEnd candidateperf 'returned)
@@ -613,7 +654,7 @@
                 blocks (cons block blocks) queue (cons block queue))))))
   (EL:CandidateIndexMetrics)
   (EL:PerfEnd candidateperf 'returned)
-  (if *EL:RootScopeCollecting*
+  (if root-discovery
     (setq blocks (EL:RootScopeOrder blocks tree cfg)))
   (EL:PerfEnd perf 'returned)
   (if (EL:Get 'auto-panel cfg)

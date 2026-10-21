@@ -156,11 +156,13 @@
           "transaction-failures" "log-open-attempts" "log-write-attempts" "log-close-attempts" "panel-submits"
           "store-read-cache-hits" "store-read-cache-misses"
           "start-snapshot-source-wires" "start-snapshot-kept-wires" "start-snapshot-removed-wires" "start-snapshot-ends"
+          "start-boundary-pair-checks" "start-boundary-bounds-rejected" "start-boundary-exact-checks" "start-boundary-bounds-fallback-wires"
           "source-collect-calls" "source-selection-entities" "source-block-bounds-reads"
           "source-native-entity-checks" "source-native-bounds-checks" "source-derived-reuses"
           "source-candidate-index-lookups" "source-candidate-index-steps" "source-candidate-index-duplicates"
           ;; Date: 2026-10-21. Publish one aggregate per synchronous batch.
           "source-wire-layer-reads" "source-wire-layer-cache-hits" "source-wire-layer-read-ms"
+          "source-native-dxf-ms" "source-block-bounds-ms" "source-wire-record-ms" "source-read-profile-clock-reads"
           "source-preset-cache-hits" "source-preset-cache-misses" "source-preset-normalizations"
           "source-preset-table-cache-hits" "source-preset-table-cache-misses"
           "source-preset-cache-rebuilds" "source-preset-cache-miss-check-ms"
@@ -177,8 +179,12 @@
           "template-dynamic-check-ms" "template-dynamic-checks" "template-dynamic-reuses"
           "template-probe-ms" "template-probes" "template-probe-reuses"
           "network-build-calls" "network-verified-reuses" "network-geometry-checks"
+          "number-prefix-searches" "number-prefix-bounds-builds" "number-prefix-bounds-tests"
+          "number-prefix-bounds-rejected" "number-prefix-exact-tests" "number-prefix-bounds-fallbacks"
           "number-scope-visits" "number-scope-neighbour-scans" "number-scope-path-lengths"
           "number-scope-neighbours-ms" "number-scope-first-device-ms" "number-scope-links-ms"
+          "number-annotation-scans" "number-annotation-reads" "number-annotation-orphans"
+          "number-annotation-scan-failures" "number-annotation-linked-reads"
           "number-scopes" "number-source-handles" "number-problems"
           "number-source-read-attempts" "number-source-read-failures" "number-freshness-checks"
           "device-library-loads" "device-library-writes" "device-library-matches" "device-library-unknown"
@@ -256,7 +262,7 @@
         "DIAGRAM_VIEW" "DIAGNOSTIC_EXPORT" "DEVICE_LIBRARY_LOAD" "DEVICE_LEGEND"
         "SYSTEM_LIBRARY_OPEN" "SYSTEM_BLOCK_COPY" "SYSTEM_STYLE_COPY" "TEMPLATE_CAPTURE" "TEMPLATE_VALIDATE"
         ;; Date: 2026-10-21. Recognition batches, never per-entity/probe frames.
-        "START_SNAPSHOT" "START_BOUNDARY_FILTER" "START_ENDS_BUILD" "COLLECT_PRESET_PREPARE"
+        "START_SNAPSHOT" "START_BOUNDARY_FILTER" "START_ENDS_BUILD" "COLLECT_PRESET_PREPARE" "NUMBER_ANNOTATION_INDEX"
         "NETWORK_ROLE_PREPARE" "NETWORK_WIRE_INDEX" "NETWORK_BLOCK_INDEX" "NETWORK_JUNCTION_INDEX"
         "NETWORK_END_INDEX" "NETWORK_GAP_INDEX" "NETWORK_ROOT_LINKS"
         "COLLECT_SPATIAL_TREE" "COLLECT_CANDIDATE_DEDUP" "COLLECT_DEVICE_EXPAND"
@@ -604,6 +610,7 @@
       ("NETWORK_SIGNATURE" . "整理去重后的几何证据") ("NETWORK_VERIFY_GEOMETRY" . "核对网络几何")
       ("SOURCE_NATIVE_VERIFY" . "核对源图原生对象与范围")
       ("SPLIT_NETWORK" . "拆分回路") ("CIRCUIT_NUMBER_SCOPE" . "识别回路编号范围")
+      ("NUMBER_ANNOTATION_INDEX" . "读取天正平面编号关联索引")
       ("COMPARE_SOURCE_NUMBER" . "核对回路编号") ("PRE_GENERATE_FRESH" . "生成前核对源图")
       ("FRESH_SOURCE_SCAN" . "核对当前源图") ("CCKK2" . "生成新配电箱系统图")
       ("CCKK2_CREATE" . "创建配电箱系统图") ("SAVE_CREATED_DIAGRAM" . "保存生成的系统图记录")

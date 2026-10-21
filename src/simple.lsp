@@ -13,8 +13,26 @@
     (<= (EL:Norm (EL:V- point (EL:Get 'point row))) (EL:Get 'eps_touch (EL:Get 'params cfg)))
     (<= (abs (- (caddr point) (caddr (EL:Get 'point row)))) (EL:GapEpsilon))))
     (EL:Get 'circuit-starts snapshot)))
-(defun EL:StartSnapshot (snapshot cfg panel / starts row wire ep ids kept removed ends perf batch result)
-  ;; Date: 2026-10-21. Keep source order with one endpoint list reversal per batch.
+(defun EL:StartBoundaryBounds (wire tolerance / bounds lo hi margin)
+  ;; Date: 2026-10-21. Fresh contact bounds enclose all source segments/strips.
+  ;; Missing or unprovable envelopes retain the exact contact path. Roundoff
+  ;; expands this broad phase only; the final EL:Touches tolerances stay intact.
+  (setq bounds (EL:Get 'contact-bounds wire))
+  (if (and (listp bounds) (equal (vl-list-length bounds) 2)
+      (listp (setq lo (car bounds))) (equal (vl-list-length lo) 3)
+      (listp (setq hi (cadr bounds))) (equal (vl-list-length hi) 3)
+      (vl-every 'EL:Number lo) (vl-every 'EL:Number hi)
+      (<= (car lo) (car hi)) (<= (cadr lo) (cadr hi)) (<= (caddr lo) (caddr hi))
+      (EL:NonNegative tolerance))
+    (progn
+      (setq margin (EL:ContactQueryRoundoff bounds nil))
+      (list (list (- (car lo) tolerance margin) (- (cadr lo) tolerance margin)
+                  (- (caddr lo) (EL:GapEpsilon) margin))
+            (list (+ (car hi) tolerance margin) (+ (cadr hi) tolerance margin)
+                  (+ (caddr hi) (EL:GapEpsilon) margin))))))
+(defun EL:StartSnapshot (snapshot cfg panel / starts row wire ep ids kept removed ends perf batch result
+    bounds point pairs rejected exact fallback)
+  ;; Date: 2026-10-21. Keep source order and exact contact; skip only distant pairs.
   (setq perf (EL:PerfBegin "START_SNAPSHOT") starts (EL:Get 'circuit-starts cfg))
   (EL:Require (and starts (EL:CircuitStartsValid starts)) "回路起始端记录无效，请重新拾取。")
   (foreach row starts
@@ -26,14 +44,26 @@
     (setq ids (cons (EL:Get 'wire row) ids)))
   ;; Retain excluded source geometry in the snapshot for exact freshness checks.
   ;; A common trunk/feeder touching a picked root must never become a path back.
-  (setq batch (EL:PerfBegin "START_BOUNDARY_FILTER"))
+  (setq batch (EL:PerfBegin "START_BOUNDARY_FILTER") pairs 0 rejected 0 exact 0 fallback 0)
   (foreach wire (EL:Get 'wires snapshot)
     (if (and (not (member (EL:Get 'id wire) ids))
-        (vl-some '(lambda (row) (EL:Touches (EL:Get 'point row) (EL:Get 'segments wire)
-          (EL:Get 'eps_touch (EL:Get 'params cfg)) (EL:GapEpsilon))) starts))
+        (progn
+          (setq bounds (EL:StartBoundaryBounds wire (EL:Get 'eps_touch (EL:Get 'params cfg))))
+          (if (not bounds) (setq fallback (1+ fallback)))
+          (vl-some '(lambda (row)
+            (setq pairs (1+ pairs) point (EL:Get 'point row))
+            (if (or (not bounds) (EL:InBounds point bounds 0.0))
+              (progn (setq exact (1+ exact))
+                (EL:Touches point (EL:Get 'segments wire)
+                  (EL:Get 'eps_touch (EL:Get 'params cfg)) (EL:GapEpsilon)))
+              (progn (setq rejected (1+ rejected)) nil))) starts)))
       (setq removed (cons wire removed)) (setq kept (cons wire kept))))
   (setq kept (reverse kept))
   (EL:PerfEnd batch 'returned)
+  (EL:PerfCount "start-boundary-pair-checks" pairs)
+  (EL:PerfCount "start-boundary-bounds-rejected" rejected)
+  (EL:PerfCount "start-boundary-exact-checks" exact)
+  (EL:PerfCount "start-boundary-bounds-fallback-wires" fallback)
   (setq batch (EL:PerfBegin "START_ENDS_BUILD"))
   (foreach wire kept
     (foreach ep (EL:Get 'ends wire) (setq ends (cons ep ends))))
@@ -297,7 +327,8 @@
     *EL:WireLayerCacheHits* *EL:WireLayerReads* *EL:WireLayerReadMS*
     *EL:PresetCacheEnabled* *EL:PresetCacheCfg* *EL:PresetCacheEpoch* *EL:PresetCacheTables* *EL:PresetCacheBlocks*
     *EL:PresetCacheHits* *EL:PresetCacheMisses* *EL:PresetCacheNormalizations*
-    *EL:PresetCacheMemberHits* *EL:PresetCacheMemberMisses* *EL:PresetCacheRebuilds* *EL:PresetCacheCheckMS*)
+    *EL:PresetCacheMemberHits* *EL:PresetCacheMemberMisses* *EL:PresetCacheRebuilds* *EL:PresetCacheCheckMS*
+    *EL:CollectReadProfile* *EL:CollectDXFMS* *EL:CollectBoundsMS* *EL:CollectWireMS* *EL:CollectProfileReads* readstarted)
   ;; Date: 2026-10-10. Filter wires by inferred style; only the selected panel
   ;; uses its contour. Device geometry is checked lazily during network tracing.
   ;; Date: 2026-10-20. Retain the actual pre-filter scope in diagnostic exports.
@@ -308,7 +339,8 @@
     *EL:WireLayerCacheEnabled* T *EL:WireLayerCacheEpoch* *EL:FreshEpoch*
     *EL:WireLayerCacheHits* 0 *EL:WireLayerReads* 0 *EL:WireLayerReadMS* 0
     *EL:PresetCacheEnabled* T *EL:PresetCacheHits* 0 *EL:PresetCacheMisses* 0 *EL:PresetCacheNormalizations* 0
-    *EL:PresetCacheMemberHits* 0 *EL:PresetCacheMemberMisses* 0 *EL:PresetCacheRebuilds* 0 *EL:PresetCacheCheckMS* 0)
+    *EL:PresetCacheMemberHits* 0 *EL:PresetCacheMemberMisses* 0 *EL:PresetCacheRebuilds* 0 *EL:PresetCacheCheckMS* 0
+    *EL:CollectReadProfile* *EL:PerfActive* *EL:CollectDXFMS* 0 *EL:CollectBoundsMS* 0 *EL:CollectWireMS* 0 *EL:CollectProfileReads* 0)
   ;; Date: 2026-10-21. Tables and positive/negative block decisions live only here.
   (EL:PerfCall "COLLECT_PRESET_PREPARE" 'EL:PresetCachePrepare (list cfg))
   (EL:PerfCount "source-collect-calls" 1)
@@ -316,7 +348,13 @@
   (setq perf (EL:PerfBegin "COLLECT_ENTITY_READ"))
   (if ss
     (repeat (sslength ss)
-       (setq e (ssname ss i) d (entget e '("EL_FIXED_V1")) i (1+ i) id (cdr (assoc 5 d)) name nil bounds nil
+       (setq e (ssname ss i))
+       (if *EL:CollectReadProfile* (setq readstarted (EL:Tick)))
+       (setq d (entget e '("EL_FIXED_V1")))
+       (if *EL:CollectReadProfile*
+         (setq *EL:CollectDXFMS* (+ *EL:CollectDXFMS* (EL:PerfDelta readstarted (EL:Tick)))
+           *EL:CollectProfileReads* (+ *EL:CollectProfileReads* 2)))
+       (setq i (1+ i) id (cdr (assoc 5 d)) name nil bounds nil
             *EL:SimpleEntity* (list id (cdr (assoc 0 d)) (cdr (assoc 8 d))))
       (cond
         ;; The same selective native read includes the managed-output marker.
@@ -338,6 +376,12 @@
                  ends (append (EL:Get 'ends wire) ends) issues (append (EL:Get 'issues wire) issues))))
       (if (not (cdr (assoc "EL_FIXED_V1" (cdr (assoc -3 d)))))
         (setq facts (cons (list d bounds) facts)))))
+  ;; Date: 2026-10-21. Counts only: no per-entity frames or file writes.
+  (EL:PerfCount "source-native-dxf-ms" *EL:CollectDXFMS*)
+  (EL:PerfCount "source-block-bounds-ms" *EL:CollectBoundsMS*)
+  (EL:PerfCount "source-wire-record-ms" *EL:CollectWireMS*)
+  (EL:PerfCount "source-read-profile-clock-reads" *EL:CollectProfileReads*)
+  (setq *EL:CollectReadProfile* nil)
   ;; Aggregate only; never add a measured frame or log write per wire.
   (EL:PerfCount "source-wire-layer-reads" *EL:WireLayerReads*)
   (EL:PerfCount "source-wire-layer-cache-hits" *EL:WireLayerCacheHits*)

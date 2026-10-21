@@ -252,3 +252,7 @@ config/power-input-*.eld
 # Date: 2026-10-21. Requested flashback repair and small-optimization trial.
 /output/应急照明-v0.1.68/
 /output/应急照明-v0.1.68.zip
+
+# Date: 2026-10-21. Requested recognition small-optimization trial.
+/output/应急照明-v0.1.69/
+/output/应急照明-v0.1.69.zip

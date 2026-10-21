@@ -260,3 +260,7 @@ config/power-input-*.eld
 # Date: 2026-10-21. Requested plane-number and recognition-bounds trial.
 /output/应急照明-v0.1.70/
 /output/应急照明-v0.1.70.zip
+
+# Date: 2026-10-21. Requested timing/single-candidate A-B trial package.
+/output/应急照明-v0.1.71/
+/output/应急照明-v0.1.71.zip

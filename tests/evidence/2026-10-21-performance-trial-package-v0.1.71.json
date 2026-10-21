@@ -1,0 +1,151 @@
+{
+  "date": "2026-10-21",
+  "status": "passed",
+  "version": "0.1.71",
+  "package_no": 170,
+  "package": "应急照明-v0.1.71",
+  "full_test_command": "ELFULL71",
+  "archive": "C:\\Users\\Zyf\\.codex\\worktrees\\lighting-shape-reuse\\Emergency-Lighting\\output\\应急照明-v0.1.71.zip",
+  "directory": "C:\\Users\\Zyf\\.codex\\worktrees\\lighting-shape-reuse\\Emergency-Lighting\\output\\应急照明-v0.1.71",
+  "files": 383,
+  "directories": 120,
+  "gb2312_lisp_dcl": 33,
+  "parsed_lisp": 31,
+  "converted_modules": [
+    "src/batch-number.lsp",
+    "src/circuit-number.lsp",
+    "src/common.lsp",
+    "src/config.lsp",
+    "src/device-assets.lsp",
+    "src/device-defaults.lsp",
+    "src/device-inputs.lsp",
+    "src/device-library.lsp",
+    "src/device-migration.lsp",
+    "src/device-recognition.lsp",
+    "src/device-ui.lsp",
+    "src/diagram-commands.lsp",
+    "src/diagram-store.lsp",
+    "src/diagram-update.lsp",
+    "src/fixed.lsp",
+    "src/generation.lsp",
+    "src/geometry.lsp",
+    "src/insert-circuit.lsp",
+    "src/main.lsp",
+    "src/panel.lsp",
+    "src/simple.lsp",
+    "src/startup.lsp",
+    "src/statistics.lsp",
+    "src/store-compact.lsp",
+    "src/store-split.lsp",
+    "src/topology.lsp"
+  ],
+  "converted_dcl": [
+    "ui/device-library.dcl",
+    "ui/power.dcl"
+  ],
+  "loading_entries": [
+    "START-CAD2020.lsp",
+    "UPDATE-170.lsp",
+    "src/load.lsp",
+    "ELFULL71.lsp"
+  ],
+  "definitions_per_entry": 1061,
+  "embedded_resources": {
+    "START-CAD2020.lsp": 144,
+    "src/load.lsp": 144,
+    "ELFULL71.lsp": 144
+  },
+  "registration_only": true,
+  "default_library_files": 112,
+  "system_dwg_bytes": 157286,
+  "system_dwg_sha256": "fbe464766c6ff04aaf771942e12f273c4521d880c5dc5eebb7c5fa0b619a9fe4",
+  "archive_bytes": 5508591,
+  "archive_sha256": "acef8a8f32c3aab383eabcf580aef52f0671fb5325da3b56ad47c1a851107c4a",
+  "source_sha256": {
+    "src/batch-number.lsp": "9e3af40e1e52b0aa083097a453d120bc21a5ee282403410b91a8e7a1dc088fb5",
+    "src/circuit-number.lsp": "6264b7431b3604fd0e529c36b6b60e7550da6dba79ac9e987a6849f3fbd74e13",
+    "src/common.lsp": "3baebba3879d06c8f8da7bc6d80cec8ab6b4f7e704b28b2c51f1f8557db01089",
+    "src/config.lsp": "2ab977ee7f13679dbb55e104df44376a0c3b0ea661e8e17fff3b0d51683a63b3",
+    "src/device-assets.lsp": "2a1b7639ad9e659b47bad6f248f074f805b8203179c91bea3fc0b86b491d9086",
+    "src/device-defaults.lsp": "7f08ae7cf75430a455046c9ae784b544071932ca86bf40df2bf76c242570ccd0",
+    "src/device-inputs.lsp": "614b045dbec8a7ea62d0bdf543c31f2a4c32c1a76326e25f43703362093dcade",
+    "src/device-library.lsp": "d64597d1c75c2f03492c7ef5d4bf856fd35724e2016f00e74984501f78ceb425",
+    "src/device-migration.lsp": "904bf897c097d14c3414efc9776c03d0a5f2f3eeb3c3909e0231bcceca92454c",
+    "src/device-recognition.lsp": "7d78e7f0af27b28b0a1a02d05f849de6f731086cefb85018815e2805cc453046",
+    "src/device-ui.lsp": "bf1713b4e3fbbad73ddc3b421f8ebd72b600c614c9a5e8771ba64df12531ba0d",
+    "src/diagram-commands.lsp": "6041ec1bd2ebfc6d15aa94b99bd783bbf444adf73fe9088cb7df6dd8d624b843",
+    "src/diagram-store.lsp": "fec4f22ce156c346d48c68463aa350eed32276184ceb4f8b7d277080d3bcf87a",
+    "src/diagram-update.lsp": "780097cb3d82029340fbc35a492d558736ce01ad3043f94a43b5025cfd815985",
+    "src/fixed.lsp": "760799985cdf1d89481b5a936803e367feabfe99d5f335cc57601872d72d959a",
+    "src/generation.lsp": "7e3930fd7d88ea078bca5737ee354ef937c0297155c604009b8726d876a8c489",
+    "src/geometry.lsp": "082c0eb1e1f863fdbaddcb7ccc594aa4ec505d8d51fce8908771e8bb39c680e2",
+    "src/insert-circuit.lsp": "774365a4d1985d7ef4c05fbd3d0476cbffbd2dbf8ee1c65e91990c6e17e7b492",
+    "src/main.lsp": "abbc78a158b3b85483dbb92c352ba722f0f052fad2d75aba0b37902bcdab9c9a",
+    "src/panel.lsp": "f80b10bfe13c5b02ff42622d8aa791a7c6ffaf46deafa22096b340548ebcbef9",
+    "src/simple.lsp": "8fc6af2c66c0cfb34c1ac85d72dc5fc647e7499495cd29785643c27390951c66",
+    "src/startup.lsp": "57d037deb92580b997a1419572b533711b708fd351d978b5b6ece478211d9b27",
+    "src/statistics.lsp": "12c265fc02be486dc6e53eb83709819af3f7e29db6f421cb7b7f053d9e51abb5",
+    "src/store-compact.lsp": "d346e988457d111f8a3348ed85076f34f0361a1e7c2900dda23cefc187f61ec2",
+    "src/store-split.lsp": "2a790a6421253f9a2acbbdb0c9ad9e25ac18c67f7e3c2912f65a1e6a9f140e20",
+    "src/topology.lsp": "a787491de308f5732b59fcc42889ed4fe2a4b34db945f48dbe20c1b4dd3b8c3a",
+    "ui/device-library.dcl": "80ac1744dc94a13ffd38fafe00938da458b9487d5bd945483880a0b8fb78b83a",
+    "ui/power.dcl": "4e21c217b9f42b50e18a91a8c44b599c10cdbd105a73206ccb820e2c75fdf948",
+    "src/load.lsp": "675ac351f48ec4a3bf8a74ffd68f3b87e8e96e3154486945b032139c37c3acc1",
+    "tools/build_cad2020.py": "4db6e03dde71d5daff6b42b4f13c4e16553f449b148ffa4537c465247030515c",
+    "tools/templates/full-test.lsp": "7a9ed84752ef686a6effaacacfb07f0d4a689cf5d5a844f8d3f58918832bea46",
+    "tests/check_performance_trial_package.py": "953b5cd757b68272915ed349f844c2c944bd7b832ad6b86ec22155ff2cdf27bf"
+  },
+  "checks": [
+    "ZIP CRC",
+    "complete ZIP/directory manifest and every file byte identity",
+    "strict GB2312 round trip without BOM for every LISP/DCL",
+    "all delivered LISP parsed by autolisp_host",
+    "converted source modules and DCL match package bytes",
+    "all effective module definitions match all four loading entries",
+    "embedded text/default assets/system DWG match current package/source",
+    "actual full entry registers only, with no CAD calls or drawing changes"
+  ],
+  "native_cad_status": "pending; original-DWG timing, DCL, dynamic states, generated geometry, save/reopen and Undo unverified",
+  "preserved_previous_archives_sha256": {
+    "0.1.70": "e8e1d0c21a75cf7f84da607545117df519a44a3c338f0b9876155b5ee6ff5cbd",
+    "0.1.69": "87c118b9954873375d16227f6003008b8d09296ff7a260c175d6b7786f4840ba"
+  },
+  "implementation_commits": [
+    "2cc67f4",
+    "1174cc7",
+    "326cfd9"
+  ],
+  "plan_commit": "1205c35",
+  "controlled_comparison_evidence": {
+    "path": "tests/evidence/2026-10-21-recognition-ab-v0.1.71.json",
+    "sha256": "5020e104a333fd3ceb0798b39367a28d5af605d86ae6e059cbb78264563237bc",
+    "source_hashes_match": true,
+    "eight_mode_runs": "3,1,2,0,0,2,1,3",
+    "complete_output_and_native_order": "identical",
+    "native_CAD_seconds": "pending"
+  },
+  "focused_business_regressions": {
+    "status": "passed for listed necessary groups, not full suite",
+    "timing_modes_and_monitor": 28,
+    "single_prefix_and_boundary_scope": 20,
+    "number_annotation_preview_source_network": 59,
+    "unique_methods": 107,
+    "existing_exclusion": {
+      "test": "test_performance.PerformanceFlowTests.test_no_change_update_is_measured_with_zero_entity_and_master_writes",
+      "current_and_frozen730c9bd": "20 != 0 entity writes",
+      "reason": "existing fixture expects no-change update while invocation creates a new diagram; unchanged by this task"
+    }
+  },
+  "additional_checks": [
+    "unique package-170 marker and correct content",
+    "current v0.1.71 release notes match package",
+    "current guide includes standalone entry, runtime170, marker170, GB2312 and ELPERFAB",
+    "v0.1.70/v0.1.69 archives unchanged by SHA256",
+    "controlled-comparison evidence matches final business source hashes"
+  ],
+  "full_entry_focused_regressions": {
+    "command": "python -B -X utf8 -m unittest discover -s tests -p test_full_test_entry.py -q",
+    "tests": 3,
+    "status": "passed"
+  }
+}

@@ -215,5 +215,31 @@ class RootScopeFreshnessTests(unittest.TestCase):
         self.assertEqual(self.get('circuit-number', self.get('circuits', current)[0]), 'ZE9')
 
 
+    def test_native_read_epoch_or_owner_change_rejects_the_complete_collection(self):
+        for change in ('epoch', 'owner'):
+            with self.subTest(change=change):
+                self.setUp()
+                original = self.h.builtins['EL:ENTITYBOUNDS']
+                fired = []
+                def mutate(entity):
+                    if not fired:
+                        fired.append(entity)
+                        if change == 'epoch':
+                            self.call('EL:FreshBoundary')
+                        else:
+                            self.h.builtins['NAMEDOBJDICT'] = lambda: 'other-drawing'
+                    return original(entity)
+                self.h.builtins['EL:ENTITYBOUNDS'] = mutate
+                self.h.builtins['EXIT'] = lambda: (_ for _ in ()).throw(RuntimeError('quit / exit abort'))
+                with self.assertRaisesRegex(RuntimeError, 'quit / exit abort'):
+                    self.call('EL:SimpleCollect', self.cfg)
+                self.assertTrue(any(stage == 'VALIDATION_FAILED' and
+                    'SOURCE_CHANGED' in self.get('message', detail)
+                    for stage, detail in self.events))
+                self.assertTrue(fired)
+                self.assertIsNone(self.h.lookup('*EL:COLLECTMEMO*'))
+                self.assertIsNone(self.h.lookup('*EL:NETWORKMEMO*'))
+
+
 if __name__ == '__main__':
     unittest.main()

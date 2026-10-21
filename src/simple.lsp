@@ -326,9 +326,16 @@
           (EL:PanelContactShape (handent (EL:Get 'auto-panel cfg)) cfg))))
       (if good (progn (EL:PerfCount "source-derived-reuses" 1) (EL:Get 'input memo))))))
 ;; Date: 2026-10-21. Explicit-root collection owns all deferred state locally.
-(defun EL:SimpleCollect (cfg / *EL:RootScopeCollecting* *EL:RootScopePanelShape* *EL:RootScopeOriginalWires* *EL:RootScopeResolvedWires*)
+(defun EL:SimpleCollect (cfg / result owner epoch *EL:RootScopeCollecting* *EL:RootScopePanelShape* *EL:RootScopeOriginalWires* *EL:RootScopeResolvedWires*)
   (setq *EL:RootScopeCollecting* (and (EL:Get 'auto-panel cfg) (EL:Get 'circuit-starts cfg) (EL:CircuitStartsValid (EL:Get 'circuit-starts cfg))))
-  (EL:SimpleCollectFull cfg))
+  (if *EL:RootScopeCollecting* (setq owner (namedobjdict) epoch *EL:FreshEpoch*))
+  (setq result (EL:SimpleCollectFull cfg))
+  ;; Include native candidate reads and order reconstruction in the same guard.
+  (if (and *EL:RootScopeCollecting*
+      (not (and (equal owner (namedobjdict)) (equal epoch *EL:FreshEpoch*))))
+    (progn
+      (setq *EL:CollectMemo* nil *EL:NetworkMemo* nil)
+      (EL:Require nil "SOURCE_CHANGED：按需收集期间发生写入、交互或切图，请重新统计。"))) result)
 (defun EL:RootScopeResolve (wire / id saved data full)
   (if (and *EL:RootScopeActive* wire)
     (progn

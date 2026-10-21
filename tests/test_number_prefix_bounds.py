@@ -36,6 +36,46 @@ LEGACY = """
         (list (+ entry (* high (- target entry))) (caar candidates)))))))
 """
 
+# Frozen from 730c9bd: v0.1.70 broad phase, including single candidates.
+V70 = r"""
+(defun oracle:V70PrefixFirstDevice (wire entry target devices cfg / block shape candidates hits row low high middle slice measures
+    bounds builds searches result *EL:NumberProbeActive* *EL:NumberProbePoints* *EL:NumberProbeSegments*
+    *EL:NumberPrefixTimed* *EL:NumberPrefixTests* *EL:NumberPrefixRejected* *EL:NumberPrefixExact* *EL:NumberPrefixFallbacks*)
+  ;; Date: 2026-10-21. Keep the joint search's exact 32-step dyadic prefix grid,
+  ;; original shape-read order and first-device tie rule. Bounds only prove misses.
+  (setq *EL:NumberPrefixTimed* *EL:PerfActive* builds 0 searches 0 *EL:NumberPrefixTests* 0
+    *EL:NumberPrefixRejected* 0 *EL:NumberPrefixExact* 0 *EL:NumberPrefixFallbacks* 0)
+  (if (and devices (> (abs (- target entry)) 1.0e-12))
+    (progn
+      (setq *EL:NumberProbeActive* T cfg (EL:StrictDeviceConfig cfg) measures (EL:NumberPathMeasures wire)
+        slice (EL:NumberPathSliceMeasured wire entry target measures) bounds (EL:NumberPrefixBounds slice))
+      (if *EL:NumberPrefixTimed* (setq builds 1 searches 1))
+      (foreach block devices
+        (setq shape (EL:DeviceContactShape block)
+          row (list (EL:Get 'id block) shape (EL:NumberNativeBoundsXY (EL:Get 'bounds block))))
+        (if (EL:NumberPrefixShapeHit slice row bounds cfg) (setq candidates (cons row candidates))))
+      (if candidates
+        (progn
+          (setq candidates (reverse candidates) low 0.0 high 1.0)
+          (repeat 32
+            (setq middle (/ (+ low high) 2.0) hits nil
+              slice (EL:NumberPathSliceMeasured wire entry (+ entry (* middle (- target entry))) measures)
+              bounds (EL:NumberPrefixBounds slice))
+            (if *EL:NumberPrefixTimed* (setq builds (1+ builds)))
+            (foreach row candidates
+              (if (EL:NumberPrefixShapeHit slice row bounds cfg) (setq hits (cons row hits))))
+            (if hits (setq high middle candidates (reverse hits)) (setq low middle)))
+          (setq result (list (+ entry (* high (- target entry))) (caar candidates)))))))
+  (if *EL:NumberPrefixTimed*
+    (progn
+      (EL:PerfCount "number-prefix-searches" searches)
+      (EL:PerfCount "number-prefix-bounds-builds" builds)
+      (EL:PerfCount "number-prefix-bounds-tests" *EL:NumberPrefixTests*)
+      (EL:PerfCount "number-prefix-bounds-rejected" *EL:NumberPrefixRejected*)
+      (EL:PerfCount "number-prefix-exact-tests" *EL:NumberPrefixExact*)
+      (EL:PerfCount "number-prefix-bounds-fallbacks" *EL:NumberPrefixFallbacks*))) result)
+"""
+
 
 def pair(key, value):
     return Pair(Symbol(key.upper()), value)
@@ -47,16 +87,23 @@ class NumberPrefixBoundsTests(unittest.TestCase):
         for name in ('common', 'config', 'geometry', 'topology', 'simple', 'circuit-number'):
             self.h.load_definitions(ROOT / 'src' / f'{name}.lsp')
         self.h.run(LEGACY)
+        self.h.run(V70)
         self.cfg = self.h.run('(EL:DefaultConfig "test")')
         self.shapes = {}
         self.shape_reads = []
         self.slices = []
         self.exact_checks = []
         self.counts = []
+        self.force_bounds = False
+        self.bounds_builds = []
+        self.native_bounds_reads = []
+        self.h.builtins['EL:NUMBERSINGLEBOUNDSENABLED'] = lambda: self.force_bounds
         self.h.builtins['EL:DEVICECONTACTSHAPE'] = self.shape
         self.h.builtins['EL:PERFCOUNT'] = lambda key, count: self.counts.append((key, count))
         for name, target in [('EL:NUMBERPATHSLICEMEASURED', self.slices),
-                             ('EL:NUMBERSHAPEHITSTRICT', self.exact_checks)]:
+                             ('EL:NUMBERSHAPEHITSTRICT', self.exact_checks),
+                             ('EL:NUMBERPREFIXBOUNDS', self.bounds_builds),
+                             ('EL:NUMBERNATIVEBOUNDSXY', self.native_bounds_reads)]:
             params, body = self.h.functions[Symbol(name)]
             function = [Symbol('LAMBDA'), params, *body]
 
@@ -160,13 +207,14 @@ class NumberPrefixBoundsTests(unittest.TestCase):
         self.h.frames[0]['*EL:PERFACTIVE*'] = True
         for index, bounds in enumerate(invalid):
             device = self.device(f'invalid-{index}', [[4., -2., 0.], [6., 2., 0.]], native_bounds=bounds)
+            tie = self.device(f'tie-{index}', [[4., -2., 0.], [6., 2., 0.]], native_bounds=bounds)
             self.counts.clear()
             with self.subTest(bounds=bounds):
-                result, old, new = self.compare(self.wire(), 0., 20., [device])
+                result, old, new = self.compare(self.wire(), 0., 20., [device, tie])
                 self.assertIsNotNone(result)
                 self.assertEqual(old, new)
                 counts = dict(self.counts)
-                self.assertEqual(counts['number-prefix-bounds-fallbacks'], 33)
+                self.assertEqual(counts['number-prefix-bounds-fallbacks'], 66)
                 self.assertEqual(counts['number-prefix-bounds-rejected'], 0)
 
     def test_curves_large_coordinates_strict_epsilon_and_both_directions(self):
@@ -202,15 +250,118 @@ class NumberPrefixBoundsTests(unittest.TestCase):
         result, old, new = self.compare(self.wire([[0., 0., 0.], [100., 0., 0.]]), 0., 100., far+[near])
         self.assertIsNotNone(result)
         self.assertEqual(len(self.slices), 33)
-        self.assertLess(new, old-16)
+        self.assertLess(new, old)
         counts = dict(self.counts)
         self.assertEqual(len(self.counts), len(counts))  # One final batch per key.
         self.assertEqual(counts['number-prefix-searches'], 1)
-        self.assertEqual(counts['number-prefix-bounds-builds'], 33)
-        self.assertGreaterEqual(counts['number-prefix-bounds-rejected'], 17)
+        self.assertEqual(counts['number-prefix-bounds-builds'], 1)
+        self.assertEqual(counts['number-prefix-bounds-rejected'], 16)
+        self.assertEqual(counts['number-prefix-single-bypasses'], 32)
+        self.assertEqual(counts['number-prefix-single-searches'], 1)
         self.assertEqual(counts['number-prefix-exact-tests'], new)
-        self.assertEqual(counts['number-prefix-bounds-tests'] + counts['number-prefix-bounds-fallbacks'],
+        self.assertEqual(counts['number-prefix-bounds-tests'] + counts['number-prefix-bounds-fallbacks'] + counts['number-prefix-single-bypasses'],
                          counts['number-prefix-exact-tests'] + counts['number-prefix-bounds-rejected'])
+
+    def observe_mode(self, function, wire, entry, target, devices, force=False):
+        self.force_bounds = force
+        for values in (self.counts, self.shape_reads, self.slices, self.exact_checks,
+                       self.bounds_builds, self.native_bounds_reads):
+            values.clear()
+        result = self.call(function, wire, entry, target, devices, self.cfg)
+        return dict(result=exact(result), shape_reads=self.shape_reads[:], slices=exact(self.slices),
+                    slice_count=len(self.slices), exact=len(self.exact_checks), builds=len(self.bounds_builds),
+                    native_reads=len(self.native_bounds_reads), counts=dict(self.counts))
+
+    def compare_three(self, wire, entry, target, devices):
+        self.h.frames[0]['*EL:PERFACTIVE*'] = True
+        self.h.builtins['EL:TICK'] = lambda: self.fail('Single-candidate routing adds no clocks')
+        before = exact(copy.deepcopy((wire, devices, self.cfg)))
+        frozen = self.observe_mode('oracle:V70PrefixFirstDevice', wire, entry, target, devices)
+        optimized = self.observe_mode('EL:NumberFirstDevice', wire, entry, target, devices)
+        forced = self.observe_mode('EL:NumberFirstDevice', wire, entry, target, devices, force=True)
+        self.force_bounds = False
+        for actual in (optimized, forced):
+            for key in ('result', 'shape_reads', 'slices'):
+                self.assertEqual(actual[key], frozen[key], key)
+        for key in ('exact', 'builds', 'native_reads'):
+            self.assertEqual(forced[key], frozen[key], key)
+        for key, count in frozen['counts'].items():
+            self.assertEqual(forced['counts'][key], count, key)
+        self.assertEqual(exact((wire, devices, self.cfg)), before)
+        self.assertIsNone(self.h.lookup('*EL:NUMBERPROBEACTIVE*'))
+        return frozen, optimized, forced
+
+    def test_single_candidate_three_way_ab_has_zero_bounds_work_and_exact_32_steps(self):
+        one = self.device('one', [[8., -1., 0.], [9., 1., 0.]])
+        for width in (None, [4., 4.], [2., 8.], [8., 2.]):
+            for entry, target in ((0., 20.), (20., 0.)):
+                with self.subTest(width=width, entry=entry, target=target):
+                    old, new, _ = self.compare_three(self.wire(width=width, stale=True), entry, target, [one])
+                    self.assertEqual(old['builds'], 33)
+                    self.assertEqual(old['native_reads'], 34)
+                    self.assertEqual(new['builds'], 0)
+                    self.assertEqual(new['native_reads'], 0)
+                    self.assertEqual(new['exact'], 33)
+                    self.assertEqual(new['slice_count'], 33)
+                    self.assertEqual(new['counts']['number-prefix-single-bypasses'], 33)
+                    self.assertEqual(new['counts']['number-prefix-single-searches'], 1)
+
+    def test_multi_candidate_convergence_skips_remaining_prefix_builds(self):
+        near = self.device('near', [[4., -1., 0.], [6., 1., 0.]])
+        far = self.device('far', [[14., -1., 0.], [16., 1., 0.]])
+        old, new, _ = self.compare_three(self.wire(), 0., 20., [far, near])
+        self.assertEqual(old['builds'], 33)
+        self.assertEqual(new['builds'], 2)  # Whole path and first midpoint contain both.
+        self.assertEqual(new['native_reads'], 4)  # Only two initial boxes and two prefix boxes.
+        self.assertEqual(new['counts']['number-prefix-single-bypasses'], 31)
+        self.assertEqual(new['counts']['number-prefix-single-searches'], 1)
+        self.assertEqual(new['shape_reads'], ['far', 'near'])
+
+    def test_multiple_tied_candidates_keep_full_broad_phase(self):
+        first = self.device('first', [[8., -1., 0.], [9., 1., 0.]])
+        tie = self.device('tie', [[8., -1., 0.], [9., 1., 0.]])
+        old, new, _ = self.compare_three(self.wire(), 0., 20., [first, tie])
+        for key in ('exact', 'builds', 'native_reads'):
+            self.assertEqual(new[key], old[key])
+        self.assertEqual(new['builds'], 33)
+        self.assertEqual(new['counts']['number-prefix-single-bypasses'], 0)
+        self.assertEqual(new['counts']['number-prefix-single-searches'], 0)
+
+    def test_single_nil_shape_invalid_native_boxes_and_empty_span_keep_nil(self):
+        invalid = [None, [], 'bad', Pair('broken', 7),
+                   [[float('nan'), -1., 0.], [9., 1., 0.]],
+                   [[8., -1., 0.], [float('inf'), 1., 0.]]]
+        for index, box in enumerate(invalid):
+            one = self.device(f'one-{index}', [[8., -1., 0.], [9., 1., 0.]], native_bounds=box)
+            self.shapes[f'one-{index}'] = None
+            old, new, _ = self.compare_three(self.wire(), 0., 20., [one])
+            self.assertEqual(new['result'], exact(None))
+            self.assertEqual(new['exact'], old['exact'])
+            self.assertEqual(new['builds'], 0)
+            self.assertEqual(new['native_reads'], 0)
+            self.assertEqual(new['slice_count'], 1)
+        for devices, entry, target in (([], 0., 20.), ([one], 10., 10.)):
+            old, new, _ = self.compare_three(self.wire(), entry, target, devices)
+            self.assertEqual(new['result'], exact(None))
+            self.assertEqual(new['slices'], exact([]))
+            self.assertEqual(new['shape_reads'], [])
+            self.assertEqual(new['counts']['number-prefix-searches'], 0)
+            self.assertEqual(new['counts']['number-prefix-single-searches'], 0)
+
+    def test_single_shape_failure_keeps_order_and_unwinds_probe_scope(self):
+        def fail(block):
+            self.shape_reads.append(self.get('id', block))
+            raise RuntimeError('native shape read failed')
+        one = self.device('one', [[8., -1., 0.], [9., 1., 0.]])
+        self.h.builtins['EL:DEVICECONTACTSHAPE'] = fail
+        for function, force in (('oracle:V70PrefixFirstDevice', False),
+                                ('EL:NumberFirstDevice', False), ('EL:NumberFirstDevice', True)):
+            self.force_bounds = force
+            self.shape_reads.clear()
+            with self.assertRaisesRegex(RuntimeError, 'native shape read failed'):
+                self.call(function, self.wire(), 0., 20., [one], self.cfg)
+            self.assertEqual(self.shape_reads, ['one'])
+            self.assertIsNone(self.h.lookup('*EL:NUMBERPROBEACTIVE*'))
 
     def test_profiling_disabled_has_no_tick_or_metric_calls(self):
         device = self.device('one', [[8., -1., 0.], [9., 1., 0.]])

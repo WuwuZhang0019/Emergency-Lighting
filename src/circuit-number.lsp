@@ -283,32 +283,45 @@
       (if *EL:NumberPrefixTimed* (setq *EL:NumberPrefixFallbacks* (1+ *EL:NumberPrefixFallbacks*)
         *EL:NumberPrefixExact* (1+ *EL:NumberPrefixExact*)))
       (EL:NumberShapeHitStrict wire (cadr row) cfg))))
+(defun EL:NumberSingleShapeHit (wire row cfg)
+  ;; Date: 2026-10-21. A lone candidate goes straight to the original exact test.
+  (if *EL:NumberPrefixTimed* (setq *EL:NumberPrefixSingleBypasses* (1+ *EL:NumberPrefixSingleBypasses*)
+    *EL:NumberPrefixExact* (1+ *EL:NumberPrefixExact*)))
+  (EL:NumberShapeHitStrict wire (cadr row) cfg))
 (defun EL:NumberFirstDevice (wire entry target devices cfg / block shape candidates hits row low high middle slice measures
-    bounds builds searches result *EL:NumberProbeActive* *EL:NumberProbePoints* *EL:NumberProbeSegments*
-    *EL:NumberPrefixTimed* *EL:NumberPrefixTests* *EL:NumberPrefixRejected* *EL:NumberPrefixExact* *EL:NumberPrefixFallbacks*)
-  ;; Date: 2026-10-21. Keep the joint search's exact 32-step dyadic prefix grid,
-  ;; original shape-read order and first-device tie rule. Bounds only prove misses.
+    bounds builds searches result single-policy single single-used
+    *EL:NumberProbeActive* *EL:NumberProbePoints* *EL:NumberProbeSegments*
+    *EL:NumberPrefixTimed* *EL:NumberPrefixTests* *EL:NumberPrefixRejected* *EL:NumberPrefixExact* *EL:NumberPrefixFallbacks*
+    *EL:NumberPrefixSingleBypasses*)
+  ;; Date: 2026-10-21. Preserve initial contact plus the exact 32-step prefix grid,
+  ;; shape-read order and tie rule. Single candidates avoid unused broad-phase work.
   (setq *EL:NumberPrefixTimed* *EL:PerfActive* builds 0 searches 0 *EL:NumberPrefixTests* 0
-    *EL:NumberPrefixRejected* 0 *EL:NumberPrefixExact* 0 *EL:NumberPrefixFallbacks* 0)
+    *EL:NumberPrefixRejected* 0 *EL:NumberPrefixExact* 0 *EL:NumberPrefixFallbacks* 0
+    *EL:NumberPrefixSingleBypasses* 0)
   (if (and devices (> (abs (- target entry)) 1.0e-12))
     (progn
       (setq *EL:NumberProbeActive* T cfg (EL:StrictDeviceConfig cfg) measures (EL:NumberPathMeasures wire)
-        slice (EL:NumberPathSliceMeasured wire entry target measures) bounds (EL:NumberPrefixBounds slice))
-      (if *EL:NumberPrefixTimed* (setq builds 1 searches 1))
+        slice (EL:NumberPathSliceMeasured wire entry target measures)
+        single-policy (not (EL:NumberSingleBoundsEnabled)) single (and single-policy (null (cdr devices))))
+      (if single (setq single-used T) (setq bounds (EL:NumberPrefixBounds slice)))
+      (if *EL:NumberPrefixTimed* (setq searches 1 builds (if single 0 1)))
       (foreach block devices
         (setq shape (EL:DeviceContactShape block)
-          row (list (EL:Get 'id block) shape (EL:NumberNativeBoundsXY (EL:Get 'bounds block))))
-        (if (EL:NumberPrefixShapeHit slice row bounds cfg) (setq candidates (cons row candidates))))
+          row (list (EL:Get 'id block) shape (if (not single) (EL:NumberNativeBoundsXY (EL:Get 'bounds block)))))
+        (if (if single (EL:NumberSingleShapeHit slice row cfg) (EL:NumberPrefixShapeHit slice row bounds cfg))
+          (setq candidates (cons row candidates))))
       (if candidates
         (progn
           (setq candidates (reverse candidates) low 0.0 high 1.0)
           (repeat 32
             (setq middle (/ (+ low high) 2.0) hits nil
               slice (EL:NumberPathSliceMeasured wire entry (+ entry (* middle (- target entry))) measures)
-              bounds (EL:NumberPrefixBounds slice))
-            (if *EL:NumberPrefixTimed* (setq builds (1+ builds)))
+              single (and single-policy (null (cdr candidates))))
+            (if single (setq single-used T) (setq bounds (EL:NumberPrefixBounds slice)))
+            (if (and *EL:NumberPrefixTimed* (not single)) (setq builds (1+ builds)))
             (foreach row candidates
-              (if (EL:NumberPrefixShapeHit slice row bounds cfg) (setq hits (cons row hits))))
+              (if (if single (EL:NumberSingleShapeHit slice row cfg) (EL:NumberPrefixShapeHit slice row bounds cfg))
+                (setq hits (cons row hits))))
             (if hits (setq high middle candidates (reverse hits)) (setq low middle)))
           (setq result (list (+ entry (* high (- target entry))) (caar candidates)))))))
   (if *EL:NumberPrefixTimed*
@@ -318,7 +331,9 @@
       (EL:PerfCount "number-prefix-bounds-tests" *EL:NumberPrefixTests*)
       (EL:PerfCount "number-prefix-bounds-rejected" *EL:NumberPrefixRejected*)
       (EL:PerfCount "number-prefix-exact-tests" *EL:NumberPrefixExact*)
-      (EL:PerfCount "number-prefix-bounds-fallbacks" *EL:NumberPrefixFallbacks*))) result)
+      (EL:PerfCount "number-prefix-bounds-fallbacks" *EL:NumberPrefixFallbacks*)
+      (EL:PerfCount "number-prefix-single-bypasses" *EL:NumberPrefixSingleBypasses*)
+      (EL:PerfCount "number-prefix-single-searches" (if single-used 1 0)))) result)
 (defun EL:NumberLinks (wire other network cfg / segments point stations mine theirs links pair a b)
   (setq segments (EL:Get 'segments wire))
   (foreach point (list (caar segments) (cadr (EL:Last segments)))

@@ -182,7 +182,12 @@
         (if (equal (cadr b) 'start) 0.0 (EL:NumberPathLength other))) links))))
   (EL:Unique links))
 (defun EL:ExitNumberScopeImpl (seed network cfg / snapshot panel wires edges root start queue visited step id entry wire devices
-    next other left right low high link links sources boundaries ranges issues source)
+    next other left right low high link links sources boundaries ranges issues source neighbours wire-length
+    timed started now visits neighbours-ms first-device-ms links-ms)
+  ;; Date: 2026-10-21. Reuse only immutable results within one visited wire.
+  ;; Keep left -> length -> right evaluation, neighbour order and 32 probes.
+  ;; Three aggregates use four clock reads per visit, only while profiling.
+  (setq timed *EL:PerfActive* visits 0 neighbours-ms 0 first-device-ms 0 links-ms 0)
   (setq snapshot (EL:Get 'snapshot network) panel (EL:By 'id (EL:Get 'panel network) (EL:Get 'blocks snapshot))
     wires (EL:Get 'wires snapshot) edges (EL:Get 'edges network)
     root (EL:By 'id (EL:Get 'wire seed) wires) start (EL:NumberRootStation root snapshot cfg panel))
@@ -194,17 +199,22 @@
       (progn
         (setq visited (cons step visited) wire (EL:By 'id id wires)
           source (cond ((EL:Get 'source-wire wire)) (T id)) sources (cons source sources)
-          devices nil)
-        (foreach next (EL:Neighbours id edges)
+          devices nil visits (1+ visits))
+        (if timed (setq started (EL:Tick)))
+        (setq neighbours (EL:Neighbours id edges))
+        (foreach next neighbours
           (if (and (not (equal next (EL:Get 'panel network)))
               (setq other (EL:By 'id next (EL:Get 'blocks snapshot)))) (setq devices (cons other devices))))
+        (if timed (setq now (EL:Tick) neighbours-ms (+ neighbours-ms (EL:PerfDelta started now)) started now))
         (setq left (EL:NumberFirstDevice wire entry 0.0 devices cfg)
-          right (EL:NumberFirstDevice wire entry (EL:NumberPathLength wire) devices cfg)
-          low (if left (car left) 0.0) high (if right (car right) (EL:NumberPathLength wire)))
+          wire-length (EL:NumberPathLength wire)
+          right (EL:NumberFirstDevice wire entry wire-length devices cfg)
+          low (if left (car left) 0.0) high (if right (car right) wire-length))
         (if left (setq boundaries (cons (cadr left) boundaries)))
         (if right (setq boundaries (cons (cadr right) boundaries)))
         (setq ranges (cons (list id entry low high) ranges))
-        (foreach next (EL:Neighbours id edges)
+        (if timed (setq now (EL:Tick) first-device-ms (+ first-device-ms (EL:PerfDelta started now)) started now))
+        (foreach next neighbours
           (if (setq other (EL:By 'id next wires))
             (progn
               (setq links (EL:NumberLinks wire other network cfg))
@@ -212,7 +222,16 @@
               (foreach link links
                 (if (and (if left (> (car link) (+ low (EL:GapEpsilon))) (>= (car link) low))
                     (if right (< (car link) (- high (EL:GapEpsilon))) (<= (car link) high)))
-                  (setq queue (append queue (list (list next (cadr link)))))))))))))
+                  (setq queue (append queue (list (list next (cadr link))))))))))
+        (if timed (setq links-ms (+ links-ms (EL:PerfDelta started (EL:Tick))))))))
+  (if timed
+    (progn
+      (EL:PerfCount "number-scope-visits" visits)
+      (EL:PerfCount "number-scope-neighbour-scans" visits)
+      (EL:PerfCount "number-scope-path-lengths" visits)
+      (EL:PerfCount "number-scope-neighbours-ms" neighbours-ms)
+      (EL:PerfCount "number-scope-first-device-ms" first-device-ms)
+      (EL:PerfCount "number-scope-links-ms" links-ms)))
   (list (cons 'status (if issues 'path-ambiguous 'ready)) (cons 'sources (EL:Unique (reverse sources)))
     (cons 'boundaries (EL:Unique (reverse boundaries))) (cons 'ranges (reverse ranges)) (cons 'issues issues)))
 (defun EL:ExitNumberScope (seed network cfg / checked)

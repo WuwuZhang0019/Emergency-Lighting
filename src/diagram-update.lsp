@@ -215,9 +215,10 @@
       (equal cfg (EL:CurrentJunctionConfig cfg))
       (EL:LogCall "COMPARE_SOURCE_NUMBER" nil 'EL:NumberInputsCurrent (list result)))
     (EL:FreshResult result cfg)))
-(defun EL:SyncDiagramScoped (result cfg powers capacity generate interactive scope / store record template point transform plan context outcome deferred perf *EL:NativePreview* *EL:FreshScope* *EL:FreshScopeEnabled*)
+(defun EL:SyncDiagramScoped (result cfg powers capacity generate interactive scope / store record template point transform plan context outcome deferred perf *EL:NativePreview* *EL:FreshScope* *EL:FreshScopeEnabled* *EL:GenerationWarningsActive* *EL:GenerationReviewFlags*)
   (if (assoc 'effective-powers result) (setq powers (EL:Get 'effective-powers result)))
   (setq *EL:FreshScope* scope *EL:FreshScopeEnabled* T
+    *EL:GenerationWarningsActive* (EL:Get 'generation-warning-mode result)
     capacity (EL:CapacityDefault capacity))
   (if (not generate)
     (EL:SaveDraft result cfg powers capacity)
@@ -229,19 +230,21 @@
         template (cond ((EL:Get 'template cfg)) ((EL:Get 'template record)))
         deferred (EL:CCKK2DeferredSource result cfg record generate interactive)
         result (EL:PerfCall "GENERATION_PREPARE" 'EL:PreparedResult (list result record)))
+      (if (EL:Get 'generation-warning-mode result) (setq result (EL:GenerationResult result)))
       (EL:PerfEnd perf 'returned)
       (cond
-        ((not (EL:CircuitNumbersReady result))
+        ((and (not (EL:Get 'generation-warning-mode result)) (not (EL:CircuitNumbersReady result)))
           (princ (strcat "\n" (EL:NumberProblemText result)))
           (EL:MarkStale (EL:Get 'panel result) 'circuit-number-pending))
-        ((not (EL:Get 'can-generate result))
+        ((and (not (EL:Get 'generation-warning-mode result)) (not (EL:Get 'can-generate result)))
           (EL:PrintStatistics result)
           (EL:MarkStale (EL:Get 'panel result) 'invalid-result))
-        ((or (EL:Get 'identity-ambiguous result)
-            (vl-some '(lambda (c) (EL:Get 'identity-error c)) (EL:Get 'circuits result)))
+        ((and (not (EL:Get 'generation-warning-mode result)) (or (EL:Get 'identity-ambiguous result)
+            (vl-some '(lambda (c) (EL:Get 'identity-error c)) (EL:Get 'circuits result))))
           (princ "\n出线种子身份不唯一，请修复源图后重新统计。")
           (EL:MarkStale (EL:Get 'panel result) 'identity-conflict))
-        ((not (EL:GenerationSourceCurrent result cfg deferred))
+        ((not (EL:GenerationVerify 'EL:GenerationSourceCurrent (list result cfg deferred) result
+            'SOURCE_CHANGED "平面状态已变化，按本次显示快照生成"))
           (EL:MarkStale (EL:Get 'panel result) 'source-changed))
         (T
           ;; Date: 2026-10-14. An existing output is never an update target.
@@ -274,9 +277,11 @@
           (EL:PerfSet "actual-circuits" (length (EL:Get 'circuits result)))
           (EL:PerfSet "reserve-circuits"
             (- (length (EL:Get 'rows plan)) (length (EL:Get 'circuits result))))
-          (EL:Require (EL:GenerationSourceCurrent result cfg deferred)
+          (EL:Require (EL:GenerationVerify 'EL:GenerationSourceCurrent (list result cfg deferred) result
+              'SOURCE_CHANGED "提交前源图变化，按本次显示快照生成")
             "SOURCE_CHANGED：提交前源图变化，未生成。")
-          (EL:Require (EL:DLSubmissionCurrent result)
+          (EL:Require (EL:GenerationVerify 'EL:DLSubmissionCurrent (list result) result
+              'DEVICE_LIBRARY_CHANGED "设备库已变化，按当前功率生成")
             "设备库已变化，当前输入保留；请重新核对后生成。")
           (setq perf (EL:PerfBegin "GENERATION_RECORD"))
           (setq record (EL:Put 'draft-circuits nil (EL:Put 'draft-capacity nil
@@ -296,7 +301,7 @@
             record (EL:RecordNumberInputs record result nil)
             record (EL:DLPersist result record)
             store (EL:Put 'fixed-template template store))
-          (setq record (EL:InputRecord record))
+          (setq record (EL:GenerationReviewRecord (EL:InputRecord record) result))
           (EL:PerfEnd perf 'returned)
           (if *EL:PlacementOnly*
             (setq outcome (EL:Transaction 'EL:CCKK2CreateDiagram

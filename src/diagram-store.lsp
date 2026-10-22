@@ -1072,14 +1072,16 @@
       (EL:Require (EL:PerfCall "PLACEMENT_TEMPLATE_VERIFY" 'EL:TemplateRuntimeValid
           (list template (EL:Get 'config record)))
         "TEMPLATE_CHANGED：放置期间模板变化，已停止生成。")
-      (EL:Require (EL:PerfCall "PLACEMENT_NUMBER_VERIFY" 'EL:NumberInputsCurrent (list result))
+      (EL:Require (EL:GenerationVerify 'EL:PerfCall (list "PLACEMENT_NUMBER_VERIFY" 'EL:NumberInputsCurrent (list result))
+          result 'SOURCE_NUMBER_CHANGED "放置期间平面编号变化，保留本次编号证据")
         "SOURCE_NUMBER_CHANGED：放置期间平面编号变化，已停止生成。")
       (if *EL:PlacementOnly*
         (progn
-          (EL:Require (EL:PerfCall "PLACEMENT_LIBRARY_VERIFY" 'EL:DLSubmissionCurrent (list result))
+          (EL:Require (EL:GenerationVerify 'EL:PerfCall (list "PLACEMENT_LIBRARY_VERIFY" 'EL:DLSubmissionCurrent (list result))
+              result 'DEVICE_LIBRARY_CHANGED "放置期间设备库变化，保留当前功率")
             "设备库在放置期间变化，请核对后重试。")
-          (EL:Require (EL:PerfCall "PLACEMENT_SOURCE_VERIFY" 'EL:FreshResult
-              (list result (EL:Get 'config record)))
+          (EL:Require (EL:GenerationVerify 'EL:PerfCall (list "PLACEMENT_SOURCE_VERIFY" 'EL:FreshResult
+              (list result (EL:Get 'config record))) result 'SOURCE_CHANGED "放置期间源图变化，按本次显示快照生成")
             "SOURCE_CHANGED：放置期间源图变化，已停止生成。")))))
   (setq handles (EL:PerfCall "CREATE_CIRCUITS" 'EL:CreateDiagramRows
     (list space layer result template plan record store)))
@@ -1106,13 +1108,17 @@
     (setq handles (cons h handles))
     (EL:LogEvent "CCKK_ROW_CREATED" h)) handles)
 (defun EL:FinalizeCreatedDiagram (result record store)
+  (setq record (EL:GenerationReviewRecord record result))
   (if (not *EL:PlacementOnly*)
     (progn
       ;; Legacy callers retain their persistent output record. The current
       ;; panel finishes after creation and the enclosing undo group closes.
       (if *EL:NativePreview*
-        (EL:Require (EL:FreshResult result (EL:Get 'config record)) "SOURCE_CHANGED：预览后源图变化。"))
-      (EL:Require (EL:NumberInputsCurrent result) "SOURCE_NUMBER_CHANGED：生成期间平面编号变化，已停止本次生成。")
+        (EL:Require (EL:GenerationVerify 'EL:FreshResult (list result (EL:Get 'config record)) result
+            'SOURCE_CHANGED "预览后源图变化，按本次快照生成") "SOURCE_CHANGED：预览后源图变化。"))
+      (EL:Require (EL:GenerationVerify 'EL:NumberInputsCurrent (list result) result
+          'SOURCE_NUMBER_CHANGED "生成期间平面编号变化，保留本次编号证据") "SOURCE_NUMBER_CHANGED：生成期间平面编号变化，已停止本次生成。")
+      (setq record (EL:GenerationReviewRecord record result))
       (EL:Require (equal T (EL:LogCall "SAVE_CREATED_DIAGRAM" nil 'EL:StoreWrite
         (list (EL:StorePutDiagram record store))))
         "系统图记录保存失败，已停止生成并回滚。"))) record)

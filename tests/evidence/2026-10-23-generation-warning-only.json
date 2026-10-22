@@ -1,0 +1,113 @@
+{
+  "date": "2026-10-23",
+  "status": "focused checks passed; native CAD acceptance pending",
+  "source_version": "0.1.82 plus unbundled generation warning changes",
+  "baseline_commit": "b5ea5b9",
+  "inputs": {
+    "diagnostic_zip": "output (37).zip",
+    "diagnostic_sha256": "7581439d1c8a29913983df9c70664ceaec2c09135d180b87e3cc29b3aff259ef",
+    "dxf": "【电气】酒店办公照明.dxf",
+    "dxf_sha256": "95afac5f9baa50589de0601ca1d61ab4e9b63419045871b20f40eeb94e54e57e",
+    "power_source": "user screenshot; no full-DXF power recalculation claim"
+  },
+  "reproduction": {
+    "panel": "CB49",
+    "before": "number conflict opens modal alert before placement",
+    "pairs": [
+      [
+        "ZE3",
+        "4ALE(JZ)-ZE3"
+      ],
+      [
+        "ZE5",
+        "4ALE(JZ)-ZE5"
+      ]
+    ],
+    "after": "button, submission, native placement adapter, row creation and record readback complete",
+    "actual_rows": 5,
+    "reserve_rows": 2,
+    "watts": [
+      23,
+      48,
+      3,
+      68,
+      90
+    ],
+    "pending_labels": [
+      "待核对-R1",
+      "待核对-R3"
+    ]
+  },
+  "behavior": {
+    "explicit_generate": "use displayed snapshot with warnings",
+    "quality_evidence": "retained; review outputs marked stale",
+    "unknown_power": "whole annotation omitted",
+    "identity": "unique fresh output keys; source input unchanged",
+    "write_failure": "rollback and return to same panel without modal dialog or recognition",
+    "retry": "preserve capacity, power and snapshot; do not refresh library defaults",
+    "reserve_numbers": "avoid unresolved original candidates",
+    "physical_layout": "1 to 8 actual rows; preserve all inputs and use text feedback beyond layout",
+    "template_unavailable": "return to same panel with saved inputs and nonmodal feedback"
+  },
+  "focused_regression": {
+    "tests": 36,
+    "failures": 0,
+    "errors": 0,
+    "modules": [
+      {
+        "name": "test_generation_warnings",
+        "tests": 13
+      },
+      {
+        "name": "test_power_review",
+        "tests": 19
+      },
+      {
+        "name": "test_generation_timing",
+        "tests": 3
+      },
+      {
+        "name": "test_panel_library_toggle.PanelLibraryToggleTests.test_nine_circuits_show_nonmodal_limit_and_preserve_all_rows",
+        "tests": 1
+      }
+    ],
+    "verification": "changed behaviors rerun after related fixes; date/comment-only final edits do not change behavior"
+  },
+  "baseline_comparison": {
+    "module": "test_generation_boundaries",
+    "tests_each": 14,
+    "baseline_seconds": 55.276,
+    "current_seconds": 54.666,
+    "same_failure_identities": true,
+    "errors_each": 0,
+    "failure_records_each": 6,
+    "failure_identities": [
+      "test_generation_boundaries.AcceptedGenerationBoundaryTests.test_existing_or_erased_output_checks_source_after_new_placement (handle='panel')",
+      "test_generation_boundaries.AcceptedGenerationBoundaryTests.test_existing_or_erased_output_checks_source_after_new_placement (handle='erased-output')",
+      "test_generation_boundaries.AcceptedGenerationBoundaryTests.test_saved_submission_checks_after_placement_and_after_row_writes",
+      "test_generation_boundaries.AcceptedGenerationBoundaryTests.test_source_changed_during_output_writes_rolls_back_and_keeps_draft",
+      "test_generation_boundaries.AcceptedGenerationBoundaryTests.test_source_changed_since_draft_rolls_back_before_any_circuit_rows",
+      "test_generation_boundaries.NativePlacementBoundaryTests.test_source_change_during_mouse_placement_rolls_back_before_rows"
+    ],
+    "control": "accepted-generation fixture checks [4] on both HEAD and current, while older assertion expects [1,4]"
+  },
+  "ui_scope": "full repeated-dialog adapter not claimed complete; changed physical-limit callback uses a bounded direct check; native DCL visibility unverified",
+  "delivery": {
+    "rebuilt": false,
+    "existing_archive_sha256": "0dab6ea409e675b4f732d62585652b9e514b6221d8ce1c177fc3bbc6493719b1",
+    "existing_v0_1_82_archive_contains_this_change": false
+  },
+  "source_sha256": {
+    "src/circuit-number.lsp": "a80762bac71c23b883e217579c54e2a668780166dec0860efbfeeee8d486e6ff",
+    "src/diagram-commands.lsp": "d9f7f49a9ea45004538ae6f69d01ba5532af2a94176feda48e316c08a295e22b",
+    "src/diagram-store.lsp": "11486e0b914b1efdf804294b1a4453ac96fa49f14eceece2d3a76462ec6fb646",
+    "src/diagram-update.lsp": "f715d3e262c1f18d630d2bab340f096c7b7606dd660fbc1c6bb8f47a46dbefb7",
+    "src/fixed.lsp": "7eb90633d45540bfd870d3bb3abee6f9caf362a40ca684d84dcc21cbbffd8bda",
+    "src/generation.lsp": "1bf2f2ad414ffaa527e3642fd30bbdb14b9eb7f10858e399a9d48c5ca58d2042",
+    "src/panel.lsp": "0b6fe41ff65f3bc2204ab67ab70a11ab7850ab8ad28d62d188a465e09248a235",
+    "tests/test_generation_warnings.py": "6f6015571636f8b7b42f7d2731d86faa69eb40b0e7e9f126c4e071d9b377dd27",
+    "tests/test_panel_library_toggle.py": "1c7e2091220d77cc298e82462d6b332afd3f6a0719167632a6fcc803a024be0f",
+    "tests/fixtures/hotel-generation-number-warning-20261022.json": "dac6be6d56ae60f492bb4b2664fc59ab6831eb117ae877be6df18273efc8c15b"
+  },
+  "native_acceptance": "pending original-DWG rendering, DCL, save/reopen and Undo"
+}

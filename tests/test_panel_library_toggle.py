@@ -1,4 +1,4 @@
-"""Expandable panel with strict finite DCL tiles and real catalogs. Date: 2026-10-20.
+"""Expandable panel with strict finite DCL tiles and real catalogs. Date: 2026-10-23. Status: nonmodal generation feedback.
 
 Native AutoCAD sizing, focus and screen placement still need manual acceptance.
 """
@@ -198,39 +198,25 @@ class PanelLibraryToggleTests(unittest.TestCase):
                 f.actions = [check_reopened]
                 self.assertIsNone(f.dialog())
 
-    def test_nine_circuits_warn_once_on_open_and_block_generation_without_dropping_rows(self):
-        f, callbacks, _, _ = self.fixture(expanded=True)
-        base = f.get('circuits', f.result)[0]
-        circuits = [f.call('EL:Put', Symbol('ID'), f'R{i}', base) for i in range(9)]
-        f.result = f.call('EL:Put', Symbol('CIRCUITS'), circuits, f.result)
-        alerts = []
-        f.h.builtins.update({
-            'ALERT': alerts.append,
-            'EL:ALLCIRCUITCOLORPREVIEW': lambda result: None,
-            'EL:DLPANELSUBMISSIONREADY': lambda: self.fail('library validation hid the circuit limit'),
-        })
-
-        def preview():
-            self.assertEqual(len(alerts), 1)
-            self.assertIn('已识别 9 条实际回路', alerts[0])
-            self.assertIn('最多容纳 8 条', alerts[0])
-            self.assertNotIn('p_row8', f.tiles)
-            self.assertEqual(len(f.get('circuits', f.h.lookup('*EL:PANELDRAFT*'))), 9)
-            self.invoke(f, callbacks, 'f_preview')
-
-        def blocked_generate_and_close():
-            self.assertEqual(len(alerts), 1, 'preview return repeated the initial limit warning')
-            f.h.builtins['EL:PANELLIBRARYFLUSH'] = lambda: self.fail('editor validation hid the circuit limit')
-            self.invoke(f, callbacks, 'p_generate')
-            self.assertEqual(len(alerts), 2)
-            self.assertIn('不会截断', alerts[-1])
-            self.assertIsNone(f.closed)
-            self.assertEqual(len(f.get('circuits', f.h.lookup('*EL:PANELDRAFT*'))), 9)
-            self.dispatch_cancel_receiver(f, callbacks)
-
-        f.actions = [preview, blocked_generate_and_close]
-        self.assertIsNone(f.dialog())
-        self.assertEqual(f.closed, 0)
+    def test_nine_circuits_show_nonmodal_limit_and_preserve_all_rows(self):
+        # This callback check needs no repeating START_DIALOG fixture.
+        from autolisp_host import Host, Pair
+        h=Host()
+        for name in ('common','config','panel'):
+            h.load_definitions(ROOT/'src'/f'{name}.lsp')
+        alerts,closed=[],[]
+        h.builtins.update({'ALERT':alerts.append,'EL:LOGEVENT':lambda *args:None,
+                          'EL:PANELCLOSE':closed.append})
+        rows=[[Pair(Symbol('ID'),f'R{i}')] for i in range(9)]
+        result=[[Symbol('CIRCUITS'),*rows]]
+        h.set('*EL:PANELDRAFT*',result)
+        h.call('EL:PANELGENERATEBODY',[])
+        self.assertEqual(alerts,[])
+        self.assertEqual(closed,[])
+        self.assertEqual(h.lookup('*EL:PANELDRAFT*'),result)
+        notice=h.call('EL:PANELCIRCUITLIMITTEXT',[result])
+        for text in ('已识别 9 条实际回路','最多容纳 8 条','不会截断'):
+            self.assertIn(text,notice)
 
     def test_eight_circuit_limit_boundary_reports_the_actual_count(self):
         f, _, _, _ = self.fixture()

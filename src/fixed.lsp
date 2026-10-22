@@ -234,10 +234,14 @@
 (defun EL:FixedOutputCount (count)
   ;; CCKK2 supports eight physical rows. Never drop actual circuits.
   (if (and (<= 1 count) (<= count 8)) (min 8 (+ count 2)) count))
-(defun EL:FixedOutputs (circuits / out c index used text reserve)
+(defun EL:FixedOutputs (circuits / out c index used text reserve candidate)
   (setq index 0)
   (foreach c circuits
-    (setq index (1+ index) text (EL:CircuitNumberText c index) used (cons (EL:NumberKey text) used))
+    (setq index (1+ index) text (if (and (assoc 'number-status c) (not (equal (EL:Get 'number-status c) 'ready)))
+      (strcat "待核对-" (EL:Get 'id c)) (EL:CircuitNumberText c index)) used (cons (EL:NumberKey text) used))
+    ;; 日期：2026-10-23。预留编号同时避开尚待核对的原始候选。
+    (foreach candidate (EL:Get 'candidates (EL:Get 'number-evidence c))
+      (setq used (cons (EL:NumberKey candidate) used)))
     (setq out (cons (list (cons 'circuit-id (EL:Get 'id c)) (cons 'label (EL:Get 'id c))
       (cons 'circuit-number text)
       (cons 'mode (if (EL:Get 'is-ground c) 'ground 'normal))) out)))
@@ -250,7 +254,7 @@
   ;; Date: 2026-10-21. Include outputs and fixed row layout in plan timing.
   (EL:PerfCall "GENERATION_PLAN" 'EL:FixedPlanBuild (list result template capacity origin rotation scale)))
 (defun EL:FixedPlanBuild (result template capacity origin rotation scale / plan rows row i c spec position layout slot outputs)
-  (if (and (EL:CircuitNumbersReady result) (EL:FixedTemplate template)
+  (if (and (or (EL:CircuitNumbersReady result) (EL:Get 'generation-warning-mode result)) (EL:FixedTemplate template)
       (setq layout (EL:CCKK2Rows (length (EL:Get 'circuits result)))))
     (progn
       (setq outputs (EL:FixedOutputs (EL:Get 'circuits result))

@@ -689,7 +689,7 @@
       (foreach handle (EL:Get 'sources (EL:Get 'number-scope problem))
         (setq handles (strcat (cond (handles) (T "")) (if handles "、" "") handle)))
       (strcat text (if values (strcat "：" values) "") (if handles (strcat "；导线 " handles) "")
-        "。请在平面核对后重新统计；当前可编辑功率和保存草稿。"))))
+        "。请核对平面编号；本次仍可生成，冲突编号按待核对输出。"))))
 (defun EL:NumberFormalFields (c row)
   (list (cons 'circuit-number (EL:Get 'circuit-number row))
     (cons 'number-source (cond ((EL:Get 'number-source c)) ((equal (EL:Get 'mode row) 'reserve) 'auto) (T 'legacy)))

@@ -66,7 +66,7 @@
       (if (= (EL:Get 'type textspec) "TEXT") (member (EL:Get 'align textspec) '(0 1 2 4 6 7 8 9 10 11 12 13 14))
         (member (EL:Get 'align textspec) '(1 2 3 4 5 6 7 8 9))))) (setq good nil))) good)
 (defun EL:BuildGenerationPlan (result template capacity outputs origin rotation scale / good actual seen labels output id circuit mode state panelstate rows index target position annotation textdata)
-  (setq good (and (EL:Get 'can-generate result) (EL:TemplateValid template) (EL:Point origin)
+  (setq good (and (or (EL:Get 'can-generate result) (EL:Get 'generation-warning-mode result)) (EL:TemplateValid template) (EL:Point origin)
           (EL:Number rotation) (EL:Number scale) (> scale 0.0))
         actual (mapcar '(lambda (c) (EL:Get 'id c)) (EL:Get 'circuits result))
         panelstate (EL:State capacity (EL:Get 'panel template)) index 0)

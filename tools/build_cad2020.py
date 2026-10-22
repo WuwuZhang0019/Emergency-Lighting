@@ -1,19 +1,21 @@
-"""Build the AutoCAD 2020 trial package. Date: 2026-10-21."""
+"""Build the AutoCAD 2020 trial package. Date: 2026-10-22."""
 from pathlib import Path
 import base64
+import json
 import shutil
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-# Date: 2026-10-21. Local performance trial; no merge or publication.
-VERSION = '0.1.74'
-PACKAGE_NO = 173
-FULL_TEST_COMMAND = 'ELFULL74'
+# Date: 2026-10-22. Local read-only native prototype; no merge or publication.
+VERSION = '0.1.75'
+PACKAGE_NO = 174
+FULL_TEST_COMMAND = 'ELFULL75'
+COLD_TEST_COMMAND = 'ELCOLD75'
 NAME = f'应急照明-v{VERSION}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 OUTPUT_ROOT = ROOT / 'output'
 DEST = OUTPUT_ROOT / NAME
-MODULES = ('common', 'config', 'geometry', 'topology', 'statistics', 'device-library', 'device-assets', 'device-defaults', 'device-ui', 'device-recognition', 'device-inputs', 'device-migration', 'generation', 'main', 'simple', 'circuit-number', 'fixed', 'panel', 'store-compact', 'diagram-store', 'store-split', 'diagram-update', 'diagram-commands', 'insert-circuit', 'startup')
+MODULES = ('common', 'config', 'geometry', 'topology', 'statistics', 'device-library', 'device-assets', 'device-defaults', 'device-ui', 'device-recognition', 'device-inputs', 'device-migration', 'generation', 'main', 'simple', 'circuit-number', 'fixed', 'panel', 'store-compact', 'diagram-store', 'store-split', 'diagram-update', 'diagram-commands', 'insert-circuit', 'cold-probe', 'startup')
 LOAD_COMPLETION = (
     '(EL:MonitorLoadEnd (if *EL:MonitorLoadReady* \'load-finished \'load-failed))\n'
     '(EL:StartupCommandHint *EL:MonitorLoadReady*)\n(princ)\n'
@@ -49,7 +51,8 @@ def embedded_resources():
         sorted((DEST / 'src').glob('*.lsp')) + sorted((DEST / 'ui').glob('*')))
     assets = embedded_writer('EL:StartupEmbeddedAssets',
         sorted((DEST / 'assets/default-device-library').rglob('*'))
-        + sorted((DEST / 'templates').glob('*.dwg')))
+        + sorted((DEST / 'templates').glob('*.dwg'))
+        + sorted((DEST / 'native').glob('*.dll')))
     return (text + assets + '(defun EL:StartupEmbeddedRoot (/ base root folder marker ok)\n'
             '  (if (setq base (EL:NormalizeRoot (getenv "LOCALAPPDATA")))\n'
             '    (progn\n'
@@ -60,7 +63,7 @@ def embedded_resources():
             '      (vl-mkdir root)\n'
             '      (setq ok (or (not (findfile marker)) (vl-file-delete marker)))\n'
             '      (if (not ok) (setq *EL:StartupError* (strcat marker " : 无法清除旧完成标记")))\n'
-            '      (foreach folder \'("src" "ui" "config" "output" "templates")\n'
+            '      (foreach folder \'("src" "ui" "config" "output" "templates" "native")\n'
             '        (vl-mkdir (strcat root folder)))\n'
             '      (setq ok (and ok\n'
             '        (EL:PerfCall "LOAD_RUNTIME_TEXT" \'EL:StartupEmbeddedText (list root))\n'
@@ -81,6 +84,17 @@ def full_test_entry(startup):
     template = (ROOT / 'tools/templates/full-test.lsp').read_text(encoding='utf-8')
     for key, value in {
         '@COMMAND@': FULL_TEST_COMMAND, '@VERSION@': VERSION,
+        '@MARKER@': f'package-{PACKAGE_NO:03d}.marker', '@STARTUP@': startup,
+    }.items():
+        template = template.replace(key, value)
+    return template.encode('gb2312', errors='strict')
+
+
+def cold_test_entry(startup):
+    """Date: 2026-10-22. Registration-only independent native probe entry."""
+    template = (ROOT / 'tools/templates/cold-test.lsp').read_text(encoding='utf-8')
+    for key, value in {
+        '@COMMAND@': COLD_TEST_COMMAND, '@VERSION@': VERSION,
         '@MARKER@': f'package-{PACKAGE_NO:03d}.marker', '@STARTUP@': startup,
     }.items():
         template = template.replace(key, value)
@@ -112,13 +126,21 @@ def cad2020_bytes(source):
 
 
 def build():
+    # Build from current source before touching any existing delivery directory.
+    from build_cold_recognition import build as build_native, DLL_NAME
+    native_evidence = build_native()
+    assert native_evidence['version'] == VERSION
     output_root = OUTPUT_ROOT.resolve()
     assert DEST.resolve().parent == output_root and DEST.name == NAME
     if DEST.exists():
         shutil.rmtree(DEST)
     DEST.mkdir(parents=True)
-    for folder in ('src', 'ui', 'config', 'output', 'templates', 'docs', 'tests/fixtures'):
+    for folder in ('src', 'ui', 'config', 'output', 'templates', 'native', 'docs', 'tests/fixtures'):
         (DEST / folder).mkdir(parents=True, exist_ok=True)
+    shutil.copy2(native_evidence['artifact']['path'], DEST / 'native' / DLL_NAME)
+    (DEST / 'native/build.json').write_text(
+        json.dumps(native_evidence, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    shutil.copy2(ROOT / 'native/ColdRecognition/README.md', DEST / 'native/只读原型说明.md')
     # Formal seed assets are versioned source, separate from the mutable user library.
     defaults = ROOT / 'assets/default-device-library'
     assert (defaults / 'catalog.eld').is_file()
@@ -173,6 +195,7 @@ def build():
     (DEST / 'START-CAD2020.lsp').write_bytes(startup.encode('gb2312', errors='strict'))
     (DEST / 'src/load.lsp').write_bytes(startup.encode('gb2312', errors='strict'))
     (DEST / f'{FULL_TEST_COMMAND}.lsp').write_bytes(full_test_entry(startup))
+    (DEST / f'{COLD_TEST_COMMAND}.lsp').write_bytes(cold_test_entry(startup))
     guide = (ROOT / 'docs/03_加载使用与验收说明.md').read_text(encoding='utf-8')
     guide = guide.replace('状态：源码及自动检查已交付，CAD 实测待执行。', f'状态：AutoCAD 2020 兼容试用包 v{VERSION}，真实 CAD 验收待完成。')
     guide = guide.replace('目标为 Windows AutoCAD 2021+，`LISPSYS=1` 或 `2`（修改后需重启）', '本包供简体中文 Windows AutoCAD 2020 试用，LISP/DCL 已转换为 GB2312，无需设置 LISPSYS')

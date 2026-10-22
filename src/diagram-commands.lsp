@@ -710,6 +710,9 @@
   ;; Historical shared logs are explicitly named; never collect DWGs, assets,
   ;; previous diagnostic archives or unrelated files by a recursive scan.
   (foreach entry (list (cons "timeline.md" logpath)
+      ;; Date: 2026-10-22. Explicit current-drawing prototype reports, never a folder scan.
+      (cons "cold-probe.json" (car (EL:Get (namedobjdict) *EL:ColdReports*)))
+      (cons "cold-comparison.eld" (cadr (EL:Get (namedobjdict) *EL:ColdReports*)))
       (cons "runtime-ELTRACE-debug.log" (strcat *EL:Root* "output/ELTRACE-debug.log"))
       (cons "runtime-ELPERF.log" (strcat *EL:Root* "output/ELPERF.log"))
       (cons "active-ELTRACE-debug.log" *EL:LogPath*)

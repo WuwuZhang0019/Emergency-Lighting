@@ -4,6 +4,6 @@ using System.Runtime.Versioning;
 
 [assembly: AssemblyTitle("Emergency Lighting Cold Recognition Prototype")]
 [assembly: AssemblyDescription("Read-only, per-call coarse analysis; no production result replacement")]
-[assembly: AssemblyVersion("0.1.77.0")]
-[assembly: AssemblyFileVersion("0.1.77.0")]
+[assembly: AssemblyVersion("0.1.78.0")]
+[assembly: AssemblyFileVersion("0.1.78.0")]
 [assembly: TargetFramework(".NETFramework,Version=v4.7", FrameworkDisplayName = ".NET Framework 4.7")]

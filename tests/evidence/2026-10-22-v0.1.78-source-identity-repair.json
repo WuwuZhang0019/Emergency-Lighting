@@ -1,0 +1,269 @@
+{
+  "date": "2026-10-22",
+  "status": "passed",
+  "version": "0.1.78",
+  "input": {
+    "path": "C:\\Users\\Zyf\\Downloads\\output (32).zip",
+    "bytes": 12164,
+    "sha256": "bb3c1a6693337e4c90cd2a40543aaf09f5ff9a17728f85a79c5ba5b2546e3597",
+    "files": [
+      "ELCOLD77-20261022.16340400-495235453.json",
+      "ELMONITOR-20261022.163348-APPLOAD.md",
+      "ELMONITOR-20261022.163349-ELCOLD77.md",
+      "ELPERF.log",
+      "ELTRACE-debug.log"
+    ],
+    "native_report": "ELCOLD77-20261022.16340400-495235453.json",
+    "error": [
+      {
+        "handle": "2604F",
+        "phase": "probe",
+        "type": "System.InvalidOperationException",
+        "message": "SOURCE_CHANGED during the read-only probe."
+      }
+    ],
+    "panel": "2604F",
+    "root_wires": [
+      "2606F",
+      "260CD",
+      "148A6",
+      "26060",
+      "26068"
+    ],
+    "native_load_entered": true,
+    "native_compute_entered": true,
+    "total_ms": 15328,
+    "interaction_ms": 10516,
+    "program_ms": 4812,
+    "last_pick_return_to_failure_ms": 2047,
+    "native_load_ms": 1703,
+    "native_bridge_ms": 250,
+    "managed_timings": {
+      "argument-selection-ms": 2.9453,
+      "read-ms": 158.947,
+      "index-ms": 50.2154,
+      "coarse-trace-ms": 14.0508,
+      "report-serialization-sample-ms": 1.3167,
+      "managed-total-before-final-report-ms": 230.4161
+    },
+    "managed_counts": {
+      "coarse-candidate-wires": 356,
+      "coarse-candidate-blocks": 395,
+      "coarse-processed-objects": 751,
+      "coarse-query-count": 4374,
+      "coarse-query-hits": 7640,
+      "coarse-hit-limit": 2000000,
+      "coarse-object-limit": 50000,
+      "selected": 7853,
+      "managed-skipped": 0,
+      "block-references": 4784,
+      "lines": 0,
+      "polylines": 3069,
+      "other": 0,
+      "wire-records": 3069,
+      "block-records": 4784,
+      "endpoints": 6138,
+      "polyline-vertices-read": 7185,
+      "closed-polylines": 0,
+      "curved-segments": 20,
+      "non-default-polyline-normals": 0,
+      "unsupported-bounds": 0,
+      "error-count": 1,
+      "source-change-events": 0
+    },
+    "dbmod_before": 20,
+    "dbmod_after": 20
+  },
+  "root_cause": "The final ReferenceEquals checks compared managed document/database wrappers rather than native identities; events=0 and DBMOD20->20; old report cannot identify which wrapper comparison failed",
+  "fix": "Snapshot nonzero Document.UnmanagedObject and Database.UnmanagedObject per invocation; fail closed on missing identity, read failure, events, DBMOD change; wrapper-reference equality is diagnostic only",
+  "secondary_cause": "validation EXIT returned without a catch error and was labeled COLD-PROBE-FINISHED; now completion requires an explicitly written and validated comparison report",
+  "reference": "https://help.autodesk.com/cloudhelp/2022/ENU/OARX-ManagedRefGuide/files/OARX-ManagedRefGuide-Autodesk_AutoCAD_Runtime_DisposableWrapper.html",
+  "lisp_regression": {
+    "modules": [
+      "test_cold_probe",
+      "test_cold_entry",
+      "test_full_test_entry"
+    ],
+    "tests": 44,
+    "seconds": 3.231,
+    "status": "passed"
+  },
+  "native_core_regression": {
+    "date": "2026-10-22",
+    "status": "passed",
+    "version": "0.1.78",
+    "mode": "core-tests",
+    "framework": "net47",
+    "platform": "x64",
+    "language_version": "7.3",
+    "deterministic": true,
+    "offline": true,
+    "autodesk_dlls_copied": false,
+    "compiler": {
+      "path": "C:\\Program Files\\dotnet\\sdk\\9.0.101\\Roslyn\\bincore\\csc.dll",
+      "sha256": "6519e56fd3182d5177838b96d8a38ea7921f3ab40eb0d19116cf17000102dcc7"
+    },
+    "references": [
+      {
+        "path": "C:\\Users\\Zyf\\.nuget\\packages\\microsoft.netframework.referenceassemblies.net47\\1.0.3\\build\\.NETFramework\\v4.7\\mscorlib.dll",
+        "assembly_name": "mscorlib",
+        "assembly_version": "4.0.0.0",
+        "file_version": "4.7.2053.0 built by: NET47REL1",
+        "sha256": "d33b4c6f04319d41348244f2506bb787abe7afa0e2ee464693082817d4124de1"
+      },
+      {
+        "path": "C:\\Users\\Zyf\\.nuget\\packages\\microsoft.netframework.referenceassemblies.net47\\1.0.3\\build\\.NETFramework\\v4.7\\System.dll",
+        "assembly_name": "System",
+        "assembly_version": "4.0.0.0",
+        "file_version": "4.7.2053.0 built by: NET47REL1",
+        "sha256": "e31e3988eaff4fdc9cb28ca6ba0980f7204c5be0cb79e2dc4e56682833fd55da"
+      },
+      {
+        "path": "C:\\Users\\Zyf\\.nuget\\packages\\microsoft.netframework.referenceassemblies.net47\\1.0.3\\build\\.NETFramework\\v4.7\\System.Core.dll",
+        "assembly_name": "System.Core",
+        "assembly_version": "4.0.0.0",
+        "file_version": "4.7.2053.0 built by: NET47REL1",
+        "sha256": "d2570c87ba2f6b7e9d577cf2f9c864bd523a34dcb13165122b2dc0eef8cf0278"
+      }
+    ],
+    "sources": [
+      {
+        "path": "native/ColdRecognition/Core/SourceGuard.cs",
+        "sha256": "c4f6e81857c5a1fce453512751da1d672a04a6a65552d2000b7cc8ecea1b53d5"
+      },
+      {
+        "path": "native/ColdRecognition/Core/SpatialIndex.cs",
+        "sha256": "48fef0198e095a7c2ee20be4e95a2dbf8900aefdf18c05fc0f4a0cdee590f5bd"
+      },
+      {
+        "path": "native/ColdRecognition.Tests/Program.cs",
+        "sha256": "591af2831067eea2b0fc50015a011b901b0cdcd15f1793a6b572d4026d1e3027"
+      },
+      {
+        "path": "native/ColdRecognition.Tests/SourceGuardTests.cs",
+        "sha256": "2a5dc2265c39e0f6115d95174af842a78ad8a38dbce05569a4d9136074f74824"
+      },
+      {
+        "path": "native/ColdRecognition.Tests/SpatialIndexTests.cs",
+        "sha256": "7efb391b6ed4eb72af70e7dcfc44bc82cb935a8a8b854ebe156513b475e3413f"
+      }
+    ],
+    "artifact": {
+      "path": "C:\\Users\\Zyf\\.codex\\worktrees\\lighting-shape-reuse\\Emergency-Lighting\\output\\native-cold-v0.1.78\\EmergencyLighting.ColdRecognition78.Tests.exe",
+      "bytes": 29696,
+      "sha256": "e5e037579a859f09d29f43e687f12004cd80057de3269270c20737987e8d4be2"
+    },
+    "compiler_output": "",
+    "tests": {
+      "status": "passed",
+      "test_groups": 17,
+      "spatial_test_groups": 9,
+      "source_guard_test_groups": 8
+    }
+  },
+  "native_compile": {
+    "date": "2026-10-22",
+    "status": "passed",
+    "version": "0.1.78",
+    "mode": "autocad-plugin",
+    "framework": "net47",
+    "platform": "x64",
+    "language_version": "7.3",
+    "deterministic": true,
+    "offline": true,
+    "autodesk_dlls_copied": false,
+    "compiler": {
+      "path": "C:\\Program Files\\dotnet\\sdk\\9.0.101\\Roslyn\\bincore\\csc.dll",
+      "sha256": "6519e56fd3182d5177838b96d8a38ea7921f3ab40eb0d19116cf17000102dcc7"
+    },
+    "references": [
+      {
+        "path": "C:\\Users\\Zyf\\.nuget\\packages\\microsoft.netframework.referenceassemblies.net47\\1.0.3\\build\\.NETFramework\\v4.7\\mscorlib.dll",
+        "assembly_name": "mscorlib",
+        "assembly_version": "4.0.0.0",
+        "file_version": "4.7.2053.0 built by: NET47REL1",
+        "sha256": "d33b4c6f04319d41348244f2506bb787abe7afa0e2ee464693082817d4124de1"
+      },
+      {
+        "path": "C:\\Users\\Zyf\\.nuget\\packages\\microsoft.netframework.referenceassemblies.net47\\1.0.3\\build\\.NETFramework\\v4.7\\System.dll",
+        "assembly_name": "System",
+        "assembly_version": "4.0.0.0",
+        "file_version": "4.7.2053.0 built by: NET47REL1",
+        "sha256": "e31e3988eaff4fdc9cb28ca6ba0980f7204c5be0cb79e2dc4e56682833fd55da"
+      },
+      {
+        "path": "C:\\Users\\Zyf\\.nuget\\packages\\microsoft.netframework.referenceassemblies.net47\\1.0.3\\build\\.NETFramework\\v4.7\\System.Core.dll",
+        "assembly_name": "System.Core",
+        "assembly_version": "4.0.0.0",
+        "file_version": "4.7.2053.0 built by: NET47REL1",
+        "sha256": "d2570c87ba2f6b7e9d577cf2f9c864bd523a34dcb13165122b2dc0eef8cf0278"
+      },
+      {
+        "path": "C:\\Users\\Zyf\\.nuget\\packages\\autocad.net\\23.1.0\\lib\\net47\\AcMgd.dll",
+        "assembly_name": "acmgd",
+        "assembly_version": "23.1.0.0",
+        "file_version": "23.1.47.0.0",
+        "sha256": "acd3fbecf0f6c0712430e236a546344b2bd2a11da53b6f643c77942c75897a5f"
+      },
+      {
+        "path": "C:\\Users\\Zyf\\.nuget\\packages\\autocad.net.core\\23.1.0\\lib\\net47\\AcCoreMgd.dll",
+        "assembly_name": "accoremgd",
+        "assembly_version": "23.1.0.0",
+        "file_version": "23.1.47.0.0",
+        "sha256": "d1de39a2a4214c42613aa400bc659e205bd2e59a472ee2b1180f6dca45ff1b71"
+      },
+      {
+        "path": "C:\\Users\\Zyf\\.nuget\\packages\\autocad.net.model\\23.1.0\\lib\\net47\\AcDbMgd.dll",
+        "assembly_name": "Acdbmgd",
+        "assembly_version": "23.1.0.0",
+        "file_version": "23.1.47.0.0",
+        "sha256": "fb6b7384709ddbb612ff933952a27fea6b1f57ddb4221e041bd55e25cbc00857"
+      }
+    ],
+    "sources": [
+      {
+        "path": "native/ColdRecognition/AssemblyInfo.cs",
+        "sha256": "4e5ad5f357320b5124e321a79aa33ea08d658e3c613ee46e29af34009bd62cda"
+      },
+      {
+        "path": "native/ColdRecognition/AutoCadProbe.cs",
+        "sha256": "23270ba6ae37104e63f83e1034d054bfedc250e7a874b8d68fdeec39477b5054"
+      },
+      {
+        "path": "native/ColdRecognition/Core/SourceGuard.cs",
+        "sha256": "c4f6e81857c5a1fce453512751da1d672a04a6a65552d2000b7cc8ecea1b53d5"
+      },
+      {
+        "path": "native/ColdRecognition/Core/SpatialIndex.cs",
+        "sha256": "48fef0198e095a7c2ee20be4e95a2dbf8900aefdf18c05fc0f4a0cdee590f5bd"
+      }
+    ],
+    "artifact": {
+      "path": "C:\\Users\\Zyf\\.codex\\worktrees\\lighting-shape-reuse\\Emergency-Lighting\\output\\native-cold-v0.1.78\\EmergencyLighting.ColdRecognition78.dll",
+      "bytes": 32768,
+      "sha256": "21ca51df5bbbee18e762e77a3d3f1fec9a7a428c86e20f6bd7c8b8c0218fc0b4"
+    },
+    "compiler_output": ""
+  },
+  "source_sha256": {
+    "src/cold-probe.lsp": "ebfeb7073987bf2c57f84f6e72d68f989a62fe621b0adc3dc972e645ce11bded",
+    "native/ColdRecognition/AutoCadProbe.cs": "23270ba6ae37104e63f83e1034d054bfedc250e7a874b8d68fdeec39477b5054",
+    "native/ColdRecognition/AssemblyInfo.cs": "4e5ad5f357320b5124e321a79aa33ea08d658e3c613ee46e29af34009bd62cda",
+    "native/ColdRecognition/Core/SourceGuard.cs": "c4f6e81857c5a1fce453512751da1d672a04a6a65552d2000b7cc8ecea1b53d5",
+    "native/ColdRecognition.Tests/SourceGuardTests.cs": "2a5dc2265c39e0f6115d95174af842a78ad8a38dbce05569a4d9136074f74824",
+    "native/ColdRecognition.Tests/Program.cs": "591af2831067eea2b0fc50015a011b901b0cdcd15f1793a6b572d4026d1e3027",
+    "tools/build_cad2020.py": "523216a0143e009eec327d6386aeefb345d6d4703dcc97e39094d5b49faba7f7",
+    "tools/build_cold_recognition.py": "b4750a0ca1a77850c23b2c1b31a16f23bbd617495e9a2e1f0f154ac8eadbde71",
+    "tests/test_cold_probe.py": "6794652434bd4c82587e0d63ded0f78c47e5f1e92a0efc529d86edcc0dcb7c1f",
+    "tests/test_cold_entry.py": "6107221cfdf3e6589e9a5fc847629b17bc3df863b432d93f4a887ef26d01ed40",
+    "tests/test_full_test_entry.py": "37c1391eb3c148429632866a6b7bea9b628eac3de90d4266dccd2077fda531a7"
+  },
+  "old_v0_1_77_archive": {
+    "sha256": "17900259ff33f8739eb694d62e1d1a095ed35c473b12e1cbcf6c4004d2dd5950",
+    "bytes": 6949942,
+    "unchanged": true
+  },
+  "native_cad_status": "pending; output32 verifies v77 loading and coarse execution, not v78 identity behavior or completed comparison",
+  "first_new_panel_full_recognition_target_ms": 3000,
+  "target_achieved": false
+}

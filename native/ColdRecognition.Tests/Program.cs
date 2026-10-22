@@ -9,8 +9,11 @@ namespace EmergencyLighting.ColdRecognition.Tests
         {
             try
             {
-                int count = SpatialIndexTests.Run();
-                Console.WriteLine("{\"status\":\"passed\",\"test_groups\":" + count + "}");
+                int spatial = SpatialIndexTests.Run();
+                int sourceGuard = SourceGuardTests.Run();
+                int count = spatial + sourceGuard;
+                Console.WriteLine("{\"status\":\"passed\",\"test_groups\":" + count
+                    + ",\"spatial_test_groups\":" + spatial + ",\"source_guard_test_groups\":" + sourceGuard + "}");
                 return 0;
             }
             catch (Exception error)

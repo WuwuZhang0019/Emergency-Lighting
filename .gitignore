@@ -291,3 +291,8 @@ config/power-input-*.eld
 /output/native-cold-v0.1.77/
 /output/应急照明-v0.1.77/
 /output/应急照明-v0.1.77.zip
+
+# Date: 2026-10-22. v0.1.78 native source identity guard repair trial.
+/output/native-cold-v0.1.78/
+/output/应急照明-v0.1.78/
+/output/应急照明-v0.1.78.zip

@@ -87,7 +87,7 @@ namespace EmergencyLighting.ColdRecognition
         // Flat arguments: selection set, panel ObjectId, comma-separated root handles,
         // device tolerance, Dmax, boundary tolerance, existing output folder/file path.
         // Return value: (jsonText ((handle minPoint maxPoint) ...)), at most 16 samples.
-        [LispFunction("ELNETCOLD77")]
+        [LispFunction("ELNETCOLD78")]
         public static ResultBuffer Run(ResultBuffer arguments)
         {
             try
@@ -97,7 +97,7 @@ namespace EmergencyLighting.ColdRecognition
                 TypedValue[] values = arguments == null ? new TypedValue[0] : arguments.AsArray();
                 if (values.Length == 1 && values[0].TypeCode == (int)LispDataType.Text &&
                     String.Equals(values[0].Value as string, "EL_NET_COLD_PING_V1", StringComparison.Ordinal))
-                    return new ResultBuffer(new TypedValue((int)LispDataType.Text, "EL_NET_COLD_PROBE_V1/0.1.77"));
+                    return new ResultBuffer(new TypedValue((int)LispDataType.Text, "EL_NET_COLD_PROBE_V1/0.1.78"));
                 return RunCore(arguments);
             }
             catch (System.Exception)
@@ -123,13 +123,20 @@ namespace EmergencyLighting.ColdRecognition
             int selectedCount = 0;
             int dbmodBefore = -1;
             int dbmodAfter = -1;
+            SourceIdentity sourceBefore = default(SourceIdentity);
+            SourceIdentity sourceAfter = default(SourceIdentity);
+            List<string> sourceReasons = new List<string>();
+            bool sourceGuardStarted = false;
+            bool sourceGuardRead = false;
+            bool? documentWrapperSame = null;
+            bool? databaseWrapperSame = null;
             ObjectEventHandler changed = delegate(object sender, ObjectEventArgs args) { ++state.Changes; };
             ObjectErasedEventHandler erased = delegate(object sender, ObjectErasedEventArgs args) { ++state.Changes; };
             bool observing = false;
             try
             {
                 TypedValue[] values = arguments == null ? new TypedValue[0] : arguments.AsArray();
-                if (values.Length != 7) throw new ArgumentException("ELNETCOLD77 expects exactly seven flat arguments.");
+                if (values.Length != 7) throw new ArgumentException("ELNETCOLD78 expects exactly seven flat arguments.");
                 SelectionSet selection = values[0].Value as SelectionSet;
                 if (selection == null) throw new ArgumentException("The first argument must be a SelectionSet.");
                 if (!(values[1].Value is ObjectId)) throw new ArgumentException("The panel argument must be an ObjectId.");
@@ -147,7 +154,11 @@ namespace EmergencyLighting.ColdRecognition
                 document = CadApplication.DocumentManager.MdiActiveDocument;
                 if (document == null) throw new InvalidOperationException("No active document.");
                 database = document.Database;
+                sourceBefore = SourceIdentityOf(document, database);
+                if (sourceBefore.Document == IntPtr.Zero || sourceBefore.Database == IntPtr.Zero)
+                    throw new InvalidOperationException("SOURCE_IDENTITY_UNAVAILABLE before the read-only probe.");
                 dbmodBefore = Convert.ToInt32(CadApplication.GetSystemVariable("DBMOD"), CultureInfo.InvariantCulture);
+                sourceGuardStarted = true;
                 ObjectId[] ids = selection.GetObjectIds();
                 selectedCount = ids.Length;
                 state.Panel = panel.Handle.ToString();
@@ -269,24 +280,47 @@ namespace EmergencyLighting.ColdRecognition
                     Trace(state, roots, wireTree, blockTree, endTree, Math.Max(deviceTolerance, boundaryTolerance), dmax);
                     timings["coarse-trace-ms"] = phase.Elapsed.TotalMilliseconds;
                 }
-                if (!Object.ReferenceEquals(document, CadApplication.DocumentManager.MdiActiveDocument) ||
-                    !Object.ReferenceEquals(database, document.Database) || state.Changes != 0)
-                    throw new InvalidOperationException("SOURCE_CHANGED during the read-only probe.");
             }
             catch (System.Exception error) { state.Error(state.Panel ?? "", "probe", error); }
             finally
             {
+                // Date: 2026-10-22. CAD may return another managed wrapper for
+                // the same native document/database. Wrapper references are only
+                // diagnostics; compare the per-call native identities instead.
+                Stopwatch guardTime = Stopwatch.StartNew();
+                if (sourceGuardStarted)
+                {
+                    try
+                    {
+                        Document current = CadApplication.DocumentManager.MdiActiveDocument;
+                        Database currentDatabase = current == null || current.IsDisposed ? null : current.Database;
+                        documentWrapperSame = Object.ReferenceEquals(document, current);
+                        databaseWrapperSame = Object.ReferenceEquals(database, currentDatabase);
+                        sourceAfter = SourceIdentityOf(current, currentDatabase);
+                        dbmodAfter = Convert.ToInt32(CadApplication.GetSystemVariable("DBMOD"), CultureInfo.InvariantCulture);
+                        sourceGuardRead = true;
+                    }
+                    catch (System.Exception error)
+                    {
+                        sourceReasons.Add("SOURCE_GUARD_READ_FAILED");
+                        state.Error(state.Panel ?? "", "source-guard-read", error);
+                    }
+                }
                 if (observing)
                 {
                     database.ObjectModified -= changed;
                     database.ObjectAppended -= changed;
                     database.ObjectErased -= erased;
                 }
-                try { dbmodAfter = Convert.ToInt32(CadApplication.GetSystemVariable("DBMOD"), CultureInfo.InvariantCulture); }
-                catch (System.Exception) { }
+                timings["source-guard-ms"] = guardTime.Elapsed.TotalMilliseconds;
             }
-            if (dbmodBefore >= 0 && dbmodAfter >= 0 && dbmodBefore != dbmodAfter)
-                state.Error(state.Panel ?? "", "source-guard", new InvalidOperationException("SOURCE_CHANGED: DBMOD changed during the read-only probe."));
+            if (sourceGuardStarted)
+            {
+                sourceReasons.AddRange(SourceGuard.Evaluate(sourceBefore, sourceAfter, state.Changes, dbmodBefore, dbmodAfter));
+                if (sourceReasons.Count != 0)
+                    state.Error(state.Panel ?? "", "source-guard", new InvalidOperationException(
+                        "SOURCE_CHANGED_OR_UNVERIFIED: " + String.Join(",", sourceReasons)));
+            }
             state.Metrics["selected"] = selectedCount;
             state.Metrics["managed-skipped"] = state.Managed;
             state.Metrics["block-references"] = state.Inserts;
@@ -312,6 +346,15 @@ namespace EmergencyLighting.ColdRecognition
                 "scope-note", "No precise contacts, gap validation, numbering, proof, preview or production-result substitution is performed.",
                 "panel", state.Panel, "timings", timings, "counts", state.Metrics, "errors", state.Errors,
                 "trace-limit-reached", state.Limited, "dbmod-before", dbmodBefore, "dbmod-after", dbmodAfter,
+                "source-guard", Row("scheme", "native-document-database-identity-v1",
+                    "started", sourceGuardStarted, "completed", sourceGuardRead, "reasons", sourceReasons,
+                    "document-before-valid", sourceBefore.Document != IntPtr.Zero,
+                    "document-after-valid", sourceAfter.Document != IntPtr.Zero,
+                    "database-before-valid", sourceBefore.Database != IntPtr.Zero,
+                    "database-after-valid", sourceAfter.Database != IntPtr.Zero,
+                    "document-native-same", sourceBefore.Document != IntPtr.Zero && sourceBefore.Document == sourceAfter.Document,
+                    "database-native-same", sourceBefore.Database != IntPtr.Zero && sourceBefore.Database == sourceAfter.Database,
+                    "document-wrapper-same", documentWrapperSame, "database-wrapper-same", databaseWrapperSame),
                 "goal-ms", 3000, "goal-scope", "managed-coarse-stage-only", "complete-goal-achieved", false,
                 "final-report-write-in-timings", false, "report-path", reportPath);
             List<object> samples = new List<object>();
@@ -350,6 +393,15 @@ namespace EmergencyLighting.ColdRecognition
             output.Add(new TypedValue((int)LispDataType.ListEnd));
             output.Add(new TypedValue((int)LispDataType.ListEnd));
             return new ResultBuffer(output.ToArray());
+        }
+
+        private static SourceIdentity SourceIdentityOf(Document document, Database database)
+        {
+            // Do not dereference or dispose native pointers. They are valid only
+            // as identity tokens within this synchronous, read-only invocation.
+            IntPtr documentId = document == null || document.IsDisposed ? IntPtr.Zero : document.UnmanagedObject;
+            IntPtr databaseId = database == null || database.IsDisposed ? IntPtr.Zero : database.UnmanagedObject;
+            return new SourceIdentity(documentId, databaseId);
         }
 
         private static void AddWire(CallState state, string handle, Bounds3 bounds, Point3[] points, double[] bulges, bool closed)

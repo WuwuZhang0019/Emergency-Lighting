@@ -281,3 +281,8 @@ config/power-input-*.eld
 /output/native-cold-v0.1.75/
 /output/应急照明-v0.1.75/
 /output/应急照明-v0.1.75.zip
+
+# Date: 2026-10-22. Requested cold-probe load-handshake repair trial.
+/output/native-cold-v0.1.76/
+/output/应急照明-v0.1.76/
+/output/应急照明-v0.1.76.zip

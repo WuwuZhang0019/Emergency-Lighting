@@ -1,13 +1,30 @@
 ;; Date: 2026-10-22. Independent read-only cold-path experiment; never publishes results.
-(defun EL:ColdNativeReady ()
-  (if (atoms-family 1 '("ELNETCOLD75")) T nil))
+(defun EL:ColdNativeReady (/ reply ready)
+  ;; A missing atom yields (nil), which is a true list. Check the real entry
+  ;; instead; this protocol-only call never reads geometry or warms a result.
+  (setq reply (vl-catch-all-apply 'ELNETCOLD76 (list "EL_NET_COLD_PING_V1"))
+    ready (and (not (vl-catch-all-error-p reply))
+      (or (and (equal (type reply) 'STR) (equal reply "EL_NET_COLD_PROBE_V1/0.1.76"))
+        (and (listp reply) (= (length reply) 1) (equal (type (car reply)) 'STR)
+          (equal (car reply) "EL_NET_COLD_PROBE_V1/0.1.76")))))
+  (EL:LogEvent "COLD_NATIVE_HANDSHAKE" (list (cons 'ready ready)
+    (cons 'response (if (not (vl-catch-all-error-p reply)) reply))
+    (cons 'error (if (vl-catch-all-error-p reply) (vl-catch-all-error-message reply)))))
+  ready)
+(defun EL:ColdNativePayload (reply)
+  ;; ResultBuffer list marshalling may enclose the explicit outer ListBegin.
+  ;; Accept at most that one envelope; the payload/status check remains strict.
+  (if (and (listp reply) (= (length reply) 1) (listp (car reply))) (car reply) reply))
 (defun EL:ColdLoad (/ path)
   (if (not (EL:ColdNativeReady))
     (progn
-      (setq path (strcat *EL:Root* "native/EmergencyLighting.ColdRecognition75.dll"))
-      (EL:Require (findfile path) "缺少只读 .NET 原型 DLL，请保留完整 v0.1.75 交付目录。")
-      (command "_.NETLOAD" path)))
-  (EL:Require (EL:ColdNativeReady) "只读 .NET 原型未加载；请检查命令行的 NETLOAD 错误及受信任路径。"))
+      (setq path (strcat *EL:Root* "native/EmergencyLighting.ColdRecognition76.dll"))
+      (EL:Require (findfile path) "缺少只读 .NET 原型 DLL，请保留完整 v0.1.76 交付目录。")
+      (EL:LogEvent "COLD_NATIVE_LOAD_BEGIN" (list (cons 'dll path)))
+      (command "_.NETLOAD" path)
+      (EL:LogEvent "COLD_NATIVE_LOAD_RETURNED" (list (cons 'dll path)))))
+  (EL:Require (EL:ColdNativeReady)
+    "只读 .NET 原型握手失败，尚未开始采集；请检查 NETLOAD 错误及受信任路径，运行 ELDIAG 导出加载详情。"))
 (defun EL:ColdRootHandles (cfg / text row)
   (setq text "")
   (foreach row (EL:Get 'circuit-starts cfg)
@@ -27,11 +44,11 @@
       ((not (equal actual (cdr row) 0.000001)) (setq different (1+ different)))))
   (list (cons 'checked checked) (cons 'missing missing) (cons 'different different)))
 (defun EL:ColdReportPath (extension)
-  (strcat *EL:Root* "output/ELCOLD75-" (rtos (getvar "CDATE") 2 8)
+  (strcat *EL:Root* "output/ELCOLD76-" (rtos (getvar "CDATE") 2 8)
     "-" (itoa (EL:Tick)) extension))
 (defun EL:ColdRun (/ mode pick panel saved cfg started loaded selected returned audited finished
     owner epoch ss payload audit nativepath reportpath report legacy legacy-start legacy-end result rows row)
-  (princ "\nELCOLD75：只读冷路径性能原型；当前 .NET 仅验证批量读取、索引及保守候选发现，不替代完整识别。")
+  (princ "\nELCOLD76：只读冷路径性能原型；当前 .NET 仅验证批量读取、索引及保守候选发现，不替代完整识别。")
   (initget "Prototype Both")
   (setq mode (getkword "\n模式 [仅原型(Prototype)/完整旧路径对照(Both)] <Prototype>："))
   (if (not mode) (setq mode "Prototype"))
@@ -49,7 +66,7 @@
           ;; Start before clearing the pick overlay, selecting, NETLOAD and the first JIT.
           (setq started (EL:Tick))
           (EL:ClearGapPreview) (EL:ClearPickHighlights)
-          (EL:ColdLoad)
+          (EL:PerfCall "COLD_NATIVE_LOAD" 'EL:ColdLoad nil)
           (setq loaded (EL:Tick) owner (namedobjdict) epoch *EL:FreshEpoch*
             nativepath (EL:ColdReportPath ".json") reportpath (EL:ColdReportPath ".eld")
             ss (EL:PresetSelection cfg "INSERT,LINE,LWPOLYLINE" '(wire-layers panel-layers device-layers))
@@ -57,10 +74,13 @@
           ;; Register paths before native dispatch so ELDIAG includes failed native reports.
           (setq *EL:ColdReports* (EL:Put owner (list nativepath reportpath) *EL:ColdReports*))
           (EL:Require ss "预设范围没有可测试对象。")
-          (setq payload (ELNETCOLD75 ss (handent panel) (EL:ColdRootHandles cfg)
+          (setq payload (EL:PerfCall "COLD_NATIVE_PROBE" 'ELNETCOLD76 (list ss (handent panel) (EL:ColdRootHandles cfg)
             (EL:DeviceContactTolerance cfg) (EL:Get 'Dmax (EL:Get 'params cfg))
-            (EL:Get 'eps_boundary (EL:Get 'params cfg)) nativepath)
-            returned (EL:Tick))
+            (EL:Get 'eps_boundary (EL:Get 'params cfg)) nativepath))
+            payload (EL:ColdNativePayload payload) returned (EL:Tick))
+          (if (not (and (listp payload) (equal (type (car payload)) 'STR)
+              (vl-string-search "\"status\":\"PROTOTYPE_COARSE_ONLY\"" (car payload))))
+            (EL:LogEvent "COLD_NATIVE_PROBE_FAILED" payload))
           (EL:Require (and (listp payload) (equal (type (car payload)) 'STR)
               (vl-string-search "\"status\":\"PROTOTYPE_COARSE_ONLY\"" (car payload)))
             "只读 .NET 原型失败，未产生识别结果；请导出 ELDIAG 检查原型报告。")
@@ -77,7 +97,7 @@
           (setq finished (EL:Tick))
           (EL:Require (and (equal owner (namedobjdict)) (equal epoch *EL:FreshEpoch*))
             "SOURCE_CHANGED：完整对照期间源图或当前图纸已变化，本次对照无效。")
-          (setq report (list '(version . 1) '(date . "2026-10-22") '(package . "v0.1.75")
+          (setq report (list '(version . 1) '(date . "2026-10-22") '(package . "v0.1.76")
             '(status . prototype-coarse-only) '(complete-native-recognition . nil)
             '(target-full-recognition-ms . 3000) '(target-achieved . unverified)
             '(readonly-drawing . T) '(previous-result-cache . nil)
@@ -93,14 +113,14 @@
             (cons 'legacy legacy)))
           (EL:Require (EL:WriteData reportpath report) "原型对照报告写入失败。")
           (setq *EL:ColdReports* (EL:Put owner (list nativepath reportpath) *EL:ColdReports*))
-          (EL:LogEvent "COLD_PROBE75" report)
+          (EL:LogEvent "COLD_PROBE76" report)
           (princ (strcat "\n.NET 候选原型从拾取结束到返回："
             (itoa (EL:PerfDelta started audited)) " ms（含本次 NETLOAD、选择和边界抽查）。"))
           (if legacy-start (princ (strcat "\n完整旧路径只读识别："
             (itoa (EL:PerfDelta legacy-start legacy-end)) " ms。")))
           (princ "\n当前原型尚未执行 .NET 精细识别与编号；完整首次识别 3 秒目标尚未验收。")
           (princ (strcat "\n原型报告：" nativepath "\n对照报告：" reportpath "\n运行 ELDIAG 可一并导出。")))))))
-(defun c:ELCOLD75 (/ *error* outcome)
+(defun c:ELCOLD76 (/ *error* outcome)
   (defun *error* (message)
     (vl-catch-all-apply 'EL:ClearGapPreview nil)
     (vl-catch-all-apply 'EL:ClearPickHighlights nil)
@@ -109,6 +129,9 @@
   (if (EL:EnsureRoot)
     (progn
       (EL:LogStart)
+      ;; Date: 2026-10-22. The generic log name contains '/', invalid in a
+      ;; Windows timeline filename. Name this command's own run explicitly.
+      (if *EL:PerfLogOwner* (setq *EL:PerfCommand* "ELCOLD76"))
       (setq outcome (EL:MeasuredCatch 'EL:ColdRun nil))
       (EL:ClearGapPreview) (EL:ClearPickHighlights)
       (if (vl-catch-all-error-p outcome)

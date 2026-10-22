@@ -1,0 +1,93 @@
+{
+  "date": "2026-10-22",
+  "status": "source fixed; 57 applicable tests passed; two unrelated fixture errors reproduce on baseline",
+  "scope": "source-only generation warning policy and truthful power-review guidance",
+  "input": {
+    "archive": "output (36).zip",
+    "sha256": "1d68f6044222eedd7768dd39c75ca0ab1ac953e4c092f2982ec74be23b0a97f2",
+    "reported_symptom": "listed devices have single-device watts, but closed and no-device circuits block system diagram generation",
+    "observed_closed_issue": {
+      "raw_circuit_id": "R2",
+      "code": "CLOSED_CIRCUIT",
+      "object": "1449F",
+      "detail": "D410"
+    },
+    "observed_no_device_circuit": {
+      "raw_circuit_id": "R5",
+      "wires": [
+        "260CE",
+        "260CD"
+      ],
+      "device_count": 0
+    },
+    "evidence_scope": "ZIP current-result is a BUSINESS-FIELDS export, not a full active-panel geometry snapshot; screenshot output order is not assumed to match raw R indices"
+  },
+  "repair": {
+    "closed_warning_policy_source": "verified existing main commit 91cc1bc; this test branch lacked that panel behavior",
+    "no_device_allowance": "actual wires present, path complete, no topology issues, only NO_RECOGNIZED_DEVICES power issue",
+    "output": "preserve actual system blocks and circuit numbers; omit entire power text for warning circuits; normal rows retain watts",
+    "review": "show actual connection evidence and no-device circuit number/wires; do not suggest refilling known single-device watts",
+    "unchanged_blockers": [
+      "OTHER_PANEL",
+      "ambiguous or incomplete paths",
+      "ownership conflicts",
+      "number conflicts",
+      "power limits/overflow",
+      "device-library load errors",
+      "source freshness checks"
+    ],
+    "source_recognition_predicates_changed": false,
+    "rerun_recognition_for_power_edits": false
+  },
+  "verification": {
+    "modules_or_tests": {
+      "test_power_review": 19,
+      "test_panel_repairs": 5,
+      "test_generation_reasons": 6,
+      "test_device_recognition": 20,
+      "test_panel_lifecycle": 7,
+      "test_panel_library_toggle.PanelLibraryToggleTests.test_default_home_expands_collapses_and_preserves_position_without_writing": 1,
+      "test_panel_library_toggle.PanelLibraryToggleTests.test_compact_generation_uses_current_capacity_without_flushing_hidden_controls": 1
+    },
+    "attempted_tests": 59,
+    "applicable_tests_passed": 57,
+    "failures": 0,
+    "unrelated_fixture_errors": [
+      {
+        "test": "test_device_recognition.DeviceRecognitionTests.test_draft_keeps_number_evidence_library_snapshot_and_manual_zero_together",
+        "error": "CAD API or unknown function called in pure test: NAMEDOBJDICT"
+      },
+      {
+        "test": "test_device_recognition.DeviceRecognitionTests.test_explicit_same_watts_entry_becomes_manual_and_survives_later_default_change",
+        "error": "CAD API or unknown function called in pure test: EL:PANELBLOCKPOWERCHANGED"
+      }
+    ],
+    "baseline_audit": {
+      "commit": "cbb86fa",
+      "method": "rerun the same two test cases using HEAD panel definitions in memory; all other files and fixture code unchanged",
+      "same_two_errors_reproduced": true
+    },
+    "elapsed_seconds": 26.728,
+    "power_review_and_generation_tests": {
+      "tests": 19,
+      "passed": 19
+    },
+    "new_three_circuit_output_test": "passed after correcting duplicated seed in added fixture; production seed identity validation unchanged"
+  },
+  "strict_gb2312_encodable_sources": [
+    "src/panel.lsp",
+    "ui/power.dcl"
+  ],
+  "parsed_sources": [
+    "src/panel.lsp"
+  ],
+  "source_sha256": {
+    "src/panel.lsp": "d14b8426382adc2dde400d178edcdce5a0453c888b1a2ecdb74e27c279f1d526",
+    "ui/power.dcl": "afe60b24c29fcec1bd61ff11fd8cb6407f5a30962539bd3f4575161dc9baf326",
+    "tests/test_power_review.py": "7faeab50e328254ffc468fb35bdbd971510126fbbb42bd8c6ef0854c44ce7bbd",
+    "README.md": "a5fd5006277ea189a4bb2422ac860254a185db298a7fb2b53ccd115f43be93ed"
+  },
+  "software_version": "0.1.80",
+  "package_generated": false,
+  "native_cad_status": "pending original-DWG generate/save/reopen/Undo verification; finite adapters do not prove native CAD acceptance"
+}

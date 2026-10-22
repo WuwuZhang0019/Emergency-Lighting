@@ -115,9 +115,9 @@ el_panel_review : column { fixed_width = true; fixed_height = true; alignment = 
       el_panel_circuit_separator;
       // Date: 2026-10-16. One power summary between the circuit rows and step three.
       : text { key = "p_power_total"; label = "总功率：未统计"; width = 40; fixed_width = true; fixed_height = true; }
-      // Date: 2026-10-21. Power review uses the current recognition snapshot.
+      // Date: 2026-10-22. Separate connection warnings from missing single-device watts.
       : button { key = "p_power_review"; label = "查看/补填设备功率"; }
-      : text { label = "缺功率回路生成时留空，可补填后直接重算。"; }
+      : text { label = "闭合或无设备回路保留，未知功率留空。"; }
       : row { fixed_width = true; fixed_height = true; alignment = left;
         : image { key = "p_step3"; width = 8; height = 1.3; fixed_width = true; fixed_height = true; color = dialog_background; help_string = "第三步：在图面查看全部回路"; }
         : button { key = "f_preview"; label = "在图面查看全部回路"; width = 28; fixed_width = true; }

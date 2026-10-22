@@ -205,6 +205,11 @@ def check():
     assert native_identity["assembly_version"] == builder.VERSION + ".0", native_identity
     assert native_identity["file_version"] == builder.VERSION + ".0", native_identity
     assert b".NETFramework,Version=v4.7" in native_bytes, "missing net47 target-framework metadata"
+    handshake = "EL_NET_COLD_PROBE_V1/" + builder.VERSION
+    assert handshake.encode("utf-16le") in native_bytes, "native handshake/version mismatch"
+    assert "EL_NET_COLD_PING_V1".encode("utf-16le") in native_bytes, "native handshake request missing"
+    assert handshake in (ROOT / 'src/cold-probe.lsp').read_text(encoding='utf-8'), \
+        "LISP handshake/version mismatch"
     reference_names = set()
     cad_names = {"acmgd", "accoremgd", "acdbmgd"}
     for reference in native_proof["references"]:

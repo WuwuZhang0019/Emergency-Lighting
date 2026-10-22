@@ -1,0 +1,46 @@
+{
+  "date": "2026-10-22",
+  "status": "passed",
+  "version": "0.1.76",
+  "input": {
+    "path": "C:\\Users\\Zyf\\Downloads\\output (30).zip",
+    "sha256": "6a92347062fc35021bdfc31b6e73dbceba9c3c7fa30eda3b22c6cb95d0155832",
+    "files": [
+      "ELMONITOR-20261022.104027-APPLOAD.md",
+      "ELPERF.log",
+      "ELTRACE-debug.log"
+    ],
+    "error": "no function definition: ELNETCOLD75",
+    "native_compute_entered": false,
+    "total_ms": 23688,
+    "interaction_ms": 11437,
+    "program_ms": 12251
+  },
+  "root_cause": "atoms-family returned nonempty (nil); old readiness skipped NETLOAD; prior fixture returned nil",
+  "secondary_cause": "generic performance command contained slash and made an invalid Windows timeline filename",
+  "reference": "https://help.autodesk.com/cloudhelp/2022/ENU/AutoCAD-AutoLISP-Reference/files/GUID-0B35850D-9E62-446B-BAA2-0598A4BDE3D7.htm",
+  "regression": {
+    "modules": [
+      "test_cold_probe",
+      "test_cold_entry",
+      "test_full_test_entry"
+    ],
+    "tests": 36,
+    "seconds": 2.242,
+    "status": "passed"
+  },
+  "source_sha256": {
+    "src/cold-probe.lsp": "f86b84cf76320a50c2bdb375d545a87aa93f762902528c30a6555263780bf827",
+    "native/ColdRecognition/AutoCadProbe.cs": "bbc77d911b210c63e7e9f3b4e97c94bc9751d38b9fce56857167f75ba59b22b2",
+    "native/ColdRecognition/AssemblyInfo.cs": "fe1e16af48ffba753bec69ffc32136f25ef386b3345f18b594733df0a857e61c",
+    "tools/build_cold_recognition.py": "a65a3a3e86345fb95bbdbc30e9250471f71d60d2ba6a978a59564665737d597a",
+    "tools/build_cad2020.py": "d7b82dd5a6afea04d931e3ad680b6049758c1c701ff184ed2eb19225031ecd22",
+    "tests/test_cold_probe.py": "1337e7c2df2af529253fe004dcd1ba0e97f8b90c98ae2c545d4d02d744a68c3b",
+    "tests/test_cold_entry.py": "6107221cfdf3e6589e9a5fc847629b17bc3df863b432d93f4a887ef26d01ed40",
+    "tests/test_full_test_entry.py": "37c1391eb3c148429632866a6b7bea9b628eac3de90d4266dccd2077fda531a7"
+  },
+  "old_v0_1_75_archive_unchanged": true,
+  "native_cad_status": "pending; compilation and bounded host only; actual NETLOAD and original drawing not run locally",
+  "first_new_panel_full_recognition_target_ms": 3000,
+  "target_achieved": false
+}

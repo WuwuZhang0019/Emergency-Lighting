@@ -7,10 +7,10 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 # Date: 2026-10-22. Local read-only native prototype; no merge or publication.
-VERSION = '0.1.78'
-PACKAGE_NO = 177
-FULL_TEST_COMMAND = 'ELFULL78'
-COLD_TEST_COMMAND = 'ELCOLD78'
+VERSION = '0.1.79'
+PACKAGE_NO = 178
+FULL_TEST_COMMAND = 'ELFULL79'
+COLD_TEST_COMMAND = 'ELCOLD79'
 NAME = f'应急照明-v{VERSION}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 OUTPUT_ROOT = ROOT / 'output'

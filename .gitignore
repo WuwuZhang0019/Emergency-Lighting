@@ -314,3 +314,8 @@ config/power-input-*.eld
 /output/native-cold-v0.1.81/
 /output/应急照明-v0.1.81/
 /output/应急照明-v0.1.81.zip
+
+# Date: 2026-10-22. Requested Tianzheng cross-computer name fix test package.
+/output/native-cold-v0.1.82/
+/output/应急照明-v0.1.82/
+/output/应急照明-v0.1.82.zip

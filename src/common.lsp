@@ -4,6 +4,32 @@
   (if (setq old (assoc key data))
     (subst (cons key value) old data)
     (append data (list (cons key value)))))
+;; Date: 2026-10-22. Only Tianzheng's numbered equipment names have a computer suffix.
+;; Input is already upper-case; raw names, definition geometry and saved keys stay intact.
+(defun EL:TianzhengNameCore (key / prefix mark openmark closemark offset core)
+  (if (equal (type key) 'STR)
+    (setq prefix (cond ((equal (substr key 1 9) "$EQUIP_U$") 9)
+      ((equal (substr key 1 7) "$EQUIP$") 7))))
+  (if prefix
+    (progn
+      (setq core key mark (cond ((vl-string-search "(" key) (list "(" ")"))
+        ((vl-string-search "（" key) (list "（" "）"))))
+      (if mark
+        (progn
+          (setq openmark (car mark) closemark (cadr mark) offset (vl-string-search openmark key))
+          (setq core (if (and (> offset prefix)
+            (> (- (strlen key) (strlen closemark)) (+ offset (strlen openmark)))
+            (not (vl-string-search openmark key (+ offset (strlen openmark))))
+            (equal (vl-string-search closemark key (+ offset (strlen openmark))) (- (strlen key) (strlen closemark))))
+            (substr key 1 offset)))))
+      (if (and core (> (strlen core) prefix)
+        (vl-every '(lambda (c) (and (>= c 48) (<= c 57))) (vl-string->list (substr core (1+ prefix))))) core))))
+(defun EL:TianzhengNameKey (name)
+  (if (and (equal (type name) 'STR) (equal (substr name 1 1) "$"))
+    (EL:TianzhengNameCore (strcase name))))
+(defun EL:BlockNameMatchKey (name / key)
+  (if (equal (type name) 'STR)
+    (progn (setq key (strcase name)) (cond ((EL:TianzhengNameCore key)) (T key)))))
 (defun EL:Unique (items / out item)
   (foreach item items (if (not (member item out)) (setq out (cons item out))))
   (reverse out))
@@ -86,8 +112,8 @@
       layer-pairs params calibrated gap-pairs leader-pairs roles exits)
     (setq rows (cons (cons key (EL:Get key cfg)) rows)))
   ;; Date: 2026-10-13. Older recognition must be rebuilt for exact reachable traversal.
-  (cons '(reachable-contact-policy . 2) (cons '(junction-policy . 1) (cons '(number-branch-policy . 1)
-    (cons '(simple-gap-policy . 1) (cons '(box-policy . 20) (cons '(gap-policy . 10) (reverse rows))))))))
+  (cons '(block-name-match-policy . 1) (cons '(reachable-contact-policy . 2) (cons '(junction-policy . 1) (cons '(number-branch-policy . 1)
+    (cons '(simple-gap-policy . 1) (cons '(box-policy . 20) (cons '(gap-policy . 10) (reverse rows)))))))))
 ;; Date: 2026-10-11. Report which freshness condition failed.
 (defun EL:SourceSignatureCore (signature)
   (if (and (listp signature) (equal (car signature) 'EL_FIXED_SOURCE_V1))

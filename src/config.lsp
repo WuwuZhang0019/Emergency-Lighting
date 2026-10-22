@@ -180,10 +180,12 @@
   (setq obj (vlax-ename->vla-object entity))
   (if (vlax-property-available-p obj 'EffectiveName) (vla-get-EffectiveName obj)
     (cdr (assoc 2 (entget entity)))))
+(defun EL:RoleNameMember (name names)
+  (or (member name names) (and (EL:TianzhengNameKey name) (EL:PresetNameMember name names))))
 (defun EL:Role (layer name cfg / panel leader device)
-  (setq panel (and (member layer (EL:Get 'panel-layers cfg)) (member name (EL:Get 'panel-names cfg)))
-        leader (and (member layer (EL:Get 'leader-layers cfg)) (member name (EL:Get 'leader-names cfg)))
-        device (and (member layer (EL:Get 'device-layers cfg)) (member name (EL:Get 'device-names cfg))))
+  (setq panel (and (member layer (EL:Get 'panel-layers cfg)) (EL:RoleNameMember name (EL:Get 'panel-names cfg)))
+        leader (and (member layer (EL:Get 'leader-layers cfg)) (EL:RoleNameMember name (EL:Get 'leader-names cfg)))
+        device (and (member layer (EL:Get 'device-layers cfg)) (EL:RoleNameMember name (EL:Get 'device-names cfg))))
   (cond ((and panel leader) 'ambiguous) (leader 'leader) (panel 'panel) (device 'device) (T 'unknown)))
 (defun EL:HighlightPick (entity / result)
   (if (and entity (not (member entity *EL:PickHighlights*)))
@@ -403,8 +405,15 @@
 
 ;; Date: 2026-10-13. Fixed circuits share the existing name-based identity.
 (defun EL:FixedBlockIdentity (name) (list name nil "block-name-v1"))
-(defun EL:JunctionName (name cfg)
-  (equal (EL:Get 'role (EL:By 'identity (EL:FixedBlockIdentity name) (EL:Get 'roles cfg))) 'junction))
+(defun EL:JunctionName (name cfg / key exact)
+  (if (setq exact (EL:By 'identity (EL:FixedBlockIdentity name) (EL:Get 'roles cfg)))
+    (equal (EL:Get 'role exact) 'junction)
+    (and (setq key (EL:TianzhengNameKey name))
+      (vl-some '(lambda (row / identity)
+        (setq identity (EL:Get 'identity row))
+        (and (equal (EL:Get 'role row) 'junction)
+          (equal identity (EL:FixedBlockIdentity (car identity)))
+          (equal key (EL:TianzhengNameKey (car identity))))) (EL:Get 'roles cfg)))))
 (defun EL:FixedBlockRole (block panel cfg)
   (cond ((equal (EL:Get 'id block) panel) 'panel)
     ((or (EL:JunctionName (EL:Get 'name block) cfg) (and (not cfg) (equal (EL:Get 'role block) 'junction))) 'junction)
@@ -494,7 +503,7 @@
   (EL:Put 'preset-scoped T cfg))
 ;; Date: 2026-10-21. Only SimpleCollect binds/enables this synchronous cache.
 ;; Keep original table identity and member tails; unknown tables use the old path.
-(defun EL:PresetCachePrepare (cfg / key values)
+(defun EL:PresetCachePrepare (cfg / key values normalized)
   (setq *EL:PresetCacheCfg* cfg *EL:PresetCacheEpoch* *EL:FreshEpoch*
     *EL:PresetCacheTables* nil *EL:PresetCacheBlocks* nil
     *EL:PresetCacheRebuilds* (1+ *EL:PresetCacheRebuilds*))
@@ -503,8 +512,12 @@
       (setq values (EL:Get key cfg))
       ;; Invalid tables retain lazy legacy errors instead of failing eagerly.
       (if (and (listp values) (vl-list-length values) (EL:Strings values))
-        (setq *EL:PresetCacheTables* (cons (list values (mapcar 'strcase values)) *EL:PresetCacheTables*)
-          *EL:PresetCacheNormalizations* (1+ *EL:PresetCacheNormalizations*))))) nil)
+        (progn
+          (setq normalized (mapcar 'strcase values))
+          (setq *EL:PresetCacheTables* (cons (list values normalized
+            (if (member key '(panel-names device-names))
+              (mapcar '(lambda (name) (cond ((EL:TianzhengNameCore name)) (T name))) normalized))) *EL:PresetCacheTables*)
+            *EL:PresetCacheNormalizations* (1+ *EL:PresetCacheNormalizations*)))))) nil)
 (defun EL:PresetMember (value values / saved)
   (if (and *EL:PresetCacheEnabled* (equal *EL:PresetCacheEpoch* *EL:FreshEpoch*)
       (setq saved (vl-some '(lambda (row) (if (eq values (car row)) row)) *EL:PresetCacheTables*)))
@@ -515,6 +528,19 @@
       (if *EL:PresetCacheEnabled*
         (setq *EL:PresetCacheMemberMisses* (1+ *EL:PresetCacheMemberMisses*)))
       (and (equal (type value) 'STR) (member (strcase value) (mapcar 'strcase values))))))
+;; Date: 2026-10-22. Name tables normalize the computer suffix; layer tables stay literal.
+(defun EL:PresetNameMember (value values / saved)
+  (if (and *EL:PresetCacheEnabled* (equal *EL:PresetCacheEpoch* *EL:FreshEpoch*)
+      (setq saved (vl-some '(lambda (row) (if (and (eq values (car row)) (caddr row)) row)) *EL:PresetCacheTables*)))
+    (progn
+      (setq *EL:PresetCacheMemberHits* (1+ *EL:PresetCacheMemberHits*))
+      (and (equal (type value) 'STR) (member (EL:BlockNameMatchKey value) (caddr saved))))
+    (progn
+      (if *EL:PresetCacheEnabled*
+        (setq *EL:PresetCacheMemberMisses* (1+ *EL:PresetCacheMemberMisses*)))
+      (and (equal (type value) 'STR) (member (EL:BlockNameMatchKey value)
+        (mapcar '(lambda (name) (setq name (strcase name))
+          (cond ((EL:TianzhengNameCore name)) (T name))) values))))))
 (defun EL:PresetBlockAllowed (entity data cfg)
   (or (not (EL:Get 'preset-scoped cfg))
     (EL:PresetBlockNameAllowed (EL:EffectiveName entity) data cfg)))
@@ -523,9 +549,9 @@
   (or (not (EL:Get 'preset-scoped cfg))
     (EL:JunctionName name cfg)
     (and (EL:PresetMember (cdr (assoc 8 data)) (EL:Get 'panel-layers cfg))
-      (EL:PresetMember name (EL:Get 'panel-names cfg)))
+      (EL:PresetNameMember name (EL:Get 'panel-names cfg)))
     (and (EL:PresetMember (cdr (assoc 8 data)) (EL:Get 'device-layers cfg))
-      (EL:PresetMember name (EL:Get 'device-names cfg)))))
+      (EL:PresetNameMember name (EL:Get 'device-names cfg)))))
 (defun EL:PresetBlockNameAllowed (name data cfg / key saved value started)
   (if *EL:PresetCacheEnabled*
     (progn
@@ -558,7 +584,7 @@
   (if (EL:Get 'preset-scoped cfg)
     (progn (setq data (entget panel))
       (EL:Require (and (EL:PresetMember (cdr (assoc 8 data)) (EL:Get 'panel-layers cfg))
-        (EL:PresetMember (EL:EffectiveName panel) (EL:Get 'panel-names cfg)))
+        (EL:PresetNameMember (EL:EffectiveName panel) (EL:Get 'panel-names cfg)))
         "配电箱与预设不匹配，请运行 ELPRESET 修改图层或块名。")
       ;; Device picking is a separate library action; statistics never starts it.
       (setq snapshot (EL:DLSnapshot)

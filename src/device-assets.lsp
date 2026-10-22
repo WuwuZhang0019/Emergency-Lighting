@@ -104,7 +104,7 @@
         definition (= (logand (cdr (assoc 70 definition)) 12) 0) (not (EL:ManagedEntity entity))
         (EL:PresetMember (cdr (assoc 8 data)) (EL:Get 'device-layers preset))
         (not (and (EL:PresetMember (cdr (assoc 8 data)) (EL:Get 'panel-layers preset))
-          (EL:PresetMember name (EL:Get 'panel-names preset))))
+          (EL:PresetNameMember name (EL:Get 'panel-names preset))))
         (not (member (EL:DLNameKey name) names)))
       (setq names (cons (EL:DLNameKey name) names) out (append out (list entity))))
     (setq index (1+ index))) out)

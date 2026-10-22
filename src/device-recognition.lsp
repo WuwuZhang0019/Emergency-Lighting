@@ -35,6 +35,10 @@
           (or (and entry (not (equal (EL:Get 'library-id old) (EL:Get 'library-id (EL:Get 'catalog snapshot)))))
               (not entry))) old))
         (if old (setq entry (EL:Get 'entry old)))
+        (if (and entry (not (member key (mapcar 'EL:DLNameKey (EL:DLEntryNames entry)))))
+          (EL:LogEvent "DEVICE_NAME_SUFFIX_MATCH" (list (cons 'drawing-name key)
+            (cons 'match-key (EL:BlockNameMatchKey key)) (cons 'library-name (EL:Get 'block-name entry))
+            (cons 'device-id (EL:Get 'device-id entry)) (cons 'device-handles ids))))
         (setq reference (if old old
           (list (cons 'key key) (cons 'entry entry)
             (cons 'library-id (if entry (EL:Get 'library-id (EL:Get 'catalog snapshot))))

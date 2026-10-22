@@ -413,11 +413,22 @@
           (EL:PanelLibraryReconcile)))
       (setq *EL:PanelLibraryExpanded* (not *EL:PanelLibraryExpanded*))
       (EL:PanelClose 21))))
-(defun EL:PanelNewDialog (dialog / name)
+;; Date: 2026-10-22. Keep panel progress in existing performance metrics even
+;; before business logging starts. No additional file writes or UI dispatch.
+(defun EL:PanelLifecycle (stage details / item)
+  (EL:PerfSet "panel-lifecycle-stage" stage)
+  (foreach item details (EL:PerfSet (strcat "panel-" (car item)) (cdr item)))
+  (EL:LogEvent "PANEL_LIFECYCLE" (list (cons 'stage stage) (cons 'details details))))
+(defun EL:PanelNewDialog (dialog / name ready)
   (setq name (if *EL:PanelLibraryExpanded* "el_panel" "el_panel_compact"))
-  (if *EL:PanelDialogPosition*
+  (EL:PanelLifecycle "new-dialog-requested" (list (cons "dialog-name" name)
+    (cons "dialog-position" *EL:PanelDialogPosition*)))
+  (setq ready (if *EL:PanelDialogPosition*
     (new_dialog name dialog "" *EL:PanelDialogPosition*)
     (new_dialog name dialog)))
+  (EL:PanelLifecycle "new-dialog-returned" (list (cons "new-dialog-ready" ready)
+    (cons "not-shown-reason" (if (not ready) "new-dialog-failed"))))
+  ready)
 ;; Date: 2026-10-16. Keep all recognized circuits and explain the fixed eight-row limit.
 (defun EL:PanelCircuitLimitText (result / count)
   (setq count (length (EL:Get 'circuits result)))
@@ -641,8 +652,12 @@
 (defun EL:PanelDialogWork (result cfg powers capacity / dialog status limit-notice limit-shown
     *EL:PanelAction* *EL:PanelDraft* *EL:PanelPowers* *EL:PanelCapacity* *EL:PanelConfig*
     *EL:PanelTemplateReady* *EL:PanelLibrarySnapshot* *EL:PanelDialogPosition* *EL:PanelPreviewPalette* *EL:PanelSystemNotice*
-    home)
-  (setq home (not result)
+    home dclpath)
+  (setq home (not result) dclpath (strcat *EL:Root* "ui/power.dcl"))
+  (EL:PanelLifecycle "prepare" (list (cons "home" home) (cons "dcl-path" dclpath)
+    '("not-shown-reason" . nil) '("new-dialog-ready" . nil) '("dialog-id" . nil)
+    '("return-status" . nil) '("return-action" . nil) '("final-status" . nil)))
+  (setq
     ;; Date: 2026-10-21. Measure each initialization batch before the dialog waits.
     *EL:PanelDraft* (if result (EL:PerfCall "PANEL_COMPUTE" 'EL:PanelCompute
       (list (EL:PerfCall "PANEL_SELECT_EXITS" 'EL:SelectFixedExits (list result nil)) powers cfg)))
@@ -651,8 +666,11 @@
     *EL:PanelConfig* cfg
     *EL:PanelTemplateReady* (if result (EL:TemplateReady (EL:Get 'template cfg) cfg))
     *EL:PanelLibrarySnapshot* (cond (home (EL:DLSnapshot))
-      (*EL:DLSessionSnapshot*) (T (EL:DLSnapshot)))
-    dialog (load_dialog (strcat *EL:Root* "ui/power.dcl")) *EL:DialogID* dialog status 3)
+      (*EL:DLSessionSnapshot*) (T (EL:DLSnapshot))))
+  (EL:PanelLifecycle "dcl-load-requested" nil)
+  (setq dialog (load_dialog dclpath) *EL:DialogID* dialog status 3)
+  (EL:PanelLifecycle "dcl-load-returned" (list (cons "dialog-id" dialog)
+    (cons "not-shown-reason" (if (<= dialog 0) "dcl-load-failed"))))
   (setq *EL:DLUIHost* 'panel)
   (if (and result (not (EL:Get 'capacity-source *EL:PanelDraft*)))
     (setq *EL:PanelDraft* (EL:Put 'capacity-source 'default *EL:PanelDraft*)))
@@ -660,6 +678,7 @@
   (while (and (> dialog 0) (= status 3))
     (if (EL:PanelNewDialog dialog)
       (progn
+        (EL:PanelLifecycle "fill-requested" nil)
         (if home (EL:PanelHomeFill)
           (progn
             (EL:LogCall "PANEL_FILL" (list (cons 'panel (EL:Get 'panel result))
@@ -688,7 +707,11 @@
             (setq limit-shown T)
             (EL:LogEvent "PANEL_CIRCUIT_LIMIT" (list (cons 'actual (length (EL:Get 'circuits *EL:PanelDraft*))) '(maximum . 8)))
             (EL:PanelError limit-notice)))
+        (EL:PanelLifecycle "start-dialog-requested" nil)
+        (EL:PerfCount "panel-start-dialog-count" 1)
         (setq *EL:PanelAction* nil status (EL:PerfInput 'start_dialog nil))
+        (EL:PanelLifecycle "start-dialog-returned" (list (cons "return-status" status)
+          (cons "return-action" *EL:PanelAction*)))
         (EL:LogEvent "PANEL_DIALOG_RETURN" (list (cons 'status status) (cons 'action *EL:PanelAction*)))
         (if (= status 21) (setq status 3))
         (if (= status 4)
@@ -714,6 +737,7 @@
       (setq status 0)))
   (if (> dialog 0) (unload_dialog dialog))
   (setq *EL:DialogID* nil)
+  (EL:PanelLifecycle "dialog-cleanup" (list (cons "final-status" status)))
   (cond
     ((= status 12)
       (list (cons 'library-suspended (list (cons 'result *EL:PanelDraft*)

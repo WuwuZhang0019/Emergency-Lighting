@@ -351,6 +351,26 @@ class ColdProbeTests(unittest.TestCase):
         self.assertNotIn('COLD_PROBE80', [name for name, _ in self.logged])
         self.assert_business_preserved()
 
+    def test_cold_panel_policy_is_explicit_in_both_modes_without_ui_dispatch(self):
+        for mode in ('Prototype', 'Both'):
+            with self.subTest(mode=mode):
+                self.mode = mode
+                self.h.builtins['EL:PANELDIALOG'] = self.forbidden('EL:PANELDIALOG')
+                self.h.builtins['C:ELSTAT'] = self.forbidden('C:ELSTAT')
+                messages = []
+                self.h.builtins['PRINC'] = lambda value='': messages.append(value)
+                self.call('EL:ColdRun')
+                route = self.get('panel-route', self.written[-1][1])
+                self.assertEqual(self.get('entry', route), 'ELCOLD80')
+                self.assertEqual(self.get('policy', route), Symbol('READONLY-COMPARISON'))
+                self.assertIsNone(self.get('panel-requested', route))
+                self.assertEqual(self.get('panel-file', route), 'ELFULL80.lsp')
+                self.assertEqual(self.get('panel-command', route), 'ELFULL80')
+                self.assertEqual(route, self.get('panel-route', self.h.lookup('*EL:COLDCONTEXT*')))
+                self.assertEqual(route, [detail for name, detail in self.logged if name == 'COLD_PANEL_ROUTE'][-1])
+                self.assertIn('APPLOAD 同包 ELFULL80.lsp', ''.join(messages))
+                self.assert_business_preserved()
+
     def test_checkpoints_report_inputs_and_explicit_coarse_completion(self):
         self.call('EL:ColdRun')
         checkpoints = [detail for name, detail in self.logged if name == 'COLD_CHECKPOINT']
@@ -461,6 +481,77 @@ class ColdProbeTests(unittest.TestCase):
         self.assertEqual(self.get('phase', context), 'REPORT_WRITE')
         self.assertIsNone(self.h.lookup(Symbol('*EL:COLDCOMPLETED*')))
         self.assertNotIn('COLD_PROBE80', [name for name, _ in self.logged])
+        self.assert_business_preserved()
+
+    def test_legacy_summary_detects_nested_closed_circuit_and_zero_device_result(self):
+        closed = [field('code', Symbol('CLOSED_CIRCUIT')), field('object', '1449F'), field('detail', 'D410')]
+        circuits = []
+        for i, count in enumerate((11, 37, 3, 3, 0), start=1):
+            circuits.append([field('id', 'R' + str(i)), field('complete', True if i != 2 else None),
+                             field('seed', [field('wire', 'ROOT' + str(i))]),
+                             field('wires', ['WIRE' + str(i)]), field('devices', ['D' + str(j) for j in range(count)]),
+                             field('issues', [closed] if i == 2 else None)])
+        result = [field('circuits', circuits), field('complete', None), field('issues', None)]
+        before = copy.deepcopy(result)
+        summary = self.call('EL:ColdLegacySummary', result)
+        self.assertEqual([self.get(key, summary) for key in ('circuits', 'incomplete-circuits',
+                         'zero-device-circuits', 'circuit-issue-count', 'global-issue-count')], [5, 1, 1, 1, 0])
+        self.assertIsNone(self.get('business-complete', summary))
+        self.assertEqual(self.get('issues', self.get('circuit-details', summary)[1]), [closed])
+        messages = []
+        self.h.builtins['PRINC'] = lambda value='': messages.append(value)
+        self.call('EL:ColdLegacyFeedback', summary)
+        text = ''.join(messages)
+        for token in ('R2', 'R5', '1449F', 'D410', 'CLOSED_CIRCUIT', 'ELFULL80'):
+            self.assertIn(token, text)
+        self.assertEqual(result, before)
+        self.assert_business_preserved()
+
+    def test_both_persists_business_summary_separately_from_probe_completion(self):
+        self.mode = 'Both'
+        closed = [field('code', Symbol('CLOSED_CIRCUIT')), field('object', '1449F'), field('detail', 'D410')]
+        result = [field('complete', None), field('issues', None), field('circuits', [
+            [field('id', 'R2'), field('complete', None), field('issues', [closed]),
+             field('devices', ['D410']), field('wires', ['1449F'])]])]
+        self.h.builtins['EL:RECOGNIZEFIXED'] = lambda *args: result
+        self.call('EL:ColdRun')
+        report = self.written[0][1]
+        summary = self.get('summary', self.get('legacy', report))
+        self.assertEqual(self.get('circuit-issue-count', summary), 1)
+        self.assertEqual(self.get('incomplete-circuits', summary), 1)
+        self.assertEqual(self.get('legacy-diagnostic-revision', report), '2026-10-22-legacy2')
+        self.assertTrue(truth(self.h.lookup(Symbol('*EL:COLDCOMPLETED*'))))
+        self.assertIsNone(self.get('business-complete', summary))
+        self.assertIn('COLD_LEGACY_SUMMARY', [name for name, _ in self.logged])
+        self.assert_business_preserved()
+
+    def test_legacy_summary_limits_rows_and_issue_details_but_counts_all(self):
+        issue = [field('code', Symbol('CLOSED_CIRCUIT')), field('object', 'W'), field('detail', 'D')]
+        circuit = [field('id', 'R'), field('complete', None), field('devices', ['D']), field('issues', [issue] * 15)]
+        summary = self.call('EL:ColdLegacySummary', [field('circuits', [circuit] * 35)])
+        rows = [detail for name, detail in self.logged if name == 'COLD_LEGACY_CIRCUIT']
+        self.assertEqual(len(rows), 32)
+        self.assertEqual(self.get('circuits', summary), 35)
+        self.assertEqual(self.get('circuits-omitted', summary), 3)
+        self.assertEqual(self.get('circuit-issue-count', summary), 525)
+        self.assertEqual(len(self.get('issues', rows[0])), 10)
+        self.assertTrue(truth(self.get('issues-truncated', rows[0])))
+        self.assert_business_preserved()
+
+    def test_legacy_diagnostic_flags_restore_on_failure(self):
+        keys = ('*EL:TRACEDIAGNOSTICS*', '*EL:TRACEDIAGNOSTICCOUNT*', '*EL:TRACEDIAGNOSTICOMITTED*')
+        for key in keys:
+            self.h.set(Symbol(key), ['previous-value'])
+        def fail(*args):
+            self.assertTrue(truth(self.h.lookup(Symbol(keys[0]))))
+            self.assertEqual(self.h.lookup(Symbol(keys[1])), 0)
+            self.assertEqual(self.h.lookup(Symbol(keys[2])), 0)
+            raise RuntimeError('legacy-trace-failed')
+        self.h.builtins['EL:RECOGNIZEFIXED'] = fail
+        with self.assertRaisesRegex(RuntimeError, 'legacy-trace-failed'):
+            self.call('EL:ColdLegacy', self.base_cfg, 'P0')
+        for key in keys:
+            self.assertEqual(self.h.lookup(Symbol(key)), ['previous-value'])
         self.assert_business_preserved()
 
     def test_root_handles_preserve_pick_order_and_empty_case(self):

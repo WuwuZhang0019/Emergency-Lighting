@@ -388,6 +388,8 @@
         ;; Date: 2026-10-15. Do not format or write diagnostics on the exit
         ;; path. Keep one completed run per open drawing for the export button.
         (if (or *EL:MonitorError* (EL:Get 'after-submit summary)
+            ;; Date: 2026-10-22. Silent native DCL failures must replace an old export context.
+            (EL:Get "panel-not-shown-reason" (EL:Get 'metrics summary))
             (> (cond ((EL:Get "recognize-fixed-calls" (EL:Get 'metrics summary))) (T 0)) 0)
             (not (EL:Get (namedobjdict) *EL:DiagnosticRuns*)))
           (setq *EL:DiagnosticRuns* (EL:Put (namedobjdict)

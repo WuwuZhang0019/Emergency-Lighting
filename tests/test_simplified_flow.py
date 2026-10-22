@@ -1,4 +1,4 @@
-"""Current-source draft and new-only generation checks. Date: 2026-10-16.
+"""Current-source draft and new-only generation checks. Date: 2026-10-22. Status: current.
 
 Finite adapters verify store identities and untouched old output; native CAD
 geometry/contact and placement still require original-DWG acceptance.
@@ -76,6 +76,7 @@ class SimplifiedFlowTests(unittest.TestCase):
         stages = []
         h.builtins.update({
             "EL:PERFSTART": lambda stage: stages.append(stage) or "timer",
+            "EL:PANELLIFECYCLE": lambda *args: None,
             "EL:PERFCALL": lambda stage, function, args:
                 stages.append(stage) or h.call(function, args or []),
             "EL:PERFFINISH": lambda *args: True,
@@ -110,6 +111,7 @@ class SimplifiedFlowTests(unittest.TestCase):
         stages = []
         h.builtins.update({
             "EL:PERFSTART": lambda stage: stages.append(stage) or "timer",
+            "EL:PANELLIFECYCLE": lambda *args: None,
             "EL:PERFCALL": lambda stage, function, args:
                 stages.append(stage) or None,
             "EL:PERFFINISH": lambda *args: True,

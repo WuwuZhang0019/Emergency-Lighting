@@ -423,14 +423,21 @@
 
 (defun EL:FixedStat (/ *error* next perfowner context)
   (defun *error* (msg)
+    (EL:PanelLifecycle "command-error" (list
+      (cons "error-at" (EL:Get "panel-lifecycle-stage" *EL:PerfMetrics*)) (cons "error" msg)))
     (EL:LogFailure msg)
     (vl-catch-all-apply 'EL:ReleasePowerUI nil)
     (if msg (princ (strcat "\n统计已停止：" msg)))
     (EL:PerfFinish 'failed) (princ))
   (setq perfowner (EL:PerfStart "ELSTAT") *EL:DiagnosticsDeferred* T)
+  (EL:PanelLifecycle "command-entry" '(("entry" . "ELSTAT") ("requested" . T)))
   ;; Date: 2026-10-14. Open the unified panel before asking for a CAD pick.
   (if (EL:EnsureRoot)
-    (setq next (EL:PerfCall "PANEL_HOME" 'EL:PanelDialog (list nil nil nil nil))))
+    (progn
+      (EL:PanelLifecycle "home-requested" nil)
+      (setq next (EL:PerfCall "PANEL_HOME" 'EL:PanelDialog (list nil nil nil nil)))
+      (EL:PanelLifecycle "home-returned" (list (cons "pick-requested" (EL:Get 'pick-panel next)))))
+    (EL:PanelLifecycle "root-unavailable" '(("not-shown-reason" . "root-unavailable"))))
   (if (setq context (EL:Get 'library-suspended next))
     (progn (setq *EL:DLParentContext* context *EL:DLParentContinue* 'EL:DLResumeHome)
       (setq next nil)))

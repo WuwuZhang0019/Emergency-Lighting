@@ -54,11 +54,63 @@
   (setq text "")
   (foreach row (EL:Get 'circuit-starts cfg)
     (setq text (strcat text (if (= text "") "" ",") (EL:Get 'wire row)))) text)
-(defun EL:ColdLegacy (cfg panel / *EL:CollectMemo* *EL:NetworkMemo* *EL:RecognitionContacts*
-    *EL:StableSnapshotMemo* *EL:StoreReadCache* *EL:NetworkReuseDisabled*)
-  ;; Dynamic bindings isolate all whole-result reuse, including the first new panel.
-  (setq *EL:NetworkReuseDisabled* T)
-  (EL:RecognizeFixed cfg panel))
+(defun EL:ColdLegacy (cfg panel / result *EL:CollectMemo* *EL:NetworkMemo* *EL:RecognitionContacts*
+    *EL:StableSnapshotMemo* *EL:StoreReadCache* *EL:NetworkReuseDisabled*
+    *EL:TraceDiagnostics* *EL:TraceDiagnosticCount* *EL:TraceDiagnosticOmitted*)
+  ;; Dynamic bindings isolate caches and opt-in evidence, even on failure.
+  (setq *EL:NetworkReuseDisabled* T *EL:TraceDiagnostics* T
+    *EL:TraceDiagnosticCount* 0 *EL:TraceDiagnosticOmitted* 0)
+  (setq result (EL:RecognizeFixed cfg panel))
+  (EL:LogEvent "COLD_TRACE_DIAGNOSTICS" (list (cons 'closed-edge-records *EL:TraceDiagnosticCount*)
+    (cons 'closed-edge-omitted *EL:TraceDiagnosticOmitted*) '(record-limit . 20)))
+  result)
+;; Date: 2026-10-22. Procedure return and per-circuit business problems are separate.
+(defun EL:ColdHead (items limit / out)
+  (repeat limit (if items (setq out (cons (car items) out) items (cdr items))))
+  (reverse out))
+(defun EL:ColdLegacySummary (result / circuits circuit issues row rows count incomplete empty issuecount)
+  (setq circuits (EL:Get 'circuits result) count 0 incomplete 0 empty 0 issuecount 0)
+  (foreach circuit circuits
+    (setq count (1+ count) issues (EL:Get 'issues circuit))
+    (if (not (EL:Get 'complete circuit)) (setq incomplete (1+ incomplete)))
+    (if (not (EL:Get 'devices circuit)) (setq empty (1+ empty)))
+    (setq issuecount (+ issuecount (length issues)))
+    (if (<= count 32)
+      (progn
+        (setq row (list (cons 'id (EL:Get 'id circuit))
+          (cons 'seed (EL:Get 'wire (EL:Get 'seed circuit))) (cons 'seed-key (EL:Get 'seed-key circuit))
+          (cons 'circuit-number (EL:Get 'circuit-number circuit))
+          (cons 'complete (EL:Get 'complete circuit))
+          (cons 'wire-count (length (EL:Get 'wires circuit)))
+          (cons 'device-count (length (EL:Get 'devices circuit)))
+          (cons 'issue-count (length issues)) (cons 'issues (EL:ColdHead issues 10))
+          (cons 'issues-truncated (> (length issues) 10))))
+        (EL:LogEvent "COLD_LEGACY_CIRCUIT" row)
+        (setq rows (cons row rows)))))
+  (list '(diagnostic-revision . "2026-10-22-legacy2")
+    (cons 'result-present (if result T nil)) (cons 'business-complete (EL:Get 'complete result))
+    (cons 'circuits count) (cons 'incomplete-circuits incomplete) (cons 'zero-device-circuits empty)
+    (cons 'global-issue-count (length (EL:Get 'issues result)))
+    (cons 'snapshot-issue-count (length (EL:Get 'issues (EL:Get 'snapshot result))))
+    (cons 'circuit-issue-count issuecount) '(circuit-record-limit . 32)
+    (cons 'circuits-omitted (max 0 (- count 32))) (cons 'circuit-details (reverse rows))))
+(defun EL:ColdLegacyFeedback (summary / row issue shown)
+  (princ (strcat "\n完整旧路径结果：" (itoa (EL:Get 'circuits summary)) " 条回路，"
+    (itoa (EL:Get 'incomplete-circuits summary)) " 条未完成，"
+    (itoa (EL:Get 'circuit-issue-count summary)) " 项回路问题，"
+    (itoa (EL:Get 'zero-device-circuits summary)) " 条零设备回路。"))
+  (setq shown 0)
+  (foreach row (EL:Get 'circuit-details summary)
+    (if (and (< shown 10) (or (not (EL:Get 'complete row))
+        (> (EL:Get 'issue-count row) 0) (= (EL:Get 'device-count row) 0)))
+      (progn
+        (setq shown (1+ shown))
+        (princ (strcat "\n回路 " (EL:LogText (EL:Get 'id row)) "：设备 "
+          (itoa (EL:Get 'device-count row)) "，问题 " (itoa (EL:Get 'issue-count row))))
+        (foreach issue (EL:ColdHead (EL:Get 'issues row) 3)
+          (princ (strcat " / " (EL:LogText (EL:Get 'code issue)) "，对象 "
+            (EL:LogText (EL:Get 'object issue)) "，关联 " (EL:LogText (EL:Get 'detail issue))))))))
+  (princ "\n本命令为只读对照，不打开统计面板；面板测试请 APPLOAD 同包 ELFULL80.lsp 后运行 ELFULL80。"))
 (defun EL:ColdBoundsAudit (samples / row actual checked missing different verdict)
   ;; This COM parity audit is outside managed timing and is separately reported.
   (setq checked 0 missing 0 different 0)
@@ -77,12 +129,17 @@
   (strcat *EL:Root* "output/ELCOLD80-" (rtos (getvar "CDATE") 2 8)
     "-" (itoa (EL:Tick)) extension))
 (defun EL:ColdRun (/ mode pick panel saved cfg started loaded selected returned audited finished
-    owner epoch ss payload audit nativepath reportpath report legacy legacy-start legacy-end result rows row)
+    owner epoch ss payload audit nativepath reportpath report legacy legacy-start legacy-end result rows row legacy-summary panelroute)
   (setq *EL:ColdCompleted* nil *EL:ColdContext* nil)
   ;; Date: 2026-10-22. An early failure must not export a previous run's reports.
   (setq *EL:ColdReports* (EL:Put (namedobjdict) nil *EL:ColdReports*))
-  (EL:ColdCheckpoint "MODE" (list '(diagnostic-revision . "2026-10-22-logs1")))
+  (setq panelroute '((entry . "ELCOLD80") (policy . readonly-comparison)
+    (panel-requested . nil) (panel-file . "ELFULL80.lsp") (panel-command . "ELFULL80")))
+  (EL:ColdCheckpoint "MODE" (list '(diagnostic-revision . "2026-10-22-logs1")
+    '(legacy-diagnostic-revision . "2026-10-22-legacy2") (cons 'panel-route panelroute)))
+  (EL:LogEvent "COLD_PANEL_ROUTE" panelroute)
   (princ "\nELCOLD80：只读冷路径性能原型；当前 .NET 仅验证批量读取、索引及保守候选发现，不替代完整识别。")
+  (princ "\n此入口不打开统计面板；面板测试请 APPLOAD 同包 ELFULL80.lsp 后运行 ELFULL80。")
   (initget "Both Prototype")
   (setq mode (getkword "\n模式 [完整旧路径对照(Both)/仅原型(Prototype)] <Both>："))
   (if (not mode) (setq mode "Both"))
@@ -159,9 +216,12 @@
               (EL:LogEvent "COLD_LEGACY_RETURN" (list (cons 'elapsed-ms (EL:PerfDelta legacy-start legacy-end))
                 (cons 'result-type (type result)) (cons 'circuits (length (EL:Get 'circuits result)))
                 (cons 'issues (EL:Get 'issues result))))
+              (EL:ColdCheckpoint "LEGACY_SUMMARY" (list '(legacy-returned . T)))
+              (setq legacy-summary (EL:ColdLegacySummary result))
+              (EL:LogEvent "COLD_LEGACY_SUMMARY" legacy-summary)
               (setq legacy (list '(status . legacy-full-readonly)
                 (cons 'circuits (length (EL:Get 'circuits result)))
-                (cons 'result (EL:DiagnosticResult result))))))
+                (cons 'summary legacy-summary) (cons 'result (EL:DiagnosticResult result))))))
           (EL:ColdCheckpoint "FINAL_SOURCE_GUARD" (list (cons 'owner-same (equal owner (namedobjdict)))
             (cons 'epoch-after *EL:FreshEpoch*)))
           (setq finished (EL:Tick))
@@ -170,7 +230,8 @@
           (EL:ColdCheckpoint "REPORT_WRITE" nil)
           (setq report (list '(version . 1) '(date . "2026-10-22") '(package . "v0.1.80")
             '(diagnostic-revision . "2026-10-22-logs1")
-            (cons 'legacy-executed (equal mode "Both"))
+            '(legacy-diagnostic-revision . "2026-10-22-legacy2")
+            (cons 'legacy-executed (equal mode "Both")) (cons 'panel-route panelroute)
             (cons 'bounds-audit-passed (and (= (EL:Get 'missing audit) 0) (= (EL:Get 'different audit) 0)))
             '(status . prototype-coarse-only) '(complete-native-recognition . nil)
             '(target-full-recognition-ms . 3000) '(target-achieved . unverified)
@@ -197,8 +258,8 @@
             (itoa (EL:PerfDelta legacy-start legacy-end)) " ms。")))
           (princ (strcat "\n边界抽查：" (itoa (EL:Get 'checked audit)) " 项，缺失 "
             (itoa (EL:Get 'missing audit)) " 项，差异 " (itoa (EL:Get 'different audit)) " 项。"))
-          (princ (if (equal mode "Both") "\n本次已执行完整旧路径只读对照。"
-            "\n本次选择 Prototype，仅候选阶段完成；未执行完整旧路径识别，不会打开统计面板。"))
+          (if (equal mode "Both") (EL:ColdLegacyFeedback legacy-summary)
+            (princ "\n本次选择 Prototype，仅候选阶段完成；未执行完整旧路径识别，不会打开统计面板。"))
           (princ "\n当前原型尚未执行 .NET 精细识别与编号；完整首次识别 3 秒目标尚未验收。")
           (princ (strcat "\n原型报告：" nativepath "\n对照报告：" reportpath "\n运行 ELDIAG 可一并导出。")))))))
 (defun c:ELCOLD80 (/ *error* outcome *EL:ColdCompleted* *EL:ColdContext*)

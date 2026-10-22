@@ -1,0 +1,131 @@
+{
+  "date": "2026-10-22",
+  "status": "passed",
+  "scope": "source-only bounded panel route and legacy recognition diagnostics",
+  "legacy_diagnostic_revision": "2026-10-22-legacy2",
+  "input": {
+    "archive": "C:\\Users\\Zyf\\Downloads\\output (35).zip",
+    "sha256": "b43e110b7051dedcc4e8d2cfa8e4de7301f60ea969de7422a4b6aff9beb745bd",
+    "mode": "Both",
+    "panel": "26052",
+    "prototype_pick_to_return_ms": 2735,
+    "legacy_full_ms": 21266,
+    "business_complete": false,
+    "circuits": [
+      {
+        "id": "R1",
+        "complete": true,
+        "wire_count": 12,
+        "device_count": 11,
+        "issues": []
+      },
+      {
+        "id": "R2",
+        "complete": false,
+        "wire_count": 24,
+        "device_count": 37,
+        "issues": [
+          {
+            "code": "CLOSED_CIRCUIT",
+            "object": "1449F",
+            "detail": "D410"
+          }
+        ]
+      },
+      {
+        "id": "R3",
+        "complete": true,
+        "wire_count": 3,
+        "device_count": 3,
+        "issues": []
+      },
+      {
+        "id": "R4",
+        "complete": true,
+        "wire_count": 5,
+        "device_count": 3,
+        "issues": []
+      },
+      {
+        "id": "R5",
+        "complete": true,
+        "wire_count": 2,
+        "device_count": 0,
+        "issues": []
+      }
+    ],
+    "user_reported_symptom": "statistics panel did not open",
+    "panel_route": {
+      "invoked": "ELCOLD80",
+      "policy": "readonly-comparison",
+      "panel_requested": false,
+      "correct_entry_file": "ELFULL80.lsp",
+      "correct_entry_command": "ELFULL80",
+      "conclusion": "ELCOLD80 does not dispatch the statistics panel in either mode"
+    }
+  },
+  "targeted_regression": {
+    "modules_or_tests": [
+      "test_cold_probe",
+      "test_contact_junction_cycles",
+      "test_panel_lifecycle",
+      "test_full_test_entry",
+      "test_simplified_flow.SimplifiedFlowTests.test_elstat_opens_panel_before_pick",
+      "test_simplified_flow.SimplifiedFlowTests.test_elstat_cancel_does_not_start_pick",
+      "test_panel_library_toggle.PanelLibraryToggleTests.test_default_home_expands_collapses_and_preserves_position_without_writing",
+      "test_panel_library_toggle.PanelLibraryToggleTests.test_preview_and_combined_diagnostic_preserve_capacity_across_widths"
+    ],
+    "tests": 78,
+    "failures": 0,
+    "errors": 0,
+    "elapsed_seconds": 16.828
+  },
+  "strict_gb2312_encodable_source": [
+    "src/cold-probe.lsp",
+    "src/topology.lsp",
+    "src/panel.lsp",
+    "src/diagram-commands.lsp",
+    "src/common.lsp"
+  ],
+  "limits": {
+    "closed_edge_events": 20,
+    "path_nodes": 32,
+    "neighbour_items": 16,
+    "geometry_segments": 8,
+    "circuit_rows": 32,
+    "issues_per_row": 10,
+    "console_problem_rows": 10
+  },
+  "sources_sha256": {
+    "src/cold-probe.lsp": "7c874f742b36c3fd48572d8bd7dd605762fba6193c727b217728b443d53f351d",
+    "src/topology.lsp": "96db6c1bf1a1bdaf148746aa3bf9366b2af03592b81db09f72a182f12cfc3eec",
+    "src/panel.lsp": "943eb14c76f63ece5ffe1ecd577161bc1b2bc33ef14bb4debdb8c476ba604822",
+    "src/diagram-commands.lsp": "ab82cc565f776f387e935e1269fe2b97e96277321b6044aef36ae8d610e3b88e",
+    "src/common.lsp": "944cd322c0a52b3addd3420a98c19b784e1ccf3864d98a253b389ae7a0cb0f6f",
+    "tests/test_cold_probe.py": "11500d31511977d65e3ad4d6cdcb69555b141d18e21f973b2fbf6acb75ded9ce",
+    "tests/test_contact_junction_cycles.py": "423e268980bf7925771055b952813d57ea89c089b146bbfcaa671f41c18fe8c7",
+    "tests/test_simplified_flow.py": "c08db130757a65c1e6dac5d30d64861c0ddb5e41b5dd26b5ab45e5bbf71c3ba7",
+    "tests/test_panel_lifecycle.py": "21bca04094f3ed86929f6b852eba41a885983a76958676f568e882eb5513c451"
+  },
+  "drawing_writes": "none added",
+  "recognition_predicates_changed": false,
+  "package_generated": false,
+  "native_cad_status": "panel routing established from source and supplied run; new lifecycle and closure diagnostics pending original-DWG verification",
+  "panel_diagnostics": {
+    "revision": "2026-10-22-legacy2",
+    "metrics": "panel-* in ELPERF summary",
+    "event": "PANEL_LIFECYCLE when business logging active",
+    "records": [
+      "entry",
+      "root availability",
+      "DCL path and load code",
+      "new_dialog name,position,result",
+      "start_dialog count",
+      "return status and action",
+      "error-at stage and original message"
+    ],
+    "export": "failed DCL load or new_dialog replaces stale current-drawing diagnostic context",
+    "extra_file_io": "none; use existing metrics/deferred logs",
+    "native_visibility_claimed": false
+  }
+}

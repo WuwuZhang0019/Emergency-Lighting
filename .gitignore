@@ -286,3 +286,8 @@ config/power-input-*.eld
 /output/native-cold-v0.1.76/
 /output/应急照明-v0.1.76/
 /output/应急照明-v0.1.76.zip
+
+# Date: 2026-10-22. v0.1.77 external-call bridge repair trial.
+/output/native-cold-v0.1.77/
+/output/应急照明-v0.1.77/
+/output/应急照明-v0.1.77.zip

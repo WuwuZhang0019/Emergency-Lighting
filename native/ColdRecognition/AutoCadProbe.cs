@@ -87,7 +87,7 @@ namespace EmergencyLighting.ColdRecognition
         // Flat arguments: selection set, panel ObjectId, comma-separated root handles,
         // device tolerance, Dmax, boundary tolerance, existing output folder/file path.
         // Return value: (jsonText ((handle minPoint maxPoint) ...)), at most 16 samples.
-        [LispFunction("ELNETCOLD76")]
+        [LispFunction("ELNETCOLD77")]
         public static ResultBuffer Run(ResultBuffer arguments)
         {
             try
@@ -97,7 +97,7 @@ namespace EmergencyLighting.ColdRecognition
                 TypedValue[] values = arguments == null ? new TypedValue[0] : arguments.AsArray();
                 if (values.Length == 1 && values[0].TypeCode == (int)LispDataType.Text &&
                     String.Equals(values[0].Value as string, "EL_NET_COLD_PING_V1", StringComparison.Ordinal))
-                    return new ResultBuffer(new TypedValue((int)LispDataType.Text, "EL_NET_COLD_PROBE_V1/0.1.76"));
+                    return new ResultBuffer(new TypedValue((int)LispDataType.Text, "EL_NET_COLD_PROBE_V1/0.1.77"));
                 return RunCore(arguments);
             }
             catch (System.Exception)
@@ -129,7 +129,7 @@ namespace EmergencyLighting.ColdRecognition
             try
             {
                 TypedValue[] values = arguments == null ? new TypedValue[0] : arguments.AsArray();
-                if (values.Length != 7) throw new ArgumentException("ELNETCOLD76 expects exactly seven flat arguments.");
+                if (values.Length != 7) throw new ArgumentException("ELNETCOLD77 expects exactly seven flat arguments.");
                 SelectionSet selection = values[0].Value as SelectionSet;
                 if (selection == null) throw new ArgumentException("The first argument must be a SelectionSet.");
                 if (!(values[1].Value is ObjectId)) throw new ArgumentException("The panel argument must be an ObjectId.");

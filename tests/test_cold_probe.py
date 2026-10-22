@@ -22,11 +22,15 @@ class ColdProbeTests(unittest.TestCase):
         self.h = Host()
         for filename in ('common', 'geometry', 'simple', 'diagram-update', 'diagram-commands', 'cold-probe'):
             self.h.load_definitions(ROOT / 'src' / (filename + '.lsp'))
+        # Date: 2026-10-22. Keep the actual PerfCall body, including its APPLY.
+        self.h.functions[Symbol('TEST:REALPERFCALL')] = self.h.functions[Symbol('EL:PERFCALL')]
+        self.indirect_calls = []
+        self.flow_trace = []
         self.calls = []
         self.written = []
         self.logged = []
         self.ready = False
-        self.handshake_response = 'EL_NET_COLD_PROBE_V1/0.1.76'
+        self.handshake_response = 'EL_NET_COLD_PROBE_V1/0.1.77'
         self.atom_result = [None]
         self.library_found = True
         self.command_loads = True
@@ -59,6 +63,8 @@ class ColdProbeTests(unittest.TestCase):
             'INITGET': lambda *args: None,
             'GETKWORD': lambda *args: self.mode,
             'ATOMS-FAMILY': lambda *args: self.atom_result,
+            'APPLY': self.native_safe_apply,
+            'VL-CATCH-ALL-APPLY': self.native_safe_catch,
             'FINDFILE': lambda path: path if self.library_found else None,
             'COMMAND': self.command,
             'HANDENT': lambda handle: handle if handle in {'P0', 'D0'} else None,
@@ -79,10 +85,10 @@ class ColdProbeTests(unittest.TestCase):
             'EL:TICK': self.tick,
             'EL:PRESETSELECTION': self.selection,
             'EL:PARAM': lambda cfg, key: self.get(str(key), self.get('params', cfg)),
-            'ELNETCOLD76': self.native,
+            'ELNETCOLD77': self.native,
             'EL:ENTITYBOUNDS': lambda entity: self.bounds.get(entity),
             'EL:WRITEDATA': self.write_data,
-            'EL:LOGEVENT': lambda name, detail: self.logged.append((name, detail)),
+            'EL:LOGEVENT': self.log_event,
             'GETVAR': lambda key: 20261022.1 if key == 'CDATE' else 1000,
             'EL:LOGCALL': lambda name, detail, fn, args: self.h.call(fn, seq(args)),
             'EL:PERFCALL': self.perf_call,
@@ -126,17 +132,45 @@ class ColdProbeTests(unittest.TestCase):
         return self.clock
 
     def command(self, *args):
+        self.flow_trace.append(('command', args[0]))
         self.calls.append(('command', args))
         self.assertEqual(args[0], '_.NETLOAD')
-        self.assertTrue(args[1].endswith('native/EmergencyLighting.ColdRecognition76.dll'))
+        self.assertTrue(args[1].endswith('native/EmergencyLighting.ColdRecognition77.dll'))
         if self.command_error:
             raise RuntimeError(self.command_error)
         if self.command_loads:
             self.ready = True
 
+    def indirect_target(self, kind, fn):
+        self.indirect_calls.append((kind, fn))
+        self.flow_trace.append((kind, str(fn)))
+        # Date: 2026-10-22. Model the observed target-resolution failure before
+        # the catch body. Also reject a registered target as a conservative case;
+        # this fixture is not a claim about every native external function.
+        if fn == Symbol('ELNETCOLD77'):
+            raise RuntimeError('函数错误: ELNETCOLD77')
+
+    def native_safe_apply(self, fn, args):
+        self.indirect_target('apply', fn)
+        return self.h.call(fn, seq(args))
+
+    def native_safe_catch(self, fn, args):
+        self.indirect_target('catch', fn)
+        return self.h.catch(fn, args)
+
+    def log_event(self, name, detail):
+        self.flow_trace.append(('log', name))
+        self.logged.append((name, detail))
+
     def perf_call(self, stage, fn, args):
         self.calls.append(('perf', stage))
-        return self.h.call(fn, seq(args))
+        if stage == 'COLD_NATIVE_LOAD':
+            self.assertEqual(fn, Symbol('EL:COLDLOAD'))
+        elif stage == 'COLD_NATIVE_PROBE':
+            self.assertEqual(fn, Symbol('EL:COLDNATIVEINVOKE'))
+        # Execute the production body so a direct external entry hidden behind
+        # PerfCall cannot pass through the old shortcut fixture.
+        return self.call('TEST:RealPerfCall', stage, fn, args)
 
     def pick_model(self, kind, prompt):
         self.calls.append(('pick-panel', kind))
@@ -154,15 +188,17 @@ class ColdProbeTests(unittest.TestCase):
 
     def native(self, *args):
         if len(args) == 1:
+            self.flow_trace.append(('native', 'handshake'))
             self.calls.append(('handshake', args))
             self.assertEqual(args, ('EL_NET_COLD_PING_V1',))
             if not self.ready:
-                raise RuntimeError('no function definition: ELNETCOLD76')
+                raise RuntimeError('no function definition: ELNETCOLD77')
             return self.handshake_response
+        self.flow_trace.append(('native', 'main'))
         self.calls.append(('native', args))
         self.assertEqual(len(args), 7)
         if not self.ready:
-            raise RuntimeError('no function definition: ELNETCOLD76')
+            raise RuntimeError('no function definition: ELNETCOLD77')
         return self.main_native(*args)
 
     def native_main(self, *args):
@@ -194,6 +230,125 @@ class ColdProbeTests(unittest.TestCase):
     def assert_business_preserved(self):
         self.assertIs(self.h.lookup(Symbol('*EL:RESULT*')), self.business_result)
         self.assertIs(self.h.lookup(Symbol('*EL:DEVICERESULT*')), self.device_result)
+
+    def enable_real_timing(self):
+        for name in ('EL:PERFBEGIN', 'EL:PERFEND'):
+            self.h.builtins.pop(name, None)
+        values = {'*EL:PERFACTIVE*': True, '*EL:PERFDETAIL*': None,
+                  '*EL:PERFWAITDEPTH*': 0, '*EL:PERFWAITMS*': 0,
+                  '*EL:PERFSERIAL*': 0, '*EL:PERFPENDING*': None,
+                  '*EL:PERFSTAGES*': None, '*EL:MONITORROWS*': None}
+        for name, value in values.items():
+            self.h.set(Symbol(name), value)
+
+    def test_fixture_reproduces_external_target_failure_before_catch(self):
+        # The previous implementation passed the external symbol straight to
+        # vl-catch-all-apply and later via PerfCall's APPLY. Neither may bypass
+        # the dispatch restriction even if the external function is registered.
+        for ready in (False, True):
+            with self.subTest(ready=ready):
+                self.ready = ready
+                for entry in ('APPLY', 'VL-CATCH-ALL-APPLY'):
+                    with self.assertRaisesRegex(RuntimeError, '函数错误: ELNETCOLD77'):
+                        self.call(entry, Symbol('ELNETCOLD77'), ['EL_NET_COLD_PING_V1'])
+                with self.assertRaisesRegex(RuntimeError, '函数错误: ELNETCOLD77'):
+                    self.call('TEST:RealPerfCall', 'COLD_NATIVE_PROBE', Symbol('ELNETCOLD77'),
+                              [['D0'], 'P0', 'W2,W1', 0.01, 2000.0, 0.1, 'probe.json'])
+        self.assertEqual(self.calls, [])
+        self.assertEqual(self.logged, [])
+        self.assertEqual(self.written, [])
+
+    def test_direct_native_wrappers_preserve_protocol_and_all_seven_arguments(self):
+        self.ready = True
+        self.assertEqual(self.call('EL:ColdNativePing'), self.handshake_response)
+        arguments = [['P0', 'W1', 'D0'], 'P0', 'W2,W1', 0.01, 2000.0, 0.1, 'probe.json']
+        self.assertEqual(self.call('EL:ColdNativeInvoke', *arguments), self.native_main(*arguments))
+        self.assertEqual(self.calls, [('handshake', ('EL_NET_COLD_PING_V1',)),
+                                     ('native', tuple(arguments))])
+        self.assertEqual(self.indirect_calls, [])
+        self.assert_business_preserved()
+
+    def test_unregistered_native_loads_after_caught_ping_then_uses_lisp_dispatch(self):
+        self.call('EL:ColdRun')
+        self.assertEqual(self.indirect_calls,
+                         [('apply', Symbol('EL:COLDLOAD')),
+                          ('catch', Symbol('EL:COLDNATIVEPING')),
+                          ('catch', Symbol('EL:COLDNATIVEPING')),
+                          ('catch', Symbol('EL:PERFCALL')),
+                          ('apply', Symbol('EL:COLDNATIVEINVOKE'))])
+        first_ping = self.flow_trace.index(('catch', 'EL:COLDNATIVEPING'))
+        netload = self.flow_trace.index(('command', '_.NETLOAD'))
+        main = self.flow_trace.index(('native', 'main'))
+        self.assertLess(self.flow_trace.index(('log', 'COLD_NATIVE_HANDSHAKE_BEGIN')), first_ping)
+        self.assertLess(first_ping, netload)
+        self.assertLess(netload, self.flow_trace.index(('log', 'COLD_NATIVE_PROBE_BEGIN')))
+        self.assertLess(self.flow_trace.index(('log', 'COLD_NATIVE_PROBE_BEGIN')), main)
+        self.assertEqual([name for name, _ in self.logged].count('COLD_NATIVE_HANDSHAKE_BEGIN'), 2)
+        self.assertNotIn('COLD_NATIVE_PROBE_FAILED', [name for name, _ in self.logged])
+        self.assert_business_preserved()
+
+    def test_default_detail_off_records_real_load_and_probe_frames(self):
+        self.enable_real_timing()
+        original = self.main_native
+
+        def check_frame(*args):
+            pending = self.h.lookup(Symbol('*EL:PERFPENDING*'))
+            self.assertEqual(len(pending), 1)
+            self.assertEqual(self.get('stage', pending[0]), 'COLD_NATIVE_PROBE')
+            self.assertEqual(self.get('label', pending[0]), 'EL:COLDNATIVEINVOKE')
+            return original(*args)
+
+        self.main_native = check_frame
+        self.call('EL:ColdRun')
+        stages = self.h.lookup(Symbol('*EL:PERFSTAGES*'))
+        for stage in ('COLD_NATIVE_LOAD', 'COLD_NATIVE_PROBE'):
+            row = self.call('EL:Get', stage, stages)
+            self.assertEqual(self.get('calls', row), 1)
+            self.assertEqual(self.get('interrupted', row), 0)
+            self.assertGreater(self.get('program-ms', row), 0)
+        self.assertIsNone(self.h.lookup(Symbol('*EL:PERFPENDING*')))
+        self.assertIsNone(self.h.lookup(Symbol('*EL:PERFDETAIL*')))
+        self.assert_business_preserved()
+
+    def test_failed_load_records_interrupted_frame_without_detail(self):
+        self.enable_real_timing()
+        self.command_loads = False
+        outcome = self.call('EL:MeasuredCatch', Symbol('EL:COLDRUN'), None)
+        self.assertTrue(truth(self.call('VL-CATCH-ALL-ERROR-P', outcome)))
+        self.assertIn('握手失败', self.call('VL-CATCH-ALL-ERROR-MESSAGE', outcome))
+        stages = self.h.lookup(Symbol('*EL:PERFSTAGES*'))
+        load = self.call('EL:Get', 'COLD_NATIVE_LOAD', stages)
+        self.assertEqual(self.get('calls', load), 1)
+        self.assertEqual(self.get('interrupted', load), 1)
+        self.assertIsNone(self.call('EL:Get', 'COLD_NATIVE_PROBE', stages))
+        self.assertIsNone(self.h.lookup(Symbol('*EL:PERFPENDING*')))
+        self.assert_stopped_before_selection()
+
+    def test_native_error_is_logged_and_unwinds_only_probe_timing_frame(self):
+        self.enable_real_timing()
+        self.mode = 'Both'
+        outer = self.call('EL:PerfBegin', 'OUTER')
+        self.h.builtins['EL:ENTITYBOUNDS'] = self.forbidden('bounds-audit-after-native-error')
+
+        def fail(*args):
+            raise RuntimeError('native-prototype-read-error')
+
+        self.main_native = fail
+        with self.assertRaisesRegex(RuntimeError, '只读 .NET 原型调用失败：native-prototype-read-error'):
+            self.call('EL:ColdRun')
+        stages = self.h.lookup(Symbol('*EL:PERFSTAGES*'))
+        self.assertEqual(self.get('interrupted', self.call('EL:Get', 'COLD_NATIVE_LOAD', stages)), 0)
+        self.assertEqual(self.get('interrupted', self.call('EL:Get', 'COLD_NATIVE_PROBE', stages)), 1)
+        self.assertEqual(self.h.lookup(Symbol('*EL:PERFPENDING*')), [outer])
+        failed = [detail for name, detail in self.logged if name == 'COLD_NATIVE_PROBE_FAILED']
+        self.assertEqual(len(failed), 1)
+        self.assertEqual(self.get('error', failed[0]), 'native-prototype-read-error')
+        paths = self.call('EL:Get', self.owner, self.h.lookup(Symbol('*EL:COLDREPORTS*')))
+        self.assertEqual(self.get('report', failed[0]), paths[0])
+        self.assertEqual(self.written, [])
+        self.assertNotIn('collect', [row[0] for row in self.calls])
+        self.assertNotIn('COLD_PROBE77', [name for name, _ in self.logged])
+        self.assert_business_preserved()
 
     def test_root_handles_preserve_pick_order_and_empty_case(self):
         cfg = [field('circuit-starts', self.starts)]
@@ -281,7 +436,7 @@ class ColdProbeTests(unittest.TestCase):
         self.assertIsNone(self.get('legacy', report))
         self.assertEqual(self.get('mode', report), 'Prototype')
         self.assertEqual(self.get('checked', self.get('bounds-audit', report)), 1)
-        self.assertTrue(any(name == 'COLD_PROBE76' for name, _ in self.logged))
+        self.assertTrue(any(name == 'COLD_PROBE77' for name, _ in self.logged))
         self.assertEqual([row[1] for row in self.calls if row[0] == 'perf'],
                          ['COLD_NATIVE_LOAD', 'COLD_NATIVE_PROBE'])
         registry = self.h.lookup(Symbol('*EL:COLDREPORTS*'))
@@ -343,9 +498,10 @@ class ColdProbeTests(unittest.TestCase):
         self.assertEqual([row[0] for row in self.calls].count('handshake'), 2)
         self.assertNotIn('native', [row[0] for row in self.calls])
         names = [name for name, _ in self.logged]
-        self.assertEqual(names, ['COLD_NATIVE_HANDSHAKE', 'COLD_NATIVE_LOAD_BEGIN',
-                                 'COLD_NATIVE_LOAD_RETURNED', 'COLD_NATIVE_HANDSHAKE'])
-        first, last = self.logged[0][1], self.logged[-1][1]
+        self.assertEqual(names, ['COLD_NATIVE_HANDSHAKE_BEGIN', 'COLD_NATIVE_HANDSHAKE',
+                                 'COLD_NATIVE_LOAD_BEGIN', 'COLD_NATIVE_LOAD_RETURNED',
+                                 'COLD_NATIVE_HANDSHAKE_BEGIN', 'COLD_NATIVE_HANDSHAKE'])
+        first, last = [detail for name, detail in self.logged if name == 'COLD_NATIVE_HANDSHAKE']
         self.assertFalse(truth(self.get('ready', first)))
         self.assertIn('no function definition', self.get('error', first))
         self.assertTrue(truth(self.get('ready', last)))
@@ -354,8 +510,8 @@ class ColdProbeTests(unittest.TestCase):
         self.assert_business_preserved()
 
     def test_same_name_variable_without_callable_still_loads_native(self):
-        self.atom_result = ['ELNETCOLD76']
-        self.h.set(Symbol('ELNETCOLD76'), ['variable-only-not-a-function'])
+        self.atom_result = ['ELNETCOLD77']
+        self.h.set(Symbol('ELNETCOLD77'), ['variable-only-not-a-function'])
         self.call('EL:ColdLoad')
         self.assertEqual([row[0] for row in self.calls].count('command'), 1)
         self.assertEqual([row[0] for row in self.calls].count('handshake'), 2)
@@ -368,13 +524,14 @@ class ColdProbeTests(unittest.TestCase):
             self.h.builtins[name] = self.forbidden(name)
         self.assertTrue(truth(self.call('EL:ColdNativeReady')))
         self.assertEqual(self.calls, [('handshake', ('EL_NET_COLD_PING_V1',))])
-        self.assertEqual([name for name, _ in self.logged], ['COLD_NATIVE_HANDSHAKE'])
+        self.assertEqual([name for name, _ in self.logged],
+                         ['COLD_NATIVE_HANDSHAKE_BEGIN', 'COLD_NATIVE_HANDSHAKE'])
         self.assertEqual(self.written, [])
         self.assert_business_preserved()
 
     def test_single_element_handshake_envelope_is_ready_without_loading(self):
         self.ready = True
-        self.handshake_response = ['EL_NET_COLD_PROBE_V1/0.1.76']
+        self.handshake_response = ['EL_NET_COLD_PROBE_V1/0.1.77']
         self.call('EL:ColdLoad')
         self.assertNotIn('command', [row[0] for row in self.calls])
         self.assertNotIn('native', [row[0] for row in self.calls])
@@ -384,12 +541,12 @@ class ColdProbeTests(unittest.TestCase):
 
     def test_wrong_handshake_token_and_types_are_rejected(self):
         self.ready = True
-        for response in ('EL_NET_COLD_PROBE_V1/0.1.75', 'EL_NET_COLD_PROBE_V1/0.1.760',
+        for response in ('EL_NET_COLD_PROBE_V1/0.1.75', 'EL_NET_COLD_PROBE_V1/0.1.770',
                          ['EL_NET_COLD_PROBE_V1/0.1.75'],
-                         ['EL_NET_COLD_PROBE_V1/0.1.76', 'extra'],
-                         [['EL_NET_COLD_PROBE_V1/0.1.76']],
-                         [Symbol('EL_NET_COLD_PROBE_V1/0.1.76')],
-                         Symbol('EL_NET_COLD_PROBE_V1/0.1.76'), None, True, 76):
+                         ['EL_NET_COLD_PROBE_V1/0.1.77', 'extra'],
+                         [['EL_NET_COLD_PROBE_V1/0.1.77']],
+                         [Symbol('EL_NET_COLD_PROBE_V1/0.1.77')],
+                         Symbol('EL_NET_COLD_PROBE_V1/0.1.77'), None, True, 77):
             with self.subTest(response=response):
                 self.handshake_response = response
                 self.assertFalse(truth(self.call('EL:ColdNativeReady')))
@@ -472,7 +629,7 @@ class ColdProbeTests(unittest.TestCase):
         })
         self.h.set(Symbol('*EL:MONITORSTAMP*'), '20261022.120000')
         for owner, initial, expected in (
-                (True, 'ELSTAT/ELTRACE/ELPOWER', 'ELCOLD76'),
+                (True, 'ELSTAT/ELTRACE/ELPOWER', 'ELCOLD77'),
                 (None, 'EXTERNAL-PANEL-RUN', 'EXTERNAL-PANEL-RUN')):
             with self.subTest(owner=owner):
                 finished, written = [], []
@@ -494,7 +651,7 @@ class ColdProbeTests(unittest.TestCase):
                 self.h.builtins['EL:LOGSTART'] = log_start
                 self.h.builtins['EL:LOGFINISH'] = log_finish
                 self.h.builtins['EL:MONITORWRITE'] = monitor_write
-                self.call('C:ELCOLD76')
+                self.call('C:ELCOLD77')
                 self.assertEqual(finished, [(Symbol('COLD-PROBE-FINISHED'), expected)])
                 self.assertEqual(len(written), 1)
                 path, summary = written[0]

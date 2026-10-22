@@ -272,6 +272,8 @@
   (if (member stage '("USER_INPUT" "PLACEMENT_INPUT" "PANEL_DIALOG")) (EL:FreshBoundary))
   (if (and *EL:PerfActive* (or (member stage
       '("USER_INPUT" "PLACEMENT_INPUT" "PANEL_DIALOG" "RECOGNIZE_FIXED_RUN" "LOAD_ROOT" "LOAD_LIBRARY" "PICK_PANEL" "PICK_TRUNK"
+        ;; Date: 2026-10-22. Cold-probe batches must be recorded without detail mode.
+        "COLD_NATIVE_LOAD" "COLD_NATIVE_PROBE"
         "LOAD_ROOT_SEARCH" "LOAD_RUNTIME" "LOAD_RUNTIME_TEXT" "LOAD_RUNTIME_ASSETS"
         "PANEL_START_LOAD" "PANEL_START_NEW" "PANEL_START_INIT" "PANEL_START_BUTTONS" "PANEL_START_WAIT"
         "PANEL_HISTORY_READ" "PANEL_HISTORY_RESTORE" "PANEL_FILL" "PREPARE_PANEL" "NEW_RECORD" "READ_STORE"
@@ -607,6 +609,8 @@
       ("LOAD_ROOT_SEARCH" . "查找并确认交付目录") ("LOAD_RUNTIME" . "建立本地运行目录")
       ("LOAD_RUNTIME_TEXT" . "释放并回读源码与界面") ("LOAD_RUNTIME_ASSETS" . "释放并回读默认设备资源")
       ("LOAD_BOOTSTRAP" . "加载启动入口及公共函数")
+      ("COLD_NATIVE_LOAD" . "加载只读 .NET 原型并校验握手")
+      ("COLD_NATIVE_PROBE" . "执行只读 .NET 候选采集与索引")
       ("PICK_PANEL" . "拾取配电箱并处理回路") ("PICK_TRUNK" . "拾取集中引出线并处理回路")
       ("PICK_STARTS" . "拾取回路起始端导线") ("RECOGNIZE_STARTS" . "沿起始导线识别回路")
       ("PANEL_START_LOAD" . "读取面板文件") ("PANEL_START_NEW" . "创建面板")

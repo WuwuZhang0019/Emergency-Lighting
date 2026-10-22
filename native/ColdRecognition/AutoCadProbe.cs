@@ -20,6 +20,7 @@ namespace EmergencyLighting.ColdRecognition
 {
     public sealed class AutoCadProbe
     {
+        private const string DiagnosticRevision = "2026-10-22-logs1";
         private sealed class Wire
         {
             internal string Handle;
@@ -57,6 +58,22 @@ namespace EmergencyLighting.ColdRecognition
             internal readonly List<Endpoint> Ends = new List<Endpoint>();
             internal readonly List<Sample> Samples = new List<Sample>();
             internal readonly List<object> Errors = new List<object>();
+            internal readonly List<object> Stages = new List<object>();
+            internal readonly List<string> Roots = new List<string>();
+            internal readonly Dictionary<string, int> ErrorGroups = new Dictionary<string, int>();
+            internal readonly Stopwatch Clock = Stopwatch.StartNew();
+            internal string Phase = "entry";
+            internal string EntityType;
+            internal string CurrentHandle;
+            internal int? CurrentVertex;
+            internal string RootInput;
+
+            internal void Stage(string phase)
+            {
+                Phase = phase;
+                if (Stages.Count < 48)
+                    Stages.Add(Row("phase", phase, "elapsed-ms", Clock.Elapsed.TotalMilliseconds));
+            }
             internal readonly Dictionary<string, int> WireHandles = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             internal readonly Dictionary<string, object> Metrics = new Dictionary<string, object>();
             internal int ErrorCount;
@@ -79,8 +96,25 @@ namespace EmergencyLighting.ColdRecognition
             {
                 ++ErrorCount;
                 Status = "ERROR";
+                string group = phase + "/" + Phase + "/" + error.GetType().FullName;
+                if (ErrorGroups.ContainsKey(group)) ++ErrorGroups[group];
+                else if (ErrorGroups.Count < 20) ErrorGroups[group] = 1;
+                else
+                {
+                    const string overflow = "<other-error-groups>";
+                    if (!ErrorGroups.ContainsKey(overflow)) ErrorGroups[overflow] = 0;
+                    ++ErrorGroups[overflow];
+                }
                 if (Errors.Count < 10)
-                    Errors.Add(Row("handle", handle, "phase", phase, "type", error.GetType().FullName, "message", BoundedMessage(error)));
+                {
+                    Dictionary<string, object> details = DiagnosticDetails.Error(error);
+                    details["handle"] = handle;
+                    details["phase"] = phase;
+                    details["step"] = Phase;
+                    details["entity-type"] = EntityType;
+                    details["vertex-index"] = CurrentVertex;
+                    Errors.Add(details);
+                }
             }
         }
 
@@ -90,6 +124,7 @@ namespace EmergencyLighting.ColdRecognition
         [LispFunction("ELNETCOLD78")]
         public static ResultBuffer Run(ResultBuffer arguments)
         {
+            CallState state = null;
             try
             {
                 // The same callable entry proves both registration and version.
@@ -98,24 +133,62 @@ namespace EmergencyLighting.ColdRecognition
                 if (values.Length == 1 && values[0].TypeCode == (int)LispDataType.Text &&
                     String.Equals(values[0].Value as string, "EL_NET_COLD_PING_V1", StringComparison.Ordinal))
                     return new ResultBuffer(new TypedValue((int)LispDataType.Text, "EL_NET_COLD_PROBE_V1/0.1.78"));
-                return RunCore(arguments);
+                state = new CallState();
+                return RunCore(arguments, state);
             }
-            catch (System.Exception)
+            catch (System.Exception error)
             {
-                // Even a failure while serializing/returning diagnostics is never
-                // presented as a successful coarse analysis or a business result.
-                return new ResultBuffer(new TypedValue((int)LispDataType.ListBegin),
-                    new TypedValue((int)LispDataType.Text,
-                        "{\"schema\":\"EL_NET_COLD_PROBE_V1\",\"status\":\"ERROR\",\"complete-recognition\":false,\"readonly\":true,\"result-cache\":false,\"error\":\"Unhandled diagnostic serialization or bridge failure\"}"),
-                    new TypedValue((int)LispDataType.ListBegin), new TypedValue((int)LispDataType.ListEnd),
-                    new TypedValue((int)LispDataType.ListEnd));
+                // Preserve failures after the normal probe catch, including JSON,
+                // final report I/O and ResultBuffer construction. No extra file is created.
+                DiagnosticCommandLine("ELNETCOLD78 " + DiagnosticRevision + " failed at "
+                    + (state == null ? "entry" : state.Phase) + ": " + error.GetType().FullName
+                    + ": " + DiagnosticDetails.Bounded(error.Message, 1024));
+                try
+                {
+                    if (state == null) state = new CallState();
+                    state.Error(state.CurrentHandle ?? state.Panel ?? "", "bridge", error);
+                    string reportPath = DiagnosticReportPath(arguments);
+                    Dictionary<string, object> report = Row("schema", "EL_NET_COLD_PROBE_V1",
+                        "date", "2026-10-22", "diagnostic-revision", DiagnosticRevision,
+                        "status", "ERROR", "bridge-error", DiagnosticDetails.Error(error),
+                        "assembly", AssemblyDiagnostics(), "complete-recognition", false,
+                        "readonly", true, "result-cache", false, "last-phase", state.Phase,
+                        "stages", state.Stages, "errors", state.Errors, "error-groups", state.ErrorGroups,
+                        "report-path", reportPath);
+                    string json = Json(report);
+                    if (reportPath != null)
+                    {
+                        try { File.WriteAllText(reportPath, json, new UTF8Encoding(false)); }
+                        catch (System.Exception writeError)
+                        {
+                            report["fallback-report-write-error"] = DiagnosticDetails.Error(writeError);
+                            json = Json(report);
+                        }
+                    }
+                    DiagnosticCommandLine("ELNETCOLD78 " + DiagnosticRevision + " failed at " + state.Phase
+                        + ": " + error.GetType().FullName + ": " + DiagnosticDetails.Bounded(error.Message, 1024)
+                        + (reportPath == null ? " (report path unavailable)" : " | report=" + reportPath));
+                    return new ResultBuffer(new TypedValue((int)LispDataType.ListBegin),
+                        new TypedValue((int)LispDataType.Text, json),
+                        new TypedValue((int)LispDataType.ListBegin), new TypedValue((int)LispDataType.ListEnd),
+                        new TypedValue((int)LispDataType.ListEnd));
+                }
+                catch (System.Exception diagnosticError)
+                {
+                    DiagnosticCommandLine("ELNETCOLD78 fallback diagnostics failed: "
+                        + DiagnosticDetails.Bounded(diagnosticError.Message, 1024)
+                        + " | original=" + DiagnosticDetails.Bounded(error.Message, 1024));
+                    // Propagate the original probe/bridge failure to the LISP catch,
+                    // rather than replacing it with a secondary diagnostic exception.
+                    System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(error).Throw();
+                    return null;
+                }
             }
         }
 
-        private static ResultBuffer RunCore(ResultBuffer arguments)
+        private static ResultBuffer RunCore(ResultBuffer arguments, CallState state)
         {
             Stopwatch whole = Stopwatch.StartNew();
-            CallState state = new CallState();
             Dictionary<string, object> timings = new Dictionary<string, object>();
             Document document = null;
             Database database = null;
@@ -135,6 +208,7 @@ namespace EmergencyLighting.ColdRecognition
             bool observing = false;
             try
             {
+                state.Stage("arguments-begin");
                 TypedValue[] values = arguments == null ? new TypedValue[0] : arguments.AsArray();
                 if (values.Length != 7) throw new ArgumentException("ELNETCOLD78 expects exactly seven flat arguments.");
                 SelectionSet selection = values[0].Value as SelectionSet;
@@ -142,6 +216,7 @@ namespace EmergencyLighting.ColdRecognition
                 if (!(values[1].Value is ObjectId)) throw new ArgumentException("The panel argument must be an ObjectId.");
                 ObjectId panel = (ObjectId)values[1].Value;
                 string rootsText = values[2].Value as string;
+                state.RootInput = DiagnosticDetails.Bounded(rootsText, 2048);
                 if (String.IsNullOrWhiteSpace(rootsText)) throw new ArgumentException("Root handles are required.");
                 double deviceTolerance = Number(values[3].Value, "device tolerance");
                 double dmax = Number(values[4].Value, "Dmax");
@@ -151,6 +226,7 @@ namespace EmergencyLighting.ColdRecognition
                 if (String.IsNullOrWhiteSpace(reportPath)) throw new ArgumentException("A report path is required.");
                 reportPath = Path.GetFullPath(reportPath);
                 if (!Directory.Exists(Path.GetDirectoryName(reportPath))) throw new DirectoryNotFoundException("The report directory does not exist.");
+                state.Stage("source-guard-before");
                 document = CadApplication.DocumentManager.MdiActiveDocument;
                 if (document == null) throw new InvalidOperationException("No active document.");
                 database = document.Database;
@@ -162,37 +238,54 @@ namespace EmergencyLighting.ColdRecognition
                 ObjectId[] ids = selection.GetObjectIds();
                 selectedCount = ids.Length;
                 state.Panel = panel.Handle.ToString();
-                List<string> roots = new List<string>();
+                List<string> roots = state.Roots;
                 foreach (string entry in rootsText.Split(','))
                 {
                     string root = entry.Trim();
                     if (root.Length == 0 || !IsHandle(root)) throw new ArgumentException("Invalid root handle.");
                     if (!roots.Contains(root)) roots.Add(root);
                 }
+                state.Metrics["device-tolerance"] = deviceTolerance;
+                state.Metrics["Dmax"] = dmax;
+                state.Metrics["boundary-tolerance"] = boundaryTolerance;
+                state.Metrics["root-count"] = roots.Count;
+                state.Stage("arguments-complete");
                 timings["argument-selection-ms"] = whole.Elapsed.TotalMilliseconds;
                 database.ObjectModified += changed;
                 database.ObjectAppended += changed;
                 database.ObjectErased += erased;
                 observing = true;
                 Stopwatch phase = Stopwatch.StartNew();
+                state.Stage("entity-read-begin");
                 using (Transaction transaction = database.TransactionManager.StartTransaction())
                 {
+                    state.Phase = "transaction-model-space";
                     BlockTable table = (BlockTable)transaction.GetObject(database.BlockTableId, OpenMode.ForRead);
                     ObjectId model = table[BlockTableRecord.ModelSpace];
                     RegAppTable applications = (RegAppTable)transaction.GetObject(database.RegAppTableId, OpenMode.ForRead);
                     bool markerRegistered = applications.Has("EL_FIXED_V1");
+                    state.Phase = "panel-validation";
                     Entity panelEntity = transaction.GetObject(panel, OpenMode.ForRead) as Entity;
                     if (!(panelEntity is BlockReference) || panelEntity.OwnerId != model || (markerRegistered && IsManaged(panelEntity)))
                         throw new InvalidOperationException("The panel must be an unmanaged model-space block reference.");
                     foreach (ObjectId id in ids)
                     {
                         string handle = "";
+                        state.EntityType = null;
+                        state.CurrentHandle = null;
+                        state.CurrentVertex = null;
                         try
                         {
+                            state.Phase = "entity-handle";
                             handle = id.Handle.ToString();
+                            state.CurrentHandle = handle;
+                            state.Phase = "entity-open";
                             Entity entity = transaction.GetObject(id, OpenMode.ForRead) as Entity;
+                            state.EntityType = entity == null ? null : entity.GetType().FullName;
+                            state.Phase = "entity-owner";
                             if (entity == null || entity.OwnerId != model)
                                 throw new InvalidOperationException("Selection contains a non-model-space entity.");
+                            state.Phase = "entity-managed-marker";
                             if (markerRegistered && IsManaged(entity)) { ++state.Managed; continue; }
                             BlockReference block = entity as BlockReference;
                             Line line = entity as Line;
@@ -200,22 +293,28 @@ namespace EmergencyLighting.ColdRecognition
                             if (block != null)
                             {
                                 ++state.Inserts;
+                                state.Phase = "block-extents";
                                 Bounds3 bounds = ReadBounds(entity, state);
+                                state.Phase = "block-definition";
                                 ObjectId definitionId = block.IsDynamicBlock ? block.DynamicBlockTableRecord : block.BlockTableRecord;
                                 BlockTableRecord definition = (BlockTableRecord)transaction.GetObject(definitionId, OpenMode.ForRead);
+                                state.Phase = "block-position-record";
                                 state.Blocks.Add(new Block { Handle = handle, Bounds = bounds, EffectiveName = definition.Name, Position = Point(block.Position) });
                                 if (state.Samples.Count < 16) state.Samples.Add(new Sample { Handle = handle, Bounds = bounds });
                             }
                             else if (line != null)
                             {
                                 ++state.Lines;
+                                state.Phase = "line-points";
                                 Point3 a = Point(line.StartPoint);
                                 Point3 b = Point(line.EndPoint);
+                                state.Phase = "line-endpoints-record";
                                 AddWire(state, handle, Bounds3.Union(Bounds3.At(a), Bounds3.At(b)), new Point3[] { a, b }, new double[] { 0.0, 0.0 }, false);
                             }
                             else if (polyline != null)
                             {
                                 ++state.Polylines;
+                                state.Phase = "polyline-vertex-count";
                                 int count = polyline.NumberOfVertices;
                                 state.Vertices += count;
                                 if (count < 2) throw new InvalidOperationException("A polyline has fewer than two vertices.");
@@ -223,33 +322,51 @@ namespace EmergencyLighting.ColdRecognition
                                 double[] bulges = new double[count];
                                 for (int vertex = 0; vertex < count; ++vertex)
                                 {
+                                    state.CurrentVertex = vertex;
+                                    state.Phase = "polyline-vertex-point";
                                     points[vertex] = Point(polyline.GetPoint3dAt(vertex));
+                                    state.Phase = "polyline-vertex-bulge-width";
                                     bulges[vertex] = polyline.GetBulgeAt(vertex);
                                     Number(bulges[vertex], "bulge", true);
                                     Number(polyline.GetStartWidthAt(vertex), "start width");
                                     Number(polyline.GetEndWidthAt(vertex), "end width");
                                     if (Math.Abs(bulges[vertex]) > 1.0e-12) ++state.CurvedSegments;
                                 }
+                                state.CurrentVertex = null;
+                                state.Phase = "polyline-normal-closed";
                                 Vector3d normal = polyline.Normal;
                                 if (normal.X != 0.0 || normal.Y != 0.0 || normal.Z != 1.0) ++state.NonDefaultNormals;
                                 bool closed = polyline.Closed;
                                 if (closed) ++state.Closed;
-                                AddWire(state, handle, ReadBounds(entity, state), points, bulges, closed);
+                                state.Phase = "polyline-extents";
+                                Bounds3 polylineBounds = ReadBounds(entity, state);
+                                state.Phase = "polyline-endpoints-record";
+                                AddWire(state, handle, polylineBounds, points, bulges, closed);
                             }
                             else
                             {
                                 ++state.Other;
+                                state.Phase = "entity-supported-type";
                                 throw new NotSupportedException("The selection contains an unsupported entity type: " + entity.GetType().Name);
                             }
                         }
                         catch (System.Exception error) { state.Error(handle, "entity-read", error); }
                     }
+                    state.CurrentHandle = null;
+                    state.EntityType = null;
+                    state.CurrentVertex = null;
+                    state.Phase = "transaction-dispose";
                     // Deliberately no Commit: all objects were opened ForRead.
                 }
                 timings["read-ms"] = phase.Elapsed.TotalMilliseconds;
+                state.CurrentHandle = null;
+                state.EntityType = null;
+                state.CurrentVertex = null;
+                state.Stage("entity-read-complete");
                 if (state.ErrorCount == 0)
                 {
                     phase.Restart();
+                    state.Stage("index-begin");
                     List<SpatialItem> wireItems = new List<SpatialItem>(state.Wires.Count);
                     List<SpatialItem> blockItems = new List<SpatialItem>(state.Blocks.Count);
                     List<SpatialItem> endItems = new List<SpatialItem>(state.Ends.Count);
@@ -276,9 +393,12 @@ namespace EmergencyLighting.ColdRecognition
                     SpatialIndex blockTree = SpatialIndex.Build(blockItems, 0);
                     SpatialIndex endTree = SpatialIndex.Build(endItems, 0);
                     timings["index-ms"] = phase.Elapsed.TotalMilliseconds;
+                    state.Stage("index-complete");
                     phase.Restart();
+                    state.Stage("coarse-trace-begin");
                     Trace(state, roots, wireTree, blockTree, endTree, Math.Max(deviceTolerance, boundaryTolerance), dmax);
                     timings["coarse-trace-ms"] = phase.Elapsed.TotalMilliseconds;
+                    state.Stage("coarse-trace-complete");
                 }
             }
             catch (System.Exception error) { state.Error(state.Panel ?? "", "probe", error); }
@@ -288,6 +408,10 @@ namespace EmergencyLighting.ColdRecognition
                 // the same native document/database. Wrapper references are only
                 // diagnostics; compare the per-call native identities instead.
                 Stopwatch guardTime = Stopwatch.StartNew();
+                state.CurrentHandle = null;
+                state.EntityType = null;
+                state.CurrentVertex = null;
+                state.Stage("source-guard-after");
                 if (sourceGuardStarted)
                 {
                     try
@@ -308,12 +432,15 @@ namespace EmergencyLighting.ColdRecognition
                 }
                 if (observing)
                 {
+                    state.Phase = "source-event-unsubscribe";
                     database.ObjectModified -= changed;
                     database.ObjectAppended -= changed;
                     database.ObjectErased -= erased;
                 }
                 timings["source-guard-ms"] = guardTime.Elapsed.TotalMilliseconds;
+                state.Stage("source-guard-read-complete");
             }
+            state.Stage("source-guard-evaluate");
             if (sourceGuardStarted)
             {
                 sourceReasons.AddRange(SourceGuard.Evaluate(sourceBefore, sourceAfter, state.Changes, dbmodBefore, dbmodAfter));
@@ -337,14 +464,21 @@ namespace EmergencyLighting.ColdRecognition
             state.Metrics["unsupported-bounds"] = state.BoundsErrors;
             state.Metrics["error-count"] = state.ErrorCount;
             state.Metrics["source-change-events"] = state.Changes;
+            state.Stage("report-build");
             Dictionary<string, object> report = Row(
                 "schema", "EL_NET_COLD_PROBE_V1", "date", "2026-10-22", "status", state.Status,
+                // Keep original error messages before verbose geometry/stages in bounded LISP logs.
+                "errors", state.Errors,
+                "diagnostic-revision", DiagnosticRevision, "assembly", AssemblyDiagnostics(),
+                "stages", state.Stages, "stage-record-limit", 48,
+                "error-groups", state.ErrorGroups, "errors-truncated", state.ErrorCount > state.Errors.Count,
+                "root-input", state.RootInput, "root-diagnostics", RootDiagnostics(state),
                 "complete-recognition", false, "readonly", true, "result-cache", false,
                 "production-result-substitution", false, "production-equivalence-verified", false,
                 "coarse-candidates-are-connectivity", false,
                 "selection-policy", "caller-preset-selection-superset", "business-filtering", false,
                 "scope-note", "No precise contacts, gap validation, numbering, proof, preview or production-result substitution is performed.",
-                "panel", state.Panel, "timings", timings, "counts", state.Metrics, "errors", state.Errors,
+                "panel", state.Panel, "timings", timings, "counts", state.Metrics,
                 "trace-limit-reached", state.Limited, "dbmod-before", dbmodBefore, "dbmod-after", dbmodAfter,
                 "source-guard", Row("scheme", "native-document-database-identity-v1",
                     "started", sourceGuardStarted, "completed", sourceGuardRead, "reasons", sourceReasons,
@@ -362,10 +496,13 @@ namespace EmergencyLighting.ColdRecognition
                 samples.Add(Row("handle", sample.Handle, "min", Coordinates(sample.Bounds.Min), "max", Coordinates(sample.Bounds.Max)));
             report["block-bounds-samples"] = samples;
             Stopwatch reporting = Stopwatch.StartNew();
+            state.Stage("report-serialize-sample");
             Json(report);
             timings["report-serialization-sample-ms"] = reporting.Elapsed.TotalMilliseconds;
             timings["managed-total-before-final-report-ms"] = whole.Elapsed.TotalMilliseconds;
             report["managed-stage-under-goal"] = state.ErrorCount == 0 && whole.Elapsed.TotalMilliseconds < 3000.0;
+            state.Stage("final-report-write-begin");
+            report["last-phase"] = state.Phase;
             string json = Json(report);
             if (reportPath != null)
             {
@@ -373,11 +510,13 @@ namespace EmergencyLighting.ColdRecognition
                 catch (System.Exception error)
                 {
                     state.Error("", "report-write", error);
+                    DiagnosticCommandLine("ELNETCOLD78 report write failed: " + DiagnosticDetails.Bounded(error.Message, 1024));
                     report["status"] = state.Status;
                     state.Metrics["error-count"] = state.ErrorCount;
                     json = Json(report);
                 }
             }
+            state.Stage("return-buffer-build");
             List<TypedValue> output = new List<TypedValue>();
             output.Add(new TypedValue((int)LispDataType.ListBegin));
             output.Add(new TypedValue((int)LispDataType.Text, json));
@@ -393,6 +532,69 @@ namespace EmergencyLighting.ColdRecognition
             output.Add(new TypedValue((int)LispDataType.ListEnd));
             output.Add(new TypedValue((int)LispDataType.ListEnd));
             return new ResultBuffer(output.ToArray());
+        }
+
+        private static Dictionary<string, object> AssemblyDiagnostics()
+        {
+            try
+            {
+                System.Reflection.Assembly assembly = typeof(AutoCadProbe).Assembly;
+                return Row("name", assembly.GetName().Name, "version", assembly.GetName().Version.ToString(),
+                    "location", assembly.Location, "module-version-id", assembly.ManifestModule.ModuleVersionId.ToString("D"));
+            }
+            catch (System.Exception error) { return Row("metadata-error", DiagnosticDetails.Error(error)); }
+        }
+
+        private static object RootDiagnostics(CallState state)
+        {
+            const int limit = 32;
+            List<object> rows = new List<object>();
+            int found = 0;
+            foreach (string handle in state.Roots)
+            {
+                int index;
+                bool read = state.WireHandles.TryGetValue(handle, out index);
+                if (read) ++found;
+                if (rows.Count >= limit) continue;
+                Dictionary<string, object> row = Row("handle", handle, "wire-read", read);
+                if (read)
+                {
+                    Wire wire = state.Wires[index];
+                    row["min"] = Coordinates(wire.Bounds.Min);
+                    row["max"] = Coordinates(wire.Bounds.Max);
+                    List<object> ends = new List<object>();
+                    foreach (Endpoint end in wire.Ends)
+                        ends.Add(Row("side", end.Side, "point", Coordinates(end.Point),
+                            "outward-direction", Coordinates(end.Direction), "ray-eligible", end.RayEligible));
+                    row["endpoints"] = ends;
+                }
+                rows.Add(row);
+            }
+            return Row("requested", state.Roots.Count, "wire-read", found,
+                "wire-missing", state.Roots.Count - found, "record-limit", limit,
+                "truncated", state.Roots.Count > limit, "items", rows);
+        }
+
+        private static string DiagnosticReportPath(ResultBuffer arguments)
+        {
+            try
+            {
+                TypedValue[] values = arguments == null ? new TypedValue[0] : arguments.AsArray();
+                if (values.Length != 7 || !(values[6].Value is string)) return null;
+                string path = Path.GetFullPath((string)values[6].Value);
+                return Directory.Exists(Path.GetDirectoryName(path)) ? path : null;
+            }
+            catch (System.Exception) { return null; }
+        }
+
+        private static void DiagnosticCommandLine(string message)
+        {
+            try
+            {
+                Document current = CadApplication.DocumentManager.MdiActiveDocument;
+                if (current != null && !current.IsDisposed) current.Editor.WriteMessage("\n" + message);
+            }
+            catch (System.Exception) { /* Diagnostics must not replace the original failure. */ }
         }
 
         private static SourceIdentity SourceIdentityOf(Document document, Database database)
@@ -545,8 +747,6 @@ namespace EmergencyLighting.ColdRecognition
         }
         private static bool IsHandle(string value)
         { foreach (char c in value) if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'))) return false; return value.Length > 0 && value.Length <= 16; }
-        private static string BoundedMessage(System.Exception error)
-        { string message = error.Message ?? ""; return message.Length <= 1024 ? message : message.Substring(0, 1024); }
         private static Dictionary<string, object> Row(params object[] values)
         { Dictionary<string, object> row = new Dictionary<string, object>(); for (int i = 0; i < values.Length; i += 2) row.Add((string)values[i], values[i + 1]); return row; }
         private static string Json(object value)

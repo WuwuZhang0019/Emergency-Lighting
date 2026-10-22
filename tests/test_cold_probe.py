@@ -69,6 +69,7 @@ class ColdProbeTests(unittest.TestCase):
             'COMMAND': self.command,
             'HANDENT': lambda handle: handle if handle in {'P0', 'D0'} else None,
             'ENTGET': lambda entity: [Pair(0, 'INSERT'), Pair(5, 'P0'), Pair(8, 'PANEL')],
+            'SSLENGTH': lambda selection: len(selection),
             'NAMEDOBJDICT': lambda: self.owner,
             'EL:DRAWINGID': lambda: 'C:/cad/cold-probe.dwg',
             'EL:REQUIRE': self.require,
@@ -347,6 +348,118 @@ class ColdProbeTests(unittest.TestCase):
         self.assertEqual(self.get('report', failed[0]), paths[0])
         self.assertEqual(self.written, [])
         self.assertNotIn('collect', [row[0] for row in self.calls])
+        self.assertNotIn('COLD_PROBE78', [name for name, _ in self.logged])
+        self.assert_business_preserved()
+
+    def test_checkpoints_report_inputs_and_explicit_coarse_completion(self):
+        self.call('EL:ColdRun')
+        checkpoints = [detail for name, detail in self.logged if name == 'COLD_CHECKPOINT']
+        phases = [self.get('phase', row) for row in checkpoints]
+        self.assertEqual(phases, ['MODE', 'PICK_PANEL', 'LOAD_CONFIG', 'PRESET_READY',
+                                 'PICK_STARTS', 'NATIVE_LOAD', 'SELECTION', 'NATIVE_PROBE',
+                                 'PAYLOAD_VALIDATE', 'BOUNDS_AUDIT', 'SOURCE_GUARD',
+                                 'FINAL_SOURCE_GUARD', 'REPORT_WRITE', 'FINISHED'])
+        inputs = self.get('details', checkpoints[7])
+        self.assertEqual(self.get('selection-count', inputs), 4)
+        context = self.h.lookup(Symbol('*EL:COLDCONTEXT*'))
+        self.assertEqual(self.get('diagnostic-revision', context), '2026-10-22-logs1')
+        self.assertEqual(self.get('panel', context), 'P0')
+        self.assertEqual(self.get('roots', context), 'W2,W1')
+        self.assertEqual(self.get('root-count', context), 2)
+        self.assertEqual(self.get('mode', context), 'Prototype')
+        self.assertIsNone(self.get('legacy-executed', context))
+        self.assertIsNone(self.get('complete-native-recognition', context))
+        self.assertTrue(truth(self.get('bounds-audit-passed', context)))
+        self.assert_business_preserved()
+
+    def test_early_failure_clears_only_current_drawing_previous_report_paths(self):
+        other_paths = ['other.json', 'other.eld']
+        self.h.set(Symbol('*EL:COLDREPORTS*'), [Pair('other-drawing', other_paths)])
+        self.call('EL:ColdRun')
+        registry = self.h.lookup(Symbol('*EL:COLDREPORTS*'))
+        self.assertTrue(self.call('EL:Get', self.owner, registry))
+        self.ready = False
+        self.library_found = False
+        with self.assertRaisesRegex(RuntimeError, '缺少只读 .NET 原型 DLL'):
+            self.call('EL:ColdRun')
+        registry = self.h.lookup(Symbol('*EL:COLDREPORTS*'))
+        self.assertIsNone(self.call('EL:Get', self.owner, registry))
+        self.assertEqual(self.call('EL:Get', 'other-drawing', registry), other_paths)
+        self.assert_business_preserved()
+
+    def test_failure_context_identifies_native_dispatch_without_prior_run_data(self):
+        self.call('EL:ColdRun')
+        self.main_native = lambda *args: (_ for _ in ()).throw(RuntimeError('bridge-broken'))
+        with self.assertRaisesRegex(RuntimeError, 'bridge-broken'):
+            self.call('EL:ColdRun')
+        self.call('EL:ColdFailure', 'bridge-broken')
+        event, detail = self.logged[-1]
+        self.assertEqual(event, 'COLD_FAILURE')
+        context = self.get('context', detail)
+        self.assertEqual(self.get('phase', context), 'NATIVE_PROBE')
+        self.assertEqual(self.get('selection-count', context), 4)
+        self.assertEqual(self.get('roots', context), 'W2,W1')
+        self.assertIsNone(self.get('native-return', context))
+        self.assertIsNone(self.get('bounds-audit', context))
+        self.assertEqual(self.get('error', detail), 'bridge-broken')
+        self.assert_business_preserved()
+
+    def test_bounds_samples_keep_exact_differences_and_limit_log_volume(self):
+        samples = self.samples * 17 + [['MISSING', [0, 0, 0], [1, 1, 0]]]
+        self.bounds['D0'] = [[1.0, 2.0, 0.0], [3.0, 4.01, 0.0]]
+        audit = self.call('EL:ColdBoundsAudit', samples)
+        rows = [detail for name, detail in self.logged if name == 'COLD_BOUNDS_SAMPLE']
+        self.assertEqual(len(rows), 16)
+        self.assertEqual(self.get('different', audit), 17)
+        self.assertEqual(self.get('missing', audit), 1)
+        self.assertEqual(self.get('verdict', rows[0]), Symbol('DIFFERENT'))
+        self.assertEqual(self.get('expected', rows[0]), self.samples[0][1:])
+        self.assertEqual(self.get('actual', rows[0]), self.bounds['D0'])
+        self.assert_business_preserved()
+
+    def test_native_return_log_is_bounded_and_preserves_error_message(self):
+        text = '{"status":"ERROR","errors":[{"message":"read-failed"}],"padding":"' + 'x' * 5000 + '"}'
+        self.main_native = lambda *args: [text, []]
+        with self.assertRaisesRegex(RuntimeError, '只读 .NET 原型失败'):
+            self.call('EL:ColdRun')
+        row = next(detail for name, detail in self.logged if name == 'COLD_NATIVE_RETURN')
+        self.assertEqual(self.get('native-status', row), 'ERROR')
+        self.assertEqual(self.get('json-length', row), len(text))
+        self.assertEqual(len(self.get('json-prefix', row)), 4096)
+        self.assertIn('read-failed', self.get('json-prefix', row))
+        self.assertTrue(truth(self.get('json-truncated', row)))
+        self.assertEqual(self.get('phase', self.h.lookup(Symbol('*EL:COLDCONTEXT*'))), 'PAYLOAD_VALIDATE')
+        self.assert_business_preserved()
+
+    def test_bounds_mismatch_is_explicit_without_changing_recognition_policy(self):
+        self.bounds['D0'] = None
+        self.call('EL:ColdRun')
+        report = self.written[0][1]
+        self.assertIsNone(self.get('bounds-audit-passed', report))
+        self.assertEqual(self.get('missing', self.get('bounds-audit', report)), 1)
+        self.assertEqual(self.get('status', report), Symbol('PROTOTYPE-COARSE-ONLY'))
+        self.assert_business_preserved()
+
+    def test_legacy_exception_retains_distinct_stage_and_diagnostic_paths(self):
+        self.mode = 'Both'
+        self.h.builtins['EL:RECOGNIZEFIXED'] = lambda *args: (_ for _ in ()).throw(RuntimeError('legacy-failed'))
+        with self.assertRaisesRegex(RuntimeError, 'legacy-failed'):
+            self.call('EL:ColdRun')
+        context = self.h.lookup(Symbol('*EL:COLDCONTEXT*'))
+        self.assertEqual(self.get('phase', context), 'LEGACY_RECOGNITION')
+        self.assertEqual(self.get('mode', context), 'Both')
+        self.assertTrue(self.get('native-report', context).endswith('.json'))
+        self.assertEqual(self.get('native-status', self.get('native-return', context)), 'PROTOTYPE_COARSE_ONLY')
+        self.assertEqual(self.written, [])
+        self.assert_business_preserved()
+
+    def test_report_write_failure_retains_stage_without_claiming_completion(self):
+        self.h.builtins['EL:WRITEDATA'] = lambda *args: None
+        with self.assertRaisesRegex(RuntimeError, '报告写入失败'):
+            self.call('EL:ColdRun')
+        context = self.h.lookup(Symbol('*EL:COLDCONTEXT*'))
+        self.assertEqual(self.get('phase', context), 'REPORT_WRITE')
+        self.assertIsNone(self.h.lookup(Symbol('*EL:COLDCOMPLETED*')))
         self.assertNotIn('COLD_PROBE78', [name for name, _ in self.logged])
         self.assert_business_preserved()
 

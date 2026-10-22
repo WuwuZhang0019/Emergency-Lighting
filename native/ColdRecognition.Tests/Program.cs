@@ -11,9 +11,11 @@ namespace EmergencyLighting.ColdRecognition.Tests
             {
                 int spatial = SpatialIndexTests.Run();
                 int sourceGuard = SourceGuardTests.Run();
-                int count = spatial + sourceGuard;
+                int diagnostics = DiagnosticDetailsTests.Run();
+                int count = spatial + sourceGuard + diagnostics;
                 Console.WriteLine("{\"status\":\"passed\",\"test_groups\":" + count
-                    + ",\"spatial_test_groups\":" + spatial + ",\"source_guard_test_groups\":" + sourceGuard + "}");
+                    + ",\"spatial_test_groups\":" + spatial + ",\"source_guard_test_groups\":" + sourceGuard
+                    + ",\"diagnostic_test_groups\":" + diagnostics + "}");
                 return 0;
             }
             catch (Exception error)

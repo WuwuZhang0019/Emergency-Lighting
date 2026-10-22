@@ -1,4 +1,4 @@
-"""Date: 2026-10-21. Read-only performance trial package checks; no native CAD proof."""
+"""Date: 2026-10-22. Read-only performance trial package checks; no native CAD proof."""
 import sys
 
 # Keep this checker read-only, including imports of local helpers.
@@ -83,7 +83,7 @@ def check():
     source_functions = {}
     modules_checked = []
     # Verify every converted module, then compare every effective module DEFUN
-    # across all four loading entries. This includes recognition, candidate
+    # across all five loading entries. This includes recognition, candidate
     # deduplication, template/source policy and generation/placement timings.
     for source in sorted((ROOT / "src").glob("*.lsp")):
         if source.name == "load.lsp":
@@ -96,20 +96,23 @@ def check():
         source_functions.update(definitions(parsed[f"src/{module}.lsp"]))
 
     entries = ("START-CAD2020.lsp", builder.UPDATE_NAME, "src/load.lsp",
-               builder.FULL_TEST_COMMAND + ".lsp")
+               builder.FULL_TEST_COMMAND + ".lsp", builder.COLD_TEST_COMMAND + ".lsp")
+    standalone_commands = {
+        entries[3]: builder.FULL_TEST_COMMAND,
+        entries[4]: builder.COLD_TEST_COMMAND,
+    }
     entry_functions = {}
-    initialize = Symbol(builder.FULL_TEST_COMMAND.upper() + ":INITIALIZE")
-    full_forms = parsed[entries[-1]]
     embedded_root = Symbol("EL:STARTUPEMBEDDEDROOT")
     generated_definitions = definitions(parse(builder.embedded_resources()))
     for entry in entries:
         forms = parsed[entry]
-        if entry == entries[-1]:
+        if entry in standalone_commands:
+            initialize = Symbol(standalone_commands[entry].upper() + ":INITIALIZE")
             forms = definitions(forms)[initialize][3:]
         actual = definitions(forms)
         for name, function in source_functions.items():
-            # Standalone entries deliberately replace startup.lsp's NIL stub
-            # with the builder's versioned embedded runtime installer.
+            # Select the uncalled initializer's definitions, including its real
+            # C:ELCOLD75; the standalone top-level wrapper has the same name.
             expected = (generated_definitions[name]
                         if name == embedded_root and entry != builder.UPDATE_NAME else function)
             assert actual.get(name) == expected, (entry, str(name))
@@ -117,9 +120,16 @@ def check():
 
     startup = (directory / "START-CAD2020.lsp").read_bytes()
     assert (directory / "src/load.lsp").read_bytes() == startup
-    assert (directory / entries[-1]).read_bytes() == builder.full_test_entry(startup.decode("gb2312"))
+    assert (directory / entries[3]).read_bytes() == builder.full_test_entry(startup.decode("gb2312"))
+    assert (directory / entries[4]).read_bytes() == builder.cold_test_entry(startup.decode("gb2312"))
     assert (directory / "CCKK.lsp").read_bytes().startswith(
         builder.cad2020_bytes(ROOT / "src/insert-circuit.lsp"))
+    marker = f"package-{builder.PACKAGE_NO:03d}.marker"
+    assert files[marker].read_text(encoding="ascii") == f"Emergency-Lighting {builder.PACKAGE_NO}\n"
+    for entry in entries:
+        assert marker in texts[entry], (entry, "wrong package marker")
+    for entry in (entries[0], entries[2], entries[3], entries[4]):
+        assert f"runtime-{builder.PACKAGE_NO:03d}/" in texts[entry], (entry, "wrong runtime path")
 
     dcl_checked = []
     for source in sorted((ROOT / "ui").glob("*.dcl")):
@@ -144,9 +154,10 @@ def check():
     expected_resources = {name for name in files if name.startswith("ui/")
                           or name.startswith("assets/default-device-library/")
                           or (name.startswith("src/") and name.endswith(".lsp"))
-                          or (name.startswith("templates/") and name.endswith(".dwg"))}
+                          or (name.startswith("templates/") and name.endswith(".dwg"))
+                          or (name.startswith("native/") and name.endswith(".dll"))}
     resources_checked = {}
-    for entry in (entries[0], entries[2], entries[3]):
+    for entry in (entries[0], entries[2], entries[3], entries[4]):
         actual = entry_functions[entry]
         payloads = {}
         for name in ("EL:STARTUPEMBEDDEDTEXT", "EL:STARTUPEMBEDDEDASSETS"):
@@ -162,34 +173,94 @@ def check():
             assert raw == expected, (entry, relative)
         resources_checked[entry] = len(payloads)
 
-    # Execute only the actual standalone file's registration forms. Any native
-    # API, drawing mutation, initializer/panel call or external LOAD fails here;
-    # the complete business payload is stored inside the uncalled initializer.
-    registered = {initialize, Symbol("C:" + builder.FULL_TEST_COMMAND.upper())}
-    assert set(definitions(full_forms)) == registered
-    assert all(isinstance(form, list) and form[0] in (Symbol("DEFUN"), Symbol("PRINC"))
-               for form in full_forms), "unexpected executable registration form"
-    host = Host()
-    messages = []
-    host.builtins = {"PRINC": lambda *args: messages.extend(args)}
-    host.body(full_forms)
-    assert set(host.functions) == registered
-    assert set(host.frames[0]) == {"NIL", "T", "PI"}, "registration changed global state"
-    assert any(builder.FULL_TEST_COMMAND in message for message in messages)
+    # Verify the immutable native proof against current source and actual DLL
+    # metadata. Importing this helper never compiles, restores or runs AutoCAD.
+    native_spec = importlib.util.spec_from_file_location(
+        "performance_trial_native_builder", ROOT / "tools/build_cold_recognition.py")
+    native_builder = importlib.util.module_from_spec(native_spec)
+    native_spec.loader.exec_module(native_builder)
+    native_path = "native/" + native_builder.DLL_NAME
+    assert {name for name, path in files.items() if path.suffix.lower() == ".dll"} == {native_path}, \
+        "only the project DLL may be delivered; Autodesk DLLs must not be copied"
+    native_bytes = files[native_path].read_bytes()
+    native_hash = hashlib.sha256(native_bytes).hexdigest()
+    native_proof = json.loads(files["native/build.json"].read_text(encoding="utf-8"))
+    assert native_proof["status"] == "passed" and native_proof["mode"] == "autocad-plugin"
+    assert native_proof["version"] == builder.VERSION == native_builder.VERSION
+    assert native_proof["framework"] == "net47" and native_proof["platform"] == "x64"
+    assert native_proof["language_version"] == "7.3" and native_proof["deterministic"] is True
+    assert native_proof["offline"] is True and native_proof["autodesk_dlls_copied"] is False
+    assert native_proof["artifact"]["sha256"] == native_hash
+    assert native_proof["artifact"]["bytes"] == len(native_bytes)
+    assert Path(native_proof["artifact"]["path"]).name == native_builder.DLL_NAME
+    native_source_paths = sorted((ROOT / "native/ColdRecognition").rglob("*.cs"))
+    expected_native_sources = {
+        path.relative_to(ROOT).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in native_source_paths
+    }
+    actual_native_sources = {item["path"]: item["sha256"] for item in native_proof["sources"]}
+    assert len(actual_native_sources) == len(native_proof["sources"]), "duplicate native source proof"
+    assert actual_native_sources == expected_native_sources, "native DLL proof does not match current source"
+    native_identity = native_builder.reference_details([files[native_path]])[0]
+    assert native_identity["assembly_version"] == builder.VERSION + ".0", native_identity
+    assert native_identity["file_version"] == builder.VERSION + ".0", native_identity
+    assert b".NETFramework,Version=v4.7" in native_bytes, "missing net47 target-framework metadata"
+    reference_names = set()
+    cad_names = {"acmgd", "accoremgd", "acdbmgd"}
+    for reference in native_proof["references"]:
+        name = reference["assembly_name"].lower()
+        assert name not in reference_names, ("duplicate native reference", name)
+        reference_names.add(name)
+        assert hashlib.sha256(Path(reference["path"]).read_bytes()).hexdigest() == reference["sha256"], name
+        if name in cad_names:
+            assert reference["assembly_version"] == "23.1.0.0", reference
+        else:
+            assert name in {"mscorlib", "system", "system.core"}, reference
+            assert reference["assembly_version"] == "4.0.0.0", reference
+            assert reference["file_version"].startswith("4.7."), reference
+    assert reference_names == cad_names | {"mscorlib", "system", "system.core"}
+
+    # Execute only registration forms for BOTH standalone entries. Any native
+    # API, initializer, LOAD, UI call or drawing mutation fails in this host.
+    registration_checked = {}
+    for entry, command in standalone_commands.items():
+        forms = parsed[entry]
+        initialize = Symbol(command.upper() + ":INITIALIZE")
+        registered = {initialize, Symbol("C:" + command.upper())}
+        assert set(definitions(forms)) == registered, entry
+        assert sum(1 for form in forms if isinstance(form, list) and form[0] == Symbol("DEFUN")) == 2, entry
+        assert all(isinstance(form, list) and form and form[0] in (Symbol("DEFUN"), Symbol("PRINC"))
+                   for form in forms), (entry, "unexpected executable registration form")
+        host = Host()
+        messages = []
+        host.builtins = {"PRINC": lambda *args: messages.extend(args)}
+        host.body(forms)
+        assert set(host.functions) == registered, entry
+        assert set(host.frames[0]) == {"NIL", "T", "PI"}, (entry, "registration changed global state")
+        assert any(command in message for message in messages), entry
+        registration_checked[entry] = sorted(str(name) for name in registered)
 
     source_paths = [ROOT / name for name in modules_checked + dcl_checked]
     source_paths += [ROOT / "src/load.lsp", ROOT / "tools/build_cad2020.py",
-                     ROOT / "tools/templates/full-test.lsp", Path(__file__).resolve()]
+                     ROOT / "tools/templates/full-test.lsp", ROOT / "tools/templates/cold-test.lsp",
+                     ROOT / "tools/build_cold_recognition.py", Path(__file__).resolve()]
+    source_paths += native_source_paths
     return {
         "date": date.today().isoformat(), "status": "passed", "version": builder.VERSION,
         "package_no": builder.PACKAGE_NO, "package": builder.NAME,
         "full_test_command": builder.FULL_TEST_COMMAND,
+        "cold_test_command": builder.COLD_TEST_COMMAND,
         "archive": str(archive_path), "directory": str(directory),
         "files": len(files), "directories": len(paths) - len(files),
         "gb2312_lisp_dcl": encoded, "parsed_lisp": len(parsed),
         "converted_modules": modules_checked, "converted_dcl": dcl_checked,
         "loading_entries": list(entries), "definitions_per_entry": len(source_functions),
         "embedded_resources": resources_checked, "registration_only": True,
+        "registration_entries": registration_checked,
+        "native_build": {"artifact": native_path, "sha256": native_hash, "bytes": len(native_bytes),
+                         "identity": native_identity, "source_sha256": actual_native_sources,
+                         "reference_versions": {item["assembly_name"]: item["assembly_version"]
+                                                for item in native_proof["references"]}},
         "default_library_files": len(seed_files), "system_dwg_bytes": len(drawing_bytes),
         "system_dwg_sha256": hashlib.sha256(drawing_bytes).hexdigest(),
         "archive_bytes": archive_path.stat().st_size,
@@ -200,9 +271,11 @@ def check():
                    "strict GB2312 round trip without BOM for every LISP/DCL",
                    "all delivered LISP parsed by autolisp_host",
                    "converted source modules and DCL match package bytes",
-                   "all effective module definitions match all four loading entries",
-                   "embedded text/default assets/system DWG match current package/source",
-                   "actual full entry registers only, with no CAD calls or drawing changes"],
+                   "all effective module definitions match all five loading entries",
+                   "embedded text/default assets/system DWG/native DLL match current package/source",
+                   "native build proof matches current source, net47 and AutoCAD 23.1 references",
+                   "native DLL identity and hash match; no Autodesk DLLs delivered",
+                   "actual full and cold entries register only, with no CAD calls or drawing changes"],
         "native_cad_status": "pending; original-DWG timing, DCL, dynamic states, generated geometry, save/reopen and Undo unverified",
     }
 

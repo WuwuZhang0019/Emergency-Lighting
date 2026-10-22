@@ -309,3 +309,8 @@ config/power-input-*.eld
 /output/native-cold-v0.1.80/
 /output/应急照明-v0.1.80/
 /output/应急照明-v0.1.80.zip
+
+# Date: 2026-10-22. Requested generation repair and line-arm diagnostic test package.
+/output/native-cold-v0.1.81/
+/output/应急照明-v0.1.81/
+/output/应急照明-v0.1.81.zip

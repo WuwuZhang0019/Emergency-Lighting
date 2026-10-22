@@ -30,7 +30,7 @@ class ColdProbeTests(unittest.TestCase):
         self.written = []
         self.logged = []
         self.ready = False
-        self.handshake_response = 'EL_NET_COLD_PROBE_V1/0.1.80'
+        self.handshake_response = 'EL_NET_COLD_PROBE_V1/0.1.81'
         self.atom_result = [None]
         self.library_found = True
         self.command_loads = True
@@ -86,7 +86,7 @@ class ColdProbeTests(unittest.TestCase):
             'EL:TICK': self.tick,
             'EL:PRESETSELECTION': self.selection,
             'EL:PARAM': lambda cfg, key: self.get(str(key), self.get('params', cfg)),
-            'ELNETCOLD80': self.native,
+            'ELNETCOLD81': self.native,
             'EL:ENTITYBOUNDS': lambda entity: self.bounds.get(entity),
             'EL:WRITEDATA': self.write_data,
             'EL:LOGEVENT': self.log_event,
@@ -136,7 +136,7 @@ class ColdProbeTests(unittest.TestCase):
         self.flow_trace.append(('command', args[0]))
         self.calls.append(('command', args))
         self.assertEqual(args[0], '_.NETLOAD')
-        self.assertTrue(args[1].endswith('native/EmergencyLighting.ColdRecognition80.dll'))
+        self.assertTrue(args[1].endswith('native/EmergencyLighting.ColdRecognition81.dll'))
         if self.command_error:
             raise RuntimeError(self.command_error)
         if self.command_loads:
@@ -148,8 +148,8 @@ class ColdProbeTests(unittest.TestCase):
         # Date: 2026-10-22. Model the observed target-resolution failure before
         # the catch body. Also reject a registered target as a conservative case;
         # this fixture is not a claim about every native external function.
-        if fn == Symbol('ELNETCOLD80'):
-            raise RuntimeError('函数错误: ELNETCOLD80')
+        if fn == Symbol('ELNETCOLD81'):
+            raise RuntimeError('函数错误: ELNETCOLD81')
 
     def native_safe_apply(self, fn, args):
         self.indirect_target('apply', fn)
@@ -193,13 +193,13 @@ class ColdProbeTests(unittest.TestCase):
             self.calls.append(('handshake', args))
             self.assertEqual(args, ('EL_NET_COLD_PING_V1',))
             if not self.ready:
-                raise RuntimeError('no function definition: ELNETCOLD80')
+                raise RuntimeError('no function definition: ELNETCOLD81')
             return self.handshake_response
         self.flow_trace.append(('native', 'main'))
         self.calls.append(('native', args))
         self.assertEqual(len(args), 7)
         if not self.ready:
-            raise RuntimeError('no function definition: ELNETCOLD80')
+            raise RuntimeError('no function definition: ELNETCOLD81')
         return self.main_native(*args)
 
     def native_main(self, *args):
@@ -250,10 +250,10 @@ class ColdProbeTests(unittest.TestCase):
             with self.subTest(ready=ready):
                 self.ready = ready
                 for entry in ('APPLY', 'VL-CATCH-ALL-APPLY'):
-                    with self.assertRaisesRegex(RuntimeError, '函数错误: ELNETCOLD80'):
-                        self.call(entry, Symbol('ELNETCOLD80'), ['EL_NET_COLD_PING_V1'])
-                with self.assertRaisesRegex(RuntimeError, '函数错误: ELNETCOLD80'):
-                    self.call('TEST:RealPerfCall', 'COLD_NATIVE_PROBE', Symbol('ELNETCOLD80'),
+                    with self.assertRaisesRegex(RuntimeError, '函数错误: ELNETCOLD81'):
+                        self.call(entry, Symbol('ELNETCOLD81'), ['EL_NET_COLD_PING_V1'])
+                with self.assertRaisesRegex(RuntimeError, '函数错误: ELNETCOLD81'):
+                    self.call('TEST:RealPerfCall', 'COLD_NATIVE_PROBE', Symbol('ELNETCOLD81'),
                               [['D0'], 'P0', 'W2,W1', 0.01, 2000.0, 0.1, 'probe.json'])
         self.assertEqual(self.calls, [])
         self.assertEqual(self.logged, [])
@@ -361,14 +361,14 @@ class ColdProbeTests(unittest.TestCase):
                 self.h.builtins['PRINC'] = lambda value='': messages.append(value)
                 self.call('EL:ColdRun')
                 route = self.get('panel-route', self.written[-1][1])
-                self.assertEqual(self.get('entry', route), 'ELCOLD80')
+                self.assertEqual(self.get('entry', route), 'ELCOLD81')
                 self.assertEqual(self.get('policy', route), Symbol('READONLY-COMPARISON'))
                 self.assertIsNone(self.get('panel-requested', route))
-                self.assertEqual(self.get('panel-file', route), 'ELFULL80.lsp')
-                self.assertEqual(self.get('panel-command', route), 'ELFULL80')
+                self.assertEqual(self.get('panel-file', route), 'ELFULL81.lsp')
+                self.assertEqual(self.get('panel-command', route), 'ELFULL81')
                 self.assertEqual(route, self.get('panel-route', self.h.lookup('*EL:COLDCONTEXT*')))
                 self.assertEqual(route, [detail for name, detail in self.logged if name == 'COLD_PANEL_ROUTE'][-1])
-                self.assertIn('APPLOAD 同包 ELFULL80.lsp', ''.join(messages))
+                self.assertIn('APPLOAD 同包 ELFULL81.lsp', ''.join(messages))
                 self.assert_business_preserved()
 
     def test_checkpoints_report_inputs_and_explicit_coarse_completion(self):
@@ -502,7 +502,7 @@ class ColdProbeTests(unittest.TestCase):
         self.h.builtins['PRINC'] = lambda value='': messages.append(value)
         self.call('EL:ColdLegacyFeedback', summary)
         text = ''.join(messages)
-        for token in ('R2', 'R5', '1449F', 'D410', 'CLOSED_CIRCUIT', 'ELFULL80'):
+        for token in ('R2', 'R5', '1449F', 'D410', 'CLOSED_CIRCUIT', 'ELFULL81'):
             self.assertIn(token, text)
         self.assertEqual(result, before)
         self.assert_business_preserved()
@@ -732,8 +732,8 @@ class ColdProbeTests(unittest.TestCase):
         self.assert_business_preserved()
 
     def test_same_name_variable_without_callable_still_loads_native(self):
-        self.atom_result = ['ELNETCOLD80']
-        self.h.set(Symbol('ELNETCOLD80'), ['variable-only-not-a-function'])
+        self.atom_result = ['ELNETCOLD81']
+        self.h.set(Symbol('ELNETCOLD81'), ['variable-only-not-a-function'])
         self.call('EL:ColdLoad')
         self.assertEqual([row[0] for row in self.calls].count('command'), 1)
         self.assertEqual([row[0] for row in self.calls].count('handshake'), 2)
@@ -753,7 +753,7 @@ class ColdProbeTests(unittest.TestCase):
 
     def test_single_element_handshake_envelope_is_ready_without_loading(self):
         self.ready = True
-        self.handshake_response = ['EL_NET_COLD_PROBE_V1/0.1.80']
+        self.handshake_response = ['EL_NET_COLD_PROBE_V1/0.1.81']
         self.call('EL:ColdLoad')
         self.assertNotIn('command', [row[0] for row in self.calls])
         self.assertNotIn('native', [row[0] for row in self.calls])
@@ -765,12 +765,12 @@ class ColdProbeTests(unittest.TestCase):
         self.ready = True
         for response in ('EL_NET_COLD_PROBE_V1/0.1.75', 'EL_NET_COLD_PROBE_V1/0.1.78',
                          'EL_NET_COLD_PROBE_V1/0.1.79',
-                         'EL_NET_COLD_PROBE_V1/0.1.800',
+                         'EL_NET_COLD_PROBE_V1/0.1.810',
                          ['EL_NET_COLD_PROBE_V1/0.1.75'],
-                         ['EL_NET_COLD_PROBE_V1/0.1.80', 'extra'],
-                         [['EL_NET_COLD_PROBE_V1/0.1.80']],
-                         [Symbol('EL_NET_COLD_PROBE_V1/0.1.80')],
-                         Symbol('EL_NET_COLD_PROBE_V1/0.1.80'), None, True, 77):
+                         ['EL_NET_COLD_PROBE_V1/0.1.81', 'extra'],
+                         [['EL_NET_COLD_PROBE_V1/0.1.81']],
+                         [Symbol('EL_NET_COLD_PROBE_V1/0.1.81')],
+                         Symbol('EL_NET_COLD_PROBE_V1/0.1.81'), None, True, 77):
             with self.subTest(response=response):
                 self.handshake_response = response
                 self.assertFalse(truth(self.call('EL:ColdNativeReady')))
@@ -853,7 +853,7 @@ class ColdProbeTests(unittest.TestCase):
         })
         self.h.set(Symbol('*EL:MONITORSTAMP*'), '20261022.120000')
         for owner, initial, expected in (
-                (True, 'ELSTAT/ELTRACE/ELPOWER', 'ELCOLD80'),
+                (True, 'ELSTAT/ELTRACE/ELPOWER', 'ELCOLD81'),
                 (None, 'EXTERNAL-PANEL-RUN', 'EXTERNAL-PANEL-RUN')):
             with self.subTest(owner=owner):
                 finished, written = [], []
@@ -875,7 +875,7 @@ class ColdProbeTests(unittest.TestCase):
                 self.h.builtins['EL:LOGSTART'] = log_start
                 self.h.builtins['EL:LOGFINISH'] = log_finish
                 self.h.builtins['EL:MONITORWRITE'] = monitor_write
-                self.call('C:ELCOLD80')
+                self.call('C:ELCOLD81')
                 self.assertEqual(finished, [(Symbol('COLD-PROBE-FINISHED'), expected)])
                 self.assertEqual(len(written), 1)
                 path, summary = written[0]
@@ -899,7 +899,7 @@ class ColdProbeTests(unittest.TestCase):
         })
         # A prior command's success must not leak into this command.
         self.h.set(Symbol('*EL:COLDCOMPLETED*'), True)
-        self.call('C:ELCOLD80')
+        self.call('C:ELCOLD81')
         self.assertEqual(finished, [Symbol('COLD-PROBE-FAILED')])
         self.assert_business_preserved()
 

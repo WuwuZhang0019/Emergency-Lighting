@@ -1,0 +1,52 @@
+{
+  "date": "2026-10-22",
+  "status": "finite replay passed; latest native fault not reproduced",
+  "software_version": "0.1.81",
+  "package_no": 180,
+  "request": "investigate B-lamp single-line corner contact and package prior fixes",
+  "verified_original": {
+    "fixture": "tests/fixtures/commercial-contact-162.json",
+    "source_dxf_sha256": "528d67c6f2a9b129fd6c6af6af892f5728f48db2a168e49b7789da9c2837cd00",
+    "block_name": "$equip_U$00000309(Zhangyufeng)",
+    "four_line_tips_recognized": true,
+    "gapped_negative_cases_rejected": true,
+    "latest_dwg_supplied": false,
+    "native_fault_reproduced": false
+  },
+  "changes": {
+    "contact_predicates": "unchanged",
+    "fine_miss_details": {
+      "event": "DEVICE_WIRE_MISS_DETAILS",
+      "revision": "2026-10-22-line-arms1",
+      "max_events_per_run": 8,
+      "wire_segments_per_event": 8,
+      "device_segments_per_event": 32,
+      "cad_or_com_rereads": false
+    },
+    "included_commits": [
+      "cbb86fa",
+      "9121ed7"
+    ]
+  },
+  "regression": {
+    "modules": [
+      "test_lamp_line_arms",
+      "test_cold_probe",
+      "test_cold_entry",
+      "test_full_test_entry",
+      "test_power_review",
+      "test_panel_lifecycle"
+    ],
+    "tests": 87,
+    "failures": 0,
+    "errors": 0,
+    "elapsed_seconds": 26.464
+  },
+  "native_acceptance": "pending actual lamp and connected wires in a minimal DWG/DXF; latest fault not claimed fixed",
+  "source_sha256": {
+    "src/simple.lsp": "1d0c2f67bb47e07a94038a2b83c8fa378ffd8229e3beec92874ab1c34678d707",
+    "src/panel.lsp": "d14b8426382adc2dde400d178edcdce5a0453c888b1a2ecdb74e27c279f1d526",
+    "src/cold-probe.lsp": "c3e1c3e46ac039f0cdd9e073799133ea34f7edcf5de8d6acd76161a3611150bb",
+    "tests/test_lamp_line_arms.py": "2386513ef481f0bcd6e1d535382000f65dac612f58d219ae85d3b2f484b163d4"
+  }
+}

@@ -1,14 +1,14 @@
 # 只读 .NET 冷路径性能原型
 日期：2026-10-22
-状态：v0.1.77外部函数调用修复；原图性能与 AutoCAD 接口实测待完成
+状态：v0.1.78源图身份检查修复；原图成功返回及完整首次3秒目标待验收
 
 目标是每个新箱体首次完整识别在 3000 ms 内。当前原型用于验证编译执行批量读取、建树和候选发现能减少多少首次处理成本，尚未迁移精确接触、断口规则、编号、源图证明和预览，因此不能用当前阶段低于 3000 ms 宣布完整目标达成。
 
-每次 `ELNETCOLD77` 调用均新建采集、几何、索引及追踪容器，没有预热调用和上次结果缓存。程序集加载/JIT会由外层 LISP 计时覆盖；其他新箱体的每次调用仍重新读取和计算。生产 `ELSTAT` 继续使用原识别路径。
+每次 `ELNETCOLD78` 调用均新建采集、几何、索引及追踪容器，没有预热调用和上次结果缓存。程序集加载/JIT会由外层 LISP 计时覆盖；其他新箱体的每次调用仍重新读取和计算。生产 `ELSTAT` 继续使用原识别路径。
 
 ## 输入与结果
 
-`ELNETCOLD77` 接收七个扁平参数：原 `EL:PresetSelection` 选择集、箱体 ENAME、逗号分隔的起点导线句柄、设备容差、Dmax、边界容差、JSON 报告绝对路径。返回 `(jsonText ((handle minPoint maxPoint) ...))`，最多抽查 16 个块边界。
+`ELNETCOLD78` 接收七个扁平参数：原 `EL:PresetSelection` 选择集、箱体 ENAME、逗号分隔的起点导线句柄、设备容差、Dmax、边界容差、JSON 报告绝对路径。返回 `(jsonText ((handle minPoint maxPoint) ...))`，最多抽查 16 个块边界。
 
 选择集保持原 Model/预设范围与输入顺序；原型尚未应用业务层的块名、角色、导线配色及线型过滤，因此候选为选择集上界，不能与正式连通设备数直接比较。宽线、弧段和 OCS 数据只参与保守宽筛；精确连通判定仍属于后续迁移工作。保守追踪并不构成完整性的证明。
 
@@ -24,12 +24,27 @@
 
 ## 原图测试
 
-加载交付包的 `ELCOLD77.lsp`，运行 `ELCOLD77`。`Prototype` 只测原型；`Both` 在同次拾取输入上另跑完整旧路径的只读识别，报告保留编号及业务字段，不打开结果面板，不写入图纸。运行 `ELDIAG` 导出 `cold-probe.json`、`cold-comparison.eld` 和现有性能日志。
+加载交付包的 `ELCOLD78.lsp`，运行 `ELCOLD78`。`Prototype` 只测原型；`Both` 在同次拾取输入上另跑完整旧路径的只读识别，报告保留编号及业务字段，不打开结果面板，不写入图纸。运行 `ELDIAG` 导出 `cold-probe.json`、`cold-comparison.eld` 和现有性能日志。
 
 从新开 CAD 的第一次调用开始记录，至少测试两个不同新箱体。`prototype-pick-to-return-ms` 包含拾取结束后的清理、首次 DLL 加载、选择、桥接、写 JSON 和 COM 边界抽查。`legacy-full-ms` 是完整旧识别的单独对照；两者计算范围不同，不能相减作为完整识别提速。
 
 包围盒抽查应 `missing=0 / different=0`；这只验证抽样边界，不代表全部业务规则等价。本机编译和有限宿主回归不能代替真实 AutoCAD/original DWG 验收。
 
+
+## v0.1.78 源图身份检查修复
+
+日期：2026-10-22
+状态：源图身份检查修复测试版；原图成功返回、COM边界抽查及完整首次3秒目标待验收
+
+output (32)已成功NETLOAD和握手，内部采集158.947毫秒、建树50.2154毫秒、候选追踪14.0508毫秒；最终仅报 `SOURCE_CHANGED`，对象变化事件0、DBMOD为20→20。旧检查使用托管 `ReferenceEquals` 比较文档及数据库；同一原生对象可能对应不同托管包装，旧报告未区分具体哪一项不相同。
+
+本版以调用开始/结束的非零 `Document.UnmanagedObject`、`Database.UnmanagedObject` 判断底层身份；包装引用是否相同仅记入诊断。源对象事件和DBMOD仍参与拦截，缺失、已释放、不可读或零身份也失败。`source-guard`报告记录各项状态与独立原因，而不是只给出笼统SOURCE_CHANGED。该身份只限单次调用使用，不建立跨次缓存。源保护单列 `source-guard-ms`；`source-guard.started/completed/reasons`、文档/数据库身份有效性及 `native-same` 分项说明保护是否完整执行，`wrapper-same`仅作诊断。参考Autodesk[DisposableWrapper说明](https://help.autodesk.com/cloudhelp/2022/ENU/OARX-ManagedRefGuide/files/OARX-ManagedRefGuide-Autodesk_AutoCAD_Runtime_DisposableWrapper.html)。
+
+本版DLL为 `EmergencyLighting.ColdRecognition78.dll`，入口 `ELNETCOLD78`，健康响应 `EL_NET_COLD_PROBE_V1/0.1.78`，内部177。只修复源身份判定和诊断，不调整候选或生产识别算法。LISP命令另以本轮对照报告已成功写出的完成标志校验归档状态，修正原型ERROR却记为COLD-PROBE-FINISHED的问题；该标志每轮隔离，不从上轮继承。首次加载/JIT仍在拾取后的外层计时内，主调用每次重新采集建树；只读事务、事件检测与失败拒绝保留。
+
+output (32)最后拾取至失败返回2.047秒，其中加载/握手1.703秒、桥接0.250秒。失败后没有执行LISP COM抽查及报告，内部230.4161毫秒总计也不含最终报告写盘；这些不代表完整首次识别已到3秒。v78先以2604F五起点复测：原型状态应为PROTOTYPE_COARSE_ONLY、源保护原因列表为空，COM抽查missing/different均0；每轮立即ELDIAG，再测其他新箱体并单独保留报告。
+
+本轮44项LISP定向回归通过，耗时3.231秒（冷原型33项、冷入口8项、完整入口3项）；.NET共17组回归通过（空间树9组、源身份8组），AutoCAD 2020 API 23.1引用DLL编译0警告、0错误。回归证据：`tests/evidence/2026-10-22-v0.1.78-source-identity-repair.json`。这些结果不代替原生CAD成功返回及原图耗时验收。
 
 ## v0.1.77 外部函数调用与默认计时修复
 

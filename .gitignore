@@ -304,3 +304,8 @@ config/power-input-*.eld
 /output/native-cold-v0.1.79/
 /output/应急照明-v0.1.79/
 /output/应急照明-v0.1.79.zip
+
+# Date: 2026-10-22. Requested default-Both v0.1.80 trial delivery.
+/output/native-cold-v0.1.80/
+/output/应急照明-v0.1.80/
+/output/应急照明-v0.1.80.zip

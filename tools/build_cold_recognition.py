@@ -12,10 +12,10 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "0.1.79"
-DLL_NAME = "EmergencyLighting.ColdRecognition79.dll"
-TEST_NAME = "EmergencyLighting.ColdRecognition79.Tests.exe"
-DEFAULT_OUTPUT = ROOT / "output" / "native-cold-v0.1.79"
+VERSION = "0.1.80"
+DLL_NAME = "EmergencyLighting.ColdRecognition80.dll"
+TEST_NAME = "EmergencyLighting.ColdRecognition80.Tests.exe"
+DEFAULT_OUTPUT = ROOT / "output" / "native-cold-v0.1.80"
 CAD_VERSION = "23.1.0"
 CAD_PACKAGES = {
     "AcMgd.dll": "autocad.net",

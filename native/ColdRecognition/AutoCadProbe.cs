@@ -121,7 +121,7 @@ namespace EmergencyLighting.ColdRecognition
         // Flat arguments: selection set, panel ObjectId, comma-separated root handles,
         // device tolerance, Dmax, boundary tolerance, existing output folder/file path.
         // Return value: (jsonText ((handle minPoint maxPoint) ...)), at most 16 samples.
-        [LispFunction("ELNETCOLD79")]
+        [LispFunction("ELNETCOLD80")]
         public static ResultBuffer Run(ResultBuffer arguments)
         {
             CallState state = null;
@@ -132,7 +132,7 @@ namespace EmergencyLighting.ColdRecognition
                 TypedValue[] values = arguments == null ? new TypedValue[0] : arguments.AsArray();
                 if (values.Length == 1 && values[0].TypeCode == (int)LispDataType.Text &&
                     String.Equals(values[0].Value as string, "EL_NET_COLD_PING_V1", StringComparison.Ordinal))
-                    return new ResultBuffer(new TypedValue((int)LispDataType.Text, "EL_NET_COLD_PROBE_V1/0.1.79"));
+                    return new ResultBuffer(new TypedValue((int)LispDataType.Text, "EL_NET_COLD_PROBE_V1/0.1.80"));
                 state = new CallState();
                 return RunCore(arguments, state);
             }
@@ -140,7 +140,7 @@ namespace EmergencyLighting.ColdRecognition
             {
                 // Preserve failures after the normal probe catch, including JSON,
                 // final report I/O and ResultBuffer construction. No extra file is created.
-                DiagnosticCommandLine("ELNETCOLD79 " + DiagnosticRevision + " failed at "
+                DiagnosticCommandLine("ELNETCOLD80 " + DiagnosticRevision + " failed at "
                     + (state == null ? "entry" : state.Phase) + ": " + error.GetType().FullName
                     + ": " + DiagnosticDetails.Bounded(error.Message, 1024));
                 try
@@ -165,7 +165,7 @@ namespace EmergencyLighting.ColdRecognition
                             json = Json(report);
                         }
                     }
-                    DiagnosticCommandLine("ELNETCOLD79 " + DiagnosticRevision + " failed at " + state.Phase
+                    DiagnosticCommandLine("ELNETCOLD80 " + DiagnosticRevision + " failed at " + state.Phase
                         + ": " + error.GetType().FullName + ": " + DiagnosticDetails.Bounded(error.Message, 1024)
                         + (reportPath == null ? " (report path unavailable)" : " | report=" + reportPath));
                     return new ResultBuffer(new TypedValue((int)LispDataType.ListBegin),
@@ -175,7 +175,7 @@ namespace EmergencyLighting.ColdRecognition
                 }
                 catch (System.Exception diagnosticError)
                 {
-                    DiagnosticCommandLine("ELNETCOLD79 fallback diagnostics failed: "
+                    DiagnosticCommandLine("ELNETCOLD80 fallback diagnostics failed: "
                         + DiagnosticDetails.Bounded(diagnosticError.Message, 1024)
                         + " | original=" + DiagnosticDetails.Bounded(error.Message, 1024));
                     // Propagate the original probe/bridge failure to the LISP catch,
@@ -210,7 +210,7 @@ namespace EmergencyLighting.ColdRecognition
             {
                 state.Stage("arguments-begin");
                 TypedValue[] values = arguments == null ? new TypedValue[0] : arguments.AsArray();
-                if (values.Length != 7) throw new ArgumentException("ELNETCOLD79 expects exactly seven flat arguments.");
+                if (values.Length != 7) throw new ArgumentException("ELNETCOLD80 expects exactly seven flat arguments.");
                 SelectionSet selection = values[0].Value as SelectionSet;
                 if (selection == null) throw new ArgumentException("The first argument must be a SelectionSet.");
                 if (!(values[1].Value is ObjectId)) throw new ArgumentException("The panel argument must be an ObjectId.");
@@ -510,7 +510,7 @@ namespace EmergencyLighting.ColdRecognition
                 catch (System.Exception error)
                 {
                     state.Error("", "report-write", error);
-                    DiagnosticCommandLine("ELNETCOLD79 report write failed: " + DiagnosticDetails.Bounded(error.Message, 1024));
+                    DiagnosticCommandLine("ELNETCOLD80 report write failed: " + DiagnosticDetails.Bounded(error.Message, 1024));
                     report["status"] = state.Status;
                     state.Metrics["error-count"] = state.ErrorCount;
                     json = Json(report);

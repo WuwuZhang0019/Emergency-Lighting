@@ -296,3 +296,6 @@ config/power-input-*.eld
 /output/native-cold-v0.1.78/
 /output/应急照明-v0.1.78/
 /output/应急照明-v0.1.78.zip
+
+# Date: 2026-10-22. Same-version diagnostic repack; preserve the previous delivery.
+/output/diagnostic-v0.1.78-20261022/

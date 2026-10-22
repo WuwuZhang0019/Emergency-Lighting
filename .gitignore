@@ -276,3 +276,8 @@ config/power-input-*.eld
 # Date: 2026-10-21. Requested discovery timing and numbering reuse trial package.
 /output/应急照明-v0.1.74/
 /output/应急照明-v0.1.74.zip
+
+# Date: 2026-10-22. Requested read-only .NET prototype trial artifacts.
+/output/native-cold-v0.1.75/
+/output/应急照明-v0.1.75/
+/output/应急照明-v0.1.75.zip

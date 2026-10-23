@@ -1,4 +1,4 @@
-;; Date: 2026-10-11. Read native Tianzheng circuit metadata; never write the plane.
+;; Date: 2026-10-21. Read native Tianzheng circuit metadata; never write the plane.
 (defun EL:NumberKey (text) (strcase (vl-string-trim " \t\r\n" text)))
 (defun EL:NumberTextValid (text / code good)
   (setq good (and (equal (type text) 'STR) (/= text "")))
@@ -34,6 +34,117 @@
   (setq checked (vl-catch-all-apply 'EL:ParseWireNumberDataImpl (list data)))
   (if (vl-catch-all-error-p checked)
     (EL:NumberReadState 'invalid nil nil 'MALFORMED_XDATA) checked))
+;; Date: 2026-10-21. Annotation ownership is native XData, never text proximity.
+(defun EL:NumberHandleValid (text / code good)
+  (setq good (and (equal (type text) 'STR) (> (strlen text) 0)))
+  (if good
+    (foreach code (vl-string->list (strcase text))
+      (if (not (or (and (>= code 48) (<= code 57)) (and (>= code 65) (<= code 70)))) (setq good nil)))) good)
+(defun EL:NumberAnnotationDataImpl (data / row app item owners raw invalid role)
+  (foreach row data
+    (if (and (listp row) (equal (car row) -3))
+      (foreach app (cdr row)
+        (if (and (listp app) (equal (type (car app)) 'STR))
+          (cond ((equal (strcase (car app)) "KEYOWNWIREID")
+              (setq raw (cons app raw))
+              (foreach item (cdr app)
+                (cond ((and (listp item) (equal (car item) 1005) (EL:NumberHandleValid (cdr item)))
+                    (if (not (member (strcase (cdr item)) owners)) (setq owners (cons (strcase (cdr item)) owners))))
+                  ((and (listp item) (equal (car item) 1000) (equal (cdr item) "KeyOwnWireId")))
+                  (T (setq invalid T)))))
+            ((equal (strcase (car app)) "TG_DIMWIRE_TYPE")
+              (setq raw (cons app raw))
+              (foreach item (cdr app)
+                (if (and (listp item) (equal (car item) 1000) (equal (cdr item) "WireNameOnly")) (setq role T)))))))))
+  (list (cons 'handle (cdr (assoc 5 data))) (cons 'owners (reverse owners))
+    (cons 'status (if (and role (= (length owners) 1) (not invalid)) 'ready 'invalid))
+    (cons 'raw (reverse raw)) (cons 'number-data (EL:ParseWireNumberData data))))
+(defun EL:NumberAnnotationData (data / checked)
+  (setq checked (vl-catch-all-apply 'EL:NumberAnnotationDataImpl (list data)))
+  (if (vl-catch-all-error-p checked)
+    (list (cons 'handle (cdr (assoc 5 data))) '(status . invalid) '(reason . MALFORMED_ANNOTATION)) checked))
+(defun EL:NumberAnnotationIndexImpl (/ selection index entity data annotation owner source entries invalid)
+  (setq selection (ssget "_X" '((0 . "TCH_WIREDIM2"))) index 0)
+  (while (and selection (< index (sslength selection)))
+    (setq entity (ssname selection index)
+      data (entget entity '("KeyOwnWireId" "TG_DIMWIRE_TYPE" "linenum")) index (1+ index))
+    (if (not data) (setq invalid T))
+    ;; Bounded adapters can return a broader set; the native type is still required.
+    (if (equal (cdr (assoc 0 data)) "TCH_WIREDIM2")
+      (progn
+        (EL:PerfCount "number-annotation-reads" 1)
+        (setq annotation (EL:NumberAnnotationData data))
+        (if (not (equal (EL:Get 'status annotation) 'ready))
+          (EL:LogEvent "CIRCUIT_NUMBER_ANNOTATION_INVALID" annotation))
+        (foreach owner (EL:Get 'owners annotation)
+          (setq source (handent owner))
+          (if (not source)
+            (progn (EL:PerfCount "number-annotation-orphans" 1)
+              (EL:LogEvent "CIRCUIT_NUMBER_ANNOTATION_ORPHAN"
+                (list (cons 'annotation (EL:Get 'handle annotation)) (cons 'owner owner))))
+            (setq entries (EL:Put owner (cons annotation (EL:Get owner entries)) entries)))))))
+  ;; Compare evidence independently of ssget enumeration order.
+  (list (cons 'status (if invalid 'invalid 'ready)) (cons 'entries
+    (mapcar '(lambda (row) (cons (car row) (vl-sort (cdr row)
+      '(lambda (a b) (< (EL:Get 'handle a) (EL:Get 'handle b)))))) entries))))
+(defun EL:NumberAnnotationIndex (/ token checked)
+  (EL:PerfCount "number-annotation-scans" 1)
+  (setq token (EL:PerfBegin "NUMBER_ANNOTATION_INDEX")
+    checked (vl-catch-all-apply 'EL:NumberAnnotationIndexImpl nil))
+  (EL:PerfEnd token (if (vl-catch-all-error-p checked) 'interrupted 'returned))
+  (if (vl-catch-all-error-p checked)
+    (progn (EL:PerfCount "number-annotation-scan-failures" 1)
+      (EL:LogEvent "CIRCUIT_NUMBER_ANNOTATION_SCAN_FAILED"
+        (list (cons 'error (vl-catch-all-error-message checked))))
+      (list '(status . invalid) '(reason . ANNOTATION_SCAN_FAILED)))
+    checked))
+(defun EL:NumberAnnotationTextImpl (handle / entity object text)
+  (setq entity (handent handle))
+  (if entity
+    (progn (setq object (vlax-ename->vla-object entity))
+      (if (vlax-property-available-p object 'TextString)
+        (progn (setq text (vlax-get-property object 'TextString))
+          (if (equal (type text) 'STR)
+            (EL:NumberReadState (if (EL:NumberTextValid (vl-string-trim " \t\r\n" text)) 'ready 'invalid)
+              (if (EL:NumberTextValid (vl-string-trim " \t\r\n" text)) (list (vl-string-trim " \t\r\n" text)))
+              text (if (not (EL:NumberTextValid (vl-string-trim " \t\r\n" text))) 'INVALID_ANNOTATION_TEXT))
+            (EL:NumberReadState 'invalid nil text 'INVALID_ANNOTATION_TEXT)))
+        (EL:NumberReadState 'missing nil nil 'ANNOTATION_TEXT_UNAVAILABLE)))
+    (EL:NumberReadState 'invalid nil nil 'MISSING_NUMBER_ANNOTATION)))
+(defun EL:NumberAnnotationRead (annotation / checked native values status value)
+  (setq checked (vl-catch-all-apply 'EL:NumberAnnotationTextImpl (list (EL:Get 'handle annotation))))
+  (setq checked (if (vl-catch-all-error-p checked)
+    (EL:NumberReadState 'invalid nil nil 'ANNOTATION_TEXT_READ_FAILED) checked)
+    native (EL:Get 'number-data annotation) values (EL:Get 'values native) status (EL:Get 'status annotation))
+  (if (or (equal (EL:Get 'status checked) 'invalid) (equal (EL:Get 'status native) 'invalid)) (setq status 'invalid))
+  (foreach value (EL:Get 'values checked)
+    (if (not (vl-some '(lambda (old) (equal (EL:NumberKey old) (EL:NumberKey value))) values))
+      (setq values (append values (list value)))))
+  (if (and (not (equal status 'invalid)) (> (length values) 1)) (setq status 'conflict))
+  (if (and (equal status 'ready) (not values)) (setq status 'missing))
+  (EL:Put 'status status (EL:Put 'values values (EL:Put 'text-data checked annotation))))
+(defun EL:NumberMergeAnnotations (handle state / annotation rows values status value)
+  (if *EL:NumberAnnotationsActive*
+    (if (equal (EL:Get 'status *EL:NumberAnnotations*) 'invalid)
+      (setq state (EL:Put 'reason 'ANNOTATION_SCAN_FAILED (EL:Put 'status 'invalid state)))
+      (progn
+        (setq status (EL:Get 'status state) values (EL:Get 'values state))
+        (foreach annotation (EL:Get (strcase handle) (EL:Get 'entries *EL:NumberAnnotations*))
+          (EL:PerfCount "number-annotation-linked-reads" 1)
+          (setq annotation (EL:NumberAnnotationRead annotation) rows (cons annotation rows))
+          (if (equal (EL:Get 'status annotation) 'invalid) (setq status 'invalid))
+          (if (and (equal (EL:Get 'status annotation) 'missing) (not values)) (setq status 'invalid))
+          (if (and (equal (EL:Get 'status annotation) 'conflict) (not (equal status 'invalid))) (setq status 'conflict))
+          (foreach value (EL:Get 'values annotation)
+            (if (not (vl-some '(lambda (old) (equal (EL:NumberKey old) (EL:NumberKey value))) values))
+              (setq values (append values (list value))))))
+        (if (and (> (length values) 1) (not (equal status 'invalid))) (setq status 'conflict))
+        (if (and values (equal status 'missing)) (setq status 'ready))
+        (if rows
+          (progn (setq state (EL:Put 'annotations (reverse rows) (EL:Put 'values values (EL:Put 'status status state))))
+            (EL:LogEvent "CIRCUIT_NUMBER_ANNOTATION_LINKED"
+              (list (cons 'wire handle) (cons 'annotations (mapcar '(lambda (row) (EL:Get 'handle row)) rows))
+                (cons 'values values) (cons 'status status)))))))) state)
 (defun EL:ReadWireNumberDataImpl (handle / entity checked state)
   (setq checked (vl-catch-all-apply 'handent (list handle)))
   (if (or (vl-catch-all-error-p checked) (not checked))
@@ -47,7 +158,7 @@
           (setq state (EL:NumberReadState 'invalid nil nil 'NOT_A_SOURCE_WIRE)))
         ((not (equal (strcase (cond ((cdr (assoc 5 checked))) (T ""))) (strcase handle)))
           (setq state (EL:NumberReadState 'invalid nil nil 'SOURCE_HANDLE_MISMATCH)))
-        (T (setq state (EL:ParseWireNumberData checked))))))
+        (T (setq state (EL:NumberMergeAnnotations handle (EL:ParseWireNumberData checked)))))))
   state)
 (defun EL:ReadWireNumberData (handle / checked)
   (EL:PerfCount "number-source-read-attempts" 1)
@@ -62,30 +173,74 @@
   (setq total 0.0)
   (foreach segment (EL:Get 'segments wire)
     (setq total (+ total (EL:Norm (EL:V- (cadr segment) (car segment)))))) total)
-(defun EL:NumberPathMeasures (wire / cursor segment vector length rows)
-  ;; Date: 2026-10-15. Exact segment lengths/vectors are constant across the
+(defun EL:NumberPathMeasures (wire / cursor segment vector segment-length rows)
+  ;; Date: 2026-10-21. Exact segment lengths/vectors are constant across the
   ;; 32 prefix probes; retain the original arithmetic and accumulation order.
   (setq cursor 0.0)
   (foreach segment (EL:Get 'segments wire)
-    (setq vector (EL:V- (cadr segment) (car segment)) length (EL:Norm vector)
-      rows (cons (list (car segment) vector cursor length) rows) cursor (+ cursor length)))
+    (setq vector (EL:V- (cadr segment) (car segment)) segment-length (EL:Norm vector)
+      rows (cons (list (car segment) vector cursor segment-length) rows) cursor (+ cursor segment-length)))
   (reverse rows))
+(defun EL:NumberProbeWholeSegments (measures entry target / out row point vector cursor segment-length whole low high)
+  ;; Date: 2026-10-21. Cache the original full-row slice arithmetic once per
+  ;; search. Use the initial max/min too, retaining signed-zero arithmetic.
+  ;; Partial prefixes keep their original operation order and rounding.
+  (setq low (min entry target) high (max entry target))
+  (foreach row measures
+    (setq point (car row) vector (cadr row) cursor (caddr row) segment-length (nth 3 row) whole nil)
+    (if (and (> segment-length 1.0e-12) (<= low cursor) (>= high (+ cursor segment-length)))
+      (progn
+        (setq whole (list
+          (EL:V+ point (EL:V* (/ (- (max low cursor) cursor) segment-length) vector))
+          (EL:V+ point (EL:V* (/ (- (min high (+ cursor segment-length)) cursor) segment-length) vector))))
+        (if *EL:NumberPrefixTimed* (setq *EL:NumberProbeFullBuilds* (1+ *EL:NumberProbeFullBuilds*)))))
+    (setq out (cons whole out)))
+  (reverse out))
+(defun EL:NumberSliceContactStrips (segments profiles fixed / out segment saved strips strip cacheable)
+  ;; Date: 2026-10-21. This search has fixed width profiles. Exact segment keys
+  ;; include direction; cached NIL strips are misses, not missing cache entries.
+  ;; Changing partial segments are evaluated directly and never grow the cache.
+  (foreach segment segments
+    (setq cacheable (car fixed) fixed (cdr fixed))
+    (if (and cacheable (setq saved (assoc segment *EL:NumberProbeStrips*)))
+      (progn
+        (setq strips (cdr saved))
+        (if *EL:NumberPrefixTimed* (setq *EL:NumberProbeStripReuses* (1+ *EL:NumberProbeStripReuses*))))
+      (progn
+        (setq strips (EL:WireContactStrips (list segment) profiles))
+        (if cacheable
+          (progn
+            (setq *EL:NumberProbeStrips* (cons (cons segment strips) *EL:NumberProbeStrips*))
+            (foreach strip strips (setq *EL:NumberProbeFixedStrips* (cons strip *EL:NumberProbeFixedStrips*)))))
+        (if *EL:NumberPrefixTimed* (setq *EL:NumberProbeStripBuilds* (1+ *EL:NumberProbeStripBuilds*)))))
+    (foreach strip strips (setq out (cons strip out))))
+  (reverse out))
 (defun EL:NumberPathSlice (wire start finish)
   (EL:NumberPathSliceMeasured wire start finish (EL:NumberPathMeasures wire)))
-(defun EL:NumberPathSliceMeasured (wire start finish measures / low high row point vector cursor length a b part segments)
-  (setq low (min start finish) high (max start finish))
+(defun EL:NumberPathSliceMeasured (wire start finish measures / low high row point vector cursor segment-length a b part segments profiles whole-segments whole fixed reused reuse)
+  (setq reuse (and *EL:NumberSliceReuseActive* (eq measures *EL:NumberSliceMeasures*))
+    low (min start finish) high (max start finish) profiles (EL:Get 'width-profiles wire)
+    whole-segments (if reuse *EL:NumberProbeWholeSegments*))
   (foreach row measures
-    (setq point (car row) vector (cadr row) cursor (caddr row) length (nth 3 row)
-      a (max low cursor) b (min high (+ cursor length)))
-    (if (and (> length 1.0e-12) (> b a))
+    (setq point (car row) vector (cadr row) cursor (caddr row) segment-length (nth 3 row)
+      a (max low cursor) b (min high (+ cursor segment-length))
+      whole (car whole-segments) whole-segments (cdr whole-segments) reused nil)
+    (if (and (> segment-length 1.0e-12) (> b a))
       (progn
-        (setq part (list
-          (EL:V+ point (EL:V* (/ (- a cursor) length) vector))
-          (EL:V+ point (EL:V* (/ (- b cursor) length) vector))))
-        (setq segments (cons part segments)))))
+        (if (and reuse (= a cursor) (= b (+ cursor segment-length)) whole)
+          (progn
+            (setq part whole reused T)
+            (if *EL:NumberPrefixTimed* (setq *EL:NumberProbeFullReuses* (1+ *EL:NumberProbeFullReuses*))))
+          (setq part (list
+            (EL:V+ point (EL:V* (/ (- a cursor) segment-length) vector))
+            (EL:V+ point (EL:V* (/ (- b cursor) segment-length) vector)))))
+        (setq segments (cons part segments))
+        (if (and reuse profiles) (setq fixed (cons reused fixed))))))
   (setq segments (reverse segments))
   (if (> start finish) (setq segments (mapcar '(lambda (s) (reverse s)) (reverse segments))))
-  (EL:Put 'contact-strips (EL:WireContactStrips segments (EL:Get 'width-profiles wire))
+  (setq fixed (if (> start finish) fixed (reverse fixed)))
+  (EL:Put 'contact-strips (if (and reuse profiles)
+      (EL:NumberSliceContactStrips segments profiles fixed) (EL:WireContactStrips segments profiles))
     (EL:Put 'segments segments wire)))
 (defun EL:NumberStations (point wire cfg / cursor segment vector length fraction nearest station out)
   (setq cursor 0.0)
@@ -114,7 +269,29 @@
   (EL:NumberShapeHitStrict wire shape (EL:StrictDeviceConfig cfg)))
 (defun EL:NumberShapeHitStrict (wire shape cfg)
   (or (if *EL:NumberProbeActive* (EL:NumberProbePathHit wire shape cfg) (EL:ContourPathHit wire shape cfg))
-    (EL:WideDevicePathHit wire shape cfg)))
+    (if *EL:NumberSliceReuseActive* (EL:NumberProbeWidePathHit wire shape cfg)
+      (EL:WideDevicePathHit wire shape cfg))))
+(defun EL:NumberProbeStripShapeHit (strip shape cfg)
+  ;; Date: 2026-10-21. The original three ordered WideDevicePathHit predicates.
+  (or (EL:ContourPathHit strip shape cfg)
+    (vl-some '(lambda (seg) (EL:ContourPointHit (car (EL:ContactWorldSegment seg shape)) strip cfg))
+      (EL:ContactRawSegments shape))
+    (vl-some '(lambda (curve) (EL:ContourPointHit (EL:CurvePoint curve (nth 2 curve)) strip cfg))
+      (EL:Get 'curves shape))))
+(defun EL:NumberProbeWidePathHit (wire shape cfg / strip key saved current hit cacheable)
+  ;; Date: 2026-10-21. Only immutable full-row strips enter this search cache.
+  ;; Keep the full strip traversal even after a hit; NIL is a reusable result.
+  (foreach strip (EL:Get 'contact-strips wire)
+    (setq cacheable (member strip *EL:NumberProbeFixedStrips*) key (cons strip shape))
+    (if (and cacheable (setq saved (assoc key *EL:NumberProbeWideHits*)))
+      (progn
+        (setq current (cdr saved))
+        (if *EL:NumberPrefixTimed* (setq *EL:NumberProbeWideReuses* (1+ *EL:NumberProbeWideReuses*))))
+      (progn
+        (setq current (EL:NumberProbeStripShapeHit strip shape cfg))
+        (if cacheable (setq *EL:NumberProbeWideHits* (cons (cons key current) *EL:NumberProbeWideHits*)))
+        (if *EL:NumberPrefixTimed* (setq *EL:NumberProbeWideBuilds* (1+ *EL:NumberProbeWideBuilds*)))))
+    (if current (setq hit T))) hit)
 (defun EL:NumberProbePointHit (point shape cfg / key saved hit)
   ;; Date: 2026-10-15. Exact point/shape keys; the strict config is fixed for
   ;; this one binary search. NIL is a cached miss, not an absent entry.
@@ -138,30 +315,102 @@
           (setq edge (car candidates) candidates (cdr candidates))
           (if (EL:SegmentsTouchTolerance seg edge tol) (setq hit T)))
         (setq *EL:NumberProbeSegments* (cons (cons key hit) *EL:NumberProbeSegments*))))) hit)
+(defun EL:NumberNativeBoundsXYImpl (bounds)
+  ;; Date: 2026-10-21. Only finite ordered native boxes can reject a candidate.
+  (if (and (listp bounds) (= (length bounds) 2) (EL:Point (car bounds)) (EL:Point (cadr bounds))
+      (<= (caar bounds) (car (cadr bounds))) (<= (cadr (car bounds)) (cadr (cadr bounds)))
+      (<= (caddr (car bounds)) (caddr (cadr bounds)))) (EL:XYBounds bounds)))
+(defun EL:NumberNativeBoundsXY (bounds / checked)
+  (setq checked (vl-catch-all-apply 'EL:NumberNativeBoundsXYImpl (list bounds)))
+  (if (not (vl-catch-all-error-p checked)) checked))
+(defun EL:NumberPrefixBounds (wire / bounds strip extra)
+  ;; Rebuild from this slice, including width strips. A full-wire contact-bounds
+  ;; field inherited by NumberPathSliceMeasured must never describe a prefix.
+  (setq bounds (EL:SegmentBounds (EL:Get 'segments wire)))
+  (foreach strip (EL:Get 'contact-strips wire)
+    (if (setq extra (EL:SegmentBounds (EL:Get 'segments strip)))
+      (setq bounds (if bounds (list (mapcar 'min (car bounds) (car extra))
+        (mapcar 'max (cadr bounds) (cadr extra))) extra))))
+  (EL:NumberNativeBoundsXY bounds))
+(defun EL:NumberPrefixShapeHit (wire row bounds cfg / native margin)
+  (setq native (caddr row))
+  (if (and bounds native)
+    (progn
+      (if *EL:NumberPrefixTimed* (setq *EL:NumberPrefixTests* (1+ *EL:NumberPrefixTests*)))
+      ;; The margin only widens the broad phase. Exact contact retains cfg.
+      (setq margin (EL:ContactQueryRoundoff (append bounds native) nil))
+      (if (EL:BoundsOverlap bounds native (+ (EL:Get 'eps_boundary (EL:Get 'params cfg)) margin))
+        (progn
+          (if *EL:NumberPrefixTimed* (setq *EL:NumberPrefixExact* (1+ *EL:NumberPrefixExact*)))
+          (EL:NumberShapeHitStrict wire (cadr row) cfg))
+        (progn
+          (if *EL:NumberPrefixTimed* (setq *EL:NumberPrefixRejected* (1+ *EL:NumberPrefixRejected*))) nil)))
+    (progn
+      (if *EL:NumberPrefixTimed* (setq *EL:NumberPrefixFallbacks* (1+ *EL:NumberPrefixFallbacks*)
+        *EL:NumberPrefixExact* (1+ *EL:NumberPrefixExact*)))
+      (EL:NumberShapeHitStrict wire (cadr row) cfg))))
+(defun EL:NumberSingleShapeHit (wire row cfg)
+  ;; Date: 2026-10-21. A lone candidate goes straight to the original exact test.
+  (if *EL:NumberPrefixTimed* (setq *EL:NumberPrefixSingleBypasses* (1+ *EL:NumberPrefixSingleBypasses*)
+    *EL:NumberPrefixExact* (1+ *EL:NumberPrefixExact*)))
+  (EL:NumberShapeHitStrict wire (cadr row) cfg))
 (defun EL:NumberFirstDevice (wire entry target devices cfg / block shape candidates hits row low high middle slice measures
-    *EL:NumberProbeActive* *EL:NumberProbePoints* *EL:NumberProbeSegments*)
-  ;; Date: 2026-10-15. All devices share the same 32-step dyadic prefix grid.
-  ;; Search the first contact jointly; on a hit retain every device hitting
-  ;; that prefix, in original order. This preserves the exact boundary and
-  ;; original first-device tie rule without rebuilding each prefix per device.
+    bounds builds searches result single-policy single single-used
+    *EL:NumberProbeActive* *EL:NumberProbePoints* *EL:NumberProbeSegments* *EL:NumberProbeStrips* *EL:NumberSliceReuseActive* *EL:NumberProbeWholeSegments* *EL:NumberSliceMeasures*
+    *EL:NumberProbeFixedStrips* *EL:NumberProbeWideHits* *EL:NumberProbeWideBuilds* *EL:NumberProbeWideReuses*
+    *EL:NumberProbeFullBuilds* *EL:NumberProbeFullReuses* *EL:NumberProbeStripBuilds* *EL:NumberProbeStripReuses*
+    *EL:NumberPrefixTimed* *EL:NumberPrefixTests* *EL:NumberPrefixRejected* *EL:NumberPrefixExact* *EL:NumberPrefixFallbacks*
+    *EL:NumberPrefixSingleBypasses*)
+  ;; Date: 2026-10-21. Preserve initial contact plus the exact 32-step prefix grid,
+  ;; shape-read order and tie rule. Single candidates avoid unused broad-phase work.
+  (setq *EL:NumberPrefixTimed* *EL:PerfActive* builds 0 searches 0 *EL:NumberPrefixTests* 0
+    *EL:NumberPrefixRejected* 0 *EL:NumberPrefixExact* 0 *EL:NumberPrefixFallbacks* 0
+    *EL:NumberPrefixSingleBypasses* 0 *EL:NumberProbeFullBuilds* 0 *EL:NumberProbeFullReuses* 0
+    *EL:NumberProbeStripBuilds* 0 *EL:NumberProbeStripReuses* 0 *EL:NumberProbeWideBuilds* 0 *EL:NumberProbeWideReuses* 0)
   (if (and devices (> (abs (- target entry)) 1.0e-12))
     (progn
-    (setq *EL:NumberProbeActive* T cfg (EL:StrictDeviceConfig cfg) measures (EL:NumberPathMeasures wire)
-      slice (EL:NumberPathSliceMeasured wire entry target measures))
-    (foreach block devices
-      (setq shape (EL:DeviceContactShape block))
-      (if (EL:NumberShapeHitStrict slice shape cfg)
-        (setq candidates (cons (cons (EL:Get 'id block) shape) candidates))))
-    (if candidates
-      (progn
-        (setq candidates (reverse candidates) low 0.0 high 1.0)
-        (repeat 32
-          (setq middle (/ (+ low high) 2.0) hits nil
-            slice (EL:NumberPathSliceMeasured wire entry (+ entry (* middle (- target entry))) measures))
-          (foreach row candidates
-            (if (EL:NumberShapeHitStrict slice (cdr row) cfg) (setq hits (cons row hits))))
-          (if hits (setq high middle candidates (reverse hits)) (setq low middle)))
-        (list (+ entry (* high (- target entry))) (caar candidates)))))))
+      (setq *EL:NumberProbeActive* T cfg (EL:StrictDeviceConfig cfg) measures (EL:NumberPathMeasures wire)
+        *EL:NumberSliceMeasures* measures *EL:NumberSliceReuseActive* (not (null (cdr measures)))
+        *EL:NumberProbeWholeSegments* (if *EL:NumberSliceReuseActive* (EL:NumberProbeWholeSegments measures entry target))
+        slice (EL:NumberPathSliceMeasured wire entry target measures)
+        single-policy (not (EL:NumberSingleBoundsEnabled)) single (and single-policy (null (cdr devices))))
+      (if single (setq single-used T) (setq bounds (EL:NumberPrefixBounds slice)))
+      (if *EL:NumberPrefixTimed* (setq searches 1 builds (if single 0 1)))
+      (foreach block devices
+        (setq shape (EL:DeviceContactShape block)
+          row (list (EL:Get 'id block) shape (if (not single) (EL:NumberNativeBoundsXY (EL:Get 'bounds block)))))
+        (if (if single (EL:NumberSingleShapeHit slice row cfg) (EL:NumberPrefixShapeHit slice row bounds cfg))
+          (setq candidates (cons row candidates))))
+      (if candidates
+        (progn
+          (setq candidates (reverse candidates) low 0.0 high 1.0)
+          (repeat 32
+            (setq middle (/ (+ low high) 2.0) hits nil
+              slice (EL:NumberPathSliceMeasured wire entry (+ entry (* middle (- target entry))) measures)
+              single (and single-policy (null (cdr candidates))))
+            (if single (setq single-used T) (setq bounds (EL:NumberPrefixBounds slice)))
+            (if (and *EL:NumberPrefixTimed* (not single)) (setq builds (1+ builds)))
+            (foreach row candidates
+              (if (if single (EL:NumberSingleShapeHit slice row cfg) (EL:NumberPrefixShapeHit slice row bounds cfg))
+                (setq hits (cons row hits))))
+            (if hits (setq high middle candidates (reverse hits)) (setq low middle)))
+          (setq result (list (+ entry (* high (- target entry))) (caar candidates)))))))
+  (if *EL:NumberPrefixTimed*
+    (progn
+      (EL:PerfCount "number-prefix-full-segment-builds" *EL:NumberProbeFullBuilds*)
+      (EL:PerfCount "number-prefix-full-segment-reuses" *EL:NumberProbeFullReuses*)
+      (EL:PerfCount "number-prefix-strip-builds" *EL:NumberProbeStripBuilds*)
+      (EL:PerfCount "number-prefix-strip-reuses" *EL:NumberProbeStripReuses*)
+      (EL:PerfCount "number-prefix-wide-builds" *EL:NumberProbeWideBuilds*)
+      (EL:PerfCount "number-prefix-wide-reuses" *EL:NumberProbeWideReuses*)
+      (EL:PerfCount "number-prefix-searches" searches)
+      (EL:PerfCount "number-prefix-bounds-builds" builds)
+      (EL:PerfCount "number-prefix-bounds-tests" *EL:NumberPrefixTests*)
+      (EL:PerfCount "number-prefix-bounds-rejected" *EL:NumberPrefixRejected*)
+      (EL:PerfCount "number-prefix-exact-tests" *EL:NumberPrefixExact*)
+      (EL:PerfCount "number-prefix-bounds-fallbacks" *EL:NumberPrefixFallbacks*)
+      (EL:PerfCount "number-prefix-single-bypasses" *EL:NumberPrefixSingleBypasses*)
+      (EL:PerfCount "number-prefix-single-searches" (if single-used 1 0)))) result)
 (defun EL:NumberLinks (wire other network cfg / segments point stations mine theirs links pair a b)
   (setq segments (EL:Get 'segments wire))
   (foreach point (list (caar segments) (cadr (EL:Last segments)))
@@ -182,7 +431,12 @@
         (if (equal (cadr b) 'start) 0.0 (EL:NumberPathLength other))) links))))
   (EL:Unique links))
 (defun EL:ExitNumberScopeImpl (seed network cfg / snapshot panel wires edges root start queue visited step id entry wire devices
-    next other left right low high link links sources boundaries ranges issues source)
+    next other left right low high link links sources boundaries ranges issues source neighbours wire-length
+    timed started now visits neighbours-ms first-device-ms links-ms)
+  ;; Date: 2026-10-21. Reuse only immutable results within one visited wire.
+  ;; Keep left -> length -> right evaluation, neighbour order and 32 probes.
+  ;; Three aggregates use four clock reads per visit, only while profiling.
+  (setq timed *EL:PerfActive* visits 0 neighbours-ms 0 first-device-ms 0 links-ms 0)
   (setq snapshot (EL:Get 'snapshot network) panel (EL:By 'id (EL:Get 'panel network) (EL:Get 'blocks snapshot))
     wires (EL:Get 'wires snapshot) edges (EL:Get 'edges network)
     root (EL:By 'id (EL:Get 'wire seed) wires) start (EL:NumberRootStation root snapshot cfg panel))
@@ -194,17 +448,22 @@
       (progn
         (setq visited (cons step visited) wire (EL:By 'id id wires)
           source (cond ((EL:Get 'source-wire wire)) (T id)) sources (cons source sources)
-          devices nil)
-        (foreach next (EL:Neighbours id edges)
+          devices nil visits (1+ visits))
+        (if timed (setq started (EL:Tick)))
+        (setq neighbours (EL:Neighbours id edges))
+        (foreach next neighbours
           (if (and (not (equal next (EL:Get 'panel network)))
               (setq other (EL:By 'id next (EL:Get 'blocks snapshot)))) (setq devices (cons other devices))))
+        (if timed (setq now (EL:Tick) neighbours-ms (+ neighbours-ms (EL:PerfDelta started now)) started now))
         (setq left (EL:NumberFirstDevice wire entry 0.0 devices cfg)
-          right (EL:NumberFirstDevice wire entry (EL:NumberPathLength wire) devices cfg)
-          low (if left (car left) 0.0) high (if right (car right) (EL:NumberPathLength wire)))
+          wire-length (EL:NumberPathLength wire)
+          right (EL:NumberFirstDevice wire entry wire-length devices cfg)
+          low (if left (car left) 0.0) high (if right (car right) wire-length))
         (if left (setq boundaries (cons (cadr left) boundaries)))
         (if right (setq boundaries (cons (cadr right) boundaries)))
         (setq ranges (cons (list id entry low high) ranges))
-        (foreach next (EL:Neighbours id edges)
+        (if timed (setq now (EL:Tick) first-device-ms (+ first-device-ms (EL:PerfDelta started now)) started now))
+        (foreach next neighbours
           (if (setq other (EL:By 'id next wires))
             (progn
               (setq links (EL:NumberLinks wire other network cfg))
@@ -212,7 +471,16 @@
               (foreach link links
                 (if (and (if left (> (car link) (+ low (EL:GapEpsilon))) (>= (car link) low))
                     (if right (< (car link) (- high (EL:GapEpsilon))) (<= (car link) high)))
-                  (setq queue (append queue (list (list next (cadr link)))))))))))))
+                  (setq queue (append queue (list (list next (cadr link))))))))))
+        (if timed (setq links-ms (+ links-ms (EL:PerfDelta started (EL:Tick))))))))
+  (if timed
+    (progn
+      (EL:PerfCount "number-scope-visits" visits)
+      (EL:PerfCount "number-scope-neighbour-scans" visits)
+      (EL:PerfCount "number-scope-path-lengths" visits)
+      (EL:PerfCount "number-scope-neighbours-ms" neighbours-ms)
+      (EL:PerfCount "number-scope-first-device-ms" first-device-ms)
+      (EL:PerfCount "number-scope-links-ms" links-ms)))
   (list (cons 'status (if issues 'path-ambiguous 'ready)) (cons 'sources (EL:Unique (reverse sources)))
     (cons 'boundaries (EL:Unique (reverse boundaries))) (cons 'ranges (reverse ranges)) (cons 'issues issues)))
 (defun EL:ExitNumberScope (seed network cfg / checked)
@@ -226,7 +494,8 @@
     (cons 'sources (EL:Get 'sources checked)) (cons 'boundaries (EL:Get 'boundaries checked))
     (cons 'issues (mapcar '(lambda (issue) (EL:Get 'code issue)) (EL:Get 'issues checked))))) checked)
 ;; Resolve only after stable identities and the final display order have been restored.
-(defun EL:NumberSourceInputs (circuits / c handle inputs)
+(defun EL:NumberSourceInputs (circuits / c handle inputs *EL:NumberAnnotationsActive* *EL:NumberAnnotations*)
+  (setq *EL:NumberAnnotationsActive* T *EL:NumberAnnotations* (EL:NumberAnnotationIndex))
   (foreach c circuits
     (foreach handle (EL:Get 'sources (EL:Get 'number-scope c))
       (if (not (EL:By 'handle handle inputs))
@@ -323,9 +592,13 @@
   (EL:Put 'number-evidence (list (cons 'scope scope) (cons 'inputs (reverse evidence)) (cons 'candidates values))
     (EL:Put 'number-status status (EL:Put 'number-source source
       (EL:Put 'circuit-number (if (= (length values) 1) (car values)) c)))))
+(defun EL:NumberSlotOccupied (index used / text occupied)
+  (foreach text used
+    (if (equal index (EL:ZENumberIndex (list (cons 'circuit-number text) '(number-status . ready))))
+      (setq occupied T))) occupied)
 (defun EL:DefaultCircuitNumber (index used / text)
   (setq text (strcat "ZE" (itoa index)))
-  (while (member (EL:NumberKey text) used)
+  (while (EL:NumberSlotOccupied index used)
     (setq index (1+ index) text (strcat "ZE" (itoa index)))) text)
 ;; Date: 2026-10-13. Sort ZE slots numerically after resolving their native numbers.
 (defun EL:ZENumberIndex (c / text index code good)
@@ -379,7 +652,7 @@
       ((and text (> (EL:Get (EL:NumberKey text) counts) 1))
         (setq c (EL:Put 'number-status 'conflict c))))
     (if (and (not text) (equal (EL:Get 'number-status c) 'ready))
-      (progn (setq text (EL:DefaultCircuitNumber index used) used (cons (EL:NumberKey text) used)
+      (progn (setq text (EL:DefaultCircuitNumber 1 used) used (cons (EL:NumberKey text) used)
         c (EL:Put 'circuit-number text c))))
     (if (not (equal (EL:Get 'number-status c) 'ready)) (setq problems (1+ (cond (problems) (T 0)))))
     (EL:LogEvent (if (equal (EL:Get 'number-status c) 'ready) "CIRCUIT_NUMBER_RESOLVED" "CIRCUIT_NUMBER_CONFLICT")
@@ -391,7 +664,7 @@
         (cons 'reason (cond ((not (equal (EL:Get 'number-status c) 'ready)) 'review-required)
           ((equal (EL:Get 'number-source c) 'plane) 'linenum)
           ((equal (EL:Get 'number-source c) 'legacy) 'legacy-compatible)
-          ((equal text (strcat "ZE" (itoa index))) 'default-order) (T 'default-avoid-occupied)))))
+          (T 'default-lowest-free)))))
     (setq out (cons c out)))
   (EL:PerfSet "number-problems" (cond (problems) (T 0)))
   (EL:Put 'number-policy-version 1 (EL:Put 'number-inputs inputs (EL:Put 'circuits (reverse out) result))))
@@ -416,7 +689,7 @@
       (foreach handle (EL:Get 'sources (EL:Get 'number-scope problem))
         (setq handles (strcat (cond (handles) (T "")) (if handles "、" "") handle)))
       (strcat text (if values (strcat "：" values) "") (if handles (strcat "；导线 " handles) "")
-        "。请在平面核对后重新统计；当前可编辑功率和保存草稿。"))))
+        "。请核对平面编号；本次仍可生成，冲突编号按待核对输出。"))))
 (defun EL:NumberFormalFields (c row)
   (list (cons 'circuit-number (EL:Get 'circuit-number row))
     (cons 'number-source (cond ((EL:Get 'number-source c)) ((equal (EL:Get 'mode row) 'reserve) 'auto) (T 'legacy)))
@@ -428,7 +701,9 @@
       (setq target (if draft (if (equal key 'number-inputs) 'draft-number-inputs 'draft-number-policy-version) key)
         record (EL:Put target (EL:Get key result) record))))
   (if (not draft) (setq record (EL:Put 'draft-number-inputs nil (EL:Put 'draft-number-policy-version nil record)))) record)
-(defun EL:NumberInputsCurrent (result / expected actual good)
+(defun EL:NumberInputsCurrent (result / expected actual good *EL:NumberAnnotationsActive* *EL:NumberAnnotations*)
+  (setq *EL:NumberAnnotationsActive* T *EL:NumberAnnotations*
+    (if (EL:Get 'number-inputs result) (EL:NumberAnnotationIndex) (list '(status . ready))))
   (EL:PerfCount "number-freshness-checks" 1)
   (setq good T)
   (foreach expected (EL:Get 'number-inputs result)

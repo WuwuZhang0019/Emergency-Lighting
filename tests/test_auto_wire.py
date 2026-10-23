@@ -1,4 +1,4 @@
-"""Panel-only wire inference. Date: 2026-10-10; synthetic CAD, not native acceptance."""
+"""Wire inference and explicit starts. Date: 2026-10-21; synthetic CAD, not native acceptance."""
 import unittest
 from autolisp_host import Pair, Symbol, truth
 import test_simple_flow as simple
@@ -109,16 +109,37 @@ class AutoWireTests(unittest.TestCase):
         self.assertEqual(self.get('wire-layers', cfg), ['W'])
         self.assertIsNone(self.get('auto-panel', cfg))
 
-    def test_fixed_entry_uses_one_pick_and_source_change_invalidates_result(self):
+    def test_fixed_entry_uses_explicit_start_and_source_change_invalidates_result(self):
         import test_fixed_diagnostics as diag
         fixture = diag.FixedDiagnosticTests()
         fixture.setUp()
+        # Date: 2026-10-21. The current entry picks a box, then wire starts;
+        # an endless box response would loop instead of modeling Enter.
         picks = []
-        fixture.h.builtins['EL:PICKMODEL'] = lambda *a: picks.append(a) or ['panel', [0., 0., 0.]]
+        answers = iter([['panel', [0., 0., 0.]], ['w1', [1., 0., 0.]], None])
+        def pick(*args):
+            picks.append(args)
+            return next(answers)
+        catalog = fixture.call('EL:DLCatalogInitial', 'LIB-AUTO-WIRE')
+        entry = fixture.call('EL:DLEntryNew', catalog, 'LAMP')
+        for key, value in {'watts': 5, 'ground-confirmed': True, 'active': True,
+                           'status': Symbol('READY'), 'asset-revision': 1,
+                           'block-file': 'assets/ELDEV1/1/block.dwg',
+                           'legend-file': 'assets/ELDEV1/1/legend.sld',
+                           'legend-size': [800, 600], 'legend-checksum': 'sld-123-31'}.items():
+            entry = fixture.call('EL:Put', Symbol(key.upper()), value, entry)
+        catalog = fixture.call('EL:DLUpsert', catalog, entry)
+        library = [Pair(Symbol('ROOT'), 'library-fixture/'), Pair(Symbol('CATALOG'), catalog),
+                   Pair(Symbol('INDEX'), fixture.call('EL:DLIndex', catalog))]
+        fixture.h.builtins.update({'EL:PICKMODEL': pick, 'EL:DLSNAPSHOT': lambda: library})
         fixture.h.run('(EL:FixedStatPick)')
-        self.assertEqual(len(picks), 1)
+        self.assertEqual([args[0] for args in picks], [Symbol('PANEL'), Symbol('WIRE'), Symbol('WIRE')])
         cfg = fixture.h.lookup('*EL:FIXEDCONFIG*')
         result = fixture.h.lookup('*EL:RESULT*')
         self.assertTrue(truth(fixture.call('EL:FreshResult', result, cfg)))
         fixture.entities['w1'].append(Pair(6, 'DASHED'))
-        self.assertFalse(truth(fixture.call('EL:FreshResult', result, cfg)))
+        self.assertFalse(truth(fixture.call('EL:CollectSourceCurrent', cfg, result)))
+        # The selected start now fails the recorded style filter. The current
+        # explicit-start path aborts safely instead of returning a new network.
+        with self.assertRaisesRegex(RuntimeError, 'quit / exit abort'):
+            fixture.call('EL:FreshResult', result, cfg)

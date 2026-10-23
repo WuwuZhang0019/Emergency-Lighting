@@ -7,7 +7,15 @@
   (foreach entry (EL:Get 'devices catalog)
     (if (and (vl-some '(lambda (name) (member (EL:DLNameKey name) keys)) (EL:DLEntryNames entry))
       (or (not found) (not (equal (EL:Get 'status entry) 'deleted))))
-      (setq found entry))) found)
+      (setq found entry)))
+  ;; Date: 2026-10-22. Existing user values/deletions also cover other computer suffixes.
+  (if (not found)
+    (progn
+      (setq keys (mapcar 'EL:BlockNameMatchKey (EL:DLEntryNames seed)))
+      (foreach entry (EL:Get 'devices catalog)
+        (if (and (vl-some '(lambda (name) (member (EL:BlockNameMatchKey name) keys)) (EL:DLEntryNames entry))
+          (or (not found) (not (equal (EL:Get 'status entry) 'deleted))))
+          (setq found entry))))) found)
 (defun EL:DLDefaultAssetsPresent (entry snapshot)
   (and (EL:DLEntryAssets entry)
     (findfile (strcat (EL:Get 'root snapshot) (EL:Get 'block-file entry)))

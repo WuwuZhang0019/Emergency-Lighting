@@ -1,4 +1,4 @@
-"""Native-shaped dynamic values and understandable template choices. Date: 2026-10-09."""
+"""Native-shaped template choices. Date: 2026-10-21. Status: current."""
 from dataclasses import dataclass
 import unittest
 from autolisp_host import Pair, Symbol, lisp_type, truth
@@ -62,6 +62,7 @@ class TemplateChoiceTests(unittest.TestCase):
             'SSLENGTH': len, 'SSNAME': lambda ss, i: ss[i],
             'ENTGET': lambda e: [Pair(0, 'INSERT'), Pair(5, e), Pair(2, self.names[e])],
             'HANDENT': lambda h: h,
+            'NAMEDOBJDICT': lambda: 'template-drawing',
             'TBLSEARCH': table,
             'GETVAR': lambda key: {'TEXTSTYLE': 'Standard', 'TEXTSIZE': 250.}.get(key),
             'GETINT': ask,
@@ -210,13 +211,14 @@ class TemplateChoiceTests(unittest.TestCase):
                            ('align', 1), ('rotation', 0.), ('layer', 'TEL_TEXT')]:
             self.assertEqual(self.h.run(f"(EL:Get '{key} spec)"), value)
 
-    def test_missing_library_reports_failure_instead_of_picking(self):
+    def test_missing_drawing_definitions_report_before_picking(self):
         table = self.h.builtins['TBLSEARCH']
         self.h.builtins['SSGET'] = lambda *args: self.fail('must import before looking for template samples')
         self.h.builtins['FINDFILE'] = lambda path: None
         self.h.builtins['TBLSEARCH'] = lambda kind, name: None if kind == 'BLOCK' else table(kind, name)
         self.assertIsNone(self.call('EL:CaptureFixedTemplate', self.cfg))
-        self.assertIn('缺少 templates/系统图块库.dwg', ''.join(self.messages))
+        self.assertIn('缺少系统图定义', ''.join(self.messages))
+        self.assertIn('从图库补入缺少图块', ''.join(self.messages))
         self.assertIn('当前输入保留', ''.join(self.messages))
         self.assertEqual(self.saved, [])
 
@@ -234,7 +236,7 @@ class TemplateChoiceTests(unittest.TestCase):
         })
         self.h.frames[0]['CAPTURED'] = self.call('EL:CaptureFixedTemplate', self.cfg)
         self.assertTrue(truth(self.h.lookup('CAPTURED')))
-        self.assertEqual(deleted, ['panel', 'circuit', 'panel', 'circuit'])
+        self.assertEqual(deleted, ['circuit', 'panel'])
         self.assertIsNone(self.h.run("(EL:Get 'source-handle (EL:Get 'panel captured))"))
         self.assertIsNone(self.h.run("(EL:Get 'source-handle (EL:Get 'circuit captured))"))
 

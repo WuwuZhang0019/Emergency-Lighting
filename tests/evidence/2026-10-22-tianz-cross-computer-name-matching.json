@@ -1,0 +1,88 @@
+{
+  "date": "2026-10-22",
+  "status": "focused regressions passed; native CAD acceptance pending",
+  "version": "0.1.82",
+  "package_no": 181,
+  "request": "recognize Tianzheng equipment across creator computer suffixes and package for testing",
+  "reproduction": {
+    "library_name": "$equip_U$00000309(Zhangyufeng)",
+    "drawing_name": "$equip_U$00000309(longys)",
+    "geometry_fixture": "tests/fixtures/commercial-contact-162.json",
+    "only_name_changed": true,
+    "preset_scoped": true,
+    "before_fix_four_tips_missed": true,
+    "after_fix_four_tips_recognized": true,
+    "matched_power_watts": 5,
+    "native_fault_reproduced": false
+  },
+  "policy": {
+    "forms": [
+      "$equip_U$<digits>(computer)",
+      "$equip$<digits>(computer)"
+    ],
+    "fullwidth_parentheses": true,
+    "exact_match_first": true,
+    "ambiguous_fallback": "no inferred watts",
+    "raw_name_and_saved_override_keys": "preserved",
+    "actual_geometry_and_tolerance": "unchanged",
+    "drawing_writes": "none added",
+    "default_merge": "existing values and deleted entries preserved"
+  },
+  "diagnostics": [
+    "DEVICE_NAME_SUFFIX_MATCH",
+    "DEVICE_NAME_SUFFIX_AMBIGUOUS"
+  ],
+  "regression": {
+    "tests": 67,
+    "failures": 0,
+    "errors": 0,
+    "modules": [
+      {
+        "name": "test_tianz_name_matching",
+        "tests": 9,
+        "seconds": 5.414
+      },
+      {
+        "name": "test_preset_match_cache",
+        "tests": 10,
+        "seconds": 1.302
+      },
+      {
+        "name": "test_device_library",
+        "tests": 24,
+        "seconds": 7.543
+      },
+      {
+        "name": "test_lamp_line_arms",
+        "tests": 3,
+        "seconds": 4.807
+      },
+      {
+        "name": "test_recognition_preset.PresetTests",
+        "tests": 10,
+        "seconds": 2.521
+      },
+      {
+        "name": "test_cold_entry",
+        "tests": 8,
+        "seconds": 0.14
+      },
+      {
+        "name": "test_full_test_entry",
+        "tests": 3,
+        "seconds": 0.014
+      }
+    ]
+  },
+  "package_check": "tests/evidence/2026-10-22-performance-trial-package-v0.1.82.json",
+  "source_sha256": {
+    "src/common.lsp": "9efb5d462bdf9965e0f796c9413908b89800fddbe110df3828d7cfc6d49e3c55",
+    "src/config.lsp": "c5b20446038f8e0df2b293999c269a27d501904f9e7f65a5b770bd95cd747102",
+    "src/device-library.lsp": "13c9f076814d2bc8f6302a28e0ecf85df01b77c52263e8e1b74c6400af0d0446",
+    "src/device-defaults.lsp": "6d67a874276c7b2f9d5408fa04a4fdbb44c2f06ecd7516142183c0d8a7996d91",
+    "src/device-assets.lsp": "7ec3b3603bbce070ebfb1c81cae9b06f7074c754c0879613f4196aac48c64f48",
+    "src/device-recognition.lsp": "106a3c4c4a5e1f6a8cba97f5efccd07ba71cff8bddd95fd04d9d354a96373ec3",
+    "tests/test_tianz_name_matching.py": "0643435c8424659f486302a6bbe2ee8df86b2914abd279a83da6bbcb215ed262"
+  },
+  "native_acceptance": "pending original-DWG contacts, DCL, diagram generation, save/reopen and Undo; no native success claim"
+}

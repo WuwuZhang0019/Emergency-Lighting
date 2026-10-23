@@ -1,0 +1,93 @@
+{
+  "date": "2026-10-22",
+  "status": "passed",
+  "version": "0.1.75",
+  "scope": "read-only native prototype, not native AutoCAD acceptance",
+  "core": {
+    "date": "2026-10-22",
+    "status": "passed",
+    "version": "0.1.75",
+    "mode": "core-tests",
+    "framework": "net47",
+    "platform": "x64",
+    "language_version": "7.3",
+    "deterministic": true,
+    "offline": true,
+    "autodesk_dlls_copied": false,
+    "compiler": {
+      "path": "C:\\Program Files\\dotnet\\sdk\\9.0.101\\Roslyn\\bincore\\csc.dll",
+      "sha256": "6519e56fd3182d5177838b96d8a38ea7921f3ab40eb0d19116cf17000102dcc7"
+    },
+    "references": [
+      {
+        "path": "C:\\Users\\Zyf\\.nuget\\packages\\microsoft.netframework.referenceassemblies.net47\\1.0.3\\build\\.NETFramework\\v4.7\\mscorlib.dll",
+        "assembly_name": "mscorlib",
+        "assembly_version": "4.0.0.0",
+        "file_version": "4.7.2053.0 built by: NET47REL1",
+        "sha256": "d33b4c6f04319d41348244f2506bb787abe7afa0e2ee464693082817d4124de1"
+      },
+      {
+        "path": "C:\\Users\\Zyf\\.nuget\\packages\\microsoft.netframework.referenceassemblies.net47\\1.0.3\\build\\.NETFramework\\v4.7\\System.dll",
+        "assembly_name": "System",
+        "assembly_version": "4.0.0.0",
+        "file_version": "4.7.2053.0 built by: NET47REL1",
+        "sha256": "e31e3988eaff4fdc9cb28ca6ba0980f7204c5be0cb79e2dc4e56682833fd55da"
+      },
+      {
+        "path": "C:\\Users\\Zyf\\.nuget\\packages\\microsoft.netframework.referenceassemblies.net47\\1.0.3\\build\\.NETFramework\\v4.7\\System.Core.dll",
+        "assembly_name": "System.Core",
+        "assembly_version": "4.0.0.0",
+        "file_version": "4.7.2053.0 built by: NET47REL1",
+        "sha256": "d2570c87ba2f6b7e9d577cf2f9c864bd523a34dcb13165122b2dc0eef8cf0278"
+      }
+    ],
+    "sources": [
+      {
+        "path": "native/ColdRecognition/Core/SpatialIndex.cs",
+        "sha256": "48fef0198e095a7c2ee20be4e95a2dbf8900aefdf18c05fc0f4a0cdee590f5bd"
+      },
+      {
+        "path": "native/ColdRecognition.Tests/Program.cs",
+        "sha256": "dd6e6acf800fad230704ea69d358d09aaf6da10810ffc92de4fc90a55691064c"
+      },
+      {
+        "path": "native/ColdRecognition.Tests/SpatialIndexTests.cs",
+        "sha256": "7efb391b6ed4eb72af70e7dcfc44bc82cb935a8a8b854ebe156513b475e3413f"
+      }
+    ],
+    "artifact": {
+      "path": "C:\\Users\\Zyf\\.codex\\worktrees\\lighting-shape-reuse\\Emergency-Lighting\\output\\native-cold-v0.1.75\\EmergencyLighting.ColdRecognition75.Tests.exe",
+      "bytes": 25600,
+      "sha256": "a44b0c5752b93897ea9c927e8c2bc9521af2d5bf7d4bdf80834866a322afbefd"
+    },
+    "compiler_output": "",
+    "tests": {
+      "status": "passed",
+      "test_groups": 9
+    }
+  },
+  "lisp_regression": {
+    "command": "python -B -X utf8 -m unittest test_cold_probe test_cold_entry test_full_test_entry test_root_scope_recognition test_circuit_number test_exit_preview",
+    "cwd": "tests",
+    "tests": 77,
+    "seconds": 79.425,
+    "status": "passed",
+    "test_source_sha256": {
+      "tests/test_cold_probe.py": "a715eaa5eae9dacfc7cb51d0494607bb3f0a9aaf25abd76563dc402c59a51a74",
+      "tests/test_cold_entry.py": "6107221cfdf3e6589e9a5fc847629b17bc3df863b432d93f4a887ef26d01ed40",
+      "tests/test_full_test_entry.py": "37c1391eb3c148429632866a6b7bea9b628eac3de90d4266dccd2077fda531a7",
+      "tests/test_root_scope_recognition.py": "e9057b8a02568ed232b0fddd2d06b52858d79393abd562629186c9380d4b4fc6",
+      "tests/test_circuit_number.py": "9e8929a4bc81f25cfffc84f1e8a111dd4d7e1d9ce7c5fd1dbac750db25c2821c",
+      "tests/test_exit_preview.py": "61902f2b354c3282afd985fba399124c3b34ddde65be9d01a4fe2d8dbc06bf20",
+      "src/cold-probe.lsp": "613830c65684032aea7099447a0725fa4522f04625b60df29819fc5d3e14650f",
+      "src/startup.lsp": "3732c5ddc2212a0730b0155176ac5d77afe8d7c236fb0036b8871f596bf38f33",
+      "src/diagram-commands.lsp": "58f8601622192df94150ed02634fe9e61886d835d66e8d72b2b57d6ada4ad65d",
+      "tools/templates/cold-test.lsp": "bb40b879790a1a6a444a209b3258a736a8497f4f2dbce5745512cd91ec53a095"
+    }
+  },
+  "native_cad_status": "not run; no AutoCAD installed locally",
+  "first_new_panel_full_recognition_target_ms": 3000,
+  "target_achieved": false,
+  "complete_native_recognition": false,
+  "comparison_order": "managed coarse first, optional legacy full after; not strict cold A/B"
+}

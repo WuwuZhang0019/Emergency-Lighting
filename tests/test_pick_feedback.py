@@ -175,6 +175,8 @@ class PickFeedbackTests(unittest.TestCase):
         self.assertIsNone(self.h.lookup('*EL:PICKHIGHLIGHTS*'))
 
     def test_template_cancellation_cleans_picked_block(self):
+        # Date: 2026-10-21. PickEntity resets native ERRNO before ENTSEL.
+        self.h.builtins['SETVAR'] = lambda key, value: value
         self.h.frames[0]['TEST:CFG'] = self.cfg
         self.cfg = self.h.run("(EL:Put 'params (EL:SuggestedParams) test:cfg)")
         self.picks = iter(['panel'])

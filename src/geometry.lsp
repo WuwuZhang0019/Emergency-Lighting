@@ -131,14 +131,17 @@
   (if (< (caddr normal) 0.0)
     (setq bulges (mapcar '- bulges)))
   (list (reverse points) (reverse bulges)))
-(defun EL:PolylineSegments (points bulges closed err / out tail bs part)
+(defun EL:PolylineSegments (points bulges closed err / out tail bs part segment)
+  ;; Date: 2026-10-21. Accumulate sampled pieces once, preserving source order.
   (setq tail (if closed (append points (list (car points))) points) bs bulges)
   (while (cdr tail)
     (EL:LogEvent "POLYLINE_SEGMENT" (list (cons 'start (car tail)) (cons 'end (cadr tail))
       (cons 'bulge (car bs)) (cons 'error-bound err)))
     (setq part (EL:BulgePoints (car tail) (cadr tail) (cond ((car bs)) (T 0.0)) err))
-    (if part (setq out (append out (EL:Segments part))) (setq out nil tail nil))
-    (setq tail (cdr tail) bs (cdr bs))) out)
+    (if part
+      (foreach segment (EL:Segments part) (setq out (cons segment out)))
+      (setq out nil tail nil))
+    (setq tail (cdr tail) bs (cdr bs))) (reverse out))
 (defun EL:MakeEnd (id side points bulges layer / p q b rest state direction)
   ;; Last vertex has no outgoing segment: use the penultimate original bulge.
   (if (equal side 'end) (setq points (reverse points) bulges (cdr (reverse bulges))))
@@ -180,11 +183,19 @@
           (EL:V- a (EL:V* (/ start 2.0) normal)))
         ring (EL:Segments (append points (list (car points)))))
       (list (cons 'segments ring) (cons 'regions (list ring))))))
-(defun EL:WireContactStrips (segments profiles / out segment profile base length start end strip)
+(defun EL:WireContactStrips (segments profiles / out segment profile base length start end strip prepared first repeated)
+  ;; Date: 2026-10-21. Reuse only this call's immutable profile baselines.
+  ;; Prepare lazily during the first segment, retaining original error order.
+  (setq first T)
   (foreach segment segments
-    (foreach profile profiles
-      (setq base (list (list (car profile) (cadr profile)))
-        length (EL:Norm (EL:V- (cadr profile) (car profile))))
+    (if first (setq repeated (cdr segments)))
+    (foreach profile (if first profiles prepared)
+      (if first
+        (progn
+          (setq base (list (list (car profile) (cadr profile)))
+            length (EL:Norm (EL:V- (cadr profile) (car profile))))
+          (if repeated (setq prepared (cons (list profile base length) prepared))))
+        (setq base (cadr profile) length (caddr profile) profile (car profile)))
       (if (and (> length 1.0e-9)
           (EL:Touches (car segment) base (EL:GapEpsilon) (EL:GapEpsilon))
           (EL:Touches (cadr segment) base (EL:GapEpsilon) (EL:GapEpsilon)))
@@ -194,23 +205,30 @@
             end (+ (nth 2 profile) (* (- (nth 3 profile) (nth 2 profile))
             (/ (EL:Norm (EL:V- (cadr segment) (car profile))) length))))
           (if (setq strip (EL:WireStrip (car segment) (cadr segment) start end))
-            (setq out (cons strip out)))))))
+            (setq out (cons strip out))))))
+    (if first (setq prepared (if repeated (reverse prepared)) first nil)))
   (reverse out))
-(defun EL:WireContactBounds (wire / segments strip)
-  ;; Date: 2026-10-20. Fresh wire records retain their exact derived envelope.
-  ;; Clipped trunk pieces rebuild it; old records still use the geometry path.
+(defun EL:WireContactBounds (wire / segments strip segment)
+  ;; Date: 2026-10-21. Build the same ordered bound input once for wide wires.
+  ;; Fresh records reuse their envelope; clipped trunk pieces still rebuild it.
   (if (assoc 'contact-bounds wire) (EL:Get 'contact-bounds wire)
     (progn
       (setq segments (EL:Get 'segments wire))
-      (foreach strip (EL:Get 'contact-strips wire)
-        (setq segments (append segments (EL:Get 'segments strip))))
+      (if (EL:Get 'contact-strips wire)
+        (progn
+          (setq segments (reverse segments))
+          (foreach strip (EL:Get 'contact-strips wire)
+            (foreach segment (EL:Get 'segments strip)
+              (setq segments (cons segment segments))))
+          (setq segments (reverse segments))))
       (EL:SegmentBounds segments))))
 (defun EL:PrepareWireBounds (wire)
   (EL:Put 'contact-bounds (EL:WireContactBounds
     (vl-remove-if '(lambda (row) (equal (car row) 'contact-bounds)) wire)) wire))
 (defun EL:WireRecord (e cfg)
   (EL:WireRecordDXF e (entget e) cfg))
-(defun EL:WireRecordDXF (e d cfg / id typ pts bs closed segments ends issues normal total seg bounds profiles)
+(defun EL:WireRecordDXF (e d cfg / id typ pts bs closed segments ends issues normal total seg bounds profiles started record)
+  (if *EL:CollectReadProfile* (setq started (EL:Tick)))
   ;; Date: 2026-10-15. No second entity read while collecting this wire.
   (setq id (cdr (assoc 5 d)) typ (cdr (assoc 0 d)) normal (cdr (assoc 210 d)))
   (cond ((= typ "LINE") (setq pts (list (cdr (assoc 10 d)) (cdr (assoc 11 d))) bs '(0.0 0.0)))
@@ -236,9 +254,12 @@
   (if (not (member typ '("LINE" "LWPOLYLINE"))) (setq bounds (EL:LogCall "ENTITY_BOUNDS" (EL:LogEntity e) 'EL:EntityBounds (list e))))
   (if (and (= typ "LWPOLYLINE") (not closed))
     (setq profiles (EL:WireWidthProfiles d pts bs)))
-  (EL:PrepareWireBounds (list (cons 'id id) (cons 'layer (cdr (assoc 8 d))) (cons 'type typ)
+  (setq record (EL:PrepareWireBounds (list (cons 'id id) (cons 'layer (cdr (assoc 8 d))) (cons 'type typ)
         (cons 'width-profiles profiles) (cons 'contact-strips (EL:WireContactStrips segments profiles))
         (cons 'segments segments) (cons 'bounds bounds) (cons 'ends ends) (cons 'issues issues) (cons 'raw (EL:Signature (EL:CanonicalVisibilityDXF d))))))
+  (if *EL:CollectReadProfile*
+    (setq *EL:CollectWireMS* (+ *EL:CollectWireMS* (EL:PerfDelta started (EL:Tick)))
+      *EL:CollectProfileReads* (+ *EL:CollectProfileReads* 2))) record)
 (defun EL:TransformSegments (segments matrix)
   (mapcar '(lambda (segment) (list (EL:AffinePoint (car segment) matrix)
     (EL:AffinePoint (cadr segment) matrix))) segments))
@@ -370,7 +391,11 @@
       (if (> (cdr (assoc 40 data)) 0.0)
         (list center (* sx (cdr (assoc 40 data))) (+ (atan (cadr x) (car x)) (* sign start))
           (* sign sweep) (equal (strcase (cond ((cdr (assoc 8 data))) (T "0"))) "EL_HOLE"))))))
-(defun EL:ShapeGeometry (shape) (or (EL:Get 'segments shape) (EL:Get 'curves shape)))
+(defun EL:ShapeGeometry (shape)
+  ;; Date: 2026-10-21. A translated pose owns no duplicate dense geometry.
+  (or (EL:Get 'segments shape) (EL:Get 'curves shape)
+    (and (EL:Get 'contact-template shape) (EL:ShapeGeometry (EL:Get 'contact-template shape)))))
+(defun EL:DeviceContourTolerance () 0.001)
 (defun EL:TranslateCurves (curves offset)
   (mapcar '(lambda (curve) (cons (EL:V+ (car curve) offset) (cdr curve))) curves))
 ;; Date: 2026-10-13. Reuse definition primitives without sampling circles again.
@@ -445,11 +470,11 @@
   fallback)
 (defun EL:DeviceContour (entity / *EL:AnalyticContours* shape)
   (setq *EL:AnalyticContours* T
-    shape (EL:BlockContour entity '(1.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0) 0.001 nil))
+    shape (EL:BlockContour entity '(1.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0) (EL:DeviceContourTolerance) nil))
   (if (EL:CurveNeedsRegionFallback shape)
     (progn (setq *EL:AnalyticContours* nil)
       (EL:LogEvent "ANALYTIC_REGION_FALLBACK" (EL:LogEntity entity))
-      (setq shape (EL:BlockContour entity '(1.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0) 0.001 nil))))
+      (setq shape (EL:BlockContour entity '(1.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0) (EL:DeviceContourTolerance) nil))))
   (EL:LogEvent "DEVICE_PRIMITIVES" (list (cons 'lines (length (EL:Get 'segments shape)))
     (cons 'curves (length (EL:Get 'curves shape)))))
   shape)
@@ -460,12 +485,12 @@
   (setq *EL:AnalyticContours* T data (entget entity)
     matrix (EL:InsertMatrix entity)
     shape (EL:BlockDefinitionContour (cdr (assoc 2 data))
-      (if matrix '(1.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0)) 0.001 nil))
+      (if matrix '(1.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0)) (EL:DeviceContourTolerance) nil))
   (if (EL:CurveNeedsRegionFallback shape)
     (progn (setq *EL:AnalyticContours* nil)
       (EL:LogEvent "ANALYTIC_DEFINITION_REGION_FALLBACK" (EL:LogEntity entity))
       (setq shape (EL:BlockDefinitionContour (cdr (assoc 2 data))
-        (if matrix '(1.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0)) 0.001 nil))))
+        (if matrix '(1.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0)) (EL:DeviceContourTolerance) nil))))
   shape)
 ;; Date: 2026-10-10. SOLID/TRACE use OCS vertices in perimeter order 10,11,13,12.
 (defun EL:SolidSegments (data / points code point)
@@ -479,7 +504,7 @@
         m (EL:LogCall "INSERT_MATRIX" (list (EL:LogEntity e) (cons 'parents stack)) 'EL:InsertMatrix (list e)))
   (EL:LogEvent "BLOCK_CONTOUR_INPUT" (list (cons 'name name) (cons 'matrix m) (cons 'parent-matrix matrix) (cons 'tolerance tol)))
   (EL:BlockDefinitionContour name (if m (EL:AffineCompose matrix m)) tol stack))
-(defun EL:BlockDefinitionContour (name matrix tol stack / b child cd typ m result segs issues local pd scale normal holes transformed curves curve regions sampled paths)
+(defun EL:BlockDefinitionContour (name matrix tol stack / b child cd typ m result segs issues local pd scale normal holes transformed curves curve regions sampled paths pose-local nested)
   ;; Date: 2026-10-13. Shared traversal for an instance or an unposed definition.
   (setq b (tblsearch "BLOCK" name) m matrix)
   (cond ((or (member name stack) (>= (length stack) 16))
@@ -526,6 +551,7 @@
                       (list cd (/ tol (* 8.0 scale)))) sampled T)
                     (if (not local) (setq issues (cons (EL:Issue 'CONTOUR_RESOLUTION name nil) issues))))))
                ((= typ "INSERT")
+                (setq nested T)
                 (setq result (EL:LogCall "NESTED_CONTOUR" (EL:LogEntity child) 'EL:BlockContour (list child m tol (cons name stack)))
                       regions (append regions (EL:Get 'regions result))
                       curves (append curves (EL:Get 'curves result)) holes (append holes (EL:Get 'holes result)) segs (append segs (EL:Get 'segments result)) issues (append issues (EL:Get 'issues result))
@@ -540,11 +566,16 @@
            (if (and transformed (member typ '("SOLID" "TRACE")))
              (setq regions (cons transformed regions)))
            (setq segs (append transformed segs))
+           ;; Date: 2026-10-21. Retain the first sampler's exact local points.
+           ;; A later direct pose must reproduce every WCS point exactly;
+           ;; nested definitions retain the original instance-only path.
+           (setq pose-local (append local pose-local))
            (EL:LogEvent "CONTOUR_NEXT" (cdr (assoc 5 cd)))
            (setq child (entnext child)))))
   (if (not (or segs curves)) (setq issues (cons (EL:Issue 'EMPTY_CONTOUR name nil) issues)))
   (list (cons 'segments segs) (cons 'curves curves) (cons 'regions regions) (cons 'holes holes) (cons 'hole-paths paths) (cons 'issues issues)
-    (cons 'sampled-curves sampled)))
+    (cons 'sampled-curves sampled)
+    (cons 'pose-local-segments (if (not nested) pose-local)) (cons 'pose-matrix m)))
 (defun EL:DynamicState (e / obj props out p)
   (setq obj (vlax-ename->vla-object e))
   (if (= (vla-get-IsDynamicBlock obj) :vlax-true)
@@ -562,9 +593,15 @@
           (setq rows (cons (EL:DefinitionData (cdr (assoc 2 d)) (cons name stack)) rows)))
         (setq rows (cons d rows) e (entnext e)))
       (list (cdr (assoc 10 b)) (reverse rows)))))
-(defun EL:EntityBounds (e / lo hi result)
+(defun EL:EntityBounds (e / lo hi result started)
+  ;; Date: 2026-10-21. Aggregate only inside one profiled source collection.
+  (if *EL:CollectReadProfile* (setq started (EL:Tick)))
   (setq result (vl-catch-all-apply 'vla-GetBoundingBox (list (vlax-ename->vla-object e) 'lo 'hi)))
-  (if (not (vl-catch-all-error-p result)) (list (vlax-safearray->list lo) (vlax-safearray->list hi))))
+  (setq result (if (not (vl-catch-all-error-p result))
+    (list (vlax-safearray->list lo) (vlax-safearray->list hi))))
+  (if *EL:CollectReadProfile*
+    (setq *EL:CollectBoundsMS* (+ *EL:CollectBoundsMS* (EL:PerfDelta started (EL:Tick)))
+      *EL:CollectProfileReads* (+ *EL:CollectProfileReads* 2))) result)
 (defun EL:InBounds (point bounds tolerance)
   (and bounds (>= (car point) (- (car (car bounds)) tolerance)) (<= (car point) (+ (car (cadr bounds)) tolerance))
     (>= (cadr point) (- (cadr (car bounds)) tolerance)) (<= (cadr point) (+ (cadr (cadr bounds)) tolerance))
@@ -614,13 +651,18 @@
   (and a b (<= (caar a) (+ (car (cadr b)) tol)) (>= (car (cadr a)) (- (caar b) tol))
     (<= (cadr (car a)) (+ (cadr (cadr b)) tol)) (>= (cadr (cadr a)) (- (cadr (car b)) tol))
     (<= (caddr (car a)) (+ (caddr (cadr b)) tol)) (>= (caddr (cadr a)) (- (caddr (car b)) tol))))
-(defun EL:SpatialBoxQuery (tree bounds tol / item result)
-  (if (and tree (EL:BoundsOverlap (list (nth 3 tree) (nth 4 tree)) bounds tol))
-    (progn
-      (setq item (car tree))
-      (if (EL:BoundsOverlap (EL:Get 'bounds item) bounds tol) (setq result (list item)))
-      (append result (EL:SpatialBoxQuery (cadr tree) bounds tol)
-                     (EL:SpatialBoxQuery (caddr tree) bounds tol)))))
+(defun EL:SpatialBoxQuery (tree bounds tol / node stack item result)
+  ;; Date: 2026-10-21. Retain node/left/right order without copying child lists.
+  (if tree (setq stack (list tree)))
+  (while stack
+    (setq node (car stack) stack (cdr stack))
+    (if (EL:BoundsOverlap (list (nth 3 node) (nth 4 node)) bounds tol)
+      (progn
+        (setq item (car node))
+        (if (EL:BoundsOverlap (EL:Get 'bounds item) bounds tol) (setq result (cons item result)))
+        (if (caddr node) (setq stack (cons (caddr node) stack)))
+        (if (cadr node) (setq stack (cons (cadr node) stack))))))
+  (reverse result))
 (defun EL:RingItems (segments / items seg a b index)
   ;; Date: 2026-10-08. XY broad phase only; exact 3D endpoint tests follow.
   (setq index 0)
@@ -738,14 +780,34 @@
     (EL:PrepareContourContact block)))
 (defun EL:ContactSegments (block bounds)
   (EL:ContactSegmentsTolerance block bounds (EL:GapEpsilon)))
-(defun EL:ContactSegmentsTolerance (block bounds tol / template offset matrix)
+(defun EL:ContactRawSegments (shape)
+  ;; Date: 2026-10-21. Iterators share the source list and translate per edge.
+  (EL:Get 'segments (if (EL:Get 'contact-lazy shape) (EL:Get 'contact-template shape) shape)))
+(defun EL:ContactWorldSegment (segment shape / offset)
+  (if (EL:Get 'contact-lazy shape)
+    (progn (setq offset (EL:Get 'contact-offset shape))
+      (list (EL:V+ (car segment) offset) (EL:V+ (cadr segment) offset))) segment))
+(defun EL:ContactQueryRoundoff (bounds offset / magnitude point value)
+  ;; Date: 2026-10-21. Only the shared-tree broad phase gets this margin.
+  ;; Subtracting a pose offset must not hide a WCS edge at a tolerance limit.
+  (setq magnitude 1.0)
+  (foreach point (cons offset bounds)
+    (foreach value point (setq magnitude (max magnitude (abs value)))))
+  (* 1.0e-12 magnitude))
+(defun EL:ContactSegmentsTolerance (block bounds tol / template offset matrix margin)
   ;; Date: 2026-10-10. Query the shared index before translating selected edges.
   (if (setq template (EL:Get 'contact-template block))
     (progn
       (setq offset (EL:Get 'contact-offset block)
         matrix (list 1.0 0.0 0.0 1.0 (car offset) (cadr offset) (caddr offset) 1.0))
-      (EL:TransformSegments (EL:ContactSegmentsTolerance template
-        (mapcar '(lambda (point) (EL:V- point offset)) bounds) tol) matrix))
+      (if (EL:Get 'contact-lazy block)
+        (progn
+          (setq margin (EL:ContactQueryRoundoff bounds offset))
+          (mapcar '(lambda (seg) (list (EL:V+ (car seg) offset) (EL:V+ (cadr seg) offset)))
+            (EL:ContactSegmentsTolerance template
+              (mapcar '(lambda (point) (EL:V- point offset)) bounds) (+ tol margin))))
+        (EL:TransformSegments (EL:ContactSegmentsTolerance template
+          (mapcar '(lambda (point) (EL:V- point offset)) bounds) tol) matrix)))
     (EL:ContactSegmentsDirectTolerance block bounds tol)))
 (defun EL:ContactSegmentsDirect (block bounds)
   (EL:ContactSegmentsDirectTolerance block bounds (EL:GapEpsilon)))
@@ -760,10 +822,40 @@
   (list (list (- (car point) tol) (- (cadr point) tol) 0.0)
         (list (+ (car point) tol) (+ (cadr point) tol) 0.0)))
 (defun EL:ContourContains (point block)
-  ;; Date: 2026-10-10. Reuse prepared regions and holes in template coordinates.
-  (if (EL:Get 'contact-template block)
-    (EL:ContourContainsDirect (EL:V- point (EL:Get 'contact-offset block)) (EL:Get 'contact-template block))
-    (EL:ContourContainsDirect point block)))
+  ;; Date: 2026-10-21. Sampled poses retain the original target-WCS arithmetic.
+  (cond ((EL:Get 'contact-lazy block) (EL:ContourContainsTranslated point block))
+    ((EL:Get 'contact-template block)
+      (EL:ContourContainsDirect (EL:V- point (EL:Get 'contact-offset block)) (EL:Get 'contact-template block)))
+    (T (EL:ContourContainsDirect point block))))
+(defun EL:InsideTranslatedSegments (p segments offset / count seg a b x)
+  ;; Same operation order as InsideSegments; translate one edge at a time.
+  (setq count 0)
+  (foreach seg segments
+    (setq a (EL:V+ (car seg) offset) b (EL:V+ (cadr seg) offset))
+    (if (or (and (> (cadr a) (cadr p)) (<= (cadr b) (cadr p)))
+            (and (> (cadr b) (cadr p)) (<= (cadr a) (cadr p))))
+      (progn
+        (setq x (+ (car a) (* (- (cadr p) (cadr a)) (/ (- (car b) (car a)) (- (cadr b) (cadr a))))))
+        (if (> x (car p)) (setq count (1+ count)))))) (= 1 (rem count 2)))
+(defun EL:TranslatedRingBounds (bounds offset)
+  (if bounds (EL:XYBounds (mapcar '(lambda (point) (EL:V+ point offset)) bounds))))
+(defun EL:ContourContainsTranslated (point block / template offset hit loop holes rows row bounds curves)
+  (setq template (EL:Get 'contact-template block) offset (EL:Get 'contact-offset block)
+    curves (EL:Get 'curves block) rows (EL:Get 'contact-regions template))
+  (while (and rows (not hit))
+    (setq row (car rows) loop (car row) bounds (EL:TranslatedRingBounds (cadr row) offset) rows (cdr rows))
+    (if (and (or (not bounds) (EL:BoundsOverlap (EL:PointContactBounds point 0.0) bounds 0.0))
+        (<= (abs (- (caddr point) (+ (caddr (caar loop)) (caddr offset)))) (EL:GapEpsilon))
+        (EL:InsideTranslatedSegments point loop offset)) (setq hit T)))
+  (if (or hit (EL:NativeRegionHit point curves nil))
+    (progn
+      (setq rows (EL:Get 'contact-holes template))
+      (while (and rows (not holes))
+        (setq row (car rows) loop (car row) bounds (EL:TranslatedRingBounds (cadr row) offset) rows (cdr rows))
+        (if (and (or (not bounds) (EL:BoundsOverlap (EL:PointContactBounds point 0.0) bounds 0.0))
+            (EL:InsideTranslatedSegments point loop offset)) (setq holes T)))))
+  (and (or hit (EL:NativeRegionHit point curves nil))
+    (not holes) (not (EL:NativeRegionHit point curves T))))
 (defun EL:ContourContainsDirect (point block / hit loop holes rows row bounds)
   (setq rows (if (EL:Get 'contact-ready block) (EL:Get 'contact-regions block)
     (mapcar '(lambda (ring) (list ring nil)) (EL:Get 'regions block))))
@@ -787,7 +879,7 @@
   (if (EL:Get 'whole-block block) (EL:InBounds point (EL:Get 'bounds block) (EL:GapEpsilon))
     (EL:ContourContains point block)))
 (defun EL:ContourPointHit (point block cfg)
-  (if (EL:Get 'contact-template block)
+  (if (and (EL:Get 'contact-template block) (not (EL:Get 'contact-lazy block)))
     (EL:ContourPointHit (EL:V- point (EL:Get 'contact-offset block)) (EL:Get 'contact-template block) cfg)
     (or (vl-some '(lambda (curve) (EL:CurvePointHit point curve (EL:Get 'eps_boundary (EL:Get 'params cfg)))) (EL:Get 'curves block))
       (EL:ContourPointHitLinear point block cfg))))
@@ -943,15 +1035,20 @@
         (setq near (max near low) far (min far high))
         (if (> near far) (setq ok nil))))
     (setq axis (1+ axis))) ok)
-(defun EL:SpatialRayQuery (tree p direction limit / item bounds result)
-  (if (and tree (EL:RayBoxHits p direction limit (nth 3 tree) (nth 4 tree)))
-    (progn
-      (setq item (car tree) bounds (EL:Get 'bounds item))
-      (if (EL:RayBoxHits p direction limit
-            (if bounds (car bounds) (EL:Get 'point item))
-            (if bounds (cadr bounds) (EL:Get 'point item))) (setq result (list item)))
-      (append result (EL:SpatialRayQuery (cadr tree) p direction limit)
-                     (EL:SpatialRayQuery (caddr tree) p direction limit)))))
+(defun EL:SpatialRayQuery (tree p direction limit / node stack item bounds result)
+  ;; Date: 2026-10-21. Push right before left to preserve the original visit order.
+  (if tree (setq stack (list tree)))
+  (while stack
+    (setq node (car stack) stack (cdr stack))
+    (if (EL:RayBoxHits p direction limit (nth 3 node) (nth 4 node))
+      (progn
+        (setq item (car node) bounds (EL:Get 'bounds item))
+        (if (EL:RayBoxHits p direction limit
+              (if bounds (car bounds) (EL:Get 'point item))
+              (if bounds (cadr bounds) (EL:Get 'point item))) (setq result (cons item result)))
+        (if (caddr node) (setq stack (cons (caddr node) stack)))
+        (if (cadr node) (setq stack (cons (cadr node) stack))))))
+  (reverse result))
 (defun EL:GapPathIndex (snapshot / items item seg)
   (foreach item (append (EL:Get 'wires snapshot) (EL:Get 'blocks snapshot))
     (if (EL:Get 'whole-block item)
@@ -968,7 +1065,8 @@
   ;; Non-collinear wires do not block; whole equipment boxes do.
   (setq p (EL:Get 'point a) q (EL:Get 'point b) tdir (EL:Unit (EL:V- q p))
         len (EL:Norm (EL:V- q p)) eps (EL:GapEpsilon)
-        tree (if *EL:GapIndexReady* *EL:GapPathIndex* (EL:GapPathIndex snapshot)))
+        tree (cond (*EL:RootScopeActive* (EL:RootScopeGapIndex a b snapshot))
+          (*EL:GapIndexReady* *EL:GapPathIndex*) (T (EL:GapPathIndex snapshot))))
   (foreach item (EL:SpatialRayQuery tree p tdir len)
     (setq seg (EL:Get 'segment item))
     (if (EL:Get 'whole-block item)
@@ -1032,3 +1130,106 @@
 ;; Date: 2026-10-11. Absent DXF 60 and explicit zero both mean visible.
 (defun EL:CanonicalVisibilityDXF (data)
   (vl-remove-if '(lambda (pair) (and (= (car pair) 60) (= (cdr pair) 0))) data))
+
+
+;; Date: 2026-10-21. Root discovery uses envelopes only, never final contact.
+;; This fresh proxy avoids sampled segments, width strips and vertex logging.
+;; Unsupported planes/data return NIL so the caller retains exact collection.
+(defun EL:RootScopeWireBounds (points bulges width err / lo hi tail bs a b bulge chord mid left center radius sweep chord-length shortest margin extra bound good)
+  (setq good (and points (cdr points) (EL:NonNegative width) (EL:Number err) (> err 0.0))
+    lo (car points) hi lo tail points bs bulges)
+  (foreach a points (setq lo (mapcar 'min lo a) hi (mapcar 'max hi a)))
+  (while (and good (cdr tail))
+    (setq a (car tail) b (cadr tail) bulge (cond ((car bs)) (T 0.0))
+      chord (EL:V- b a) chord-length (EL:Norm chord))
+    (if (or (not (EL:Number bulge)) (not (EL:Number chord-length))) (setq good nil)
+      (if (< (abs bulge) 1.0e-12)
+        (if (> chord-length 1.0e-9) (setq shortest (if shortest (min shortest chord-length) chord-length)))
+        (progn
+          ;; The entire analytic circle encloses every old sampled arc chord.
+          (setq mid (EL:V* 0.5 (EL:V+ a b)) left (list (- (cadr chord)) (car chord) 0.0)
+            center (EL:V+ mid (EL:V* (/ (- 1.0 (* bulge bulge)) (* 4.0 bulge)) left))
+            radius (EL:Norm (EL:V- a center)) sweep (* 4.0 (atan bulge)))
+          (if (and (EL:Point center) (EL:Number radius) (> radius 1.0e-9)
+              (<= (* radius (- 1.0 (cos (/ (abs sweep) 8192.0)))) err))
+            (progn
+              (setq extra (list radius radius 0.0)
+                lo (mapcar 'min lo (EL:V- center extra)) hi (mapcar 'max hi (EL:V+ center extra))))
+            (setq good nil)))))
+    (setq tail (cdr tail) bs (cdr bs)))
+  ;; Curved/degenerate source edges never create an eligible width profile.
+  (if (not shortest) (setq width 0.0))
+  (if (and good (or shortest (> (EL:Norm (EL:V- hi lo)) 1.0e-9)))
+    (progn
+      ;; A sampled endpoint accepted by a straight profile is at most epsilon
+      ;; past that profile. Bound its possible interpolated width as well.
+      (setq margin (if (= width 0.0) 0.0 (* 0.5 width (+ 1.0 (/ (EL:GapEpsilon) shortest))))
+        extra (+ margin (EL:ContactQueryRoundoff (list lo hi) nil))
+        bound (list (EL:V- lo (list extra extra (EL:ContactQueryRoundoff (list lo hi) nil)))
+          (EL:V+ hi (list extra extra (EL:ContactQueryRoundoff (list lo hi) nil)))))
+      (if (and (EL:Point (car bound)) (EL:Point (cadr bound))) bound))))
+(defun EL:RootScopeWireImpl (entity data cfg / id typ layer normal points bulges elev flags pair point width value good bounds exact-bounds)
+  (setq id (cdr (assoc 5 data)) typ (cdr (assoc 0 data)) layer (cdr (assoc 8 data))
+    normal (cond ((cdr (assoc 210 data))) (T '(0.0 0.0 1.0)))
+    good (and (equal (type id) 'STR) (/= id "") (equal (type layer) 'STR)) width 0.0)
+  (if (not good) (setq *EL:RootScopeFallbackReason* "identity"))
+  (if (and good (not (and (EL:Point normal) (equal normal '(0.0 0.0 1.0) 0.0))))
+    (setq good nil *EL:RootScopeFallbackReason* "unsupported-plane"))
+  (cond
+    ((and good (equal typ "LINE"))
+      (setq points (list (cdr (assoc 10 data)) (cdr (assoc 11 data))) bulges '(0.0 0.0)
+        good (and (vl-every 'EL:Point points)
+          (<= (abs (- (caddr (car points)) (caddr (cadr points)))) (EL:Get 'eps_z (EL:Get 'params cfg)))))
+      (if (not good) (setq *EL:RootScopeFallbackReason* "invalid-line")))
+    ((and good (equal typ "LWPOLYLINE"))
+      (setq flags (cond ((cdr (assoc 70 data))) (T 0))
+        elev (cond ((cdr (assoc 38 data))) (T 0.0))
+        good (and (EL:Number elev) (equal (type flags) 'INT)))
+      (if (not good) (setq *EL:RootScopeFallbackReason* "invalid-polyline-metadata")
+        (if (/= (logand 1 flags) 0) (setq good nil *EL:RootScopeFallbackReason* "closed-polyline")))
+      (foreach pair data
+        (cond
+          ((= (car pair) 10)
+            (setq point (cdr pair))
+            (if (and (listp point) (member (vl-list-length point) '(2 3))
+                (EL:Number (car point)) (EL:Number (cadr point)))
+              (setq points (cons (list (car point) (cadr point) elev) points) bulges (cons 0.0 bulges))
+              (progn (setq good nil)
+                (if (not *EL:RootScopeFallbackReason*) (setq *EL:RootScopeFallbackReason* "invalid-vertex")))))
+          ((= (car pair) 42)
+            (if (and points (EL:Number (cdr pair))) (setq bulges (cons (cdr pair) (cdr bulges)))
+              (progn (setq good nil)
+                (if (not *EL:RootScopeFallbackReason*) (setq *EL:RootScopeFallbackReason* "invalid-bulge")))))
+          ((member (car pair) '(40 41 43))
+            (setq value (cdr pair))
+            (if (EL:NonNegative value) (setq width (max width value))
+              (progn (setq good nil)
+                (if (not *EL:RootScopeFallbackReason*) (setq *EL:RootScopeFallbackReason* "invalid-width")))))))
+      (setq points (reverse points) bulges (reverse bulges)))
+    (T (if good (setq *EL:RootScopeFallbackReason* "unsupported-type")) (setq good nil)))
+  (if (and good (setq bounds (EL:RootScopeWireBounds points bulges width
+      (/ (EL:Get 'eps_boundary (EL:Get 'params cfg)) 8.0))))
+    (progn
+      ;; Exact zero-width straight bounds also preserve old candidate ordering.
+      (if (and (= width 0.0) (vl-every '(lambda (b) (< (abs b) 1.0e-12)) bulges))
+        (setq exact-bounds (list (car points) (car points))))
+      (if exact-bounds
+        (foreach point (cdr points)
+          (setq exact-bounds (list (mapcar 'min (car exact-bounds) point)
+            (mapcar 'max (cadr exact-bounds) point)))))
+      (list (cons 'id id) (cons 'layer layer) (cons 'type typ)
+        (cons 'ends (list (EL:MakeEnd id 'start points bulges layer) (EL:MakeEnd id 'end points bulges layer)))
+        (cons 'candidate-bounds exact-bounds)
+        (cons 'contact-bounds bounds) (cons 'deferred-dxf data) (cons 'entity entity)))))
+(defun EL:RootScopeWire (entity data cfg / checked)
+  ;; Date: 2026-10-21. The collector batches these details; never log each wire.
+  ;; No partial proxy escapes a failed envelope/endpoint proof.
+  (setq *EL:RootScopeFallbackReason* nil *EL:RootScopeFallbackError* nil
+    checked (vl-catch-all-apply 'EL:RootScopeWireImpl (list entity data cfg)))
+  (cond
+    ((vl-catch-all-error-p checked)
+      (setq *EL:RootScopeFallbackReason* "exception"
+        *EL:RootScopeFallbackError* (vl-catch-all-error-message checked)) nil)
+    ((not checked)
+      (if (not *EL:RootScopeFallbackReason*) (setq *EL:RootScopeFallbackReason* "envelope-unproven")) nil)
+    (T checked)))

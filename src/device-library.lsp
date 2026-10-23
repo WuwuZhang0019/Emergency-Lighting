@@ -107,17 +107,36 @@
   (foreach entry (EL:Get 'devices catalog)
     (if (and (EL:Get 'active entry) (equal (EL:Get 'status entry) 'ready))
       (foreach name (EL:DLEntryNames entry) (setq index (cons (cons (EL:DLNameKey name) entry) index))))) index)
+;; Date: 2026-10-22. Exact names win; a suffix fallback must identify a single device.
+(defun EL:DLUniqueNameEntry (name entries / key entry found ambiguous ids)
+  (if (setq key (EL:TianzhengNameKey name))
+    (foreach entry entries
+      (if (member key (mapcar 'EL:BlockNameMatchKey (EL:DLEntryNames entry)))
+        (progn
+          (setq ids (EL:Unique (cons (EL:Get 'device-id entry) ids)))
+          (if (and found (not (equal (EL:Get 'device-id entry) (EL:Get 'device-id found))))
+            (setq ambiguous T) (setq found entry))))))
+  (if ambiguous
+    (progn (EL:LogEvent "DEVICE_NAME_SUFFIX_AMBIGUOUS"
+      (list (cons 'drawing-name name) (cons 'match-key key) (cons 'device-ids ids))) nil)
+    found))
 (defun EL:DLLookup (name snapshot)
-  (cdr (assoc (EL:DLNameKey name) (EL:Get 'index snapshot))))
+  (cond ((cdr (assoc (EL:DLNameKey name) (EL:Get 'index snapshot))))
+    ((EL:DLUniqueNameEntry name (mapcar 'cdr (EL:Get 'index snapshot))))))
 ;; Date: 2026-10-12. Picked drafts have real graphics before default watts are complete.
 (defun EL:DLFindEntry (name snapshot / found entry)
   (foreach entry (EL:Get 'devices (EL:Get 'catalog snapshot))
     (if (and (not (equal (EL:Get 'status entry) 'deleted))
-      (member (EL:DLNameKey name) (mapcar 'EL:DLNameKey (EL:DLEntryNames entry)))) (setq found entry))) found)
+      (member (EL:DLNameKey name) (mapcar 'EL:DLNameKey (EL:DLEntryNames entry)))) (setq found entry)))
+  (cond (found) ((EL:DLUniqueNameEntry name (vl-remove-if '(lambda (entry)
+    (equal (EL:Get 'status entry) 'deleted)) (EL:Get 'devices (EL:Get 'catalog snapshot)))))))
 ;; Date: 2026-10-13. Registered draft graphics may already have a saved default power.
 (defun EL:DLPowerEntry (name snapshot / entry)
-  (cond ((EL:DLLookup name snapshot))
-    ((and (setq entry (EL:DLFindEntry name snapshot)) (equal (EL:Get 'status entry) 'draft)
+  ;; A disabled/draft exact row must not inherit a different author's active power.
+  (setq entry (cond ((cdr (assoc (EL:DLNameKey name) (EL:Get 'index snapshot))))
+    ((assoc 'catalog snapshot) (EL:DLFindEntry name snapshot)) (T (EL:DLLookup name snapshot))))
+  (cond ((and entry (EL:Get 'active entry) (equal (EL:Get 'status entry) 'ready)) entry)
+    ((and entry (equal (EL:Get 'status entry) 'draft)
       (EL:DLEntryAssets entry) (EL:DLInt (EL:Get 'watts entry))
       (or (> (EL:Get 'watts entry) 0) (EL:Get 'zero-confirmed entry))) entry)))
 (defun EL:DLRecognitionNames (snapshot / names entry)

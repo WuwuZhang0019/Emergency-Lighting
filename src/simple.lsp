@@ -13,8 +13,27 @@
     (<= (EL:Norm (EL:V- point (EL:Get 'point row))) (EL:Get 'eps_touch (EL:Get 'params cfg)))
     (<= (abs (- (caddr point) (caddr (EL:Get 'point row)))) (EL:GapEpsilon))))
     (EL:Get 'circuit-starts snapshot)))
-(defun EL:StartSnapshot (snapshot cfg panel / starts row wire ep ids kept removed ends)
-  (setq starts (EL:Get 'circuit-starts cfg))
+(defun EL:StartBoundaryBounds (wire tolerance / bounds lo hi margin)
+  ;; Date: 2026-10-21. Fresh contact bounds enclose all source segments/strips.
+  ;; Missing or unprovable envelopes retain the exact contact path. Roundoff
+  ;; expands this broad phase only; the final EL:Touches tolerances stay intact.
+  (setq bounds (EL:Get 'contact-bounds wire))
+  (if (and (listp bounds) (equal (vl-list-length bounds) 2)
+      (listp (setq lo (car bounds))) (equal (vl-list-length lo) 3)
+      (listp (setq hi (cadr bounds))) (equal (vl-list-length hi) 3)
+      (vl-every 'EL:Number lo) (vl-every 'EL:Number hi)
+      (<= (car lo) (car hi)) (<= (cadr lo) (cadr hi)) (<= (caddr lo) (caddr hi))
+      (EL:NonNegative tolerance))
+    (progn
+      (setq margin (EL:ContactQueryRoundoff bounds nil))
+      (list (list (- (car lo) tolerance margin) (- (cadr lo) tolerance margin)
+                  (- (caddr lo) (EL:GapEpsilon) margin))
+            (list (+ (car hi) tolerance margin) (+ (cadr hi) tolerance margin)
+                  (+ (caddr hi) (EL:GapEpsilon) margin))))))
+(defun EL:StartSnapshot (snapshot cfg panel / starts row wire ep ids kept removed ends perf batch result
+    bounds point pairs rejected exact fallback removed-ids)
+  ;; Date: 2026-10-21. Keep source order and exact contact; skip only distant pairs.
+  (setq perf (EL:PerfBegin "START_SNAPSHOT") starts (EL:Get 'circuit-starts cfg))
   (EL:Require (and starts (EL:CircuitStartsValid starts)) "回路起始端记录无效，请重新拾取。")
   (foreach row starts
     (setq wire (EL:By 'id (EL:Get 'wire row) (EL:Get 'wires snapshot))
@@ -25,15 +44,43 @@
     (setq ids (cons (EL:Get 'wire row) ids)))
   ;; Retain excluded source geometry in the snapshot for exact freshness checks.
   ;; A common trunk/feeder touching a picked root must never become a path back.
+  (setq batch (EL:PerfBegin "START_BOUNDARY_FILTER") pairs 0 rejected 0 exact 0 fallback 0)
   (foreach wire (EL:Get 'wires snapshot)
     (if (and (not (member (EL:Get 'id wire) ids))
-        (vl-some '(lambda (row) (EL:Touches (EL:Get 'point row) (EL:Get 'segments wire)
-          (EL:Get 'eps_touch (EL:Get 'params cfg)) (EL:GapEpsilon))) starts))
+        (progn
+          (setq bounds (EL:StartBoundaryBounds wire (EL:Get 'eps_touch (EL:Get 'params cfg))))
+          (if (not bounds) (setq fallback (1+ fallback)))
+          (vl-some '(lambda (row)
+            (setq pairs (1+ pairs) point (EL:Get 'point row))
+            (if (or (not bounds) (EL:InBounds point bounds 0.0))
+              (progn (setq exact (1+ exact))
+                (EL:Touches point (EL:Get 'segments wire)
+                  (EL:Get 'eps_touch (EL:Get 'params cfg)) (EL:GapEpsilon)))
+              (progn (setq rejected (1+ rejected)) nil))) starts)))
       (setq removed (cons wire removed)) (setq kept (cons wire kept))))
   (setq kept (reverse kept))
-  (foreach wire kept (setq ends (append ends (EL:Get 'ends wire))))
-  (EL:Put 'circuit-starts starts (EL:Put 'start-boundary-source (reverse removed)
+  (EL:PerfEnd batch 'returned)
+  (EL:PerfCount "start-boundary-pair-checks" pairs)
+  (EL:PerfCount "start-boundary-bounds-rejected" rejected)
+  (EL:PerfCount "start-boundary-exact-checks" exact)
+  (EL:PerfCount "start-boundary-bounds-fallback-wires" fallback)
+  (setq batch (EL:PerfBegin "START_ENDS_BUILD"))
+  (foreach wire kept
+    (foreach ep (EL:Get 'ends wire) (setq ends (cons ep ends))))
+  (setq ends (reverse ends))
+  (EL:PerfEnd batch 'returned)
+  (EL:PerfCount "start-snapshot-source-wires" (length (EL:Get 'wires snapshot)))
+  (EL:PerfCount "start-snapshot-kept-wires" (length kept))
+  (EL:PerfCount "start-snapshot-removed-wires" (length removed))
+  (EL:PerfCount "start-snapshot-ends" (length ends))
+  (setq result (EL:Put 'circuit-starts starts (EL:Put 'start-boundary-source (reverse removed)
     (EL:Put 'wires kept (EL:Put 'ends ends snapshot)))))
+  (if (assoc 'source-wire-ids result)
+    (progn
+      (setq removed-ids (mapcar '(lambda (wire) (EL:Get 'id wire)) removed))
+      (setq result (EL:Put 'source-wire-ids
+        (vl-remove-if '(lambda (id) (member id removed-ids)) (EL:Get 'source-wire-ids result)) result))))
+  (EL:PerfEnd perf 'returned) result)
 ;; Date: 2026-10-10. Infer wire style from actual panel contacts.
 ;; Date: 2026-10-10. A selected trunk is a logical panel boundary, never a circuit edge.
 (defun EL:TrunkPoint (point segments)
@@ -109,10 +156,22 @@
     (EL:Put 'trunk-roots roots (EL:Put 'trunk-segments (EL:Get 'segments trunk)
       (EL:Put 'wires wires (EL:Put 'ends ends
         (EL:Put 'blocks (subst shape block (EL:Get 'blocks snapshot)) snapshot)))))))
+(defun EL:WireLayerStyle (layer / saved started lt)
+  ;; Date: 2026-10-21. Only one synchronous collect shares layer lookups.
+  (if (and *EL:WireLayerCacheEnabled* (not (equal *EL:WireLayerCacheEpoch* *EL:FreshEpoch*)))
+    (setq *EL:WireLayerStyles* nil *EL:WireLayerCacheEpoch* *EL:FreshEpoch*))
+  (if (and *EL:WireLayerCacheEnabled* (setq saved (assoc layer *EL:WireLayerStyles*)))
+    (progn (setq *EL:WireLayerCacheHits* (1+ *EL:WireLayerCacheHits*)) (cdr saved))
+    (progn
+      (setq started (if *EL:WireLayerCacheEnabled* (EL:Tick))
+        lt (strcase (cond ((cdr (assoc 6 (tblsearch "LAYER" layer)))) (T "CONTINUOUS"))))
+      (if *EL:WireLayerCacheEnabled*
+        (setq *EL:WireLayerStyles* (cons (cons layer lt) *EL:WireLayerStyles*)
+          *EL:WireLayerReads* (1+ *EL:WireLayerReads*)
+          *EL:WireLayerReadMS* (+ *EL:WireLayerReadMS* (EL:Elapsed started)))) lt)))
 (defun EL:WireStyle (d / layer lt)
   (setq layer (cdr (assoc 8 d)) lt (strcase (cond ((cdr (assoc 6 d))) (T "BYLAYER"))))
-  (if (equal lt "BYLAYER")
-    (setq lt (strcase (cond ((cdr (assoc 6 (tblsearch "LAYER" layer)))) (T "CONTINUOUS")))))
+  (if (equal lt "BYLAYER") (setq lt (EL:WireLayerStyle layer)))
   ;; Model-space entities have no parent INSERT from which to inherit ByBlock.
   (if (equal lt "BYBLOCK") (setq lt "CONTINUOUS"))
   (list layer lt))
@@ -197,6 +256,41 @@
   (vl-remove-if '(lambda (row) (equal (car row) 'template)) cfg))
 (defun EL:CollectLayerFacts (cfg)
   (mapcar '(lambda (layer) (list layer (tblsearch "LAYER" layer))) (EL:Get 'wire-layers cfg)))
+(defun EL:CandidateIndexPut (code child branches)
+  ;; Compare only the bounded character keys, never whole growing subtrees.
+  (cond ((not branches) (list (cons code child)))
+    ((= code (car (car branches))) (cons (cons code child) (cdr branches)))
+    (T (cons (car branches) (EL:CandidateIndexPut code child (cdr branches))))))
+(defun EL:CandidateIndexInsert (codes node / branch child)
+  ;; Date: 2026-10-21. A trie retains every character and a separate terminal
+  ;; bit: handles sharing a prefix cannot collide. Native DXF handles have at
+  ;; most sixteen different character branches; no COM dictionary or intern.
+  (if codes
+    (progn
+      (setq *EL:CandidateIndexSteps* (1+ *EL:CandidateIndexSteps*)
+        branch (assoc (car codes) (cdr node))
+        child (EL:CandidateIndexInsert (cdr codes) (cdr branch)))
+      (if *EL:CandidateIndexNew*
+        (cons (car node) (EL:CandidateIndexPut (car codes) child (cdr node))) node))
+    (if (car node) node
+      (progn (setq *EL:CandidateIndexNew* T) (cons T (cdr node))))))
+(defun EL:CandidateIndexAdd (id / *EL:CandidateIndexNew*)
+  ;; Date: 2026-10-21. The caller owns the dynamic index for one collection.
+  ;; Keep exact equality for malformed/non-string adapter keys as well; native
+  ;; entity handles always use the bounded-character string path above.
+  (setq *EL:CandidateIndexLookups* (1+ *EL:CandidateIndexLookups*))
+  (if (equal (type id) 'STR)
+    (setq *EL:CandidateIndex* (EL:CandidateIndexInsert (vl-string->list id) *EL:CandidateIndex*))
+    (if (not (member id *EL:CandidateIndexOther*))
+      (setq *EL:CandidateIndexOther* (cons id *EL:CandidateIndexOther*) *EL:CandidateIndexNew* T)))
+  (if (not *EL:CandidateIndexNew*)
+    (setq *EL:CandidateIndexDuplicates* (1+ *EL:CandidateIndexDuplicates*))) *EL:CandidateIndexNew*)
+(defun EL:CandidateIndexMetrics ()
+  ;; Date: 2026-10-21. Flush aggregate work once per batch, without per-ID logs.
+  (EL:PerfCount "source-candidate-index-lookups" *EL:CandidateIndexLookups*)
+  (EL:PerfCount "source-candidate-index-steps" *EL:CandidateIndexSteps*)
+  (EL:PerfCount "source-candidate-index-duplicates" *EL:CandidateIndexDuplicates*)
+  (setq *EL:CandidateIndexLookups* 0 *EL:CandidateIndexSteps* 0 *EL:CandidateIndexDuplicates* 0))
 (defun EL:CollectSourceCurrent (cfg result / memo ss i e d facts fact good name saved *EL:CollectBlockNames*)
   ;; Date: 2026-10-15. Re-read the entire native selection, bounds, names and
   ;; panel contour. Equality skips derived wire/candidate calculations only.
@@ -231,25 +325,237 @@
         (setq good (equal (EL:Get 'panel-shape memo)
           (EL:PanelContactShape (handent (EL:Get 'auto-panel cfg)) cfg))))
       (if good (progn (EL:PerfCount "source-derived-reuses" 1) (EL:Get 'input memo))))))
-(defun EL:SimpleCollect (cfg / ss i e d bounds items tree wires ends blocks candidates wire candidate id issues block queue current shape perf name facts snapshot
-    *EL:CollectBlockNames*)
+;; Date: 2026-10-21. Explicit-root collection owns all deferred state locally.
+(defun EL:SimpleCollect (cfg / result owner epoch *EL:RootScopeCollecting* *EL:RootScopePanelShape* *EL:RootScopeOriginalWires* *EL:RootScopeResolvedWires*)
+  (setq *EL:RootScopeCollecting* (and (EL:Get 'auto-panel cfg) (EL:Get 'circuit-starts cfg) (EL:CircuitStartsValid (EL:Get 'circuit-starts cfg))))
+  (if *EL:RootScopeCollecting* (setq owner (namedobjdict) epoch *EL:FreshEpoch*))
+  (setq result (EL:SimpleCollectFull cfg))
+  ;; Include native candidate reads and order reconstruction in the same guard.
+  (if (and *EL:RootScopeCollecting*
+      (not (and (equal owner (namedobjdict)) (equal epoch *EL:FreshEpoch*))))
+    (progn
+      (setq *EL:CollectMemo* nil *EL:NetworkMemo* nil)
+      (EL:Require nil "SOURCE_CHANGED：按需收集期间发生写入、交互或切图，请重新统计。"))) result)
+(defun EL:RootScopeResolve (wire / id saved data full)
+  (if (and *EL:RootScopeActive* wire)
+    (progn
+      (setq id (EL:Get 'id wire))
+      (if (setq saved (assoc id *EL:RootScopeFineRecords*)) (cdr saved)
+        (progn
+          (if (assoc 'deferred-dxf wire)
+            (progn
+              (setq data (EL:Get 'deferred-dxf wire))
+              (EL:PerfCount "source-wire-record-reads" 1)
+              (EL:PerfCount "root-scope-wire-materializations" 1)
+              (setq full (EL:WireRecordDXF (EL:Get 'entity wire)
+                (vl-remove-if '(lambda (row) (= (car row) -3)) data) *EL:WalkConfig*)))
+            (setq full wire))
+          (setq *EL:RootScopeFineRecords* (cons (cons id full) *EL:RootScopeFineRecords*)) full)))
+    wire))
+(defun EL:RootScopeGapIndex (a b snapshot / p q direction distance wires item)
+  ;; A rejected/non-reached wire may still block the gap. Read every corridor hit.
+  (setq p (EL:Get 'point a) q (EL:Get 'point b)
+    direction (EL:Unit (EL:V- q p)) distance (EL:Norm (EL:V- q p)))
+  (foreach item (EL:SpatialRayQuery *EL:WalkWireTree* p direction distance)
+    (setq wires (cons (EL:RootScopeResolve (EL:Get 'wire item)) wires)))
+  (EL:GapPathIndex (EL:Put 'wires (reverse wires) snapshot)))
+(defun EL:RootScopeOrder (blocks tree cfg / targets items block wire probe candidates candidate id seen ordered queue current data perf reads saved)
+  ;; Date: 2026-10-21. Unreached wires may have seeded the old candidate order.
+  ;; Reconstruct only the retained bbox component. Straight zero-width probes
+  ;; use exact raw bounds; nearby curved/wide order dependencies are read fresh.
+  (setq perf (EL:PerfBegin "ROOT_SCOPE_CANDIDATE_ORDER") reads 0)
+  (foreach block blocks
+    (setq id (EL:Get 'id block) targets (cons (cons id block) targets)
+      items (cons (list (cons 'key id) (cons 'bounds (EL:Get 'bounds block))
+        (cons 'point (EL:V* 0.5 (EL:V+ (car (EL:Get 'bounds block)) (cadr (EL:Get 'bounds block)))))) items)))
+  (setq items (EL:SpatialTree items 0))
+  (foreach wire *EL:RootScopeOriginalWires*
+    (setq saved (assoc (EL:Get 'id wire) *EL:RootScopeResolvedWires*)
+      probe (cond (saved (cdr saved)) ((EL:Get 'candidate-bounds wire)
+        (EL:Put 'contact-bounds (EL:Get 'candidate-bounds wire) wire)) (T wire)))
+    (if (EL:SimpleBlockCandidates probe items cfg)
+      (progn
+        (if (and (assoc 'deferred-dxf probe) (not (EL:Get 'candidate-bounds probe)))
+          (progn
+            (setq data (EL:Get 'deferred-dxf probe) reads (1+ reads))
+            (EL:PerfCount "source-wire-record-reads" 1)
+            (setq probe (EL:WireRecordDXF (EL:Get 'entity probe)
+              (vl-remove-if '(lambda (row) (= (car row) -3)) data) cfg))))
+        ;; Query the original full tree, retaining its exact result order.
+        (foreach candidate (EL:SimpleBlockCandidates probe tree cfg)
+          (setq id (EL:Get 'key candidate))
+          (if (and (assoc id targets) (not (member id seen)))
+            (setq seen (cons id seen) ordered (cons (cdr (assoc id targets)) ordered)))))))
+  (setq queue ordered)
+  (while queue
+    (setq current (car queue) queue (cdr queue))
+    (foreach candidate (EL:SpatialBoxQuery tree (EL:Get 'bounds current) (EL:DeviceContactTolerance cfg))
+      (setq id (EL:Get 'key candidate))
+      (if (and (assoc id targets) (not (member id seen)))
+        (setq seen (cons id seen) block (cdr (assoc id targets))
+          ordered (cons block ordered) queue (cons block queue)))))
+  (EL:Require (= (length ordered) (length blocks)) "按需候选顺序复核失败，请保留诊断日志。")
+  (EL:PerfCount "root-scope-order-wire-reads" reads)
+  (EL:PerfEnd perf 'returned) ordered)
+(defun EL:RootScopeDiscover (wires candidates cfg / snapshot original wire item block blocks items ends ep row id bounds point roots output perf batchperf owner epoch
+    *EL:RootScopeActive* *EL:RootScopeFineRecords*
+    *EL:WalkPanel* *EL:WalkConfig* *EL:WalkSnapshot* *EL:WalkTouch*
+    *EL:WalkWireTree* *EL:WalkBlockTree* *EL:WalkEndTree* *EL:WalkJunctionTree*
+    *EL:WalkWireRecords* *EL:WalkBlockRecords* *EL:WalkEndRecords*
+    *EL:WalkQueue* *EL:WalkSeen* *EL:WalkEdges* *EL:WalkEnds* *EL:WalkGapRows* *EL:WalkContactHits*
+    *EL:WalkGapSnapshot* *EL:GapPathIndex* *EL:GapIndexReady* *EL:DeviceContactTolerance*
+    *EL:DeviceContactCache* *EL:DeviceTemplateCache* *EL:DeviceTemplateEnabled*)
+  (setq perf (EL:PerfBegin "ROOT_SCOPE_DISCOVERY") owner (namedobjdict) epoch *EL:FreshEpoch*
+    *EL:RootScopeActive* T *EL:WalkConfig* cfg *EL:WalkPanel* (EL:Get 'auto-panel cfg)
+    *EL:WalkTouch* (EL:Get 'eps_touch (EL:Get 'params cfg))
+    *EL:DeviceContactTolerance* (EL:DeviceContactTolerance cfg) *EL:DeviceTemplateEnabled* T
+    original wires roots (mapcar '(lambda (row) (EL:Get 'wire row)) (EL:Get 'circuit-starts cfg)))
+  ;; Date: 2026-10-21. Fixed batch clocks only; preserve every query and walk order.
+  ;; Preserve the real panel contour and whole native INSERT bounds.
+  (setq batchperf (EL:PerfBegin "ROOT_SCOPE_PANEL_SHAPE"))
+  (if *EL:WalkPanel*
+    (setq *EL:RootScopePanelShape* (EL:PanelContactShape (handent *EL:WalkPanel*) cfg)))
+  (EL:PerfEnd batchperf 'returned)
+  (setq batchperf (EL:PerfBegin "ROOT_SCOPE_BLOCK_RECORDS"))
+  (foreach item candidates
+    (setq id (EL:Get 'key item)
+      block (list (cons 'entity (EL:Get 'entity item)) (cons 'id id)
+        (cons 'name (cond ((EL:Get 'name item))
+          (T (EL:CollectBlockName (EL:Get 'entity item) (EL:Get 'definition-name item)))))
+        (cons 'layer (EL:Get 'layer item))
+        (cons 'bounds (EL:Get 'bounds item)) (cons 'whole-block T)))
+    (if (and (equal id *EL:WalkPanel*) *EL:RootScopePanelShape*)
+      (setq block (append (EL:Put 'whole-block nil block) *EL:RootScopePanelShape*)))
+    (setq block (EL:Put 'role (EL:FixedBlockRole block *EL:WalkPanel* cfg) block)
+      blocks (cons block blocks)))
+  (EL:PerfEnd batchperf 'returned)
+  ;; Materialize picked roots and every possible source-side boundary contact.
+  (setq batchperf (EL:PerfBegin "ROOT_SCOPE_ROOT_PREPARE"))
+  (foreach wire wires
+    (if (or (not (assoc 'deferred-dxf wire)) (member (EL:Get 'id wire) roots)
+        (vl-some '(lambda (row)
+          (EL:InBounds (EL:Get 'point row) (EL:StartBoundaryBounds wire *EL:WalkTouch*) 0.0))
+          (EL:Get 'circuit-starts cfg)))
+      (setq wire (EL:RootScopeResolve wire)))
+    (setq output (cons wire output))
+    (foreach ep (EL:Get 'ends wire) (setq ends (cons ep ends))))
+  (setq snapshot (list (cons 'wires (reverse output)) (cons 'blocks blocks) (cons 'ends (reverse ends))))
+  (EL:PerfEnd batchperf 'returned)
+  (setq batchperf (EL:PerfBegin "ROOT_SCOPE_START_SNAPSHOT"))
+  (setq snapshot (EL:StartSnapshot snapshot cfg *EL:WalkPanel*)
+    *EL:WalkSnapshot* snapshot wires (EL:Get 'wires snapshot))
+  (EL:PerfEnd batchperf 'returned)
+  (setq batchperf (EL:PerfBegin "ROOT_SCOPE_WIRE_INDEX"))
+  (foreach wire wires
+    (setq id (EL:Get 'id wire) bounds (EL:WireContactBounds wire)
+      *EL:WalkWireRecords* (cons (cons id wire) *EL:WalkWireRecords*))
+    (if bounds
+      (setq items (cons (list (cons 'key id) (cons 'wire wire) (cons 'bounds bounds)
+        (cons 'point (EL:V* 0.5 (EL:V+ (car bounds) (cadr bounds))))) items))))
+  (setq *EL:WalkWireTree* (EL:SpatialTree items 0) items nil)
+  (EL:PerfEnd batchperf 'returned)
+  (setq batchperf (EL:PerfBegin "ROOT_SCOPE_BLOCK_INDEX"))
+  (foreach block blocks
+    (setq id (EL:Get 'id block) bounds (EL:Get 'bounds block)
+      *EL:WalkBlockRecords* (cons (cons id block) *EL:WalkBlockRecords*)
+      items (cons (list (cons 'key id) (cons 'block block) (cons 'bounds bounds)
+        (cons 'point (EL:V* 0.5 (EL:V+ (car bounds) (cadr bounds))))) items)))
+  (setq *EL:WalkBlockTree* (EL:SpatialTree items 0))
+  (EL:PerfEnd batchperf 'returned)
+  (setq batchperf (EL:PerfBegin "ROOT_SCOPE_JUNCTION_INDEX"))
+  (setq *EL:WalkJunctionTree* (EL:JunctionTree blocks))
+  (EL:PerfEnd batchperf 'returned)
+  (setq batchperf (EL:PerfBegin "ROOT_SCOPE_END_INDEX"))
+  (setq *EL:WalkEndTree* (EL:SpatialTree (mapcar '(lambda (ep)
+      (EL:Put 'bounds (list (EL:Get 'point ep) (EL:Get 'point ep)) ep)) (EL:Get 'ends snapshot)) 0))
+  (EL:PerfEnd batchperf 'returned)
+  (setq batchperf (EL:PerfBegin "ROOT_SCOPE_GAP_SNAPSHOT"))
+  (setq *EL:WalkGapSnapshot* (EL:SimpleGapSnapshot snapshot))
+  (EL:PerfEnd batchperf 'returned)
+  (setq batchperf (EL:PerfBegin "ROOT_SCOPE_ROOT_LINKS"))
+  (foreach ep (EL:Get 'ends snapshot)
+    (setq *EL:WalkEndRecords* (cons (cons (EL:Get 'key ep) ep) *EL:WalkEndRecords*)))
+  (foreach wire wires
+    (if (member (EL:Get 'id wire) roots) (EL:WalkLink *EL:WalkPanel* (EL:Get 'id wire))))
+  (EL:PerfEnd batchperf 'returned)
+  (setq batchperf (EL:PerfBegin "ROOT_SCOPE_REACHABLE_TRACE"))
+  (while *EL:WalkQueue*
+    (setq id (car *EL:WalkQueue*) *EL:WalkQueue* (cdr *EL:WalkQueue*))
+    (if (not (member id *EL:WalkSeen*))
+      (progn
+        (setq *EL:WalkSeen* (cons id *EL:WalkSeen*))
+        (if (setq wire (cdr (assoc id *EL:WalkWireRecords*)))
+          (EL:WalkWire (EL:RootScopeResolve wire))
+          (if (setq block (cdr (assoc id *EL:WalkBlockRecords*))) (EL:WalkBlock block))))))
+  (EL:PerfEnd batchperf 'returned)
+  (setq batchperf (EL:PerfBegin "ROOT_SCOPE_RESULT_ORDER"))
+  (setq output nil)
+  ;; Keep native relative order, including tested misses and gap competitors.
+  (foreach wire original
+    (if (setq item (assoc (EL:Get 'id wire) *EL:RootScopeFineRecords*))
+      (setq output (cons (cdr item) output))))
+  (EL:Require (and (equal owner (namedobjdict)) (equal epoch *EL:FreshEpoch*))
+    "SOURCE_CHANGED：按需识别期间发生写入、交互或切图，请重新统计。")
+  (EL:PerfCount "root-scope-light-wires" (length original))
+  (EL:PerfCount "root-scope-fine-wires" (length output))
+  (EL:PerfCount "root-scope-skipped-wires" (- (length original) (length output)))
+  (EL:LogEvent "ROOT_SCOPE_DISCOVERED" (list (cons 'source-wires (length original))
+    (cons 'fine-wires (length output)) (cons 'walk-objects (length *EL:WalkSeen*))
+    (cons 'policy 'exact-root-dependencies)))
+  (setq output (reverse output))
+  (EL:PerfEnd batchperf 'returned)
+  (EL:PerfEnd perf 'returned) output)
+(defun EL:SimpleCollectFull (cfg / ss i e d bounds items tree wires ends blocks wire candidate id issues block queue current shape perf candidateperf name facts snapshot
+    *EL:CollectBlockNames* *EL:CandidateIndex* *EL:CandidateIndexOther*
+    *EL:CandidateIndexLookups* *EL:CandidateIndexSteps* *EL:CandidateIndexDuplicates*
+    *EL:WireLayerCacheEnabled* *EL:WireLayerStyles* *EL:WireLayerCacheEpoch*
+    *EL:WireLayerCacheHits* *EL:WireLayerReads* *EL:WireLayerReadMS*
+    *EL:PresetCacheEnabled* *EL:PresetCacheCfg* *EL:PresetCacheEpoch* *EL:PresetCacheTables* *EL:PresetCacheBlocks*
+    *EL:PresetCacheHits* *EL:PresetCacheMisses* *EL:PresetCacheNormalizations*
+    *EL:PresetCacheMemberHits* *EL:PresetCacheMemberMisses* *EL:PresetCacheRebuilds* *EL:PresetCacheCheckMS*
+    *EL:CollectReadProfile* *EL:CollectDXFMS* *EL:CollectBoundsMS* *EL:CollectWireMS* *EL:CollectProfileReads* readstarted
+    typ source-inserts source-lines source-polylines source-other source-managed source-rejected source-wire-ids
+    root-proxies root-fallbacks root-reasons root-samples root-reason root-row root-discovery root-total-reasons root-total-row
+    *EL:RootScopeFallbackReason* *EL:RootScopeFallbackError*)
   ;; Date: 2026-10-10. Filter wires by inferred style; only the selected panel
   ;; uses its contour. Device geometry is checked lazily during network tracing.
   ;; Date: 2026-10-20. Retain the actual pre-filter scope in diagnostic exports.
   (EL:LogEvent "RECOGNITION_SCOPE" (mapcar '(lambda (key) (cons key (EL:Get key cfg)))
     '(preset-scoped panel-layers panel-names wire-layers device-layers device-names)))
-  (setq ss (EL:PresetSelection cfg "INSERT,LINE,LWPOLYLINE" '(wire-layers panel-layers device-layers)) i 0)
+  (setq ss (EL:PresetSelection cfg "INSERT,LINE,LWPOLYLINE" '(wire-layers panel-layers device-layers)) i 0
+    *EL:CandidateIndexLookups* 0 *EL:CandidateIndexSteps* 0 *EL:CandidateIndexDuplicates* 0
+    *EL:WireLayerCacheEnabled* T *EL:WireLayerCacheEpoch* *EL:FreshEpoch*
+    *EL:WireLayerCacheHits* 0 *EL:WireLayerReads* 0 *EL:WireLayerReadMS* 0
+    *EL:PresetCacheEnabled* T *EL:PresetCacheHits* 0 *EL:PresetCacheMisses* 0 *EL:PresetCacheNormalizations* 0
+    *EL:PresetCacheMemberHits* 0 *EL:PresetCacheMemberMisses* 0 *EL:PresetCacheRebuilds* 0 *EL:PresetCacheCheckMS* 0
+    *EL:CollectReadProfile* (and *EL:PerfActive* (EL:CollectReadDetailEnabled)) *EL:CollectDXFMS* 0 *EL:CollectBoundsMS* 0 *EL:CollectWireMS* 0 *EL:CollectProfileReads* 0
+    source-inserts 0 source-lines 0 source-polylines 0 source-other 0 source-managed 0 source-rejected 0
+    root-proxies 0 root-fallbacks 0)
+  ;; Date: 2026-10-21. Tables and positive/negative block decisions live only here.
+  (EL:PerfCall "COLLECT_PRESET_PREPARE" 'EL:PresetCachePrepare (list cfg))
   (EL:PerfCount "source-collect-calls" 1)
   (EL:PerfCount "source-selection-entities" (if ss (sslength ss) 0))
   (setq perf (EL:PerfBegin "COLLECT_ENTITY_READ"))
   (if ss
     (repeat (sslength ss)
-       (setq e (ssname ss i) d (entget e '("EL_FIXED_V1")) i (1+ i) id (cdr (assoc 5 d)) name nil bounds nil
-            *EL:SimpleEntity* (list id (cdr (assoc 0 d)) (cdr (assoc 8 d))))
+       (setq e (ssname ss i))
+       (if *EL:CollectReadProfile* (setq readstarted (EL:Tick)))
+       (setq d (entget e '("EL_FIXED_V1")))
+       (if *EL:CollectReadProfile*
+         (setq *EL:CollectDXFMS* (+ *EL:CollectDXFMS* (EL:PerfDelta readstarted (EL:Tick)))
+           *EL:CollectProfileReads* (+ *EL:CollectProfileReads* 2)))
+       (setq i (1+ i) id (cdr (assoc 5 d)) name nil bounds nil typ (cdr (assoc 0 d))
+            *EL:SimpleEntity* (list id typ (cdr (assoc 8 d))))
+      ;; Date: 2026-10-21. Count native objects in the existing read loop,
+      ;; before filtering. These are not the selected panel's connected result.
+      (cond ((equal typ "INSERT") (setq source-inserts (1+ source-inserts)))
+        ((equal typ "LINE") (setq source-lines (1+ source-lines)))
+        ((equal typ "LWPOLYLINE") (setq source-polylines (1+ source-polylines)))
+        (T (setq source-other (1+ source-other))))
       (cond
         ;; The same selective native read includes the managed-output marker.
-        ((cdr (assoc "EL_FIXED_V1" (cdr (assoc -3 d)))) nil)
-        ((and (equal (cdr (assoc 0 d)) "INSERT")
+        ((cdr (assoc "EL_FIXED_V1" (cdr (assoc -3 d)))) (setq source-managed (1+ source-managed)))
+        ((and (equal typ "INSERT")
             (or (not (EL:Get 'preset-scoped cfg))
               (EL:PresetBlockNameAllowed (setq name (EL:CollectBlockName e (cdr (assoc 2 d)))) d cfg)))
           (EL:PerfCount "source-block-bounds-reads" 1)
@@ -258,51 +564,144 @@
               (cons 'name name) (cons 'definition-name (cdr (assoc 2 d)))
               (cons 'bounds bounds) (cons 'point (EL:V* 0.5 (EL:V+ (car bounds) (cadr bounds))))) items))
             (setq issues (cons (EL:Issue 'MISSING_BLOCK_BOUNDS id nil) issues))))
-        ((equal (cdr (assoc 0 d)) "INSERT") nil)
+        ((equal typ "INSERT") (setq source-rejected (1+ source-rejected)))
         ((EL:WireStyleAllowed d cfg)
-          (EL:PerfCount "source-wire-record-reads" 1)
-          (setq wire (EL:WireRecordDXF e (if (assoc -3 d)
-              (vl-remove-if '(lambda (row) (= (car row) -3)) d) d) cfg) wires (cons wire wires)
-                 ends (append (EL:Get 'ends wire) ends) issues (append (EL:Get 'issues wire) issues))))
+          (setq wire (if *EL:RootScopeCollecting* (EL:RootScopeWire e d cfg)))
+          (if wire (setq root-proxies (1+ root-proxies))
+            (progn
+              (EL:PerfCount "source-wire-record-reads" 1)
+              (if *EL:RootScopeCollecting*
+                (progn
+                  (setq root-fallbacks (1+ root-fallbacks)
+                    root-reason (cond (*EL:RootScopeFallbackReason*) (T "unclassified")))
+                  (if (setq root-row (assoc root-reason root-reasons))
+                    (setq root-reasons (subst (cons root-reason (1+ (cdr root-row))) root-row root-reasons))
+                    (progn
+                      (setq root-reasons (cons (cons root-reason 1) root-reasons))
+                      (if (< (length root-samples) 3)
+                        (setq root-samples (cons (list (cons 'reason root-reason) (cons 'wire id)
+                          (cons 'type typ) (cons 'error *EL:RootScopeFallbackError*)) root-samples)))))))
+              (setq wire (EL:WireRecordDXF e (if (assoc -3 d)
+                (vl-remove-if '(lambda (row) (= (car row) -3)) d) d) cfg))))
+          (setq source-wire-ids (cons (EL:Get 'id wire) source-wire-ids) wires (cons wire wires)
+            ends (append (EL:Get 'ends wire) ends) issues (append (EL:Get 'issues wire) issues))))
       (if (not (cdr (assoc "EL_FIXED_V1" (cdr (assoc -3 d)))))
         (setq facts (cons (list d bounds) facts)))))
+  (EL:PerfCount "source-selection-inserts" source-inserts)
+  (EL:PerfCount "source-selection-lines" source-lines)
+  (EL:PerfCount "source-selection-polylines" source-polylines)
+  (EL:PerfCount "source-selection-other" source-other)
+  (EL:PerfCount "source-selection-managed-outputs" source-managed)
+  (EL:PerfCount "source-rejected-block-inserts" source-rejected)
+  ;; Date: 2026-10-21. Detail is explicit; disabled milliseconds are unmeasured.
+  ;; Keep batch frames in every mode, and never write a per-entity log.
+  (EL:PerfSet "source-read-profile-enabled" (if *EL:CollectReadProfile* 1 0))
+  (EL:PerfCount "source-native-dxf-ms" *EL:CollectDXFMS*)
+  (EL:PerfCount "source-block-bounds-ms" *EL:CollectBoundsMS*)
+  (EL:PerfCount "source-wire-record-ms" *EL:CollectWireMS*)
+  (EL:PerfCount "source-read-profile-clock-reads" *EL:CollectProfileReads*)
+  (setq *EL:CollectReadProfile* nil)
+  ;; Aggregate only; never add a measured frame or log write per wire.
+  (EL:PerfCount "source-wire-layer-reads" *EL:WireLayerReads*)
+  (EL:PerfCount "source-wire-layer-cache-hits" *EL:WireLayerCacheHits*)
+  (EL:PerfCount "source-wire-layer-read-ms" *EL:WireLayerReadMS*)
+  (EL:PresetCacheMetrics)
   (EL:PerfEnd perf 'returned)
-  (setq perf (EL:PerfBegin "COLLECT_CANDIDATES") tree (EL:SpatialTree items 0))
+  ;; Date: 2026-10-21. Publish bounded fallback diagnostics once per collection.
+  ;; Keep the rooted source-facts guard even when every wire uses eager geometry.
+  (if *EL:RootScopeCollecting*
+    (progn
+      (EL:PerfCount "root-scope-proxy-wires" root-proxies)
+      (EL:PerfCount "root-scope-wire-fallbacks" root-fallbacks)
+      (if *EL:PerfActive*
+        (progn
+          (setq root-total-reasons (EL:Get "root-scope-fallback-reasons" *EL:PerfMetrics*))
+          (foreach root-row root-reasons
+            (if (setq root-total-row (assoc (car root-row) root-total-reasons))
+              (setq root-total-reasons (subst
+                (cons (car root-row) (+ (cdr root-total-row) (cdr root-row))) root-total-row root-total-reasons))
+              (setq root-total-reasons (append root-total-reasons (list root-row)))))
+          (EL:PerfSet "root-scope-fallback-reasons" root-total-reasons)))
+      (if (> root-fallbacks 0)
+        (EL:LogEvent "ROOT_SCOPE_FALLBACKS" (list (cons 'fallback-wires root-fallbacks)
+          (cons 'proxy-wires root-proxies) (cons 'reasons (reverse root-reasons))
+          (cons 'samples (reverse root-samples)))))
+      (setq root-discovery (> root-proxies 0))
+      (if root-discovery
+        (progn
+          (setq *EL:RootScopeOriginalWires* wires
+            wires (EL:RootScopeDiscover wires items cfg)
+            *EL:RootScopeResolvedWires* (mapcar '(lambda (wire) (cons (EL:Get 'id wire) wire)) wires) ends nil)
+          (foreach wire wires
+            (foreach candidate (EL:Get 'ends wire) (setq ends (cons candidate ends)))
+            (foreach candidate (EL:Get 'issues wire)
+              (if (not (member candidate issues)) (setq issues (cons candidate issues)))))
+          (setq ends (reverse ends)))
+        (progn
+          ;; Eager records already preserve the old candidate order and geometry.
+          ;; Do not repeat discovery or reconstruct that same order a second time.
+          (EL:PerfCount "root-scope-light-wires" (length wires))
+          (EL:PerfCount "root-scope-fine-wires" (length wires))
+          (if (> root-fallbacks 0) (EL:PerfCount "root-scope-all-fallback-bypass" 1))
+          (EL:LogEvent "ROOT_SCOPE_BYPASSED" (list
+            (cons 'reason (if (> root-fallbacks 0) 'all-wire-fallbacks 'no-source-wires))
+            (cons 'source-wires (length wires)) (cons 'policy 'eager-collection)))))))
+  (setq perf (EL:PerfBegin "COLLECT_CANDIDATES") candidateperf (EL:PerfBegin "COLLECT_SPATIAL_TREE")
+    tree (EL:SpatialTree items 0))
+  (EL:PerfEnd candidateperf 'returned)
+  ;; The batch includes the unchanged wire box/ray queries and block records,
+  ;; rather than timing/logging every individual membership operation.
+  (setq candidateperf (EL:PerfBegin "COLLECT_CANDIDATE_DEDUP"))
   (foreach wire wires
     (foreach candidate (EL:SimpleBlockCandidates wire tree cfg)
-      (if (not (member (EL:Get 'key candidate) candidates))
+      (if (EL:CandidateIndexAdd (EL:Get 'key candidate))
         (progn
           (setq id (EL:Get 'key candidate) *EL:SimpleEntity* (list id 'block-name)
-                candidates (cons id candidates)
                 block (list (cons 'entity (EL:Get 'entity candidate)) (cons 'id id)
                   (cons 'name (cond ((EL:Get 'name candidate))
                     (T (EL:CollectBlockName (EL:Get 'entity candidate) (EL:Get 'definition-name candidate)))))
                   (cons 'layer (EL:Get 'layer candidate)) (cons 'bounds (EL:Get 'bounds candidate)) (cons 'whole-block T)))
           (setq blocks (cons block blocks))))))
+  (EL:CandidateIndexMetrics)
+  (EL:PerfEnd candidateperf 'returned)
   ;; Date: 2026-10-10. Expand the candidate set along touching device chains.
-  (setq queue blocks)
+  (setq queue blocks candidateperf (EL:PerfBegin "COLLECT_DEVICE_EXPAND"))
   (while queue
     (setq current (car queue) queue (cdr queue))
     (foreach candidate (EL:SpatialBoxQuery tree (EL:Get 'bounds current) (EL:DeviceContactTolerance cfg))
       (setq id (EL:Get 'key candidate))
-      (if (not (member id candidates))
+      (if (EL:CandidateIndexAdd id)
         (progn
-          (setq candidates (cons id candidates) *EL:SimpleEntity* (list id 'block-name)
+          (setq *EL:SimpleEntity* (list id 'block-name)
                 block (list (cons 'entity (EL:Get 'entity candidate)) (cons 'id id)
                   (cons 'name (cond ((EL:Get 'name candidate))
                     (T (EL:CollectBlockName (EL:Get 'entity candidate) (EL:Get 'definition-name candidate)))))
                   (cons 'layer (EL:Get 'layer candidate)) (cons 'bounds (EL:Get 'bounds candidate)) (cons 'whole-block T))
                 blocks (cons block blocks) queue (cons block queue))))))
+  (EL:CandidateIndexMetrics)
+  (EL:PerfEnd candidateperf 'returned)
+  (if root-discovery
+    (setq blocks (EL:RootScopeOrder blocks tree cfg)))
   (EL:PerfEnd perf 'returned)
   (if (EL:Get 'auto-panel cfg)
     (progn
       (setq id (EL:Get 'auto-panel cfg) block (EL:By 'id id blocks)
-        shape (EL:PanelContactShape (handent id) cfg))
+        shape (cond (*EL:RootScopePanelShape*) (T (EL:PanelContactShape (handent id) cfg))))
       (EL:Require shape "配电箱轮廓已变化或无法读取，请重新运行 ELSTAT 并核对箱口。")
       (if block
         (setq blocks (subst (append (EL:Put 'whole-block nil block) shape) block blocks)))))
+  (EL:PerfCount "source-candidate-blocks" (length blocks))
+  (EL:LogEvent "SOURCE_SELECTION_SCOPE" (list '(scope . model-selection) (cons 'preset-scoped (if (EL:Get 'preset-scoped cfg) T nil))
+    (cons 'selected (+ source-inserts source-lines source-polylines source-other))
+    (cons 'inserts source-inserts) (cons 'lines source-lines) (cons 'polylines source-polylines)
+    (cons 'other source-other) (cons 'managed-outputs source-managed) (cons 'rejected-inserts source-rejected)
+    (cons 'accepted-wire-records (length wires)) (cons 'candidate-blocks (length blocks))))
   (EL:LogEvent "SIMPLE_COUNTS" (list (cons 'wires (length wires)) (cons 'blocks (length blocks)) (cons 'issues issues)))
   (setq snapshot (list (cons 'drawing (EL:DrawingID)) (cons 'wires wires) (cons 'blocks blocks) (cons 'ends ends) (cons 'issues issues)))
+  (if *EL:RootScopeCollecting*
+    (setq snapshot (EL:Put 'source-wire-ids source-wire-ids
+      (EL:Put 'source-selection-facts
+        (mapcar '(lambda (fact) (list (EL:CanonicalVisibilityDXF (car fact)) (cadr fact))) (reverse facts)) snapshot))))
   (setq *EL:CollectMemo* (if (not issues) (list (cons 'owner (namedobjdict))
     (cons 'drawing (EL:DrawingID)) (cons 'config (EL:CollectRules cfg))
     (cons 'layers (EL:CollectLayerFacts cfg)) (cons 'facts (reverse facts))
@@ -363,8 +762,65 @@
     (cons 'definition-key (EL:Get 'definition-key shape))
     (cons 'definition-geometry (EL:Get 'definition-geometry shape))
     (cons 'issues (EL:Get 'issues shape))))
-(defun EL:DeviceContactShape (block / id saved shape entity matrix key origin template context data definition local-shape reusable)
-  (setq id (EL:Get 'id block) saved (assoc id *EL:DeviceContactCache*))
+(defun EL:DeviceDefinitionFacts (name stack / header entity data rows nested)
+  ;; Date: 2026-10-21. Exact typed source, including nested headers/flags.
+  ;; Handles and owners identify objects, not visible definition geometry.
+  (if (or (member name stack) (>= (length stack) 16)) (list 'recursive name)
+    (progn
+      (setq header (tblsearch "BLOCK" name) entity (cdr (assoc -2 header)))
+      (while (and entity (/= (cdr (assoc 0 (entget entity))) "ENDBLK"))
+        (setq data (vl-remove-if '(lambda (row) (member (car row) '(-1 5 330))) (entget entity)) nested nil)
+        (if (equal (cdr (assoc 0 data)) "INSERT")
+          (setq nested (EL:DeviceDefinitionFacts (cdr (assoc 2 data)) (cons name stack))))
+        (setq rows (cons (list data nested) rows) entity (entnext entity)))
+      (list (vl-remove-if '(lambda (row) (member (car row) '(-1 -2 5 330))) header) (reverse rows)))))
+(defun EL:DeviceCacheContext ()
+  (list (namedobjdict) *EL:FreshEpoch* (EL:DeviceContourTolerance)))
+(defun EL:ExactCoordinateShift (value offset / moved virtual)
+  ;; Date: 2026-10-21. Knuth TwoSum: zero residual proves exact addition.
+  (setq moved (+ value offset) virtual (- moved value))
+  (= (+ (- value (- moved virtual)) (- offset virtual)) 0.0))
+(defun EL:PoseTranslationSafe (shape offset origin matrix / bounds points point moved good actual local world a b i)
+  ;; Date: 2026-10-21. Prove exact translation, without changing any epsilon.
+  ;; Large coordinates, nested/analytic mixes and any rounding use the old path.
+  (setq bounds (EL:Get 'segment-bounds shape)
+    local (EL:Get 'pose-local-segments shape) world (EL:Get 'segments shape)
+    actual (EL:AffineCompose '(1.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0) matrix)
+    good (and bounds local (not (EL:Get 'curves shape)) (= (length local) (length world))
+      (equal (mapcar '(lambda (i) (nth i actual)) '(0 1 2 3 7))
+        (mapcar '(lambda (i) (nth i (EL:Get 'pose-matrix shape))) '(0 1 2 3 7))))
+    points (append bounds (list origin offset)))
+  (foreach point points
+    (if (vl-some '(lambda (value) (> (abs value) 1.0e6)) point) (setq good nil)))
+  (foreach point bounds
+    (setq moved (EL:V+ point offset))
+    (if (or (vl-some '(lambda (value) (> (abs value) 1.0e6)) moved)
+        (not (equal point (EL:V- moved offset) 1.0e-9))) (setq good nil)))
+  ;; Exact WCS reproduction and exact addition are separate obligations.
+  ;; Merely matching bounds, tolerances or angles is insufficient.
+  (while (and good local)
+    (setq a (car local) b (car world) local (cdr local) world (cdr world))
+    (foreach i '(0 1)
+      (setq point (nth i b) moved (EL:V+ point offset))
+      (if (or (not (equal moved (EL:AffinePoint (nth i a) actual)))
+          (not (vl-every '(lambda (ok) ok) (mapcar 'EL:ExactCoordinateShift point offset))))
+        (setq good nil))))
+  good)
+(defun EL:TranslatePoseShape (shape offset)
+  ;; The first instance's WCS rings, holes and spatial tree stay shared.
+  (list (cons 'contact-template shape) (cons 'contact-offset offset)
+    (cons 'contact-ready T) (cons 'contact-lazy T)
+    (cons 'curves (EL:TranslateCurves (EL:Get 'curves shape) offset))
+    (cons 'segment-bounds (mapcar '(lambda (point) (EL:V+ point offset)) (EL:Get 'segment-bounds shape)))
+    (cons 'sampled-curves (EL:Get 'sampled-curves shape))
+    (cons 'definition-key (EL:Get 'definition-key shape))
+    (cons 'definition-geometry (EL:Get 'definition-geometry shape))
+    (cons 'issues (EL:Get 'issues shape))))
+(defun EL:DeviceContactShape (block / id saved shape entity matrix key origin template context data definition local-shape reusable
+    cache-context source definition-key pose-key offset started)
+  (setq id (EL:Get 'id block) cache-context (EL:DeviceCacheContext)
+    saved (assoc id *EL:DeviceContactCache*))
+  (if (and saved (not (equal cache-context (EL:Get 'cache-context (cdr saved))))) (setq saved nil))
   (if saved (cdr saved)
     (progn
       (setq entity (cond ((EL:Get 'entity block)) (T (handent id)))
@@ -375,50 +831,88 @@
         (progn
           (setq matrix (vl-catch-all-apply 'EL:InsertMatrix (list entity)))
           (if (and matrix (not (vl-catch-all-error-p matrix)))
-            (setq key (cons 'pose (mapcar '(lambda (code) (assoc code data)) '(2 41 42 43 50 210)))
-              origin (list (nth 4 matrix) (nth 5 matrix) (nth 6 matrix))
-              template (assoc key *EL:DeviceTemplateCache*)))))
+            (progn
+              (setq started (EL:Tick) source (EL:DeviceDefinitionFacts (cdr (assoc 2 data)) nil))
+              (EL:PerfCount "device-definition-check-ms" (EL:Elapsed started))
+              (setq definition-key (list 'definition cache-context (cdr (assoc 2 data)) source)
+                pose-key (list 'pose-v1 (cdr (assoc 2 data))
+                  (mapcar '(lambda (i) (nth i matrix)) '(0 1 2 3 7))
+                  (mapcar '(lambda (code) (assoc code data)) '(41 42 43 50 210)) (EL:DeviceContourTolerance))
+                key (list 'pose cache-context pose-key source)
+                origin (list (nth 4 matrix) (nth 5 matrix) (nth 6 matrix))
+                template (assoc key *EL:DeviceTemplateCache*))
+              (if template
+                (progn (setq offset (EL:V- origin (cadr template)) started (EL:Tick))
+                  (if (and (EL:Get 'sampled-curves (caddr template))
+                      (not (EL:PoseTranslationSafe (caddr template) offset origin matrix)))
+                    (progn (setq template nil) (EL:PerfCount "device-pose-fallbacks" 1)))
+                  (EL:PerfCount "device-pose-verify-ms" (EL:Elapsed started))))))))
       (if template
         (progn
           (EL:PerfCount "device-template-reuses" 1)
-          (setq shape (EL:TranslateDeviceShape (caddr template) (EL:V- origin (cadr template))))
+          (EL:PerfCount "device-pose-reuses" 1)
+          (setq shape (if (EL:Get 'sampled-curves (caddr template))
+            (EL:TranslatePoseShape (caddr template) offset)
+            (EL:TranslateDeviceShape (caddr template) offset)))
           (EL:LogEvent "DEVICE_TEMPLATE_REUSE" context))
         (progn
-          (if (and key (setq definition (assoc (list 'definition (cdr (assoc 2 data))) *EL:DeviceTemplateCache*)))
-            (progn (setq local-shape (cadr definition)) (EL:PerfCount "device-template-reuses" 1))
+          (if (and key (setq definition (assoc definition-key *EL:DeviceTemplateCache*)))
+            (progn (setq local-shape (cadr definition)) (EL:PerfCount "device-definition-reuses" 1))
             (if key
               (progn
                 (EL:PerfCount "device-contour-reads" 1)
+                (setq started (EL:Tick))
                 (setq local-shape (vl-catch-all-apply 'EL:DeviceDefinitionContour (list entity)))
-                (if (vl-catch-all-error-p local-shape) (setq local-shape nil))
+                (EL:PerfCount "device-definition-build-ms" (EL:Elapsed started))
+                ;; An interrupted definition probe cannot seed a successful pose.
+                (if (vl-catch-all-error-p local-shape) (setq local-shape nil key nil))
                 (if (and (EL:ShapeGeometry local-shape) (not (EL:Get 'issues local-shape)))
                   (progn
-                    (setq *EL:DeviceTemplateCache* (cons (list (list 'definition (cdr (assoc 2 data))) local-shape)
+                    (setq *EL:DeviceTemplateCache* (cons (list definition-key local-shape)
                       *EL:DeviceTemplateCache*)))))))
           (if (and (EL:ShapeGeometry local-shape) (not (EL:Get 'issues local-shape)))
             (progn
-              (setq shape (EL:TransformShape local-shape matrix) reusable (and shape T))
+              (setq shape (EL:TransformShape local-shape matrix) reusable (if shape 'definition))
               ;; Region tolerance is measured in WCS; scaling may open or close tiny gaps.
               (if (and shape (EL:Get 'segments shape) (not (EL:Get 'issues shape)))
-                (setq shape (EL:Put 'regions (append (EL:Get 'regions shape)
-                  (EL:LogCall "DEVICE_REGIONS" context 'EL:ClosedRings (list (EL:Get 'segments shape)))) shape)))))
+                (progn
+                  (setq started (EL:Tick) shape (EL:Put 'regions (append (EL:Get 'regions shape)
+                    (EL:LogCall "DEVICE_REGIONS" context 'EL:ClosedRings (list (EL:Get 'segments shape)))) shape))
+                  (EL:PerfCount "device-regions-build-ms" (EL:Elapsed started))))))
           (if (not shape)
             (progn
               (EL:PerfCount "device-contour-reads" 1)
+              (setq started (EL:Tick))
               (setq shape (vl-catch-all-apply 'EL:DeviceContour (list entity)))
+              (EL:PerfCount "device-instance-build-ms" (EL:Elapsed started))
               (if (vl-catch-all-error-p shape) (setq shape nil))
               (if (and (EL:Get 'segments shape) (not (EL:Get 'issues shape)))
-                (setq shape (EL:Put 'regions (append (EL:Get 'regions shape)
-                  (EL:LogCall "DEVICE_REGIONS" context 'EL:ClosedRings (list (EL:Get 'segments shape)))) shape)))))
+                (progn
+                  (setq started (EL:Tick) shape (EL:Put 'regions (append (EL:Get 'regions shape)
+                    (EL:LogCall "DEVICE_REGIONS" context 'EL:ClosedRings (list (EL:Get 'segments shape)))) shape))
+                  (EL:PerfCount "device-regions-build-ms" (EL:Elapsed started))))))
+          ;; Sampled definition transforms remain forbidden. A fully built WCS
+          ;; instance may nevertheless seed another instance of this exact pose.
+          (if (and key (EL:ShapeGeometry shape) (not (EL:Get 'issues shape)) (not reusable)
+              (EL:Get 'sampled-curves shape) (EL:Get 'pose-local-segments shape) (not (EL:Get 'curves shape)))
+            (setq reusable 'pose))
           (if (EL:ShapeGeometry shape)
-            (setq shape (EL:PrepareContactBlock (EL:Put 'contact-envelope (EL:Get 'bounds block)
-              (EL:Put 'id id (EL:Put 'name (EL:Get 'name block) shape))))))
-          (setq shape (EL:Put 'definition-key (if reusable (list 'definition (cdr (assoc 2 data))) (list 'instance id))
-            (EL:Put 'definition-geometry (EL:GeometryFacts (if reusable local-shape shape)) shape)))
-          (if (and key reusable (EL:ShapeGeometry shape) (not (EL:Get 'issues shape)))
-            (setq *EL:DeviceTemplateCache* (cons (list key origin shape) *EL:DeviceTemplateCache*)))))
+            (progn
+              (setq started (EL:Tick) shape (EL:PrepareContactBlock (EL:Put 'contact-envelope (EL:Get 'bounds block)
+                (EL:Put 'id id (EL:Put 'name (EL:Get 'name block) shape)))))
+              (EL:PerfCount "device-contact-prepare-ms" (EL:Elapsed started))))
+          (setq shape (EL:Put 'definition-key (cond ((equal reusable 'pose) pose-key)
+              (reusable (list 'definition (cdr (assoc 2 data)))) (T (list 'instance id)))
+            (EL:Put 'definition-geometry (if (equal reusable 'pose) source
+              (EL:GeometryFacts (if reusable local-shape shape))) shape)))
+          (if (and key reusable (EL:ShapeGeometry shape) (EL:Get 'contact-ready shape)
+              (not (EL:Get 'issues shape)) (equal cache-context (EL:DeviceCacheContext)))
+            (progn
+              (EL:PerfCount "device-pose-builds" 1)
+              (setq *EL:DeviceTemplateCache* (cons (list key origin shape) *EL:DeviceTemplateCache*))))))
       (setq shape (EL:Put 'id id (EL:Put 'name (EL:Get 'name block)
-        (EL:Put 'instance-transform (list matrix (mapcar '(lambda (code) (assoc code data)) '(2 10 41 42 43 50 210))) shape))))
+        (EL:Put 'cache-context cache-context
+        (EL:Put 'instance-transform (list matrix (mapcar '(lambda (code) (assoc code data)) '(2 10 41 42 43 50 210))) shape)))))
       (if (or (not (EL:ShapeGeometry shape)) (EL:Get 'issues shape))
         (EL:LogEvent "DEVICE_CONTACT_GEOMETRY" (list id (EL:Get 'issues shape) 'no-bounds-fallback)))
       (setq *EL:DeviceContactCache* (cons (cons id shape) *EL:DeviceContactCache*))
@@ -439,10 +933,32 @@
 (defun EL:WideDevicePathHit (wire shape cfg / strip hit)
   (foreach strip (EL:Get 'contact-strips wire)
     (if (or (EL:ContourPathHit strip shape cfg)
-        (vl-some '(lambda (seg) (EL:ContourPointHit (car seg) strip cfg)) (EL:Get 'segments shape))
+        (vl-some '(lambda (seg) (EL:ContourPointHit (car (EL:ContactWorldSegment seg shape)) strip cfg))
+          (EL:ContactRawSegments shape))
         (vl-some '(lambda (curve) (EL:ContourPointHit (EL:CurvePoint curve (nth 2 curve)) strip cfg))
           (EL:Get 'curves shape))) (setq hit T)))
   hit)
+;; Date: 2026-10-22. Bounded fine-contact evidence for reported open-line lamp misses.
+(defun EL:DeviceMissHead (items limit / out)
+  (repeat limit (if items (setq out (cons (car items) out) items (cdr items))))
+  (reverse out))
+(defun EL:DeviceWireMissDetails (wire block shape cfg / count segments)
+  (setq count (cond ((EL:Get "device-wire-miss-details" *EL:PerfMetrics*)) (T 0)))
+  (if (and *EL:PerfActive* *EL:LogActive* (< count 8))
+    (progn
+      (EL:PerfCount "device-wire-miss-details" 1)
+      (setq segments (EL:ContactRawSegments shape))
+      (EL:LogEvent "DEVICE_WIRE_MISS_DETAILS" (list '(diagnostic-revision . "2026-10-22-line-arms1")
+        (cons 'wire (EL:Get 'id wire)) (cons 'device (EL:Get 'id block))
+        (cons 'device-name (EL:Get 'name block)) (cons 'device-bounds (EL:Get 'bounds block))
+        '(phase . fine-contact-after-bounds) (cons 'device-tolerance (EL:DeviceContactTolerance cfg))
+        (cons 'wire-segments (EL:DeviceMissHead (EL:Get 'segments wire) 8))
+        (cons 'wire-truncated (> (length (EL:Get 'segments wire)) 8))
+        (cons 'device-segment-count (length segments))
+        (cons 'device-segments (mapcar '(lambda (seg) (EL:ContactWorldSegment seg shape))
+          (EL:DeviceMissHead segments 32)))
+        (cons 'device-segments-truncated (> (length segments) 32))
+        (cons 'curve-count (length (EL:Get 'curves shape))) (cons 'geometry-issues (EL:Get 'issues shape)))))))
 (defun EL:SimpleDevicePathHit (wire block cfg / shape hit)
   (cond ((equal (EL:Get 'role block) 'junction)
       (vl-some '(lambda (ep) (EL:SimpleDevicePointHit (EL:Get 'point ep) block cfg)) (EL:Get 'ends wire)))
@@ -457,9 +973,11 @@
             (EL:LogEvent "DEVICE_WIRE_WIDTH_HIT" (list (cons 'wire (EL:Get 'id wire))
               (cons 'device (EL:Get 'id block)) (cons 'profiles (EL:Get 'width-profiles wire))))))
         (if (not hit)
-          (EL:LogEvent "DEVICE_WIRE_MISS" (list (cons 'wire (EL:Get 'id wire))
-            (cons 'device (EL:Get 'id block)) (cons 'segments (EL:Get 'segments wire))
-            (cons 'geometry-issues (EL:Get 'issues shape)))))
+          (progn
+            (EL:LogEvent "DEVICE_WIRE_MISS" (list (cons 'wire (EL:Get 'id wire))
+              (cons 'device (EL:Get 'id block)) (cons 'segments (EL:Get 'segments wire))
+              (cons 'geometry-issues (EL:Get 'issues shape))))
+            (EL:DeviceWireMissDetails wire block shape cfg)))
         hit)))))
 (defun EL:SimpleDevicePointHit (point block cfg)
   (if (equal (EL:Get 'role block) 'panel) (EL:BlockPointHit point block cfg)
@@ -480,9 +998,9 @@
 (defun EL:DevicesTouch (a b / sa sb seg edge hit segments candidates tol)
   (setq sa (EL:DeviceContactShape a) sb (EL:DeviceContactShape b)
     tol (if (numberp *EL:DeviceContactTolerance*) *EL:DeviceContactTolerance* (EL:DeviceContactTolerance nil)))
-  (setq segments (EL:Get 'segments sa))
+  (setq segments (EL:ContactRawSegments sa))
   (while (and segments (not hit))
-    (setq seg (car segments) segments (cdr segments)
+    (setq seg (EL:ContactWorldSegment (car segments) sa) segments (cdr segments)
       candidates (EL:ContactSegmentsTolerance sb (EL:SegmentBounds (list seg)) tol))
     (while (and candidates (not hit))
       (setq edge (car candidates) candidates (cdr candidates))
@@ -490,10 +1008,12 @@
   (if (not hit)
     (setq hit (or
       (vl-some '(lambda (curve)
-        (or (vl-some '(lambda (seg) (EL:CurveSegmentHit seg curve tol)) (EL:Get 'segments sb))
+        (or (vl-some '(lambda (seg) (EL:CurveSegmentHit (EL:ContactWorldSegment seg sb) curve tol))
+            (EL:ContactRawSegments sb))
           (vl-some '(lambda (other) (EL:CurvesTouchTolerance curve other tol)) (EL:Get 'curves sb)))) (EL:Get 'curves sa))
       (vl-some '(lambda (curve)
-        (vl-some '(lambda (seg) (EL:CurveSegmentHit seg curve tol)) (EL:Get 'segments sa))) (EL:Get 'curves sb)))))
+        (vl-some '(lambda (seg) (EL:CurveSegmentHit (EL:ContactWorldSegment seg sa) curve tol))
+          (EL:ContactRawSegments sa))) (EL:Get 'curves sb)))))
   hit)
 (defun EL:DeviceCandidateScope (snapshot cfg panel edges tree / block other wire ep endpoints limit rows)
   ;; Date: 2026-10-10. Conservative reachability only, never final connectivity.
@@ -539,31 +1059,66 @@
               good (and (EL:ShapeGeometry shape) (not (EL:Get 'issues shape)))))
           (setq good nil)))))
   (and good (equal contacts (EL:DeviceContactEvidence *EL:DeviceContactCache*))))
-(defun EL:NetworkProofInput (baseline proof / rows key blocks block role)
+(defun EL:NetworkRoleCodeLess (a b)
+  ;; Date: 2026-10-21. Compare numeric character codes, including full prefixes.
+  (while (and a b (= (car a) (car b))) (setq a (cdr a) b (cdr b)))
+  (and b (or (not a) (< (car a) (car b)))))
+(defun EL:NetworkRolesOrdered (blocks roles / tail ids sorted previous ordered block id)
+  ;; Date: 2026-10-21. A positional restore is safe only for unique, aligned IDs.
+  ;; Sorting bounded handle-code lists avoids a second quadratic MEMBER scan.
+  (setq tail roles ordered (= (length blocks) (length roles)))
+  (foreach block blocks
+    (if ordered
+      (progn
+        (setq id (EL:Get 'id block))
+        (if (and (equal (type id) 'STR) (equal id (car (car tail))))
+          (setq ids (cons (vl-string->list id) ids) tail (cdr tail))
+          (setq ordered nil)))))
+  (if ordered
+    (progn
+      (setq sorted (vl-sort ids 'EL:NetworkRoleCodeLess)
+        ordered (= (length ids) (length sorted)))
+      ;; Native VL-SORT may remove duplicates; host adapters may retain them.
+      ;; The length and adjacent checks reject duplicates under either behavior.
+      (while (and ordered sorted)
+        (if (and previous (equal (car previous) (car sorted))) (setq ordered nil))
+        (setq previous sorted sorted (cdr sorted))))) ordered)
+(defun EL:NetworkRestoreRoles (blocks roles / ordered tail rows block role)
+  ;; Date: 2026-10-21. Keep first-ASSOC semantics for every noncanonical table.
+  (setq ordered (EL:NetworkRolesOrdered blocks roles) tail roles)
+  (EL:PerfCount "network-role-blocks" (length blocks))
+  (EL:PerfCount (if ordered "network-role-ordered-batches" "network-role-fallback-batches") 1)
+  (foreach block blocks
+    (setq role (if ordered (cdr (car tail)) (EL:Get (EL:Get 'id block) roles)))
+    (if ordered (setq tail (cdr tail)))
+    (setq block (if role (EL:Put 'role (cdr role) block)
+      (vl-remove-if '(lambda (pair) (equal (car pair) 'role)) block)))
+    (setq rows (cons block rows))) (reverse rows))
+(defun EL:NetworkProofInput (baseline proof / rows key blocks)
   ;; Date: 2026-10-13. Restore only the fields changed by network construction.
   ;; Everything else references the existing source-signature snapshot.
   (foreach key (EL:Get 'input-keys proof)
     (cond
       ((equal key 'ends) (setq rows (cons (cons key (EL:Get 'input-ends proof)) rows)))
       ((equal key 'blocks)
-        (setq blocks nil)
-        (foreach block (EL:Get 'blocks baseline)
-          (setq role (EL:Get (EL:Get 'id block) (EL:Get 'input-roles proof)))
-          (setq block (if role (EL:Put 'role (cdr role) block)
-            (vl-remove-if '(lambda (pair) (equal (car pair) 'role)) block)))
-          (setq blocks (cons block blocks)))
-        (setq rows (cons (cons key (reverse blocks)) rows)))
+        (setq blocks (EL:PerfCall "NETWORK_ROLE_RESTORE" 'EL:NetworkRestoreRoles
+          (list (EL:Get 'blocks baseline) (EL:Get 'input-roles proof))))
+        (setq rows (cons (cons key blocks) rows)))
       (T (setq rows (cons (assoc key baseline) rows))))) (reverse rows))
-(defun EL:NetworkProofMake (input output cfg panel contacts / proof roles block)
-  (setq input (EL:StableSnapshot input) output (EL:StableSnapshot output))
+(defun EL:NetworkProofMake (input output cfg panel contacts / proof roles block restored)
+  ;; Date: 2026-10-21. Batch timings separate conversion, evidence and exact check.
+  (setq input (EL:PerfCall "NETWORK_PROOF_STABLE_INPUT" 'EL:StableSnapshot (list input))
+    output (EL:PerfCall "NETWORK_PROOF_STABLE_OUTPUT" 'EL:StableSnapshot (list output)))
   (foreach block (EL:Get 'blocks input)
     (setq roles (cons (cons (EL:Get 'id block) (assoc 'role block)) roles)))
   (setq proof (list '(version . 4) (cons 'panel panel)
     (cons 'config (EL:StableData (vl-remove-if '(lambda (row) (equal (car row) 'template)) cfg)))
     (cons 'input-keys (mapcar 'car input)) (cons 'input-ends (EL:Get 'ends input))
-    (cons 'input-roles (reverse roles)) (cons 'contacts (EL:DeviceContactEvidence contacts))))
+    (cons 'input-roles (reverse roles))
+    (cons 'contacts (EL:PerfCall "NETWORK_PROOF_CONTACTS" 'EL:DeviceContactEvidence (list contacts)))))
   ;; Any future builder mutation outside the known patch disables reuse safely.
-  (if (equal input (EL:NetworkProofInput output proof)) proof))
+  (setq restored (EL:NetworkProofInput output proof))
+  (if (EL:PerfCall "NETWORK_PROOF_COMPARE" 'equal (list input restored)) proof))
 (defun EL:SimpleNetwork (snapshot cfg panel / saved key epoch result reused proof *EL:DeviceContactCache* *EL:DeviceTemplateCache* *EL:DeviceTemplateEnabled*)
   (setq *EL:DeviceTemplateEnabled* T epoch *EL:FreshEpoch*
     ;; Date: 2026-10-13. Dialog template selection changes drawing output only;
@@ -592,7 +1147,8 @@
   (if (and result (not (EL:Get 'issues snapshot))
       (vl-every '(lambda (row) (and (EL:ShapeGeometry (cdr row))
         (not (EL:Get 'issues (cdr row))))) *EL:DeviceContactCache*)
-      (setq proof (EL:NetworkProofMake snapshot (EL:Get 'snapshot result) cfg panel *EL:DeviceContactCache*)))
+      (setq proof (EL:PerfCall "NETWORK_PROOF_PREPARE" 'EL:NetworkProofMake
+        (list snapshot (EL:Get 'snapshot result) cfg panel *EL:DeviceContactCache*))))
     (setq result (EL:Put 'snapshot (EL:Put 'network-proof proof (EL:Get 'snapshot result)) result)))
   (if (and result *EL:PerfActive* (not *EL:NetworkReuseDisabled*)
       (equal epoch *EL:FreshEpoch*) (not (EL:Get 'issues snapshot))
@@ -600,11 +1156,11 @@
         (not (EL:Get 'issues (cdr row))))) *EL:DeviceContactCache*))
     (setq *EL:NetworkMemo* (list key result (EL:DeviceContactEvidence *EL:DeviceContactCache*)))
     (setq *EL:NetworkMemo* nil))
-  ;; Date: 2026-10-15. Share fresh definition geometry only with the next
-  ;; split in this synchronous recognition call. Never persist this cache.
+  ;; Date: 2026-10-21. Share successful definitions, poses and instances with
+  ;; the next split of this synchronous recognition. Never persist this cache.
   (if *EL:RecognitionPass*
     (setq *EL:RecognitionContacts* (list result (namedobjdict) *EL:FreshEpoch*
-      (vl-remove-if-not '(lambda (row) (equal (caar row) 'definition)) *EL:DeviceTemplateCache*))))
+      *EL:DeviceTemplateCache* *EL:DeviceContactCache*)))
   result)
 (defun EL:SimpleGapSnapshot (snapshot)
   ;; Date: 2026-10-13. Virtual continuation joins only the two free wire ends.
@@ -623,6 +1179,8 @@
 (defun EL:WalkEnd (ep / saved point junctions occupied item wire direct state)
   (if (setq saved (assoc (EL:Get 'key ep) *EL:WalkEnds*)) (cdr saved)
     (progn
+      (if *EL:RootScopeActive*
+        (EL:RootScopeResolve (cdr (assoc (EL:Get 'wire ep) *EL:WalkWireRecords*))))
       (setq point (EL:Get 'point ep)
         occupied (or (EL:StartBoundaryPoint point *EL:WalkSnapshot* *EL:WalkConfig*)
           (EL:TrunkPoint point (EL:Get 'trunk-segments *EL:WalkSnapshot*))))
@@ -630,7 +1188,7 @@
       (setq occupied (or occupied junctions))
       (if (not occupied)
         (foreach item (EL:SpatialBoxQuery *EL:WalkWireTree* (list point point) *EL:WalkTouch*)
-          (setq wire (EL:Get 'wire item))
+          (setq wire (EL:RootScopeResolve (EL:Get 'wire item)))
           (if (and (not (equal (EL:Get 'wire ep) (EL:Get 'id wire)))
               (EL:Touches point (EL:Get 'segments wire) *EL:WalkTouch* (EL:GapEpsilon)))
             (setq direct (cons (EL:Get 'id wire) direct)))))
@@ -723,7 +1281,7 @@
             (EL:DevicesTouch block other)) (EL:WalkLink id (EL:Get 'id other))))
       (foreach item (EL:SpatialBoxQuery *EL:WalkWireTree* (EL:Get 'bounds block)
           (max *EL:WalkTouch* *EL:DeviceContactTolerance*))
-        (setq wire (EL:Get 'wire item))
+        (setq wire (EL:RootScopeResolve (EL:Get 'wire item)))
         (if (EL:WalkDevicePathHit wire block)
           (EL:WalkLink id (EL:Get 'id wire)))))))
 (defun EL:NetworkEdges (edges / row previous rows)
@@ -732,7 +1290,7 @@
       (if (equal (car a) (car b)) (< (cadr a) (cadr b)) (< (car a) (car b)))))
     (if (not (equal row previous)) (setq rows (cons row rows) previous row)))
   (reverse rows))
-(defun EL:SimpleNetworkBuild (snapshot cfg panel / wires blocks block wire bounds items ends ep row pairs perf id
+(defun EL:SimpleNetworkBuild (snapshot cfg panel / wires blocks block wire bounds items ends ep row pairs perf id indexperf
     *EL:WalkPanel* *EL:WalkConfig* *EL:WalkSnapshot* *EL:WalkTouch*
     *EL:WalkWireTree* *EL:WalkBlockTree* *EL:WalkEndTree* *EL:WalkJunctionTree*
     *EL:WalkWireRecords* *EL:WalkBlockRecords* *EL:WalkEndRecords*
@@ -743,26 +1301,40 @@
     *EL:WalkPanel* panel *EL:WalkConfig* cfg
     *EL:WalkTouch* (EL:Get 'eps_touch (EL:Get 'params cfg))
     perf (EL:PerfBegin "NETWORK_CANDIDATE_SCOPE"))
+  ;; Date: 2026-10-21. Split existing batches while retaining all construction order.
+  (setq indexperf (EL:PerfBegin "NETWORK_ROLE_PREPARE"))
   (foreach block (EL:Get 'blocks snapshot)
     (setq block (EL:Put 'role (EL:FixedBlockRole block panel cfg) block)
       blocks (cons block blocks) *EL:WalkBlockRecords* (cons (cons (EL:Get 'id block) block) *EL:WalkBlockRecords*)))
   (setq blocks (reverse blocks) snapshot (EL:Put 'blocks blocks snapshot) *EL:WalkSnapshot* snapshot)
+  (EL:PerfEnd indexperf 'returned)
+  (setq indexperf (EL:PerfBegin "NETWORK_WIRE_INDEX"))
   (foreach wire wires
     (setq *EL:WalkWireRecords* (cons (cons (EL:Get 'id wire) wire) *EL:WalkWireRecords*)
       bounds (EL:WireContactBounds wire))
     (if bounds (setq items (cons (list (cons 'key (EL:Get 'id wire)) (cons 'wire wire) (cons 'bounds bounds)
       (cons 'point (EL:V* 0.5 (EL:V+ (car bounds) (cadr bounds))))) items))))
   (setq *EL:WalkWireTree* (EL:SpatialTree items 0) items nil)
+  (EL:PerfEnd indexperf 'returned)
+  (setq indexperf (EL:PerfBegin "NETWORK_BLOCK_INDEX"))
   (foreach block blocks
     (if (setq bounds (EL:Get 'bounds block))
       (setq items (cons (list (cons 'key (EL:Get 'id block)) (cons 'block block) (cons 'bounds bounds)
         (cons 'point (EL:V* 0.5 (EL:V+ (car bounds) (cadr bounds))))) items))))
-  (setq *EL:WalkBlockTree* (EL:SpatialTree items 0)
-    *EL:WalkJunctionTree* (EL:JunctionTree blocks)
+  (setq *EL:WalkBlockTree* (EL:SpatialTree items 0))
+  (EL:PerfEnd indexperf 'returned)
+  (setq indexperf (EL:PerfBegin "NETWORK_JUNCTION_INDEX")
+    *EL:WalkJunctionTree* (EL:JunctionTree blocks))
+  (EL:PerfEnd indexperf 'returned)
+  (setq indexperf (EL:PerfBegin "NETWORK_END_INDEX")
     *EL:WalkEndTree* (EL:SpatialTree (mapcar '(lambda (ep)
-      (EL:Put 'bounds (list (EL:Get 'point ep) (EL:Get 'point ep)) ep)) (EL:Get 'ends snapshot)) 0)
+      (EL:Put 'bounds (list (EL:Get 'point ep) (EL:Get 'point ep)) ep)) (EL:Get 'ends snapshot)) 0))
+  (EL:PerfEnd indexperf 'returned)
+  (setq indexperf (EL:PerfBegin "NETWORK_GAP_INDEX")
     *EL:WalkGapSnapshot* (EL:SimpleGapSnapshot snapshot)
     *EL:GapPathIndex* (EL:GapPathIndex *EL:WalkGapSnapshot*) *EL:GapIndexReady* T)
+  (EL:PerfEnd indexperf 'returned)
+  (setq indexperf (EL:PerfBegin "NETWORK_ROOT_LINKS"))
   (foreach ep (EL:Get 'ends snapshot)
     (setq *EL:WalkEndRecords* (cons (cons (EL:Get 'key ep) ep) *EL:WalkEndRecords*)))
   (foreach wire wires
@@ -770,6 +1342,7 @@
         ((EL:Get 'trunk-segments snapshot) (member (EL:Get 'id wire) (EL:Get 'trunk-roots snapshot)))
         (T (EL:PathBlockHit wire (cdr (assoc panel *EL:WalkBlockRecords*)) cfg)))
       (EL:WalkLink panel (EL:Get 'id wire))))
+  (EL:PerfEnd indexperf 'returned)
   (EL:PerfEnd perf 'returned)
   (setq perf (EL:PerfBegin "NETWORK_REACHABLE_TRACE"))
   (while *EL:WalkQueue*

@@ -1,4 +1,7 @@
-"""Exit preview leaves modal DCL and preserves review state. Date: 2026-10-08."""
+"""Exit preview leaves modal DCL and preserves review state. Date: 2026-10-21.
+
+Status: focused DCL adapter regression; no native CAD visual acceptance.
+"""
 import unittest
 from autolisp_host import Symbol, truth
 import test_pick_feedback as feedback
@@ -29,6 +32,7 @@ class ExitPreviewTests(unittest.TestCase):
             return self.redraw(*args)
         def done(status):
             self.modal = False
+            self.dialog_status = status
             return status
         def start():
             self.modal = True
@@ -39,9 +43,17 @@ class ExitPreviewTests(unittest.TestCase):
                 self.assertEqual(self.tiles['role_recheck'],'1')
             if n < 3:
                 self.tiles.update(exits=str(n),scope_exclude='1',role_recheck='1')
-                self.h.frames[0]['$VALUE']=str(n)
-                return self.h.run(self.callbacks['exits'])
-            return self.h.run(self.callbacks[{1:'accept',0:'cancel',2:'add_wire'}[ending]])
+                # Native ACTION_TILE supplies both variables to the real
+                # MonitorActionTile wrapper and its original business callback.
+                self.h.frames[0].update({'$KEY':'exits', '$VALUE':str(n)})
+                self.h.run(self.callbacks['exits'])
+                # START_DIALOG returns DONE_DIALOG's status, independently of
+                # the monitoring wrapper's final expression return value.
+                return self.dialog_status
+            key={1:'accept',0:'cancel',2:'add_wire'}[ending]
+            self.h.frames[0].update({'$KEY':key, '$VALUE':self.tiles.get(key,'')})
+            self.h.run(self.callbacks[key])
+            return self.dialog_status
         def pause(*args):
             self.assertFalse(self.modal)
             self.previews.append(set(self.visible))

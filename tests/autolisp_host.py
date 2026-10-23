@@ -113,6 +113,20 @@ def list_length(value):
     return None
 
 
+def nth(index, values):
+    """Date: 2026-10-21. Native NTH requires a nonempty list and a nonnegative index."""
+    if values is None or values is False or values == []:
+        raise TypeError('bad argument type: consp nil')
+    if not isinstance(values, (list, Pair)):
+        raise TypeError(f'bad argument type: consp {values!r}')
+    if isinstance(index, bool) or not isinstance(index, int):
+        raise TypeError(f'bad argument type: fixnump {index!r}')
+    if index < 0:
+        raise TypeError(f'bad argument value: non-negative index {index!r}')
+    items = seq(values)
+    return items[index] if index < len(items) else None
+
+
 def entity_data(data, apps=None):
     """Date: 2026-10-11. Match native entget application selection, including '*'."""
     if data is None:
@@ -172,7 +186,7 @@ class Host:
             'CAR': car, 'CDR': cdr, 'CONS': cons, 'LIST': lambda *x: list(x) or None,
             'APPEND': lambda *xs: sum((seq(x) for x in xs), []) or None,
             'REVERSE': lambda x: list(reversed(seq(x))) or None,
-            'LENGTH': lambda x: len(seq(x)), 'NTH': lambda i,x: x[i] if x and i < len(x) else None,
+            'LENGTH': lambda x: len(seq(x)), 'NTH': nth,
             'VL-LIST-LENGTH': list_length,
             'EQ': lambda a,b: (a is b) if isinstance(a, (list, Pair)) or isinstance(b, (list, Pair)) else equal(a,b),
             'LAST': lambda x: x[-1:] if x else None,

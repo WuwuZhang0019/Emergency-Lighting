@@ -24,7 +24,10 @@
       (foreach row powers
         (if (numberp (cdr row)) (setq merged (EL:Put (car row) (cdr row) merged))))
       (EL:WriteData (strcat *EL:Root* "config/block-powers.eld") (list '(version . 1) (cons 'powers merged))))))
-(defun EL:SaveDraft (result cfg powers capacity / store record context)
+(defun EL:SaveDraft (result cfg powers capacity)
+  ;; Date: 2026-10-21. Include input preparation and verified transaction readback.
+  (EL:PerfCall "SAVE_GENERATION_DRAFT" 'EL:SaveDraftWork (list result cfg powers capacity)))
+(defun EL:SaveDraftWork (result cfg powers capacity / store record context)
   (setq *EL:LastSavedDraftId* nil)
   (if (assoc 'effective-powers result) (setq powers (EL:Get 'effective-powers result)))
   (setq capacity (EL:CapacityDefault capacity))
@@ -62,7 +65,8 @@
   (if (EL:TemplateReady (EL:Get 'template cfg) cfg)
     (setq store (EL:Put 'fixed-template (EL:Get 'template cfg) store)))
   (EL:Require (or (and (not (EL:Get 'can-generate result))
-      (EL:Get 'load-error (EL:Get 'device-library result))) (EL:DLSubmissionCurrent result))
+      (EL:Get 'load-error (EL:Get 'device-library result)))
+      (EL:GenerationVerify 'EL:DLSubmissionCurrent (list result) result 'DEVICE_LIBRARY_CHANGED "设备库已变化，当前输入保留"))
     "设备库已变化，当前输入保留；请刷新库并重新核对后保存。")
   (setq record (EL:InputRecord record)
     context (EL:TransactionVerifiedStore 'EL:StoreWrite (list (EL:StorePutDiagram record store))))
@@ -88,9 +92,14 @@
     (setq next (EL:EditPanelOnce result cfg))
     (if (setq context (EL:Get 'library-suspended next))
       (setq *EL:DLParentContext* context *EL:DLParentContinue* 'EL:DLResumePanel))
-    (setq result nil))
+    (if (setq context (EL:Get 'retry-panel next))
+      (setq result (EL:Get 'result context) cfg (EL:Get 'config context) *EL:DLResume* context)
+      (setq result nil)))
   next)
-(defun EL:EditPanelOnce (result cfg / *error* store record powers capacity edited prepared saved ownlog syncable template resolved *EL:GenerationPreflight* *EL:LastSavedDraftId* *EL:LastGeneratedId* *EL:PlacementOnly*)
+(defun EL:EditPanelOnce (result cfg)
+  ;; Date: 2026-10-21. Share template work only inside this controlled call.
+  (EL:WithTemplateScope 'EL:EditPanelOnceWork (list result cfg)))
+(defun EL:EditPanelOnceWork (result cfg / *error* store record powers capacity edited prepared saved draft-saved ownlog syncable template resolved perf retry-inputs *EL:GenerationPreflight* *EL:LastSavedDraftId* *EL:LastGeneratedId* *EL:PlacementOnly*)
   (defun *error* (msg)
     (EL:LogFailure msg)
     (vl-catch-all-apply 'EL:ClearGapPreview nil)
@@ -103,6 +112,7 @@
   (EL:LogEvent "EDIT_PANEL" (list (cons 'panel (EL:Get 'panel result))))
   (setq store (cond ((EL:LogCall "READ_STORE" nil 'EL:StoreForResult (list result))) (T (EL:StoreInitial)))
     record (cond ((EL:RecordForResult result store)) (T (EL:NewRecord (EL:Get 'panel result) store))))
+  (setq retry-inputs (and *EL:DLResume* (EL:Get 'retry-generation *EL:DLResume*)))
   (if (and *EL:DLResume* (equal (EL:Get 'panel (EL:Get 'result *EL:DLResume*)) (EL:Get 'panel result)))
     (setq prepared (EL:Get 'result *EL:DLResume*) powers (EL:Get 'powers *EL:DLResume*)
       cfg (EL:Get 'config *EL:DLResume*) capacity (EL:Get 'capacity *EL:DLResume*)
@@ -120,53 +130,82 @@
           (EL:Get 'template (EL:Get 'config record)) (EL:Get 'template record))))
       (if (not (EL:TemplateReady template cfg)) (setq template (EL:Get 'fixed-template store)))
       (setq cfg (EL:Put 'template template cfg))))
-  (setq *EL:DLSessionSnapshot* (EL:DLSnapshot)
-    resolved (EL:DLPrepare prepared powers *EL:DLSessionSnapshot* nil)
-    prepared (EL:Get 'result resolved) powers (EL:Get 'powers resolved))
+  ;; 日期：2026-10-23。生成失败重试复用显示值，不刷新设备库默认功率。
+  (if (not retry-inputs)
+    (setq *EL:DLSessionSnapshot* (EL:DLSnapshot)
+      resolved (EL:DLPrepare prepared powers *EL:DLSessionSnapshot* nil)
+      prepared (EL:Get 'result resolved) powers (EL:Get 'powers resolved)))
   (setq edited (EL:LogCall "PANEL_DIALOG" (list (cons 'panel (EL:Get 'panel result)))
     'EL:PanelDialog (list prepared cfg powers capacity)))
   (if (and edited (not (EL:Get 'pick-panel edited)) (not (EL:Get 'library-suspended edited)))
     (progn
+      ;; Date: 2026-10-21. Starts after the dialog; excludes save and placement.
+      (setq perf (EL:PerfBegin "PANEL_SUBMIT_PREPARE"))
       (setq result (EL:Get 'result edited) powers (EL:Get 'powers edited)
         capacity (EL:Get 'capacity edited) cfg (EL:Get 'config edited)
-        syncable (and (EL:Get 'can-generate result) (EL:CircuitNumbersReady result)
+        result (if (EL:Get 'generate edited) (EL:GenerationResult result) result)
+        syncable (and (or (EL:Get 'generation-warning-mode result)
+            (and (EL:Get 'can-generate result) (EL:CircuitNumbersReady result)))
           (EL:SelectionsReady result capacity) (EL:TemplateReady (EL:Get 'template cfg) cfg)))
       (EL:LogEvent "PANEL_SUBMIT" (list (cons 'generate (EL:Get 'generate edited))
         (cons 'syncable syncable) (cons 'panel (EL:Get 'panel result))))
       (EL:PerfMark "panel-submit") (EL:PerfCount "panel-submits" 1)
       (EL:PerfSet "actual-circuits" (length (EL:Get 'circuits result)))
-      (EL:RememberPanelPowers result powers)
-      (if (and (not (assoc 'device-library result)) (not (EL:SaveNamePowers powers)))
+      (if (EL:Get 'generation-warning-mode result)
+        (EL:GenerationVerify 'EL:RememberPanelPowers (list result powers) result 'INPUT_CACHE_PENDING "本箱功率缓存未写入，当前输入保留")
+        (EL:RememberPanelPowers result powers))
+      (if (and (not (assoc 'device-library result)) (not (if (EL:Get 'generation-warning-mode result)
+          (EL:GenerationVerify 'EL:SaveNamePowers (list powers) result 'POWER_CACHE_PENDING "图块功率缓存未写入，当前输入保留")
+          (EL:SaveNamePowers powers))))
         (princ "\n功率库写入失败，请保留当前窗口数值并检查插件目录写入权限。"))
-      (if (and (EL:DLSubmissionCurrent result)
-          (or (not (EL:Get 'generate edited)) (EL:NumberInputsCurrent result)))
+      (if (and (EL:GenerationVerify 'EL:DLSubmissionCurrent (list result) result 'DEVICE_LIBRARY_CHANGED "设备库已变化，当前输入保留")
+          (or (not (EL:Get 'generate edited))
+            (EL:GenerationVerify 'EL:NumberInputsCurrent (list result) result 'SOURCE_NUMBER_CHANGED "平面编号已变化，原始编号证据保留")))
         (progn
+          (EL:PerfEnd perf 'returned)
           ;; Date: 2026-10-15. Save inputs once before placement. A successful
           ;; placement keeps output associations in memory for explicit export.
           (setq *EL:Result* result *EL:FixedConfig* cfg
-            saved (EL:SaveDraft result cfg powers capacity))
-          (if (and saved (EL:Get 'generate edited))
+            saved (if (EL:Get 'generation-warning-mode result)
+              (vl-catch-all-apply 'EL:SaveDraft (list result cfg powers capacity)) (EL:SaveDraft result cfg powers capacity)))
+          (if (vl-catch-all-error-p saved)
+            (progn (EL:GenerationCheck nil result 'INPUT_SAVE_PENDING (strcat "草稿写入未完成：" (vl-catch-all-error-message saved)))
+              (setq saved nil)))
+          (setq draft-saved saved)
+          (if (and (or saved (EL:Get 'generation-warning-mode result)) (EL:Get 'generate edited))
             (if syncable
               (progn
+                (if (not saved)
+                  (progn
+                    (setq result (EL:Put 'generation-input-save-pending T result))
+                    (EL:GenerationCheck nil result 'INPUT_SAVE_PENDING "输入记录尚未保存，已保留本次显示值")))
                 (setq *EL:GenerationPreflight* (list (namedobjdict) result cfg)
                   *EL:PlacementOnly* T)
                 (setq saved (EL:InvokeCCKK2 result cfg powers capacity)))
               (progn
-                (princ "\n生成未执行：回路、功率或模板校验未通过；当前输入已保存，请核对后重试。")
-                (EL:MarkStale (EL:Get 'panel result) 'review-or-template-pending))))
+                (setq saved nil)
+                (princ "\n系统图块或容量尚未准备完成，当前输入保留；返回原面板后可检查并重试。")
+                (EL:GenerationVerify 'EL:MarkStale (list (EL:Get 'panel result) 'review-or-template-pending)
+                  result 'TEMPLATE_PENDING "系统图块或容量待核对，当前输入保留"))))
           (if saved
-            (princ (if (EL:Get 'load-error (EL:Get 'device-library result))
-              "\n当前输入已保存；设备库恢复前不生成系统图。关闭图纸前请保存 DWG。"
-              "\n当前输入已保存到本图；关闭图纸前请保存 DWG。"))
+            (princ (cond ((not draft-saved) "\n系统图已生成；输入记录尚未写入，当前显示值保留在本次会话。")
+              ((EL:Get 'load-error (EL:Get 'device-library result))
+                "\n当前输入已保留；设备库问题见诊断提示，关闭图纸前请保存 DWG。")
+              (T "\n当前输入已保存到本图；关闭图纸前请保存 DWG。")))
             (princ "\n本次保存或生成未完成；请查看上方原因后重试。")))
         (progn
+          (EL:PerfEnd perf 'returned)
           (EL:MarkStale (EL:Get 'panel result) 'source-changed)
           (EL:PerfInput 'alert (list (if (EL:DLSubmissionCurrent result)
             "平面编号已变化，请重新拾取；当前功率已尝试单独记住。"
             "设备库已变化，请打开设备库并重新核对；当前功率已尝试单独记住。")))))))
   (EL:ClearPickHighlights)
   (if ownlog (EL:LogFinish (if edited 'panel-accepted 'panel-cancelled)))
-  (if (or (EL:Get 'pick-panel edited) (EL:Get 'library-suspended edited)) edited))
+  (cond ((or (EL:Get 'pick-panel edited) (EL:Get 'library-suspended edited)) edited)
+    ((and (EL:Get 'generate edited) (not saved))
+      (princ "\n生成尚未完成，已返回原面板，识别结果、功率和容量保持；可直接重试或关闭。")
+      (list (cons 'retry-panel (list '(retry-generation . T) (cons 'result result) (cons 'config cfg)
+        (cons 'powers powers) (cons 'capacity capacity)))))))
 (defun EL:PublishDiagram (result cfg / store record powers capacity)
   (setq store (EL:StoreForResult result) record (EL:RecordForResult result store))
   (if record
@@ -413,14 +452,21 @@
 
 (defun EL:FixedStat (/ *error* next perfowner context)
   (defun *error* (msg)
+    (EL:PanelLifecycle "command-error" (list
+      (cons "error-at" (EL:Get "panel-lifecycle-stage" *EL:PerfMetrics*)) (cons "error" msg)))
     (EL:LogFailure msg)
     (vl-catch-all-apply 'EL:ReleasePowerUI nil)
     (if msg (princ (strcat "\n统计已停止：" msg)))
     (EL:PerfFinish 'failed) (princ))
   (setq perfowner (EL:PerfStart "ELSTAT") *EL:DiagnosticsDeferred* T)
+  (EL:PanelLifecycle "command-entry" '(("entry" . "ELSTAT") ("requested" . T)))
   ;; Date: 2026-10-14. Open the unified panel before asking for a CAD pick.
   (if (EL:EnsureRoot)
-    (setq next (EL:PerfCall "PANEL_HOME" 'EL:PanelDialog (list nil nil nil nil))))
+    (progn
+      (EL:PanelLifecycle "home-requested" nil)
+      (setq next (EL:PerfCall "PANEL_HOME" 'EL:PanelDialog (list nil nil nil nil)))
+      (EL:PanelLifecycle "home-returned" (list (cons "pick-requested" (EL:Get 'pick-panel next)))))
+    (EL:PanelLifecycle "root-unavailable" '(("not-shown-reason" . "root-unavailable"))))
   (if (setq context (EL:Get 'library-suspended next))
     (progn (setq *EL:DLParentContext* context *EL:DLParentContinue* 'EL:DLResumeHome)
       (setq next nil)))
@@ -436,8 +482,12 @@
 (defun EL:RememberDiagramDiagnostic (record store)
   ;; Date: 2026-10-15. One successful output per open DWG, no file or XRecord
   ;; write. A failed/cancelled placement never replaces the previous output.
+  ;; Date: 2026-10-21. Keep the successful association's own run identity;
+  ;; a later cancelled recognition must not inherit its success evidence.
+  (if *EL:PerfActive* (setq *EL:PerfOutcome* 'diagram-generated))
   (setq *EL:DiagramDiagnostics* (EL:Put (namedobjdict)
-    (list (cons 'record record) (cons 'store
+    (list (cons 'record record) (cons 'run-id (if *EL:PerfActive* *EL:PerfRunID*))
+      (cons 'captured-at (getvar "CDATE")) (cons 'store
       (list '(schema-version . 1) (cons 'drawing-uuid (EL:Get 'drawing-uuid store)))))
     *EL:DiagramDiagnostics*)) nil)
 (defun EL:DiagnosticRequire (condition message)
@@ -658,6 +708,24 @@
       (if (equal outcome "OK") "ZIP 文件不存在或为空" "详细原因见本目录 bundle-error.txt")
       "；原始资料保留在：" (EL:DiagnosticWindowsPath folder)))
   (EL:DiagnosticWindowsPath path))
+(defun EL:DiagnosticRunMetadata (record run / session summary current)
+  ;; Date: 2026-10-21. VERIFIED describes only the exported association.
+  ;; Match the exact generating run, never a block name, box or old result.
+  (setq session (EL:Get (namedobjdict) *EL:DiagramDiagnostics*)
+    summary (EL:Get 'summary run)
+    current (and record (EL:Get 'run-id summary) (EL:Get 'run-id session)
+      (equal record (EL:Get 'record session))
+      (equal (EL:Get 'run-id summary) (EL:Get 'run-id session))))
+  (list (cons 'run-id (EL:Get 'run-id summary))
+    (cons 'run-command-status (EL:Get 'status summary))
+    (cons 'run-business-outcome (EL:Get 'last-outcome summary))
+    (cons 'association-scope (cond (current 'current-run-generated)
+      (record 'recent-success-or-selected) (T 'unavailable)))
+    (cons 'association-current-run (if current T nil))
+    (cons 'association-run-id (if (and record (equal record (EL:Get 'record session)))
+      (EL:Get 'run-id session)))
+    (cons 'association-captured-at (if (and record (equal record (EL:Get 'record session)))
+      (EL:Get 'captured-at session)))))
 (defun EL:DiagnosticBundle (record store logpath issue / folder run files entry source target notes stamp metadata
     *EL:DiagnosticProgressPath*)
   (setq folder (EL:DiagnosticFolder) *EL:DiagnosticExportPath* (EL:DiagnosticWindowsPath folder)
@@ -678,6 +746,9 @@
   ;; Historical shared logs are explicitly named; never collect DWGs, assets,
   ;; previous diagnostic archives or unrelated files by a recursive scan.
   (foreach entry (list (cons "timeline.md" logpath)
+      ;; Date: 2026-10-22. Explicit current-drawing prototype reports, never a folder scan.
+      (cons "cold-probe.json" (car (EL:Get (namedobjdict) *EL:ColdReports*)))
+      (cons "cold-comparison.eld" (cadr (EL:Get (namedobjdict) *EL:ColdReports*)))
       (cons "runtime-ELTRACE-debug.log" (strcat *EL:Root* "output/ELTRACE-debug.log"))
       (cons "runtime-ELPERF.log" (strcat *EL:Root* "output/ELPERF.log"))
       (cons "active-ELTRACE-debug.log" *EL:LogPath*)
@@ -696,6 +767,7 @@
     (cons 'drawing (getvar "DWGNAME")) (cons 'drawing-folder (getvar "DWGPREFIX"))
     (cons 'acad-version (getvar "ACADVER")) (cons 'association-status (if record 'verified 'unavailable))
     (cons 'association-issue issue) (cons 'files (append '("README.md" "manifest.eld") (reverse files)))))
+  (setq metadata (append metadata (EL:DiagnosticRunMetadata record run)))
   (EL:DiagnosticWriteData (strcat folder "/manifest.eld") metadata)
   (EL:DiagnosticWriteText (strcat folder "/README.md")
     (strcat "# 应急照明诊断资料\r\n日期：" (substr stamp 1 4) "-" (substr stamp 5 2) "-" (substr stamp 7 2)
@@ -704,13 +776,14 @@
       "timeline.md：当前图纸最近有效运行的耗时、错误、事件及加载时间轴。\r\n"
       "run.eld：同一次运行的完整事件和计时原始数据，未做日志文本截断。\r\n"
       "load.eld：本次会话最近一次插件加载的计时和原始动作；可能晚于 run.eld。\r\n"
-      "association.eld：当前图纸最近成功出图或选中旧系统图的已核对关联。\r\n"
+      "association.eld：当前图纸最近成功出图或选中旧系统图的已核对关联；VERIFIED 不证明本轮识别或生成成功。\r\n"
+      "manifest.eld 的 association-scope/current-run 区分本轮生成与历史关联；本轮原生命令状态和业务结果分别记录。\r\n"
       "drawing-store.eld：当前图纸已保存记录的只读快照，不代表所有旧图成员已核对。\r\n"
       "current-result.eld：当前识别结果的业务字段与源图数量；可能与最近一次成功出图不同。\r\n"
       "完整保存记录和出图关联保留在 drawing-store.eld / association.eld，不重复展开内存几何、网络证明及设备库缓存。\r\n"
       "progress.log：逐文件导出检查点；中断时可定位最后进入的阶段。\r\n"
       "runtime / active / temp 日志：已有共享历史文件，可能含此前命令或其他图纸；以 run.eld 为本次运行依据。\r\n"
-      "manifest.eld：版本、图纸、导出时间、关联状态和文件清单。\r\n"
+      "manifest.eld：版本、图纸、导出时间、本轮业务结果、关联范围与状态和文件清单。\r\n"
       "本次生成的 .eld / .md 为 UTF-8；复制的历史 .log 保持原编码。\r\n"
       "内存记录在关闭图纸后不再保留，缺少资料不会伪造补全。\r\n\r\n"
       (if issue (strcat "关联读取或核对问题：" issue "\r\n") "")

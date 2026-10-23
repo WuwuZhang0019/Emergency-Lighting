@@ -16,7 +16,7 @@
 (defun EL:StartupEmbeddedRoot () nil)
 (defun EL:StartupUnwrap (value)
   (while (equal (type value) 'VARIANT) (setq value (vlax-variant-value value))) value)
-(defun EL:StartupBinaryWork (path chunks / bytes expected)
+(defun EL:StartupBinaryWork (path chunks / bytes expected matched)
   (if (EL:DLMkdir (vl-filename-directory path))
     (progn
       ;; Date: 2026-10-12. Native decode avoids millions of interpreted byte operations.
@@ -36,11 +36,26 @@
       ;; Date: 2026-10-12. Visual LISP needs all five ADO optional slots.
       (setq *EL:StartupStage* "STREAM_OPEN")
       (vlax-invoke-method *EL:StartupStream* 'Open nil 0 -1 "" "")
-      (setq *EL:StartupStage* "BINARY_WRITE")
-      (vlax-invoke-method *EL:StartupStream* 'Write bytes)
-      ;; Only the versioned runtime seed is replaced, never the user's library.
-      (setq *EL:StartupStage* "SAVE_TO_FILE")
-      (vlax-invoke-method *EL:StartupStream* 'SaveToFile path 2)
+      ;; Date: 2026-10-22. NETLOAD locks its DLL. Exact readback reuses identical
+      ;; embedded DLL bytes without trying to overwrite the loaded assembly.
+      (if (and (equal (strcase (vl-filename-extension path)) ".DLL") (findfile path))
+        (progn
+          (setq *EL:StartupStage* "NATIVE_EXISTING_READBACK")
+          (vlax-invoke-method *EL:StartupStream* 'LoadFromFile path)
+          (vlax-put-property *EL:StartupNode* 'nodeTypedValue
+            (vlax-invoke-method *EL:StartupStream* 'Read -1))
+          (setq matched (equal expected (vlax-get-property *EL:StartupNode* 'text)))
+          (if (not matched)
+            (progn
+              (vlax-put-property *EL:StartupStream* 'Position 0)
+              (vlax-invoke-method *EL:StartupStream* 'SetEOS)))))
+      (if (not matched)
+        (progn
+          (setq *EL:StartupStage* "BINARY_WRITE")
+          (vlax-invoke-method *EL:StartupStream* 'Write bytes)
+          ;; Only the versioned runtime seed is replaced, never the user's library.
+          (setq *EL:StartupStage* "SAVE_TO_FILE")
+          (vlax-invoke-method *EL:StartupStream* 'SaveToFile path 2)))
       (setq *EL:StartupStage* "BINARY_READBACK")
       (vlax-invoke-method *EL:StartupStream* 'LoadFromFile path)
       (vlax-put-property *EL:StartupNode* 'nodeTypedValue

@@ -4,6 +4,32 @@
   (if (setq old (assoc key data))
     (subst (cons key value) old data)
     (append data (list (cons key value)))))
+;; Date: 2026-10-22. Only Tianzheng's numbered equipment names have a computer suffix.
+;; Input is already upper-case; raw names, definition geometry and saved keys stay intact.
+(defun EL:TianzhengNameCore (key / prefix mark openmark closemark offset core)
+  (if (equal (type key) 'STR)
+    (setq prefix (cond ((equal (substr key 1 9) "$EQUIP_U$") 9)
+      ((equal (substr key 1 7) "$EQUIP$") 7))))
+  (if prefix
+    (progn
+      (setq core key mark (cond ((vl-string-search "(" key) (list "(" ")"))
+        ((vl-string-search "（" key) (list "（" "）"))))
+      (if mark
+        (progn
+          (setq openmark (car mark) closemark (cadr mark) offset (vl-string-search openmark key))
+          (setq core (if (and (> offset prefix)
+            (> (- (strlen key) (strlen closemark)) (+ offset (strlen openmark)))
+            (not (vl-string-search openmark key (+ offset (strlen openmark))))
+            (equal (vl-string-search closemark key (+ offset (strlen openmark))) (- (strlen key) (strlen closemark))))
+            (substr key 1 offset)))))
+      (if (and core (> (strlen core) prefix)
+        (vl-every '(lambda (c) (and (>= c 48) (<= c 57))) (vl-string->list (substr core (1+ prefix))))) core))))
+(defun EL:TianzhengNameKey (name)
+  (if (and (equal (type name) 'STR) (equal (substr name 1 1) "$"))
+    (EL:TianzhengNameCore (strcase name))))
+(defun EL:BlockNameMatchKey (name / key)
+  (if (equal (type name) 'STR)
+    (progn (setq key (strcase name)) (cond ((EL:TianzhengNameCore key)) (T key)))))
 (defun EL:Unique (items / out item)
   (foreach item items (if (not (member item out)) (setq out (cons item out))))
   (reverse out))
@@ -86,8 +112,8 @@
       layer-pairs params calibrated gap-pairs leader-pairs roles exits)
     (setq rows (cons (cons key (EL:Get key cfg)) rows)))
   ;; Date: 2026-10-13. Older recognition must be rebuilt for exact reachable traversal.
-  (cons '(reachable-contact-policy . 2) (cons '(junction-policy . 1) (cons '(number-branch-policy . 1)
-    (cons '(simple-gap-policy . 1) (cons '(box-policy . 20) (cons '(gap-policy . 10) (reverse rows))))))))
+  (cons '(block-name-match-policy . 1) (cons '(reachable-contact-policy . 2) (cons '(junction-policy . 1) (cons '(number-branch-policy . 1)
+    (cons '(simple-gap-policy . 1) (cons '(box-policy . 20) (cons '(gap-policy . 10) (reverse rows)))))))))
 ;; Date: 2026-10-11. Report which freshness condition failed.
 (defun EL:SourceSignatureCore (signature)
   (if (and (listp signature) (equal (car signature) 'EL_FIXED_SOURCE_V1))
@@ -132,11 +158,24 @@
   (setq elapsed *EL:PerfWaitMS*)
   (if (> *EL:PerfWaitDepth* 0)
     (setq elapsed (+ elapsed (EL:PerfDelta *EL:PerfWaitStart* (EL:Tick))))) elapsed)
-(defun EL:PerfStart (commandname / stamp tick key)
+;; Date: 2026-10-21. Session-only 2x2 recognition comparison; no drawing writes.
+;; 0 optimized, 1 detailed reads, 2 old single-candidate bounds, 3 both old paths.
+(defun EL:PerformanceCompareMode (/ mode)
+  (setq mode (if (and *EL:PerfActive* (equal (type *EL:PerfCompareRunMode*) 'INT)
+      (>= *EL:PerfCompareRunMode* 0) (<= *EL:PerfCompareRunMode* 3))
+    *EL:PerfCompareRunMode* *EL:PerfCompareMode*))
+  (if (and (equal (type mode) 'INT) (>= mode 0) (<= mode 3)) mode 0))
+(defun EL:CollectReadDetailEnabled () (if (member (EL:PerformanceCompareMode) '(1 3)) T nil))
+(defun EL:NumberSingleBoundsEnabled () (if (member (EL:PerformanceCompareMode) '(2 3)) T nil))
+(defun EL:PerformanceCompareLabel (mode)
+  (cond ((= mode 1) "仅开启实体细分计时") ((= mode 2) "仅开启旧单候选粗筛")
+    ((= mode 3) "实体细分计时及旧单候选粗筛") (T "优化默认：批次计时及单候选直接精查")))
+(defun EL:PerfStart (commandname / stamp tick key comparemode)
   (if (not *EL:PerfActive*)
     (progn
-      (setq tick (vl-catch-all-apply 'getvar (list "MILLISECS")))
-      (setq *EL:PerfActive* T *EL:PerfCommand* commandname *EL:PerfStarted* (if (numberp tick) tick 0)
+      (setq comparemode (EL:PerformanceCompareMode)
+        tick (vl-catch-all-apply 'getvar (list "MILLISECS")))
+      (setq *EL:PerfCompareRunMode* comparemode *EL:PerfActive* T *EL:PerfCommand* commandname *EL:PerfStarted* (if (numberp tick) tick 0)
         *EL:DiagnosticsDeferred* nil *EL:DeferredLogEvents* nil
         *EL:PerfMetrics* nil *EL:PerfStages* nil *EL:PerfPending* nil *EL:PerfMarks* nil *EL:StoreReadCache* nil *EL:NetworkMemo* nil *EL:CollectMemo* nil *EL:StatisticsMemo* nil *EL:SplitCache* nil *EL:DLCache* nil *EL:DLSessionSnapshot* nil
         *EL:PerfWaitMS* 0 *EL:PerfWaitDepth* 0 *EL:PerfSerial* 0 *EL:PerfOutcome* nil
@@ -144,6 +183,10 @@
       (setq stamp (vl-catch-all-apply 'getvar (list "CDATE")))
       (setq *EL:MonitorRows* nil *EL:MonitorError* nil *EL:MonitorUIStack* nil
         *EL:MonitorStamp* (if (numberp stamp) (rtos stamp 2 6) "unavailable"))
+      ;; Date: 2026-10-21. Association evidence must identify the exact run,
+      ;; including two commands that start within the same CDATE second.
+      (setq *EL:PerfRunSequence* (1+ (cond (*EL:PerfRunSequence*) (T 0)))
+        *EL:PerfRunID* (list *EL:MonitorStamp* *EL:PerfStarted* *EL:PerfRunSequence*))
       (EL:PerfSet "date" (if (numberp stamp) stamp "unavailable"))
       (EL:PerfSet "clock-available" (if (numberp tick) T nil))
       (foreach key '("recognize-fixed-calls" "store-read-calls" "store-write-calls"
@@ -151,15 +194,54 @@
           "block-create-attempts" "text-create-attempts" "transaction-starts"
           "transaction-failures" "log-open-attempts" "log-write-attempts" "log-close-attempts" "panel-submits"
           "store-read-cache-hits" "store-read-cache-misses"
+          "start-snapshot-source-wires" "start-snapshot-kept-wires" "start-snapshot-removed-wires" "start-snapshot-ends"
+          "start-boundary-pair-checks" "start-boundary-bounds-rejected" "start-boundary-exact-checks" "start-boundary-bounds-fallback-wires"
           "source-collect-calls" "source-selection-entities" "source-block-bounds-reads"
+          "source-selection-inserts" "source-selection-lines" "source-selection-polylines" "source-selection-other"
+          "source-selection-managed-outputs" "source-rejected-block-inserts" "source-candidate-blocks"
+          "recognized-connected-wires" "recognized-connected-devices"
+          "root-scope-light-wires" "root-scope-fine-wires" "root-scope-skipped-wires"
+          "root-scope-wire-materializations" "root-scope-wire-fallbacks" "root-scope-order-wire-reads"
+          "root-scope-proxy-wires" "root-scope-all-fallback-bypass"
           "source-native-entity-checks" "source-native-bounds-checks" "source-derived-reuses"
+          "source-candidate-index-lookups" "source-candidate-index-steps" "source-candidate-index-duplicates"
+          ;; Date: 2026-10-21. Publish one aggregate per synchronous batch.
+          "source-wire-layer-reads" "source-wire-layer-cache-hits" "source-wire-layer-read-ms"
+          "source-native-dxf-ms" "source-block-bounds-ms" "source-wire-record-ms" "source-read-profile-clock-reads"
+          "source-read-profile-enabled"
+          "source-preset-cache-hits" "source-preset-cache-misses" "source-preset-normalizations"
+          "source-preset-table-cache-hits" "source-preset-table-cache-misses"
+          "source-preset-cache-rebuilds" "source-preset-cache-miss-check-ms"
+          "preview-source-ids" "preview-source-color-reads" "preview-source-rgb-duplicates" "preview-source-rgb-unique"
+          "preview-layer-color-reads" "preview-layer-color-cache-hits"
+          "network-role-blocks" "network-role-ordered-batches" "network-role-fallback-batches"
           "source-wire-record-reads" "device-contour-reads" "device-template-reuses"
+          ;; Date: 2026-10-21. Definitions, complete poses and numeric fallbacks differ.
+          "device-definition-reuses" "device-pose-builds" "device-pose-reuses" "device-pose-fallbacks"
+          "device-definition-check-ms" "device-pose-verify-ms" "device-definition-build-ms"
+          "device-instance-build-ms" "device-regions-build-ms" "device-contact-prepare-ms"
+          "template-sample-find-ms" "template-sample-scans"
+          "template-definition-check-ms" "template-definition-builds" "template-definition-reuses"
+          "template-dynamic-check-ms" "template-dynamic-checks" "template-dynamic-reuses"
+          "template-probe-ms" "template-probes" "template-probe-reuses"
           "network-build-calls" "network-verified-reuses" "network-geometry-checks"
+          "number-prefix-searches" "number-prefix-bounds-builds" "number-prefix-bounds-tests"
+          "number-prefix-bounds-rejected" "number-prefix-exact-tests" "number-prefix-bounds-fallbacks"
+          "number-prefix-single-bypasses" "number-prefix-single-searches"
+          "number-prefix-full-segment-builds" "number-prefix-full-segment-reuses"
+          "number-prefix-strip-builds" "number-prefix-strip-reuses"
+          "number-prefix-wide-builds" "number-prefix-wide-reuses"
+          "number-scope-visits" "number-scope-neighbour-scans" "number-scope-path-lengths"
+          "number-scope-neighbours-ms" "number-scope-first-device-ms" "number-scope-links-ms"
+          "number-annotation-scans" "number-annotation-reads" "number-annotation-orphans"
+          "number-annotation-scan-failures" "number-annotation-linked-reads"
           "number-scopes" "number-source-handles" "number-problems"
           "number-source-read-attempts" "number-source-read-failures" "number-freshness-checks"
           "device-library-loads" "device-library-writes" "device-library-matches" "device-library-unknown"
           "device-legend-loads" "device-legend-builds")
-        (EL:PerfSet key 0)) T)))
+        (EL:PerfSet key 0))
+      (EL:PerfSet "recognition-compare-mode" comparemode)
+      (EL:PerfSet "number-prefix-single-baseline" (if (EL:NumberSingleBoundsEnabled) 1 0)) T)))
 (defun EL:PerfBegin (stage / token wait parent paused)
   (if *EL:PerfActive*
     (progn
@@ -216,6 +298,8 @@
   (if (member stage '("USER_INPUT" "PLACEMENT_INPUT" "PANEL_DIALOG")) (EL:FreshBoundary))
   (if (and *EL:PerfActive* (or (member stage
       '("USER_INPUT" "PLACEMENT_INPUT" "PANEL_DIALOG" "RECOGNIZE_FIXED_RUN" "LOAD_ROOT" "LOAD_LIBRARY" "PICK_PANEL" "PICK_TRUNK"
+        ;; Date: 2026-10-22. Cold-probe batches must be recorded without detail mode.
+        "COLD_NATIVE_LOAD" "COLD_NATIVE_PROBE"
         "LOAD_ROOT_SEARCH" "LOAD_RUNTIME" "LOAD_RUNTIME_TEXT" "LOAD_RUNTIME_ASSETS"
         "PANEL_START_LOAD" "PANEL_START_NEW" "PANEL_START_INIT" "PANEL_START_BUTTONS" "PANEL_START_WAIT"
         "PANEL_HISTORY_READ" "PANEL_HISTORY_RESTORE" "PANEL_FILL" "PREPARE_PANEL" "NEW_RECORD" "READ_STORE"
@@ -229,7 +313,21 @@
         "STORE_MIGRATE_BACKUP" "STORE_STAGE_BUILD"
         "STORE_COMPACT" "STORE_PACK_INTS" "STORE_NATIVE_ENCODE" "STORE_NATIVE_DECODE" "STORE_EXPAND"
         "STORE_UNPACK_INTS" "STORE_VALUE_DECODE"
-        "DIAGRAM_VIEW" "DIAGNOSTIC_EXPORT" "DEVICE_LIBRARY_LOAD" "DEVICE_LEGEND"))
+        "DIAGRAM_VIEW" "DIAGNOSTIC_EXPORT" "DEVICE_LIBRARY_LOAD" "DEVICE_LEGEND"
+        "SYSTEM_LIBRARY_OPEN" "SYSTEM_BLOCK_COPY" "SYSTEM_STYLE_COPY" "TEMPLATE_CAPTURE" "TEMPLATE_VALIDATE"
+        ;; Date: 2026-10-21. Recognition batches, never per-entity/probe frames.
+        "START_SNAPSHOT" "START_BOUNDARY_FILTER" "START_ENDS_BUILD" "COLLECT_PRESET_PREPARE" "NUMBER_ANNOTATION_INDEX"
+        "NETWORK_ROLE_PREPARE" "NETWORK_WIRE_INDEX" "NETWORK_BLOCK_INDEX" "NETWORK_JUNCTION_INDEX"
+        "NETWORK_END_INDEX" "NETWORK_GAP_INDEX" "NETWORK_ROOT_LINKS"
+        "COLLECT_SPATIAL_TREE" "COLLECT_CANDIDATE_DEDUP" "COLLECT_DEVICE_EXPAND"
+        "PANEL_SELECT_EXITS" "PANEL_COMPUTE" "PANEL_PREVIEW_PALETTE" "PREVIEW_SOURCE_COLORS" "PREVIEW_PALETTE_FILTER"
+        "NETWORK_PROOF_PREPARE" "NETWORK_PROOF_STABLE_INPUT" "NETWORK_PROOF_STABLE_OUTPUT"
+        "NETWORK_PROOF_CONTACTS" "NETWORK_ROLE_RESTORE" "NETWORK_PROOF_COMPARE"
+        "PANEL_SUBMIT_PREPARE" "GENERATION_CONTEXT" "GENERATION_PREPARE" "GENERATION_SOURCE_VERIFY"
+        "GENERATION_PLAN" "GENERATION_RECORD" "PLACEMENT_PLAN_REBUILD"
+        "NATIVE_INSERT" "PANEL_DYNAMIC_SET" "CIRCUIT_DYNAMIC_SET"
+        "PLACEMENT_TEMPLATE_VERIFY" "PLACEMENT_NUMBER_VERIFY" "PLACEMENT_LIBRARY_VERIFY" "PLACEMENT_SOURCE_VERIFY"
+        "CREATE_CIRCUITS" "CREATE_POWER_TEXT" "CREATE_CAPTIONS" "DIAGRAM_FINALIZE" "TX_MARKER_CLEANUP" "TX_COMMIT"))
       (and *EL:PerfDetail* (member stage
         '("STORE_SCHEMA" "STORE_REPLACE_PAYLOAD" "CCKK2_INSERT_BLOCK" "CCKK_POWER_TEXT"
           "TAG_ENTITY" "UNDO_BEGIN" "UNDO_END" "COMPARE_SOURCE" "SNAPSHOT_SIGNATURE" "CIRCUIT_TRACE")))))
@@ -288,13 +386,21 @@
   (if (and (not (vl-catch-all-error-p written)) written)
     (princ (strcat "\n性能记录：" path))
     (princ "\n性能记录写入失败；汇总保留在 *EL:PerfLastSummary*。")) nil)
-(defun EL:PerfFinish (status / elapsed waited summary)
+(defun EL:PerfBusinessOutcome (status)
+  ;; Date: 2026-10-21. Native completion is not a successful recognition.
+  (cond
+    ((equal status 'failed) (if (equal *EL:PerfOutcome* 'cancelled) 'cancelled 'failed))
+    ((member status '(cancelled interrupted-by-load load-failed)) status)
+    (*EL:PerfOutcome*) (T 'not-recorded)))
+(defun EL:PerfFinish (status / elapsed waited summary outcome)
   (if *EL:PerfActive*
     (progn
       (EL:PerfUnwind nil)
       (setq elapsed (EL:PerfDelta *EL:PerfStarted* (EL:Tick)) waited (EL:PerfWaiting)
-        summary (list '(schema . 1) (cons 'command *EL:PerfCommand*) (cons 'status status)
-          (cons 'last-outcome *EL:PerfOutcome*) (cons 'package *EL:PackageMarker*)
+        outcome (EL:PerfBusinessOutcome status)
+        summary (list '(schema . 2) (cons 'run-id *EL:PerfRunID*)
+          (cons 'command *EL:PerfCommand*) (cons 'status status) (cons 'command-status status)
+          (cons 'business-outcome outcome) (cons 'last-outcome outcome) (cons 'package *EL:PackageMarker*)
           (cons 'detail (if *EL:PerfDetail* T nil)) (cons 'business-logs (if *EL:PerfLogsOff* 'off 'on))
           (cons 'total-ms elapsed) (cons 'interaction-ms waited) (cons 'program-ms (max 0 (- elapsed waited)))
           (cons 'after-submit (EL:PerfMarkDuration "panel-submit"))
@@ -302,12 +408,14 @@
           (cons 'after-graphics (EL:PerfMarkDuration "graphics-complete"))
           (cons 'metrics *EL:PerfMetrics*) (cons 'stages *EL:PerfStages*)))
       ;; Snapshot before reporting: summary I/O is outside all business measurements.
-      (setq *EL:PerfLastSummary* summary *EL:PerfActive* nil *EL:PerfPending* nil
+      (setq *EL:PerfLastSummary* summary *EL:PerfActive* nil *EL:PerfCompareRunMode* nil *EL:PerfPending* nil
         *EL:PerfMetrics* nil *EL:PerfStages* nil *EL:PerfMarks* nil *EL:PerfLogOwner* nil *EL:StoreReadCache* nil)
       (if *EL:DiagnosticsDeferred*
         ;; Date: 2026-10-15. Do not format or write diagnostics on the exit
         ;; path. Keep one completed run per open drawing for the export button.
         (if (or *EL:MonitorError* (EL:Get 'after-submit summary)
+            ;; Date: 2026-10-22. Silent native DCL failures must replace an old export context.
+            (EL:Get "panel-not-shown-reason" (EL:Get 'metrics summary))
             (> (cond ((EL:Get "recognize-fixed-calls" (EL:Get 'metrics summary))) (T 0)) 0)
             (not (EL:Get (namedobjdict) *EL:DiagnosticRuns*)))
           (setq *EL:DiagnosticRuns* (EL:Put (namedobjdict)
@@ -333,6 +441,21 @@
         ((equal option "Detail") (setq *EL:PerfDetail* T))
         ((equal option "Summary") (setq *EL:PerfDetail* nil)))
       (princ "\n仅影响本次加载会话的测量；ELPERF.log 独立保留，日志对照结束后请恢复 LogsOn。"))) (princ))
+
+;; Date: 2026-10-21. Explicit diagnostic switch; Enter/cancel keep the old choice.
+(defun c:ELPERFAB (/ mode)
+  (if *EL:PerfActive* (princ "\n请结束当前统计或生成后再调整识别对照模式。")
+    (progn
+      (setq mode (EL:PerformanceCompareMode))
+      (princ (strcat "\n当前识别对照模式 " (itoa mode) "：" (EL:PerformanceCompareLabel mode)))
+      (setq mode (getint "\n输入模式 [0优化默认/1实体细分计时/2旧单候选粗筛/3两项旧方式] <保持>："))
+      (if mode
+        (if (and (equal (type mode) 'INT) (>= mode 0) (<= mode 3))
+          (setq *EL:PerfCompareMode* mode)
+          (princ "\n模式必须为0到3，原选择保持不变。")))
+      (princ (strcat "\n后续运行模式 " (itoa (EL:PerformanceCompareMode)) "："
+        (EL:PerformanceCompareLabel (EL:PerformanceCompareMode))))
+      (princ "\n仅本次会话有效；用相同图纸及配置对照，每轮结束后ELDIAG导出，最后恢复模式0。"))) (princ))
 
 ;; Date: 2026-10-09. Diagnostics never change recognition or propagate I/O errors.
 (defun EL:LogText (value / textdata)
@@ -438,7 +561,10 @@
     (cons 'dxf (vl-remove-if-not '(lambda (pair) (member (car pair)
       '(0 2 5 8 10 11 38 40 41 42 43 50 51 60 70 90 210 410))) data))))
 (defun EL:LogFinish (status)
-  (if *EL:PerfActive* (setq *EL:PerfOutcome* status))
+  ;; Date: 2026-10-21. A catch can return to the outer command after failure.
+  ;; Keep that business result when its native wrapper subsequently returns.
+  (if (and *EL:PerfActive* (not (equal status 'command-finished)))
+    (setq *EL:PerfOutcome* status))
   (if *EL:LogActive*
     (progn
       (EL:LogEvent "END" status)
@@ -450,13 +576,19 @@
         (T (princ "\n未建立日志文件；请保留命令行信息。")))))
   (setq *EL:LogActive* nil *EL:LogStack* nil)
   (if *EL:PerfLogOwner* (EL:PerfFinish status)))
+(defun EL:CancelledMessage (message)
+  ;; Date: 2026-10-21. EXIT/abort may be a validation failure, so only known
+  ;; native user-cancel messages receive the cancelled outcome.
+  (and (equal (type message) 'STR)
+    (member (strcase (vl-string-trim " *\t\r\n" message))
+      '("FUNCTION CANCELLED" "FUNCTION CANCELED" "CONSOLE BREAK" "USER BREAK" "函数已取消"))))
 (defun EL:LogFailure (message / laststate stack)
   (setq *EL:MonitorError* message)
   (setq laststate *EL:LogLast* stack *EL:LogStack*)
   (EL:LogEvent "ERROR" (list (cons 'message message) (cons 'stack stack) (cons 'last-event laststate)))
   (princ (strcat "\n原始错误：" (EL:LogText message)
     "\n失败阶段：" (EL:LogText stack) "\n最后上下文：" (EL:LogText laststate)))
-  (EL:LogFinish 'failed))
+  (EL:LogFinish (if (EL:CancelledMessage message) 'cancelled 'failed)))
 
 ;; Date: 2026-10-09. Managed outputs never enter source recognition.
 (defun EL:DiagramTag (entity / data)
@@ -499,12 +631,14 @@
 ;; Date: 2026-10-13. Bounded business-stage timeline; no per-entity file I/O.
 (defun EL:MonitorTitle (stage / name)
   (setq name (cdr (assoc stage
-    '(("USER_INPUT" . "等待拾取或面板操作") ("PLACEMENT_INPUT" . "等待系统图放置")
+    '(("USER_INPUT" . "等待拾取或面板操作") ("PLACEMENT_INPUT" . "原生系统图放置（含 CAD 处理与操作）")
       ("UI_ACTION" . "处理面板动作") ("LOAD_MODULE" . "加载源码模块")
       ("LOAD_ROOT" . "确认目录及释放内置资源") ("LOAD_LIBRARY" . "初始化默认设备库")
       ("LOAD_ROOT_SEARCH" . "查找并确认交付目录") ("LOAD_RUNTIME" . "建立本地运行目录")
       ("LOAD_RUNTIME_TEXT" . "释放并回读源码与界面") ("LOAD_RUNTIME_ASSETS" . "释放并回读默认设备资源")
       ("LOAD_BOOTSTRAP" . "加载启动入口及公共函数")
+      ("COLD_NATIVE_LOAD" . "加载只读 .NET 原型并校验握手")
+      ("COLD_NATIVE_PROBE" . "执行只读 .NET 候选采集与索引")
       ("PICK_PANEL" . "拾取配电箱并处理回路") ("PICK_TRUNK" . "拾取集中引出线并处理回路")
       ("PICK_STARTS" . "拾取回路起始端导线") ("RECOGNIZE_STARTS" . "沿起始导线识别回路")
       ("PANEL_START_LOAD" . "读取面板文件") ("PANEL_START_NEW" . "创建面板")
@@ -518,16 +652,52 @@
       ("NEW_RECORD" . "创建配电箱记录") ("PREPARE_PANEL" . "准备面板数据")
       ("RECOGNIZE_FIXED" . "识别配电箱回路") ("RECOGNIZE_TRUNK" . "识别集中引出线")
       ("RECOGNIZE_FIXED_RUN" . "执行整箱识别") ("SIMPLE_COLLECT" . "收集图纸候选对象")
+      ("START_SNAPSHOT" . "整理回路起始端边界")
+      ("START_BOUNDARY_FILTER" . "筛选起始端边界导线")
+      ("START_ENDS_BUILD" . "一次性构造起始端边界端点表")
+      ("COLLECT_PRESET_PREPARE" . "规范本轮预设名称及图层表")
       ("COLLECT_ENTITY_READ" . "读取候选实体") ("COLLECT_CANDIDATES" . "过滤候选对象")
+      ("COLLECT_SPATIAL_TREE" . "建立候选图块空间树")
+      ("COLLECT_CANDIDATE_DEDUP" . "查询、去重并读取导线及断口候选")
+      ("COLLECT_DEVICE_EXPAND" . "扩展贴临设备候选链")
+      ("ROOT_SCOPE_DISCOVERY" . "沿起点发现精细几何依赖")
+      ("ROOT_SCOPE_PANEL_SHAPE" . "准备依赖发现箱体轮廓")
+      ("ROOT_SCOPE_BLOCK_RECORDS" . "整理依赖发现候选图块及角色")
+      ("ROOT_SCOPE_ROOT_PREPARE" . "准备起点及边界精算依赖")
+      ("ROOT_SCOPE_START_SNAPSHOT" . "整理依赖发现起始端快照")
+      ("ROOT_SCOPE_WIRE_INDEX" . "建立依赖发现导线索引")
+      ("ROOT_SCOPE_BLOCK_INDEX" . "建立依赖发现图块索引")
+      ("ROOT_SCOPE_JUNCTION_INDEX" . "建立依赖发现接线盒索引")
+      ("ROOT_SCOPE_END_INDEX" . "建立依赖发现端点索引")
+      ("ROOT_SCOPE_GAP_SNAPSHOT" . "准备依赖发现断口快照")
+      ("ROOT_SCOPE_ROOT_LINKS" . "整理依赖发现端点记录及起点连接")
+      ("ROOT_SCOPE_REACHABLE_TRACE" . "追踪起点依赖及按需精算")
+      ("ROOT_SCOPE_RESULT_ORDER" . "按源顺序整理精细依赖结果")
+      ("ROOT_SCOPE_CANDIDATE_ORDER" . "还原精细候选图块原顺序")
+      ("PANEL_SELECT_EXITS" . "整理面板回路归属") ("PANEL_COMPUTE" . "计算面板功率及状态")
+      ("PANEL_PREVIEW_PALETTE" . "准备面板和分色预览共用配色")
+      ("PREVIEW_SOURCE_COLORS" . "读取并去重原导线颜色") ("PREVIEW_PALETTE_FILTER" . "筛选避开原导线的预览颜色")
       ("SIMPLE_NETWORK" . "准备连接网络") ("NETWORK_BUILD" . "建立连接网络")
+      ("NETWORK_PROOF_PREPARE" . "整理网络复用证明")
+      ("NETWORK_PROOF_STABLE_INPUT" . "规范网络输入快照") ("NETWORK_PROOF_STABLE_OUTPUT" . "规范网络输出快照")
+      ("NETWORK_PROOF_CONTACTS" . "整理网络接触证据") ("NETWORK_ROLE_RESTORE" . "还原网络输入角色")
+      ("NETWORK_PROOF_COMPARE" . "完整核对网络输入证明")
       ("COMPONENT_INDEX" . "建立连通关系索引")
-      ("NETWORK_WIRE_CONTACT" . "检查导线接触") ("NETWORK_CANDIDATE_SCOPE" . "筛选设备范围")
+      ("NETWORK_WIRE_CONTACT" . "检查导线接触") ("NETWORK_CANDIDATE_SCOPE" . "准备网络角色和空间索引")
+      ("NETWORK_ROLE_PREPARE" . "准备本轮图块角色及记录")
+      ("NETWORK_WIRE_INDEX" . "建立导线接触索引及记录")
+      ("NETWORK_BLOCK_INDEX" . "建立图块接触索引")
+      ("NETWORK_JUNCTION_INDEX" . "建立接线盒索引")
+      ("NETWORK_END_INDEX" . "建立导线端点索引")
+      ("NETWORK_GAP_INDEX" . "建立断口障碍索引")
+      ("NETWORK_ROOT_LINKS" . "整理端点记录及起始连接")
       ("NETWORK_DEVICE_CONTACT" . "检查设备接触") ("NETWORK_GAPS" . "检查断线连接")
       ("NETWORK_REACHABLE_TRACE" . "沿起始导线搜索真实连接")
       ("NETWORK_CONTACT_NODES" . "合并同一接点的重复连接")
       ("NETWORK_SIGNATURE" . "整理去重后的几何证据") ("NETWORK_VERIFY_GEOMETRY" . "核对网络几何")
       ("SOURCE_NATIVE_VERIFY" . "核对源图原生对象与范围")
       ("SPLIT_NETWORK" . "拆分回路") ("CIRCUIT_NUMBER_SCOPE" . "识别回路编号范围")
+      ("NUMBER_ANNOTATION_INDEX" . "读取天正平面编号关联索引")
       ("COMPARE_SOURCE_NUMBER" . "核对回路编号") ("PRE_GENERATE_FRESH" . "生成前核对源图")
       ("FRESH_SOURCE_SCAN" . "核对当前源图") ("CCKK2" . "生成新配电箱系统图")
       ("CCKK2_CREATE" . "创建配电箱系统图") ("SAVE_CREATED_DIAGRAM" . "保存生成的系统图记录")
@@ -543,16 +713,35 @@
       ("UNDO_BEGIN" . "开始撤销组") ("UNDO_END" . "结束撤销组")
       ("TX_MARKER_CREATE" . "建立事务标记") ("DIAGRAM_VIEW" . "定位完整系统图")
       ("DEVICE_LIBRARY_LOAD" . "读取设备库") ("DEVICE_LEGEND" . "加载设备图例")
+      ("SYSTEM_LIBRARY_OPEN" . "打开系统图块库") ("SYSTEM_BLOCK_COPY" . "补入缺少系统图块")
+      ("SYSTEM_STYLE_COPY" . "补入缺少文字样式") ("TEMPLATE_CAPTURE" . "准备系统图模板")
+      ("TEMPLATE_VALIDATE" . "完整复核系统图模板")
+      ("PANEL_SUBMIT_PREPARE" . "面板提交后的同步准备")
+      ("GENERATION_CONTEXT" . "读取并准备生成上下文") ("GENERATION_PREPARE" . "整理生成回路数据")
+      ("GENERATION_SOURCE_VERIFY" . "生成前源图和编号核对")
+      ("GENERATION_PLAN" . "构建系统图完整计划") ("GENERATION_RECORD" . "准备本次生成记录")
+      ("PLACEMENT_PLAN_REBUILD" . "按原生实际位置重建计划")
+      ("NATIVE_INSERT" . "固定位置原生插入")
+      ("PANEL_DYNAMIC_SET" . "切换箱体动态状态") ("CIRCUIT_DYNAMIC_SET" . "切换回路动态状态")
+      ("PLACEMENT_TEMPLATE_VERIFY" . "放置后复核模板") ("PLACEMENT_NUMBER_VERIFY" . "放置后核对编号")
+      ("PLACEMENT_LIBRARY_VERIFY" . "放置后核对设备库") ("PLACEMENT_SOURCE_VERIFY" . "放置后核对源图")
+      ("CREATE_CIRCUITS" . "创建全部回路及功率文字") ("CREATE_POWER_TEXT" . "创建实际回路功率文字")
+      ("CREATE_CAPTIONS" . "创建箱号、编号和用途文字")
+      ("DIAGRAM_FINALIZE" . "图文完成后的记录处理")
+      ("TX_MARKER_CLEANUP" . "清理事务标记") ("TX_COMMIT" . "提交撤销组和事务上下文")
       ("DIAGNOSTIC_EXPORT" . "导出诊断数据")))))
   (if name name stage))
 (defun EL:MonitorActionTile (key code)
   ;; Keep original callback expressions in the same DCL scope, including $value.
   (action_tile key (strcat "(EL:MonitorUIBegin $key $value) " code " (EL:MonitorUIEnd)")))
 (defun EL:MonitorUIBegin (key value / *EL:MonitorLabel* title)
+  ;; Date: 2026-10-21. No proof survives a user action or unknown callback.
+  (EL:FreshBoundary)
   (setq title (cdr (assoc key
     '(("p_pick" . "拾取配电箱") ("p_trunk" . "拾取回路起始端导线")
       ("accept" . "保存或确定")
       ("p_block_library_open" . "打开系统图块文件夹")
+      ("p_system_drawing" . "检查本图系统图块") ("p_system_import" . "从图库补入系统图缺项")
       ("cancel" . "取消或退出") ("p_generate" . "生成新系统图") ("p_diagnostic" . "导出诊断日志")
       ("f_preview" . "查看全部回路")
       ("p_capacity" . "修改配电箱容量")
@@ -569,7 +758,8 @@
     *EL:MonitorUIStack* (cons (EL:PerfBegin "UI_ACTION") *EL:MonitorUIStack*)))
 (defun EL:MonitorUIEnd ()
   (EL:PerfEnd (car *EL:MonitorUIStack*) 'returned)
-  (setq *EL:MonitorUIStack* (cdr *EL:MonitorUIStack*)))
+  (setq *EL:MonitorUIStack* (cdr *EL:MonitorUIStack*))
+  (EL:FreshBoundary))
 (defun EL:MonitorSeconds (milliseconds / fraction)
   ;; DIMZIN must not strip the leading/trailing zeroes in timing columns.
   (setq fraction (strcat "00" (itoa (fix (rem milliseconds 1000)))))
@@ -592,10 +782,14 @@
   (setq stamp *EL:MonitorStamp*)
   (EL:MonitorLine "# 应急照明全过程动作耗时" file)
   (EL:MonitorLine (strcat "日期：" (substr stamp 1 4) "-" (substr stamp 5 2) "-" (substr stamp 7 2)) file)
-  (EL:MonitorLine (strcat "状态：" (EL:MonitorCell (EL:Get 'status summary))
-    "；业务结果：" (EL:MonitorCell (EL:Get 'last-outcome summary))) file)
+  (EL:MonitorLine (strcat "原生命令状态：" (EL:MonitorCell (EL:Get 'status summary))
+    "；本轮业务结果：" (EL:MonitorCell (EL:Get 'last-outcome summary))) file)
   (EL:MonitorLine (strcat "启动时间 CDATE：" stamp "；命令：" (EL:Get 'command summary)
     "；交付版本：" (EL:MonitorCell (EL:Get 'package summary))) file)
+  (if (assoc "recognition-compare-mode" (EL:Get 'metrics summary))
+    (EL:MonitorLine (strcat "识别对照模式："
+      (itoa (EL:Get "recognition-compare-mode" (EL:Get 'metrics summary))) "；"
+      (EL:PerformanceCompareLabel (EL:Get "recognition-compare-mode" (EL:Get 'metrics summary)))) file))
   (EL:MonitorLine "" file)
   (EL:MonitorLine "单位为秒，保留三位小数。父动作包含子动作，不可将各行相加。交互秒是输入等待区间，已扣除本插件面板回调处理；原生鼠标放置包含 CAD 自身处理。未单独设点的工作保留在父动作及总时间中。" file)
   (EL:MonitorLine "记录用户动作和业务阶段；导线、实体、顶点等循环按批次计时，不逐对象写文件。开始代表进入函数，已返回只表示函数返回，业务成功与否以业务结果为准。" file)

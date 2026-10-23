@@ -115,12 +115,21 @@ el_panel_review : column { fixed_width = true; fixed_height = true; alignment = 
       el_panel_circuit_separator;
       // Date: 2026-10-16. One power summary between the circuit rows and step three.
       : text { key = "p_power_total"; label = "总功率：未统计"; width = 40; fixed_width = true; fixed_height = true; }
-      // Date: 2026-10-21. Power review uses the current recognition snapshot.
+      // Date: 2026-10-22. Separate connection warnings from missing single-device watts.
       : button { key = "p_power_review"; label = "查看/补填设备功率"; }
-      : text { label = "待核对回路功率留空，其他回路正常生成。"; }
+      : text { label = "闭合或无设备回路保留，未知功率留空。"; }
       : row { fixed_width = true; fixed_height = true; alignment = left;
         : image { key = "p_step3"; width = 8; height = 1.3; fixed_width = true; fixed_height = true; color = dialog_background; help_string = "第三步：在图面查看全部回路"; }
         : button { key = "f_preview"; label = "在图面查看全部回路"; width = 28; fixed_width = true; }
+      }
+      // Date: 2026-10-21. Library access requires this explicit action.
+      : boxed_column { label = "系统图块来源（默认使用本图已有图块）";
+        : row {
+          : button { key = "p_system_drawing"; label = "检查本图图块"; }
+          : button { key = "p_system_import"; label = "从图库补入缺项"; }
+        }
+        : text { key = "p_system_blocks"; width = 40; fixed_width = true; }
+        : text { key = "p_system_styles"; width = 40; fixed_width = true; }
       }
       : row { fixed_width = true; fixed_height = true; alignment = left;
         : image { key = "p_step4"; width = 8; height = 1.3; fixed_width = true; fixed_height = true; color = dialog_background; help_string = "第四步：生成新系统图"; }

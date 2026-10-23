@@ -201,9 +201,9 @@ class NumberAllocationTests(unittest.TestCase):
     def test_default_mixed_prefix_and_reserved_later_plane_numbers(self):
         for source, expected in (([None, None, None], ['ZE1', 'ZE2', 'ZE3']),
                                  (['ZE3', None, 'ZE1'], ['ZE3', 'ZE2', 'ZE1']),
-                                 (['ZE2', None], ['ZE2', 'ZE3']),
+                                 (['ZE2', None], ['ZE2', 'ZE1']),
                                  ([None, 'ZE1'], ['ZE2', 'ZE1']),
-                                 (['WL1', None], ['WL1', 'ZE2']),
+                                 (['WL1', None], ['WL1', 'ZE1']),
                                  (['ZE01', None], ['ZE01', 'ZE2'])):
             with self.subTest(source=source):
                 result = self.resolve(source)
@@ -228,7 +228,7 @@ class NumberAllocationTests(unittest.TestCase):
                          [Symbol('INVALID'), Symbol('PATH-AMBIGUOUS'), Symbol('READY')])
         self.assertIsNone(self.get('circuit-number', cs[0]))
         self.assertIsNone(self.get('circuit-number', cs[1]))
-        self.assertEqual(self.get('circuit-number', cs[2]), 'ZE3')
+        self.assertEqual(self.get('circuit-number', cs[2]), 'ZE1')
 
     def test_shared_original_source_is_ambiguous_and_read_once(self):
         rows = self.circuits(['ZE1', None])
@@ -613,6 +613,8 @@ class NumberWorkflowTests(unittest.TestCase):
         f.setUp()
         # Date: 2026-10-13. This placement fixture has no drawing config file.
         f.h.builtins['FINDFILE'] = lambda *args: None
+        # Date: 2026-10-21. This finite drawing has no native number annotations.
+        f.h.builtins['SSGET'] = lambda *args: None
         f.h.builtins.pop('EL:FRESHRESULT')
         f.h.load_definitions(ROOT / 'src/simple.lsp')
         f.entities['H1'] = [Pair(0, 'LINE'), Pair(5, 'H1'), Pair(410, 'Model'),

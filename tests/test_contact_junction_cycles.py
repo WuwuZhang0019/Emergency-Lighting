@@ -1,4 +1,4 @@
-"""Shared physical contacts must not create entity triangles. Date: 2026-10-14.
+"""Shared physical contacts must not create entity triangles. Date: 2026-10-22. Status: current.
 
 The 84A4 fixture preserves source DXF coordinates and all visible primitives.
 Finite adapters only; original AutoCAD acceptance remains pending.
@@ -52,6 +52,60 @@ class ContactJunctionCycleTests(unittest.TestCase):
         self.assertEqual(normalized, self.edges(('a', 'lamp'), ('b', 'lamp')))
         self.assertTrue(truth(self.get('complete', self.trace(snapshot, normalized))))
         self.assertEqual(normalized, self.normalize(snapshot, normalized))
+
+    def diagnostic_triangle(self):
+        self.block('LAMP', 'D', 'lamp', [10., 0., 0.])
+        self.line('a', [1., 0., 0.], [10., 0., 0.], 'W')
+        self.line('b', [10., 0., 0.], [19., 0., 0.], 'W')
+        return self.snapshot(['a', 'b'], ['lamp']), self.edges(('a', 'b'), ('a', 'lamp'), ('b', 'lamp'))
+
+    def test_closed_edge_diagnostic_preserves_result_and_records_existing_paths(self):
+        snapshot, edges = self.diagnostic_triangle()
+        baseline = self.trace(snapshot, edges)
+        events = []
+        self.h.builtins['EL:LOGEVENT'] = lambda name, detail: events.append((name, detail))
+        self.h.set(Symbol('*EL:TRACEDIAGNOSTICS*'), True)
+        self.h.set(Symbol('*EL:TRACEDIAGNOSTICCOUNT*'), 0)
+        self.h.set(Symbol('*EL:TRACEDIAGNOSTICOMITTED*'), 0)
+        actual = self.trace(snapshot, edges)
+        self.assertEqual(actual, baseline)
+        rows = [row for name, row in events if name == 'CIRCUIT_CLOSED_EDGE']
+        self.assertTrue(rows)
+        issue = self.get('issues', actual)[0]
+        row = rows[0]
+        self.assertEqual(self.get('from', row), self.get('object', issue))
+        self.assertEqual(self.get('to', row), self.get('detail', issue))
+        self.assertIn(self.get('to', row), self.get('from-neighbours', row))
+        for side in ('from', 'to'):
+            path = self.get(side + '-path', row)
+            self.assertEqual(self.get('nodes', path)[0], 'a')
+            self.assertEqual(self.get('nodes', path)[-1], self.get(side, row))
+            self.assertFalse(truth(self.get('truncated', path)))
+            self.assertEqual(self.get('handle', self.get(side + '-object', row)), self.get(side, row))
+
+    def test_closed_edge_logging_stays_off_for_normal_recognition(self):
+        snapshot, edges = self.diagnostic_triangle()
+        events = []
+        self.h.builtins['EL:LOGEVENT'] = lambda *args: events.append(args)
+        self.h.set(Symbol('*EL:TRACEDIAGNOSTICS*'), None)
+        result = self.trace(snapshot, edges)
+        self.assertIn(Symbol('CLOSED_CIRCUIT'), self.codes(result))
+        self.assertEqual(events, [])
+
+    def test_closed_edge_diagnostic_limit_and_path_truncation_are_explicit(self):
+        snapshot, edges = self.diagnostic_triangle()
+        events = []
+        self.h.builtins['EL:LOGEVENT'] = lambda *args: events.append(args)
+        self.h.set(Symbol('*EL:TRACEDIAGNOSTICS*'), True)
+        self.h.set(Symbol('*EL:TRACEDIAGNOSTICCOUNT*'), 20)
+        self.h.set(Symbol('*EL:TRACEDIAGNOSTICOMITTED*'), 0)
+        self.trace(snapshot, edges)
+        self.assertEqual(events, [])
+        self.assertGreater(self.h.lookup(Symbol('*EL:TRACEDIAGNOSTICOMITTED*')), 0)
+        parents = [Pair('N' + str(i), 'N' + str(i - 1) if i else None) for i in range(40)]
+        path = self.call('EL:TraceDiagnosticPath', 'N39', parents)
+        self.assertEqual(len(self.get('nodes', path)), 32)
+        self.assertTrue(truth(self.get('truncated', path)))
 
     def actual_dxf_fixture(self):
         name = '$equip_U$00000309(Zhangyufeng)'

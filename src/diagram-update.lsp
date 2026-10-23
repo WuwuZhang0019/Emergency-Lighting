@@ -56,6 +56,11 @@
       (EL:Get 'signature (EL:Get 'snapshot result)) *EL:CollectMemo*))))
   (EL:PerfSet "wire-count" (length (EL:Get 'wires snapshot)))
   (EL:PerfSet "block-count" (length (EL:Get 'blocks snapshot)))
+  ;; Date: 2026-10-21. Distinguish whole selection candidates from this root walk.
+  (EL:PerfSet "recognized-connected-wires" (length (EL:Get 'wire-ids network)))
+  (EL:PerfSet "recognized-connected-devices" (length (EL:Get 'devices network)))
+  (EL:LogEvent "RECOGNIZED_CONNECTED_SCOPE" (list (cons 'panel panel)
+    (cons 'wires (length (EL:Get 'wire-ids network))) (cons 'devices (length (EL:Get 'devices network)))))
   (EL:PerfEnd perf 'returned) result)
 (defun EL:FixedFreshSnapshotFull (cfg panel / snapshot network)
   ;; Date: 2026-10-11. Identical collect/network/CircuitSnapshot signature,
@@ -192,7 +197,8 @@
         (EL:Get 'panel-output-handle record) "，插入点："
         (vl-prin1-to-string (EL:Get 'position (EL:Get 'plan record))) "。请查看诊断日志。")) nil)))
 (defun EL:SyncDiagram (result cfg powers capacity generate interactive)
-  (EL:SyncDiagramScoped result cfg powers capacity generate interactive *EL:FreshScope*))
+  ;; Date: 2026-10-21. Native placement and writes retain their epoch boundaries.
+  (EL:WithTemplateScope 'EL:SyncDiagramScoped (list result cfg powers capacity generate interactive *EL:FreshScope*)))
 (defun EL:CCKK2DeferredSource (result cfg record generate interactive)
   ;; Date: 2026-10-14. An accepted panel submission may defer the second scan
   ;; to CreateDiagram's check immediately after the native placement click.
@@ -201,36 +207,44 @@
     (not (EL:Get 'identity-ambiguous result))
     (equal (list (namedobjdict) result cfg) *EL:GenerationPreflight*)))
 (defun EL:GenerationSourceCurrent (result cfg deferred)
+  ;; Date: 2026-10-21. Parent includes its existing source/number subchecks.
+  (EL:PerfCall "GENERATION_SOURCE_VERIFY" 'EL:GenerationSourceCheck (list result cfg deferred)))
+(defun EL:GenerationSourceCheck (result cfg deferred)
   (if deferred
     (and (equal (car *EL:GenerationPreflight*) (namedobjdict))
       (equal cfg (EL:CurrentJunctionConfig cfg))
       (EL:LogCall "COMPARE_SOURCE_NUMBER" nil 'EL:NumberInputsCurrent (list result)))
     (EL:FreshResult result cfg)))
-(defun EL:SyncDiagramScoped (result cfg powers capacity generate interactive scope / store record template point transform plan context outcome deferred *EL:NativePreview* *EL:FreshScope* *EL:FreshScopeEnabled*)
+(defun EL:SyncDiagramScoped (result cfg powers capacity generate interactive scope / store record template point transform plan context outcome deferred perf *EL:NativePreview* *EL:FreshScope* *EL:FreshScopeEnabled* *EL:GenerationWarningsActive* *EL:GenerationReviewFlags*)
   (if (assoc 'effective-powers result) (setq powers (EL:Get 'effective-powers result)))
   (setq *EL:FreshScope* scope *EL:FreshScopeEnabled* T
+    *EL:GenerationWarningsActive* (EL:Get 'generation-warning-mode result)
     capacity (EL:CapacityDefault capacity))
   (if (not generate)
     (EL:SaveDraft result cfg powers capacity)
     (progn
+      (setq perf (EL:PerfBegin "GENERATION_CONTEXT"))
       (setq *EL:LastGeneratedId* nil
         store (cond ((EL:StoreForResult result)) (T (EL:StoreInitial)))
         record (cond ((EL:RecordForResult result store)) (T (EL:NewRecord (EL:Get 'panel result) store)))
         template (cond ((EL:Get 'template cfg)) ((EL:Get 'template record)))
         deferred (EL:CCKK2DeferredSource result cfg record generate interactive)
-        result (EL:PreparedResult result record))
+        result (EL:PerfCall "GENERATION_PREPARE" 'EL:PreparedResult (list result record)))
+      (if (EL:Get 'generation-warning-mode result) (setq result (EL:GenerationResult result)))
+      (EL:PerfEnd perf 'returned)
       (cond
-        ((not (EL:CircuitNumbersReady result))
+        ((and (not (EL:Get 'generation-warning-mode result)) (not (EL:CircuitNumbersReady result)))
           (princ (strcat "\n" (EL:NumberProblemText result)))
           (EL:MarkStale (EL:Get 'panel result) 'circuit-number-pending))
-        ((not (EL:Get 'can-generate result))
+        ((and (not (EL:Get 'generation-warning-mode result)) (not (EL:Get 'can-generate result)))
           (EL:PrintStatistics result)
           (EL:MarkStale (EL:Get 'panel result) 'invalid-result))
-        ((or (EL:Get 'identity-ambiguous result)
-            (vl-some '(lambda (c) (EL:Get 'identity-error c)) (EL:Get 'circuits result)))
+        ((and (not (EL:Get 'generation-warning-mode result)) (or (EL:Get 'identity-ambiguous result)
+            (vl-some '(lambda (c) (EL:Get 'identity-error c)) (EL:Get 'circuits result))))
           (princ "\n出线种子身份不唯一，请修复源图后重新统计。")
           (EL:MarkStale (EL:Get 'panel result) 'identity-conflict))
-        ((not (EL:GenerationSourceCurrent result cfg deferred))
+        ((not (EL:GenerationVerify 'EL:GenerationSourceCurrent (list result cfg deferred) result
+            'SOURCE_CHANGED "平面状态已变化，按本次显示快照生成"))
           (EL:MarkStale (EL:Get 'panel result) 'source-changed))
         (T
           ;; Date: 2026-10-14. An existing output is never an update target.
@@ -263,10 +277,13 @@
           (EL:PerfSet "actual-circuits" (length (EL:Get 'circuits result)))
           (EL:PerfSet "reserve-circuits"
             (- (length (EL:Get 'rows plan)) (length (EL:Get 'circuits result))))
-          (EL:Require (EL:GenerationSourceCurrent result cfg deferred)
+          (EL:Require (EL:GenerationVerify 'EL:GenerationSourceCurrent (list result cfg deferred) result
+              'SOURCE_CHANGED "提交前源图变化，按本次显示快照生成")
             "SOURCE_CHANGED：提交前源图变化，未生成。")
-          (EL:Require (EL:DLSubmissionCurrent result)
+          (EL:Require (EL:GenerationVerify 'EL:DLSubmissionCurrent (list result) result
+              'DEVICE_LIBRARY_CHANGED "设备库已变化，按当前功率生成")
             "设备库已变化，当前输入保留；请重新核对后生成。")
+          (setq perf (EL:PerfBegin "GENERATION_RECORD"))
           (setq record (EL:Put 'draft-circuits nil (EL:Put 'draft-capacity nil
             (EL:Put 'capacity-option capacity (EL:Put 'template template
               (EL:Put 'config cfg (EL:Put 'engine (EL:Get 'engine result)
@@ -284,7 +301,8 @@
             record (EL:RecordNumberInputs record result nil)
             record (EL:DLPersist result record)
             store (EL:Put 'fixed-template template store))
-          (setq record (EL:InputRecord record))
+          (setq record (EL:GenerationReviewRecord (EL:InputRecord record) result))
+          (EL:PerfEnd perf 'returned)
           (if *EL:PlacementOnly*
             (setq outcome (EL:Transaction 'EL:CCKK2CreateDiagram
               (list result template capacity plan record store)))

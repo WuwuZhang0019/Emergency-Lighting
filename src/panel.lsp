@@ -67,14 +67,15 @@
   (EL:Put 'signature (EL:LogCall "SNAPSHOT_SIGNATURE" nil 'EL:FixedSourceSignature (list snapshot)) (EL:Put 'blocks (reverse blocks) snapshot)))
 (defun EL:SplitNetwork (network cfg / snapshot panel edges seeds wire block i circuits result circuit
     *EL:DeviceContactCache* *EL:DeviceTemplateCache* *EL:DeviceTemplateEnabled*)
-  ;; Date: 2026-10-15. Reuse definitions only for this call's identical
-  ;; network, DWG owner and epoch. Keep original instance/pose creation order
-  ;; and arithmetic; standalone splits still start with fresh caches.
+  ;; Date: 2026-10-21. Share complete successful poses and instances only with
+  ;; this synchronous recognition's identical network, DWG owner and epoch.
+  ;; Standalone splits and every input/write boundary start with fresh caches.
   (if (and *EL:RecognitionPass* *EL:RecognitionContacts*
       (eq network (car *EL:RecognitionContacts*))
       (equal (namedobjdict) (cadr *EL:RecognitionContacts*))
       (equal *EL:FreshEpoch* (caddr *EL:RecognitionContacts*)))
-    (setq *EL:DeviceTemplateCache* (nth 3 *EL:RecognitionContacts*)))
+    (setq *EL:DeviceTemplateCache* (nth 3 *EL:RecognitionContacts*)
+      *EL:DeviceContactCache* (nth 4 *EL:RecognitionContacts*)))
   (setq snapshot (EL:CircuitSnapshot (EL:Get 'snapshot network) (EL:Get 'panel network))
         panel (EL:Get 'panel network) block (EL:By 'id panel (EL:Get 'blocks snapshot)) i 0)
   (foreach wire (vl-sort (EL:Get 'wires snapshot) '(lambda (a b) (< (EL:Get 'id a) (EL:Get 'id b))))
@@ -140,22 +141,55 @@
         middle (fix (+ low (* (- high low) (if (= (rem sector 2) 0) fraction (- 1.0 fraction))))))
       (nth sector (list (list high middle low) (list middle high low) (list low high middle)
         (list low middle high) (list middle low high) (list high low middle))))))
+;; Date: 2026-10-21. Cache layer facts only during one synchronous palette read.
+;; An assoc cell also remembers a missing layer; direct color reads stay fresh.
+(defun EL:PreviewLayerData (name / key saved data)
+  (if *EL:PreviewLayerCacheEnabled*
+    (progn
+      (setq key (if name (strcase name)) saved (assoc key *EL:PreviewLayerCache*))
+      (if saved
+        (progn (setq *EL:PreviewLayerHits* (1+ *EL:PreviewLayerHits*)) (cdr saved))
+        (progn
+          (setq data (tblsearch "LAYER" name)
+            *EL:PreviewLayerCache* (cons (cons key data) *EL:PreviewLayerCache*)
+            *EL:PreviewLayerReads* (1+ *EL:PreviewLayerReads*)) data)))
+    (tblsearch "LAYER" name)))
 (defun EL:PreviewEntityRGB (id / entity data color rgb)
   (if (and (setq entity (handent id)) (setq data (entget entity)))
     (progn
       (setq color (cond ((cdr (assoc 62 data))) (T 256)))
       (if (and (not (assoc 420 data)) (= color 256))
-        (setq data (tblsearch "LAYER" (cdr (assoc 8 data)))))
+        (setq data (EL:PreviewLayerData (cdr (assoc 8 data)))))
       (if (setq rgb (cdr (assoc 420 data)))
         (list (logand 255 (fix (/ rgb 65536))) (logand 255 (fix (/ rgb 256))) (logand 255 rgb))
         (EL:ACIColorRGB (abs (cond ((cdr (assoc 62 data))) (T 7))))))))
-(defun EL:PreviewPalette (result / ids wire circuit id colors rgb choices palette used candidate index)
-  (foreach wire (EL:Get 'wires (EL:Get 'snapshot result))
-    (setq ids (cons (cond ((EL:Get 'source-wire wire)) ((EL:Get 'id wire))) ids)))
+;; Date: 2026-10-21. Exact duplicate RGB values do not change the avoidance test.
+;; Aggregate counters once per batch; never log per source entity or color.
+(defun EL:PreviewPaletteColors (result / ids wire circuit id colors rgb reads duplicates
+    *EL:PreviewLayerCacheEnabled* *EL:PreviewLayerCache* *EL:PreviewLayerReads* *EL:PreviewLayerHits*)
+  (setq *EL:PreviewLayerCacheEnabled* T *EL:PreviewLayerReads* 0 *EL:PreviewLayerHits* 0
+    reads 0 duplicates 0)
+  ;; Date: 2026-10-21. Root scoping keeps the original lightweight color scope.
+  (if (assoc 'source-wire-ids (EL:Get 'snapshot result))
+    (setq ids (reverse (EL:Get 'source-wire-ids (EL:Get 'snapshot result))))
+    (foreach wire (EL:Get 'wires (EL:Get 'snapshot result))
+      (setq ids (cons (cond ((EL:Get 'source-wire wire)) ((EL:Get 'id wire))) ids))))
   (if (not ids)
     (foreach circuit (EL:Get 'circuits result) (setq ids (append ids (EL:Get 'wires circuit)))))
-  (foreach id (EL:Unique ids)
-    (if (setq rgb (EL:PreviewEntityRGB id)) (setq colors (cons rgb colors))))
+  (setq ids (EL:Unique ids))
+  (foreach id ids
+    (if (setq rgb (EL:PreviewEntityRGB id))
+      (progn
+        (setq reads (1+ reads))
+        (if (member rgb colors) (setq duplicates (1+ duplicates))
+          (setq colors (cons rgb colors))))))
+  (EL:PerfCount "preview-source-ids" (length ids))
+  (EL:PerfCount "preview-source-color-reads" reads)
+  (EL:PerfCount "preview-source-rgb-duplicates" duplicates)
+  (EL:PerfCount "preview-source-rgb-unique" (length colors))
+  (EL:PerfCount "preview-layer-color-reads" *EL:PreviewLayerReads*)
+  (EL:PerfCount "preview-layer-color-cache-hits" *EL:PreviewLayerHits*) colors)
+(defun EL:PreviewPaletteChoices (colors / rgb choices palette used candidate index)
   (setq index 0)
   (repeat 24 (setq choices (append choices (list (EL:CircuitColor index))) index (1+ index)))
   ;; Only orange/yellow (30-59) and cyan/blue/violet (130-199), including shades.
@@ -169,6 +203,9 @@
         (not (vl-some '(lambda (source) (< (EL:Dot (EL:V- rgb source) (EL:V- rgb source)) 10000.0)) colors)))
       (setq palette (append palette (list candidate)) used (cons rgb used))))
   palette)
+(defun EL:PreviewPalette (result / colors)
+  (setq colors (EL:PerfCall "PREVIEW_SOURCE_COLORS" 'EL:PreviewPaletteColors (list result)))
+  (EL:PerfCall "PREVIEW_PALETTE_FILTER" 'EL:PreviewPaletteChoices (list colors)))
 ;; Date: 2026-10-16. The panel and drawing preview consume the same ordered palette.
 (defun EL:PanelCircuitColorsDraw (palette / index key color width height)
   (setq index 0)
@@ -285,40 +322,109 @@
   (setq result (EL:Put 'circuits (mapcar '(lambda (c)
     (EL:Put 'power-omitted (or (EL:CircuitClosedWarning c) (not (EL:Get 'power-complete c))) c)) (EL:Get 'circuits result)) result))
   (EL:Put 'can-generate (and (EL:PartialPowerGenerationReady result) (EL:CircuitNumbersReady result)) result))
-;; Date: 2026-10-21. Keep closed-topology evidence; allow its output with no watts.
 (defun EL:CircuitClosedWarning (circuit)
   (and (EL:Get 'issues circuit)
     (vl-every '(lambda (issue) (equal (EL:Get 'code issue) 'CLOSED_CIRCUIT))
       (EL:Get 'issues circuit))))
-(defun EL:PartialPowerCircuitReady (circuit / closed)
-  (setq closed (EL:CircuitClosedWarning circuit))
+;; Date: 2026-10-22. Preserve a picked actual circuit without inventing a zero load.
+(defun EL:CircuitNoDeviceWarning (circuit)
+  (and (not (EL:Get 'devices circuit)) (EL:Get 'wires circuit)
+    (EL:Get 'complete circuit) (not (EL:Get 'issues circuit))
+    (EL:Get 'power-issues circuit)
+    (vl-every '(lambda (issue) (equal (EL:Get 'code issue) 'NO_RECOGNIZED_DEVICES))
+      (EL:Get 'power-issues circuit))))
+(defun EL:PartialPowerCircuitReady (circuit / closed empty)
+  (setq closed (EL:CircuitClosedWarning circuit) empty (EL:CircuitNoDeviceWarning circuit))
   (and (or closed (and (EL:Get 'complete circuit) (not (EL:Get 'issues circuit))))
     (not (EL:Get 'over-limit circuit))
     (vl-every '(lambda (issue)
       (or (member (EL:Get 'code issue) '(POWER_MISSING_OR_INVALID DEVICE_LIBRARY_UNKNOWN))
-        (and closed (equal (EL:Get 'code issue) 'NO_RECOGNIZED_DEVICES))))
+        (and (or closed empty) (equal (EL:Get 'code issue) 'NO_RECOGNIZED_DEVICES))))
       (EL:Get 'power-issues circuit))
-    (or closed (EL:Get 'power-complete circuit)
+    (or closed empty (EL:Get 'power-complete circuit)
       (and (EL:Get 'devices circuit) (EL:Get 'power-issues circuit)))))
 (defun EL:PartialPowerGenerationReady (result)
   (and (EL:Get 'circuits result)
     (or (EL:Get 'complete result) (vl-some 'EL:CircuitClosedWarning (EL:Get 'circuits result)))
+    (not (EL:Get 'issues result))
     (not (EL:Get 'issues (EL:Get 'snapshot result)))
     (not (EL:Get 'box-total-overflow result))
     (not (EL:Get 'load-error (EL:Get 'device-library result)))
     (vl-every 'EL:PartialPowerCircuitReady (EL:Get 'circuits result))))
-(defun EL:PanelGenerationWarnings (result / circuit index lines issue)
+;; Date: 2026-10-22. Keep exact warning evidence while allowing blank-power output.
+;; 日期：2026-10-23。生成按钮使用当前显示快照；检查问题只提醒，原证据保留。
+(defun EL:GenerationWarningLines (result / circuit index lines warnings issue prefix)
   (setq index 0)
   (foreach circuit (EL:Get 'circuits result)
-    (setq index (1+ index))
-    (if (EL:CircuitClosedWarning circuit)
-      (foreach issue (EL:Get 'issues circuit)
-        (setq lines (append lines (list (strcat (EL:CircuitNumberText circuit index)
-          "：" (EL:GenerationIssueText issue) "；本次保留回路，功率留空。")))))))
+    (setq index (1+ index) prefix (strcat "回路" (itoa index) " " (EL:CircuitNumberText circuit index))
+      warnings (EL:Unique (append (EL:Get 'issues circuit) (EL:Get 'power-issues circuit))))
+    (if (and (assoc 'number-status circuit) (not (equal (EL:Get 'number-status circuit) 'ready)))
+      (setq lines (append lines (list (strcat prefix "："
+        (EL:NumberProblemText (list (cons 'circuits (list circuit)))))))))
+    (foreach issue warnings
+      (setq lines (append lines (list (strcat prefix "：" (EL:GenerationIssueText issue)
+        (if (EL:Get 'power-omitted circuit) "；本次保留回路，功率留空。" "；本次继续生成。"))))))
+    (if (and (not warnings) (EL:Get 'power-omitted circuit))
+      (setq lines (append lines (list (strcat prefix "：连接或功率待核对，本次保留回路，功率留空。"))))))
+  (foreach issue (append (EL:Get 'issues result) (EL:Get 'issues (EL:Get 'snapshot result)))
+    (setq lines (append lines (list (strcat "图面：" (EL:GenerationIssueText issue) "；按本次快照继续生成。")))))
+  (if (EL:Get 'box-total-overflow result) (setq lines (append lines '("整箱功率超出计算范围，请核对；本次继续生成。"))))
+  (if (EL:Get 'generation-input-save-pending result)
+    (setq lines (append lines '("输入记录尚未写入；当前显示值保留在会话中，本次继续生成。"))))
+  (if (EL:Get 'load-error (EL:Get 'device-library result))
+    (setq lines (append lines '("设备库未能读取；保留当前输入，未确认功率留空，继续生成。"))))
+  (if (or (EL:Get 'identity-ambiguous result) (vl-some '(lambda (c) (EL:Get 'identity-error c)) (EL:Get 'circuits result)))
+    (setq lines (append lines '("回路归属或种子身份待核对；本次使用新的输出身份，不覆盖旧系统图。"))))
+  (EL:Unique lines))
+(defun EL:GenerationResult (result / rows c index ids uids id uid global-unknown omitted)
+  (setq index 0 global-unknown (or (EL:Get 'issues result) (EL:Get 'issues (EL:Get 'snapshot result))))
+  (foreach c (EL:Get 'circuits result)
+    (setq index (1+ index) id (EL:Get 'id c) uid (EL:Get 'circuit-uid c))
+    (if (or (not (equal (type id) 'STR)) (equal id "") (member id ids))
+      (progn (EL:LogEvent "GENERATION_ROW_IDENTITY_WARNING" (list (cons 'index index) (cons 'original-id id)))
+        (setq id (strcat "review-row-" (itoa index)))
+        (while (member id ids) (setq id (strcat id "~")))
+        (setq c (EL:Put 'identity-error T (EL:Put 'id id c)))))
+    (if (or (not (equal (type uid) 'STR)) (equal uid "") (member uid uids))
+      (progn
+        (EL:LogEvent "GENERATION_ROW_IDENTITY_WARNING" (list (cons 'index index) (cons 'original-uid uid)))
+        (setq uid (strcat "review-output/" (itoa index)))
+        (while (member uid uids) (setq uid (strcat uid "~")))
+        (setq c (EL:Put 'circuit-uid uid c))))
+    (setq ids (cons id ids) uids (cons uid uids)
+      omitted (or global-unknown (EL:Get 'power-omitted c) (EL:Get 'issues c) (EL:Get 'identity-error c)
+        (and (assoc 'complete c) (not (EL:Get 'complete c)))
+        (and (assoc 'power-complete c) (not (EL:Get 'power-complete c)))
+        (not (EL:NonNegative (EL:Get 'watts c)))
+        (not (equal (type (EL:Get 'watts c)) 'INT))
+        (vl-some '(lambda (issue) (not (equal (EL:Get 'code issue) 'POWER_OVER_LIMIT))) (EL:Get 'power-issues c))))
+    (setq rows (cons (EL:Put 'power-omitted (if omitted T nil) c) rows)))
+  (EL:Put 'generation-warning-mode T (EL:Put 'circuits (reverse rows) result)))
+(defun EL:GenerationCheck (good result code message)
+  (cond (good T)
+    ((EL:Get 'generation-warning-mode result)
+      (EL:LogEvent "GENERATION_REVIEW_WARNING" (list (cons 'panel (EL:Get 'panel result))
+        (cons 'code code) (cons 'message message) '(policy . displayed-snapshot)))
+      (if *EL:GenerationWarningsActive*
+        (setq *EL:GenerationReviewFlags* (cons (EL:Issue code (EL:Get 'panel result) message) *EL:GenerationReviewFlags*)))
+      (princ (strcat "\n提示：" message "；按当前显示结果继续生成。")) T)
+    (T nil)))
+(defun EL:GenerationVerify (function args result code message / outcome)
+  (setq outcome (EL:MeasuredCatch function args))
+  (EL:GenerationCheck (and (not (vl-catch-all-error-p outcome)) outcome) result code
+    (if (vl-catch-all-error-p outcome) (strcat message "：" (vl-catch-all-error-message outcome)) message)))
+(defun EL:GenerationReviewRecord (record result)
+  (if (and (EL:Get 'generation-warning-mode result)
+      (or *EL:GenerationReviewFlags* (EL:GenerationWarningLines result)))
+    (EL:Put 'stale-reason 'generation-warnings (EL:Put 'status 'stale record)) record))
+(defun EL:PanelGenerationWarnings (result / lines line)
+  (setq lines (EL:GenerationWarningLines result))
   (if lines
     (progn
-      (EL:LogEvent "GENERATION_WITH_WARNINGS" (list (cons 'panel (EL:Get 'panel result)) (cons 'reasons lines)))
-      (foreach issue lines (princ (strcat "\n" issue))))))
+      (EL:LogEvent "GENERATION_WITH_WARNINGS" (list (cons 'panel (EL:Get 'panel result))
+        (cons 'reasons lines) (cons 'circuits (EL:Get 'circuits result))))
+      (foreach line lines (princ (strcat "\n提示：" line))))) lines)
+
 (defun EL:MatchCircuits (circuits saved prefix / out old c key seen next removed added)
   (setq next 1)
   (foreach old saved (if (numberp (EL:Get 'output-order old)) (setq next (max next (1+ (EL:Get 'output-order old))))))
@@ -398,11 +504,22 @@
           (EL:PanelLibraryReconcile)))
       (setq *EL:PanelLibraryExpanded* (not *EL:PanelLibraryExpanded*))
       (EL:PanelClose 21))))
-(defun EL:PanelNewDialog (dialog / name)
+;; Date: 2026-10-22. Keep panel progress in existing performance metrics even
+;; before business logging starts. No additional file writes or UI dispatch.
+(defun EL:PanelLifecycle (stage details / item)
+  (EL:PerfSet "panel-lifecycle-stage" stage)
+  (foreach item details (EL:PerfSet (strcat "panel-" (car item)) (cdr item)))
+  (EL:LogEvent "PANEL_LIFECYCLE" (list (cons 'stage stage) (cons 'details details))))
+(defun EL:PanelNewDialog (dialog / name ready)
   (setq name (if *EL:PanelLibraryExpanded* "el_panel" "el_panel_compact"))
-  (if *EL:PanelDialogPosition*
+  (EL:PanelLifecycle "new-dialog-requested" (list (cons "dialog-name" name)
+    (cons "dialog-position" *EL:PanelDialogPosition*)))
+  (setq ready (if *EL:PanelDialogPosition*
     (new_dialog name dialog "" *EL:PanelDialogPosition*)
     (new_dialog name dialog)))
+  (EL:PanelLifecycle "new-dialog-returned" (list (cons "new-dialog-ready" ready)
+    (cons "not-shown-reason" (if (not ready) "new-dialog-failed"))))
+  ready)
 ;; Date: 2026-10-16. Keep all recognized circuits and explain the fixed eight-row limit.
 (defun EL:PanelCircuitLimitText (result / count)
   (setq count (length (EL:Get 'circuits result)))
@@ -412,34 +529,29 @@
       "\n请拆分配电箱或重新选择回路后再生成。")))
 (defun EL:PanelGenerateBody (/ limit)
   (EL:LogEvent "PANEL_ACTION" 'generate)
-  (if (setq limit (EL:PanelCircuitLimitText *EL:PanelDraft*))
-    (EL:PanelError limit)
-    (if (EL:DLPanelSubmissionReady)
-      (cond
-        ((not (EL:Get 'circuits *EL:PanelDraft*)) (EL:PanelError "请至少保留一条实际出线。"))
-        ((not (EL:CircuitNumbersReady *EL:PanelDraft*))
-          (EL:PanelError (EL:NumberProblemText *EL:PanelDraft*)))
-        ((not (EL:Get 'can-generate *EL:PanelDraft*)) (EL:PanelGenerationBlocked *EL:PanelDraft*))
-        ((not (EL:SelectionsReady *EL:PanelDraft* *EL:PanelCapacity*))
-          (EL:PanelError "请先选择箱体容量。"))
-        (*EL:PanelTemplateReady* (EL:PanelGenerationWarnings *EL:PanelDraft*)
-          (setq *EL:PanelAction* 'generate) (EL:PanelClose 2))
-        (T (EL:PanelGenerationWarnings *EL:PanelDraft*)
-          (setq *EL:PanelAction* 'generate) (EL:PanelClose 4)))
-      (alert (if *EL:DLError*
-        (strcat *EL:DLError* "\n请在设备库中检查并恢复；当前面板输入保留，恢复后可再次生成。")
-        "设备库默认值已刷新，请核对当前功率和地面属性后再次生成。")))))
+  (cond
+    ((setq limit (EL:PanelCircuitLimitText *EL:PanelDraft*)) (EL:PanelText "p_error" limit))
+    ((not (EL:Get 'circuits *EL:PanelDraft*)) (EL:PanelText "p_error" "请先拾取配电箱和实际出线，当前输入保留。"))
+    (T
+      (setq *EL:PanelDraft* (EL:GenerationResult *EL:PanelDraft*)
+        *EL:PanelCapacity* (EL:CapacityDefault *EL:PanelCapacity*))
+      (EL:GenerationVerify 'EL:DLSubmissionCurrent (list *EL:PanelDraft*) *EL:PanelDraft*
+        'DEVICE_LIBRARY_CHANGED "设备库状态待核对，保留当前功率输入")
+      (EL:PanelGenerationWarnings *EL:PanelDraft*)
+      (setq *EL:PanelAction* 'generate)
+      (EL:PanelClose (if *EL:PanelTemplateReady* 2 4)))))
+
 (defun EL:PanelGenerate (/ outcome)
-  ;; Date: 2026-10-10. Keep callback failures visible while preserving the draft.
-  ;; Date: 2026-10-16. Report excess circuits before editor validation can hide the limit.
-  (if (or (EL:PanelCircuitLimitText *EL:PanelDraft*) (EL:PanelLibraryFlush))
-    (setq outcome (vl-catch-all-apply 'EL:PanelGenerateBody nil)))
+  ;; 日期：2026-10-23。编辑器写入失败保留草稿，不阻断本次生成，也不弹确认框。
+  (if (EL:Get 'circuits *EL:PanelDraft*) (setq *EL:PanelDraft* (EL:GenerationResult *EL:PanelDraft*)))
+  (EL:GenerationVerify 'EL:PanelLibraryFlush nil *EL:PanelDraft* 'LIBRARY_EDIT_PENDING "设备库编辑尚未保存，原输入保留")
+  (setq outcome (vl-catch-all-apply 'EL:PanelGenerateBody nil))
   (if (vl-catch-all-error-p outcome)
     (progn
       (setq *EL:PanelAction* nil)
       (EL:LogEvent "PANEL_GENERATE_ERROR" (vl-catch-all-error-message outcome))
-      (EL:PanelText "p_error" (strcat "生成未开始：" (vl-catch-all-error-message outcome)))
-      (alert (strcat "生成未开始：" (vl-catch-all-error-message outcome) "\n当前设置已保留，请查看诊断日志。")))))
+      (EL:PanelText "p_error" (strcat "生成操作未完成，当前输入保留：" (vl-catch-all-error-message outcome))))))
+
 (defun EL:PanelCircuitPowerText (circuit)
   ;; Date: 2026-10-20. A missing load or unknown wattage must not read as 0W.
   (cond ((EL:CircuitClosedWarning circuit) "闭合待核对")
@@ -477,6 +589,7 @@
     "；已完整核对回路 " (itoa (EL:Get 'box-watts *EL:PanelDraft*)) " W"))
   (set_tile "p_capacity" (cond ((equal *EL:PanelCapacity* 'cap600) "p_600")
     ((equal *EL:PanelCapacity* 'cap1000) "p_1000") (T "p_300")))
+  (EL:PanelSystemFill)
   (princ (strcat "\n" (if *EL:PanelTemplateReady* "模板已验证，生成时自动切换状态。"
     "模板未设置或已变化：点击生成时设置；不影响当前统计。")))
   (setq i 0)
@@ -519,7 +632,9 @@
   (set_tile "p_power_total" "总功率：未统计")
   (EL:PanelText "p_error" "")
   (set_tile "p_capacity" "p_300")
-  (foreach key '("p_trunk" "p_capacity" "f_preview" "p_generate" "p_power_review") (mode_tile key 1)))
+  (EL:PanelSystemFill)
+  (foreach key '("p_trunk" "p_capacity" "f_preview" "p_generate" "p_power_review"
+      "p_system_drawing" "p_system_import") (mode_tile key 1)))
 (defun EL:PanelLibraryReconcile (/ snapshot resolved)
   (setq snapshot (EL:Get 'snapshot *EL:DLUIState*))
   (if snapshot
@@ -590,19 +705,61 @@
       (if (not (equal opened "已打开诊断文件所在位置。"))
         (alert (strcat notice "\n" opened "\n诊断资料路径：" path))))
     (alert notice)))
-(defun EL:PanelDialog (result cfg powers capacity / dialog status captured limit-notice limit-shown
+(defun EL:PanelSystemMissingText (kind names / text row)
+  ;; Date: 2026-10-21. Full names are printed by EnsureSystemBlocks on action.
+  (setq text "")
+  (foreach row names
+    (if (not (tblsearch kind (car row)))
+      (setq text (strcat text (if (= text "") "" " / ") (cadr row))))) text)
+(defun EL:PanelSystemFill (/ blocks styles)
+  (setq blocks (EL:PanelSystemMissingText "BLOCK"
+      '(("ZYF_Tool_应急照明配电箱图块" "配电箱") ("ZYF_Tool_应急照明配电回路图块" "配电回路")))
+    styles (EL:PanelSystemMissingText "STYLE" '(("_TEL_DIM" "_TEL_DIM") ("ICDA-STYLE1" "ICDA-STYLE1"))))
+  (set_tile "p_system_blocks" (cond ((/= blocks "") (strcat "缺少图块：" blocks))
+    (*EL:PanelSystemNotice* "模板未准备完成，具体原因见命令行") (T "图块：使用本图已有定义")))
+  (set_tile "p_system_styles" (cond ((/= styles "") (strcat "缺少样式：" styles))
+    (*EL:PanelTemplateReady* "模板已准备，可继续生成") (T "默认不打开图库；缺项可点上方补入"))))
+(defun EL:PanelPrepareSystemTemplate (source / captured *EL:SystemBlockSource* *EL:SystemBlockNotice* *EL:TemplateNotice*)
+  ;; One explicit import action grants access only to this preparation call.
+  ;; Result, power overrides and capacity remain owned by the open panel flow.
+  (setq *EL:SystemBlockSource* source *EL:PanelSystemNotice* nil)
+  (setq captured (EL:MeasuredCatch 'EL:PerfCall
+    (list "TEMPLATE_CAPTURE" 'EL:CaptureFixedTemplate (list *EL:PanelConfig*))))
+  (EL:ClearPickHighlights)
+  (if (and (not (vl-catch-all-error-p captured)) captured)
+    (progn
+      (setq *EL:PanelConfig* (EL:Put 'template captured *EL:PanelConfig*) *EL:PanelTemplateReady* T)
+      T)
+    (progn
+      (setq *EL:PanelTemplateReady* nil *EL:PanelSystemNotice*
+        (cond ((vl-catch-all-error-p captured) (vl-catch-all-error-message captured))
+          (*EL:SystemBlockNotice*) (*EL:TemplateNotice*) (T "模板准备未完成，请核对图块动态属性与文字样式。")))
+      (princ (strcat "\n" *EL:PanelSystemNotice*
+        "\n已返回原面板，当前识别结果、功率和容量已保留。")) nil)))
+(defun EL:PanelDialog (result cfg powers capacity)
+  (EL:WithTemplateScope 'EL:PanelDialogWork (list result cfg powers capacity)))
+(defun EL:PanelDialogWork (result cfg powers capacity / dialog status limit-notice limit-shown
     *EL:PanelAction* *EL:PanelDraft* *EL:PanelPowers* *EL:PanelCapacity* *EL:PanelConfig*
-    *EL:PanelTemplateReady* *EL:PanelLibrarySnapshot* *EL:PanelDialogPosition* *EL:PanelPreviewPalette*
-    home)
-  (setq home (not result)
-    *EL:PanelDraft* (if result (EL:PanelCompute (EL:SelectFixedExits result nil) powers cfg))
+    *EL:PanelTemplateReady* *EL:PanelLibrarySnapshot* *EL:PanelDialogPosition* *EL:PanelPreviewPalette* *EL:PanelSystemNotice*
+    home dclpath)
+  (setq home (not result) dclpath (strcat *EL:Root* "ui/power.dcl"))
+  (EL:PanelLifecycle "prepare" (list (cons "home" home) (cons "dcl-path" dclpath)
+    '("not-shown-reason" . nil) '("new-dialog-ready" . nil) '("dialog-id" . nil)
+    '("return-status" . nil) '("return-action" . nil) '("final-status" . nil)))
+  (setq
+    ;; Date: 2026-10-21. Measure each initialization batch before the dialog waits.
+    *EL:PanelDraft* (if result (EL:PerfCall "PANEL_COMPUTE" 'EL:PanelCompute
+      (list (EL:PerfCall "PANEL_SELECT_EXITS" 'EL:SelectFixedExits (list result nil)) powers cfg)))
     *EL:PanelPowers* powers *EL:PanelCapacity* (EL:CapacityDefault capacity)
-    *EL:PanelPreviewPalette* (EL:PreviewPalette *EL:PanelDraft*)
+    *EL:PanelPreviewPalette* (EL:PerfCall "PANEL_PREVIEW_PALETTE" 'EL:PreviewPalette (list *EL:PanelDraft*))
     *EL:PanelConfig* cfg
     *EL:PanelTemplateReady* (if result (EL:TemplateReady (EL:Get 'template cfg) cfg))
     *EL:PanelLibrarySnapshot* (cond (home (EL:DLSnapshot))
-      (*EL:DLSessionSnapshot*) (T (EL:DLSnapshot)))
-    dialog (load_dialog (strcat *EL:Root* "ui/power.dcl")) *EL:DialogID* dialog status 3)
+      (*EL:DLSessionSnapshot*) (T (EL:DLSnapshot))))
+  (EL:PanelLifecycle "dcl-load-requested" nil)
+  (setq dialog (load_dialog dclpath) *EL:DialogID* dialog status 3)
+  (EL:PanelLifecycle "dcl-load-returned" (list (cons "dialog-id" dialog)
+    (cons "not-shown-reason" (if (<= dialog 0) "dcl-load-failed"))))
   (setq *EL:DLUIHost* 'panel)
   (if (and result (not (EL:Get 'capacity-source *EL:PanelDraft*)))
     (setq *EL:PanelDraft* (EL:Put 'capacity-source 'default *EL:PanelDraft*)))
@@ -610,6 +767,7 @@
   (while (and (> dialog 0) (= status 3))
     (if (EL:PanelNewDialog dialog)
       (progn
+        (EL:PanelLifecycle "fill-requested" nil)
         (if home (EL:PanelHomeFill)
           (progn
             (EL:LogCall "PANEL_FILL" (list (cons 'panel (EL:Get 'panel result))
@@ -624,6 +782,8 @@
         (EL:MonitorActionTile "p_trunk" "(EL:PanelLeave 10)")
         (EL:MonitorActionTile "f_preview" "(EL:PanelLeave 5)")
         (EL:MonitorActionTile "p_power_review" "(EL:PanelLeave 22)")
+        (EL:MonitorActionTile "p_system_drawing" "(EL:PanelLeave 23)")
+        (EL:MonitorActionTile "p_system_import" "(EL:PanelLeave 24)")
         (EL:MonitorActionTile "p_library_toggle" "(EL:PanelLibraryToggle)")
         (EL:MonitorActionTile "p_capacity" "(EL:PanelCapacity $value)")
         (EL:MonitorActionTile "p_generate" "(EL:PanelGenerate)")
@@ -635,20 +795,22 @@
           (progn
             (setq limit-shown T)
             (EL:LogEvent "PANEL_CIRCUIT_LIMIT" (list (cons 'actual (length (EL:Get 'circuits *EL:PanelDraft*))) '(maximum . 8)))
-            (EL:PanelError limit-notice)))
+            (EL:PanelText "p_error" limit-notice)))
+        (EL:PanelLifecycle "start-dialog-requested" nil)
+        (EL:PerfCount "panel-start-dialog-count" 1)
         (setq *EL:PanelAction* nil status (EL:PerfInput 'start_dialog nil))
+        (EL:PanelLifecycle "start-dialog-returned" (list (cons "return-status" status)
+          (cons "return-action" *EL:PanelAction*)))
         (EL:LogEvent "PANEL_DIALOG_RETURN" (list (cons 'status status) (cons 'action *EL:PanelAction*)))
         (if (= status 21) (setq status 3))
         (if (= status 4)
           (progn
-            (princ "\n正在检查系统图块；缺少定义时从随包图块库自动导入。")
-            (setq captured (vl-catch-all-apply 'EL:CaptureFixedTemplate (list *EL:PanelConfig*)))
-            (EL:ClearPickHighlights)
-            (if (and (not (vl-catch-all-error-p captured)) captured)
-              (setq *EL:PanelConfig* (EL:Put 'template captured *EL:PanelConfig*)
-                *EL:PanelTemplateReady* T status 2)
-              (progn (princ "\n模板设置未完成，返回统计面板；当前功率和选择已保留。")
-                (setq status 3)))))
+            (princ "\n正在检查本图系统图块；缺项时保留输入，请在面板选择从图库补入缺项。")
+            (setq status (if (EL:PanelPrepareSystemTemplate 'drawing) 2 3))))
+        (if (member status '(23 24))
+          (progn
+            (EL:PanelPrepareSystemTemplate (if (= status 24) 'library 'drawing))
+            (setq status 3)))
         (if (= status 22)
           (progn (EL:PanelPowerReview dialog) (setq status 3)))
         (if (= status 5)
@@ -664,6 +826,7 @@
       (setq status 0)))
   (if (> dialog 0) (unload_dialog dialog))
   (setq *EL:DialogID* nil)
+  (EL:PanelLifecycle "dialog-cleanup" (list (cons "final-status" status)))
   (cond
     ((= status 12)
       (list (cons 'library-suspended (list (cons 'result *EL:PanelDraft*)
@@ -932,7 +1095,7 @@
   (if (setq row (nth *EL:PowerReviewIndex* *EL:PowerReviewRows*))
     (setq *EL:PowerReviewInputs* (EL:Put (EL:Get 'key row)
       (list (get_tile "q_watts") (get_tile "q_zero")) *EL:PowerReviewInputs*))))
-(defun EL:PowerReviewFill (/ row r input id issue c objects lines)
+(defun EL:PowerReviewFill (/ row r input id issue c objects lines index)
   (start_list "q_rows")
   (foreach r *EL:PowerReviewRows*
     (add_list (strcat (EL:Get 'name r) " / " (itoa (EL:Get 'count r)) " 个 / "
@@ -947,13 +1110,20 @@
   (start_list "q_details")
   (add_list (strcat "图块名：" (EL:Get 'name row)))
   (add_list (strcat "所在回路：" (EL:PowerReviewCircuits (EL:Get 'ids row) *EL:PanelDraft*)))
-  (add_list (if (numberp (EL:Get 'watts row)) "本设备功率已填写；其他设备缺项仍会使所在回路功率留空。"
+  (add_list (if (numberp (EL:Get 'watts row)) "本设备单个功率已填写，无需重复补填。"
     "原因：单个功率未填写或无效；可直接输入并应用，也可保持空白生成。"))
+  (setq index 0)
   (foreach c (EL:Get 'circuits *EL:PanelDraft*)
+    (setq index (1+ index))
     (if (and (EL:Get 'issues c)
         (vl-some '(lambda (id) (member id (EL:Get 'devices c))) (EL:Get 'ids row)))
       (foreach issue (EL:Get 'issues c)
-        (setq lines (cons (strcat "所在回路：" (EL:GenerationIssueText issue)) lines))))
+        (setq lines (cons (strcat "所在回路 " (EL:CircuitNumberText c index)
+          "：" (EL:GenerationIssueText issue)) lines))))
+    (if (EL:CircuitNoDeviceWarning c)
+      (setq lines (cons (strcat (EL:CircuitNumberText c index)
+        "：未识别到设备，补单个功率无法解决；生成时保留回路、功率留空。导线："
+        (EL:DLAliasText (EL:Get 'wires c))) lines)))
     (foreach issue (EL:Get 'power-issues c)
       (setq objects (EL:Get 'object issue))
       (if (not (listp objects)) (setq objects (list objects)))

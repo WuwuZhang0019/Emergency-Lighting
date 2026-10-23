@@ -1,0 +1,64 @@
+{
+  "date": "2026-10-22",
+  "status": "passed",
+  "version": "0.1.77",
+  "input": {
+    "path": "C:\\Users\\Zyf\\Downloads\\output (31).zip",
+    "bytes": 8681,
+    "sha256": "7f3544210904493119ddbb5184ec3dadb1589c9c65810d7a0a6b77c342f8cb82",
+    "files": [
+      "ELMONITOR-20261022.161812-APPLOAD.md",
+      "ELMONITOR-20261022.161813-ELCOLD76.md",
+      "ELPERF.log",
+      "ELTRACE-debug.log"
+    ],
+    "error": "函数错误: ELNETCOLD76",
+    "panel": "2604F",
+    "root_wires": [
+      "2606F",
+      "260CD",
+      "148A6",
+      "26060",
+      "26068"
+    ],
+    "native_load_entered": false,
+    "native_compute_entered": false,
+    "total_ms": 22922,
+    "interaction_ms": 20188,
+    "program_ms": 2734,
+    "last_pick_return_to_failure_ms": 94
+  },
+  "root_cause": "First handshake passed unregistered ELNETCOLD76 directly as catch target; failure occurred before HANDSHAKE result or NETLOAD; defined Lisp wrappers now resolve the external entry inside the protected body",
+  "secondary_cause": "COLD_NATIVE_LOAD/PROBE were absent from actual PerfCall default allowlist, so v76 stage wrappers produced no timing frames",
+  "reference": "https://help.autodesk.com/cloudhelp/2024/ENU/AutoCAD-MAC-AutoLISP-Reference/files/GUID-E08CC2A6-787A-422F-8BD3-18812996794C.htm",
+  "regression": {
+    "modules": [
+      "test_cold_probe",
+      "test_cold_entry",
+      "test_full_test_entry"
+    ],
+    "tests": 42,
+    "seconds": 2.908,
+    "status": "passed",
+    "boundary": "bounded host models pre-body target failure; actual PerfCall/Begin/End/Unwind executed; not native CAD acceptance"
+  },
+  "source_sha256": {
+    "src/cold-probe.lsp": "10c19f4cb5c0885b679c261111504a43a8eec1ff1de1659e8d3469539553498e",
+    "src/common.lsp": "157ace5b9c6b4abd6d830c1ba246b7068d218c87e7a63bbcc70523d09c347701",
+    "native/ColdRecognition/AutoCadProbe.cs": "25b9235215f577044137b6e0317e9ce7ae191231df5dd19022f2852ba06c8dd2",
+    "native/ColdRecognition/AssemblyInfo.cs": "d0b9e16e2c83431759cc7e8e2776b5a9234a7ef27d5bb251278a0f595c75ce36",
+    "tools/build_cad2020.py": "6d7e1f7de4bcf61ce582d420bb097ea045abdefd13ad9e20169a296e500bd142",
+    "tools/build_cold_recognition.py": "98895a30d79db31aee9b019efaf2ce1182dc7497825eaef02fbabe1e31f065f5",
+    "tests/test_cold_probe.py": "5cd64dda195f085b0fd50b6af37961ca2bd4ef327418bc6e495675367a69062d",
+    "tests/test_cold_entry.py": "6107221cfdf3e6589e9a5fc847629b17bc3df863b432d93f4a887ef26d01ed40",
+    "tests/test_full_test_entry.py": "37c1391eb3c148429632866a6b7bea9b628eac3de90d4266dccd2077fda531a7"
+  },
+  "old_v0_1_76_archive": {
+    "sha256": "bbb320adb412f5a67ddbaf8732aa3a2ca292eaf6659c854969c105db77b52433",
+    "bytes": 6940078,
+    "unchanged": true
+  },
+  "native_cad_status": "pending; actual NETLOAD, .NET bridge and original drawing not run locally",
+  "first_new_panel_full_recognition_target_ms": 3000,
+  "target_achieved": false
+}

@@ -1,0 +1,91 @@
+{
+  "date": "2026-10-21",
+  "status": "focused adapter checks passed; native CAD timing pending; no package built",
+  "baseline_commit": "f16fa0c",
+  "implementation_commits": [
+    "ebf1d91",
+    "c0b68ec"
+  ],
+  "source_sha256": {
+    "src/common.lsp": "3168d47d6fd4ee1b2c7dd43cb8f45f90a326c069799d8eabdb606afb7bcf5420",
+    "src/simple.lsp": "09cb60a241dd2e94929c7e10b46b481a84191e71ad4d8f939aeb888a0f29a80d",
+    "src/diagram-update.lsp": "94adb46883577a643c9e6a70e28fb5ebf9a96ade51b39d40cb2c6949d45d978f",
+    "src/geometry.lsp": "7573ccaa56bddf8ef40deb0c86fd30edcbc158492f7de3ddac05cc86ab179797",
+    "tests/test_recognition_scope_counts.py": "69552e56e6387b0a94b03947702ca8855da842ea55338bf81b0e47764ff43f37",
+    "tests/test_wire_geometry_accumulation.py": "acc09331ee42e15fbc7c390b1f7ceba65c7113150bf503c0135f2650a025b783"
+  },
+  "original_diagnostic": {
+    "file": "output (26).zip",
+    "sha256": "cf46fd37aac23eb3ff1c503ae0d0a9f46bae28e53ed8804a3e96637dcf03e31e",
+    "folder": "ELDIAG-20261021.165140",
+    "run_id": "20261021.165036 / 409825468 / 19",
+    "package_no": 170,
+    "compare_mode": 0,
+    "recognition_ms": 29281,
+    "after_pick_to_first_result_panel_ms": 32266,
+    "selection_entities": 7850,
+    "insert_checks": 4783,
+    "wire_records": 3067,
+    "candidate_blocks": 3286,
+    "block_bounds_reads": 3320,
+    "connected_unique_wires": 40,
+    "connected_unique_devices": 38
+  },
+  "test_groups": [
+    {
+      "count": 29,
+      "command": "python -B -X utf8 -m unittest test_recognition_scope_counts test_recognition_preset test_preset_match_cache test_collect_read_timing -q",
+      "cwd": "tests",
+      "result": "passed"
+    },
+    {
+      "count": 64,
+      "command": "python -B -X utf8 -m unittest test_circuit_number test_number_annotations test_number_scope_reuse test_exit_preview test_freshness_reuse test_reachable_network -q",
+      "cwd": "tests",
+      "result": "passed"
+    },
+    {
+      "count": 11,
+      "command": "python -B -X utf8 -m unittest test_wire_geometry_accumulation -q",
+      "cwd": "tests",
+      "result": "passed"
+    },
+    {
+      "count": 11,
+      "command": "python -B -X utf8 -m unittest test_wire_width.WireWidthTests test_device_tolerance.DeviceToleranceGeometryTests.test_visible_wire_width_and_tolerance_both_apply_without_z_expansion test_recognition_fastpath.RecognitionFastpathTests.test_joint_number_boundary_matches_frozen_32_steps_holes_widths_reverse_and_ties test_recognition_six.SixRecognitionTests.test_number_probe_matches_139_for_curves_large_coordinates_and_both_directions test_recognition_fastpath.RecognitionFastpathTests.test_collection_reads_wire_once_and_excludes_managed_output -q",
+      "cwd": "tests",
+      "result": "passed"
+    }
+  ],
+  "different_targeted_tests_passed": 115,
+  "operation_counts": {
+    "polyline_300_segments_accumulated_append_prefix_elements": {
+      "before": 44850,
+      "after": 0
+    },
+    "contact_bounds_100_strips_accumulated_append_prefix_elements": {
+      "before": 19900,
+      "after": 0
+    },
+    "profile_baseline_norm_20_segments_8_profiles": {
+      "before": 160,
+      "after": 8,
+      "next_call": 8,
+      "isolated_setup_only": true
+    },
+    "single_segment_profile_list_construction_sequence": "unchanged",
+    "additional_per_entity_ticks_from_new_scope_counts": 0
+  },
+  "counter_semantics": {
+    "source-selection-* and source-candidate-blocks": "performance-session accumulated batches",
+    "SOURCE_SELECTION_SCOPE": "single batch",
+    "recognized-connected-* and RECOGNIZED_CONNECTED_SCOPE": "last recognition connected result"
+  },
+  "limitations": [
+    "No new native CAD timing",
+    "No scope reduction",
+    "No cross-call native geometry cache",
+    "Numbering preview and geometry predicates preserved by bounded adapter regressions",
+    "Existing v0.1.71 package unchanged"
+  ]
+}

@@ -1,0 +1,100 @@
+{
+  "date": "2026-10-23",
+  "status": "DXF and returned-log evidence; native generation pending",
+  "source": "【电气】酒店办公照明.dxf",
+  "source_sha256": "95afac5f9baa50589de0601ca1d61ab4e9b63419045871b20f40eeb94e54e57e",
+  "panel": "CB49",
+  "power_source": "user screenshot: 23, 48, 3, 68, 90 W; no DXF power recalculation claim",
+  "circuits": [
+    {
+      "id": "R1",
+      "start": "7063",
+      "watts": 23,
+      "inputs": [
+        {
+          "handle": "7063",
+          "values": [
+            "ZE3"
+          ]
+        },
+        {
+          "handle": "CC1F",
+          "values": [
+            "4ALE(JZ)-ZE3"
+          ]
+        },
+        {
+          "handle": "7067",
+          "values": []
+        }
+      ]
+    },
+    {
+      "id": "R2",
+      "start": "9BFC",
+      "watts": 48,
+      "inputs": [
+        {
+          "handle": "9BFC",
+          "values": [
+            "ZE1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "R3",
+      "start": "9C69",
+      "watts": 3,
+      "inputs": [
+        {
+          "handle": "9C69",
+          "values": [
+            "ZE5"
+          ]
+        },
+        {
+          "handle": "D203",
+          "values": [
+            "4ALE(JZ)-ZE5"
+          ]
+        },
+        {
+          "handle": "9B00",
+          "values": []
+        },
+        {
+          "handle": "7429",
+          "values": []
+        }
+      ]
+    },
+    {
+      "id": "R4",
+      "start": "CC1D",
+      "watts": 68,
+      "inputs": [
+        {
+          "handle": "CC1D",
+          "values": [
+            "ZE2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "R5",
+      "start": "D200",
+      "watts": 90,
+      "inputs": [
+        {
+          "handle": "D200",
+          "values": [
+            "ZE4"
+          ]
+        }
+      ]
+    }
+  ],
+  "input_date": "2026-10-22"
+}

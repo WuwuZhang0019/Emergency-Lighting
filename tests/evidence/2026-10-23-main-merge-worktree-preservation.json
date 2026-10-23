@@ -1,0 +1,26 @@
+{
+  "date": "2026-10-23",
+  "status": "artifact preservation verified before merged-worktree removal",
+  "source_branch": "codex/lighting-shape-reuse",
+  "source_commit": "c9deef4327f2fa92fbc25e4864dd47aa45e07b18",
+  "previous_main": "cfa035d095768ab63a7e459dbf186597c580abb4",
+  "source_root": "C:\\Users\\Zyf\\.codex\\worktrees\\lighting-shape-reuse\\Emergency-Lighting",
+  "destination_root": "G:\\rust\\AI画CAD\\Emergency-Lighting",
+  "ignored_files_preserved": 7083,
+  "ignored_bytes_preserved": 546936699,
+  "archive_manifest": "output/lighting-shape-reuse-archive-20261023/manifest.json",
+  "archive_manifest_sha256": "bebdd4cab257bb83ba848b7845980b6b3ba0721a92f598102de58f397eea146c",
+  "latest_package": {
+    "path": "output/应急照明-v0.1.83.zip",
+    "sha256": "928a8ce8da964c6715230188673bcf58e9c37dc7a16aaf656c0023ebc4287c35",
+    "bytes": 7095575
+  },
+  "merge_conflict_resolution": "new branch tree retained; all 13 main power-review tests are present unchanged among 19 branch tests",
+  "focused_regression": {
+    "test_generation_warnings": 13,
+    "test_power_review": 19,
+    "status": "passed"
+  },
+  "native_cad_status": "unchanged; original-DWG, DCL, generated geometry, save/reopen and Undo acceptance pending",
+  "remote_action": "local merge only; no push requested"
+}

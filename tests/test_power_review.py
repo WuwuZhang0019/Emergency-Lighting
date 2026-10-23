@@ -1,4 +1,4 @@
-"""Power review and blank annotations. Date: 2026-10-21. Status: adapter regression."""
+"""Power review and blank annotations. Date: 2026-10-22. Status: adapter regression."""
 import copy
 import unittest
 from autolisp_host import Symbol, truth
@@ -159,6 +159,108 @@ class PowerReviewTests(unittest.TestCase):
         self.assertEqual(self.h.lookup('*EL:PANELACTION*'), Symbol('GENERATE'))
         self.assertIn('GENERATION_WITH_WARNINGS', [event[0] for event in logged])
 
+    def reported_problem_result(self):
+        base = self.get('circuits', self.result)[0]
+        closed = self.put('id', 'R2', self.put('devices', ['D0'], base))
+        closed = self.put('wires', ['1449F', '26060'], self.put('complete', None, closed))
+        closed = self.put('issues', self.h.run("'(((code . CLOSED_CIRCUIT) (object . \"1449F\") (detail . \"D410\")))"), closed)
+        closed = self.put('number-status', Symbol('READY'), self.put('circuit-number', 'ZE2', closed))
+        good = self.put('id', 'R3', self.put('devices', ['D1'], self.put('wires', ['GOOD-WIRE'], base)))
+        good = self.put('number-status', Symbol('READY'), self.put('circuit-number', 'ZE3', good))
+        empty = self.put('id', 'R5', self.put('devices', None, self.put('wires', ['260CE', '260CD'], base)))
+        empty = self.put('number-status', Symbol('READY'), self.put('circuit-number', 'ZE4', empty))
+        result = self.put('complete', None, self.put('circuits', [closed, good, empty], self.result))
+        result = self.call('EL:DLSetOverride', result, 'Unknown', Symbol('WATTS-SET'), True)
+        result = self.call('EL:DLSetOverride', result, 'Unknown', Symbol('WATTS'), 1)
+        return self.call('EL:PanelCompute', result, self.powers, None)
+
+    def test_all_known_watts_with_closed_and_no_device_circuits_keep_actual_rows(self):
+        self.forbid_recognition()
+        computed = self.reported_problem_result()
+        closed, good, empty = self.get('circuits', computed)
+        self.assertTrue(truth(self.get('can-generate', computed)))
+        self.assertTrue(truth(self.get('power-values-complete', closed)))
+        self.assertEqual([self.call('EL:PanelCircuitPowerText', c) for c in (closed, good, empty)],
+                         ['闭合待核对', '1W', '未识别设备'])
+        self.assertEqual([truth(self.get('power-omitted', c)) for c in (closed, good, empty)], [True, False, True])
+        self.assertIsNone(self.get('library-pending', computed))
+        self.assertFalse(truth(self.get('power-complete', empty)))
+        self.assertEqual(self.get('wires', empty), ['260CE', '260CD'])
+        self.assertEqual(self.get('code', self.get('power-issues', empty)[0]), Symbol('NO_RECOGNIZED_DEVICES'))
+        self.h.set('*EL:PANELDRAFT*', computed)
+        self.h.set('*EL:POWERREVIEWROWS*', self.call('EL:PowerReviewRows', computed, self.get('effective-powers', computed)))
+        self.call('EL:PowerReviewFill')
+        details = '\n'.join(self.lists['q_details'])
+        for value in ('单个功率已填写', 'ZE2', '闭合连接', '1449F', 'D410', 'ZE4', '260CE', '260CD', '补单个功率无法解决'):
+            self.assertIn(value, details)
+        self.assertNotIn('其他设备缺项', details)
+
+    def test_power_edit_does_not_clear_connection_warnings_or_require_retrace(self):
+        computed = self.reported_problem_result()
+        snapshot = copy.deepcopy(self.get('snapshot', computed))
+        issues = copy.deepcopy(self.get('issues', self.get('circuits', computed)[0]))
+        self.forbid_recognition()
+        self.h.set('*EL:PANELDRAFT*', computed)
+        self.h.set('*EL:POWERREVIEWROWS*', self.call('EL:PowerReviewRows', computed, self.get('effective-powers', computed)))
+        self.call('EL:PowerReviewFill')
+        self.tiles['q_watts'] = '7'
+        self.assertTrue(truth(self.call('EL:PowerReviewApply')))
+        after = self.h.lookup('*EL:PANELDRAFT*')
+        self.assertEqual(self.get('snapshot', after), snapshot)
+        self.assertEqual(self.get('issues', self.get('circuits', after)[0]), issues)
+        self.assertTrue(truth(self.get('can-generate', after)))
+        self.assertTrue(truth(self.get('power-omitted', self.get('circuits', after)[0])))
+        self.assertTrue(truth(self.get('power-omitted', self.get('circuits', after)[2])))
+
+    def test_no_device_warning_requires_actual_wires_and_unambiguous_complete_path(self):
+        computed = self.reported_problem_result()
+        empty = self.get('circuits', computed)[2]
+        self.assertTrue(truth(self.call('EL:CircuitNoDeviceWarning', empty)))
+        fault = self.h.run("'((code . OTHER_PANEL) (object . \"BOX2\"))")
+        for changed in (self.put('wires', None, empty), self.put('complete', None, empty),
+                        self.put('issues', [fault], empty), self.put('power-issues', [fault], empty)):
+            with self.subTest(changed=changed):
+                self.assertFalse(truth(self.call('EL:CircuitNoDeviceWarning', changed)))
+                self.assertFalse(truth(self.call('EL:PartialPowerCircuitReady', changed)))
+
+    def test_reported_warning_pair_keeps_other_generation_blockers(self):
+        computed = self.reported_problem_result()
+        fault = self.h.run("'((code . UNSUPPORTED_GEOMETRY) (object . \"W1\"))")
+        variants = [self.put('issues', [fault], computed),
+                    self.put('snapshot', self.put('issues', [fault], self.get('snapshot', computed)), computed),
+                    self.put('box-total-overflow', True, computed),
+                    self.put('device-library', self.put('load-error', True, self.get('device-library', computed)), computed)]
+        for changed in variants:
+            self.assertFalse(truth(self.call('EL:PartialPowerGenerationReady', changed)))
+        closed, good, empty = self.get('circuits', computed)
+        for circuit in (self.put('number-status', Symbol('CONFLICT'), closed),
+                        self.put('devices', ['D0'], good)):
+            circuits = [circuit, good, empty] if self.get('id', circuit) == 'R2' else [closed, circuit, empty]
+            blocked = self.call('EL:PanelCompute', self.put('circuits', circuits, computed), self.powers, None)
+            self.assertFalse(truth(self.get('can-generate', blocked)))
+        above_limit = self.call('EL:DLSetOverride', computed, 'Lamp', Symbol('WATTS-SET'), True)
+        above_limit = self.call('EL:DLSetOverride', above_limit, 'Lamp', Symbol('WATTS'), 173)
+        blocked = self.call('EL:PanelCompute', above_limit, self.powers, None)
+        self.assertFalse(truth(self.get('can-generate', blocked)))
+
+    def test_warning_pair_generate_logs_both_real_circuit_numbers_without_alert(self):
+        self.forbid_recognition()
+        computed = self.reported_problem_result()
+        self.h.set('*EL:PANELDRAFT*', computed)
+        self.h.set('*EL:PANELTEMPLATEREADY*', True)
+        self.h.set('*EL:PANELCAPACITY*', Symbol('CAP300'))
+        closed, logs = [], []
+        self.h.builtins.update({'EL:DLPANELSUBMISSIONREADY': lambda: True,
+            'EL:PANELCLOSE': closed.append, 'EL:LOGEVENT': lambda *args: logs.append(args),
+            'ALERT': lambda *args: self.fail('recoverable warnings must not open an alert')})
+        self.call('EL:PanelGenerateBody')
+        self.assertEqual(closed, [2])
+        reasons = self.get('reasons', next(row[1] for row in logs if row[0] == 'GENERATION_WITH_WARNINGS'))
+        self.assertEqual(len(reasons), 2)
+        for value in ('ZE2', '1449F', 'D410', 'ZE4', '260CE', '260CD', '功率留空'):
+            self.assertIn(value, '\n'.join(reasons))
+        self.assertEqual(self.h.lookup('*EL:PANELACTION*'), Symbol('GENERATE'))
+
     def test_dialog_returns_to_parent_with_applied_value_and_same_snapshot(self):
         self.forbid_recognition()
         actions, dialogs = {}, []
@@ -222,4 +324,39 @@ class BlankPowerGenerationTests(unittest.TestCase):
         self.assertTrue(f.get('circuit-number', rows[0]))
         self.assertIsNone(f.get('text-handle', rows[0]))
         self.assertIsNone(f.get('watts', rows[0]))
+        self.assertEqual(field(f.entities[f.get('text-handle', rows[1])], 1), '20W')
+
+    def test_closed_and_no_device_actual_rows_generate_without_power_or_reserve_replacement(self):
+        f = native.PanelCommandTests()
+        f.setUp()
+        f.two_circuits()
+        f.h.run("""
+          (setq cs (EL:Get 'circuits result))
+          (setq first (EL:Put 'devices '("D0") (EL:Put 'complete nil
+            (EL:Put 'issues '(((code . CLOSED_CIRCUIT) (object . "1449F") (detail . "D410"))) (car cs)))))
+          (setq second (EL:Put 'devices '("D1") (EL:Put 'complete T (cadr cs))))
+          (setq empty (EL:Put 'uid "empty-real-circuit" (EL:Put 'id "R5"
+            (EL:Put 'seed-key '("260CD" outlet) (EL:Put 'circuit-number "ZE4"
+              (EL:Put 'number-status 'ready (EL:Put 'devices nil
+                (EL:Put 'wires '("260CE" "260CD") second))))))))
+          (setq empty (EL:Put 'seed '((key "260CD" outlet) (wire . "260CD")) empty))
+          (setq snapshot '((blocks
+            ((id . "D0") (name . "A") (role . device) (identity "A" nil "block-name-v1"))
+            ((id . "D1") (name . "B") (role . device) (identity "B" nil "block-name-v1")))))
+          (setq result (EL:Put 'snapshot snapshot
+            (EL:Put 'complete nil (EL:Put 'circuits (list first second empty) result))))
+          (setq result (EL:PanelCompute result '(("A" . 85) ("B" . 20)) cfg))
+        """)
+        self.assertTrue(truth(f.get('can-generate', f.h.lookup('RESULT'))))
+        self.assertTrue(truth(f.invoke()))
+        record = f.h.run('(EL:DiagramForPanel "source" (EL:StoreRead))')
+        rows = f.get('rows', record)
+        self.assertEqual(len(rows), f.call('EL:FixedOutputCount', 3))
+        for index in (0, 2):
+            self.assertTrue(f.get('block-handle', rows[index]))
+            self.assertTrue(f.get('circuit-number', rows[index]))
+            self.assertIsNone(f.get('watts', rows[index]))
+            self.assertIsNone(f.get('text-handle', rows[index]))
+            self.assertNotEqual(f.get('option', rows[index]), Symbol('RESERVE'))
+        self.assertEqual(f.get('circuit-number', rows[2]), 'ZE4')
         self.assertEqual(field(f.entities[f.get('text-handle', rows[1])], 1), '20W')

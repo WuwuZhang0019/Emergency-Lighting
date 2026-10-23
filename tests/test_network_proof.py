@@ -1,4 +1,4 @@
-"""Persisted candidate reuse always verifies current source; Date: 2026-10-13."""
+"""Serialized proof candidates still verify current source; Date: 2026-10-21."""
 import unittest
 from autolisp_host import Pair, Symbol, truth
 import test_freshness_reuse as fixture
@@ -40,15 +40,16 @@ class NetworkProofTests(unittest.TestCase):
     def metric(self, name):
         return self.call('EL:Get', name, self.h.lookup('*EL:PERFMETRICS*')) or 0
 
-    def reopened(self, signature):
+    def roundtripped(self, signature):
         saved = self.call('EL:StoreDecode', self.call('EL:StoreEncode', signature))
-        record = self.h.run("""'((source-panel-handle . "panel") (engine . fixed))""")
-        for key, value in [('source-signature', saved), ('panel-circuits', self.get('circuits', self.result)), ('config', self.f.f.cfg)]:
-            record = self.call('EL:Put', Symbol(key.upper()), value, record)
-        return self.call('EL:HistoryRestore', record)
+        # Date: 2026-10-21. The historical panel restore entry point was removed.
+        # Exercise the real codec, snapshot constructor and freshness verifier
+        # without inventing a production history flow or replacing its checks.
+        snapshot = self.call('EL:CircuitSnapshot', saved[1], self.get('panel', self.result))
+        return self.call('EL:Put', Symbol('SNAPSHOT'), snapshot, self.result)
 
-    def test_reopened_power_edit_recollects_and_checks_geometry_without_build(self):
-        restored = self.reopened(self.get('signature', self.get('snapshot', self.result)))
+    def test_roundtripped_candidate_recollects_and_checks_geometry_without_build(self):
+        restored = self.roundtripped(self.get('signature', self.get('snapshot', self.result)))
         self.assertTrue(truth(restored))
         self.assertTrue(truth(self.call('EL:FreshResult', restored, self.f.f.cfg)))
         self.assertEqual(self.metric('network-build-calls'), 0)
@@ -58,7 +59,7 @@ class NetworkProofTests(unittest.TestCase):
 
     def test_legacy_signature_builds_once_then_saves_reusable_candidate(self):
         signature = self.call('EL:SourceSignatureCore', self.get('signature', self.get('snapshot', self.result)))
-        restored = self.reopened(signature)
+        restored = self.roundtripped(signature)
         self.assertTrue(truth(self.call('EL:FreshResult', restored, self.f.f.cfg)))
         self.assertEqual(self.metric('network-build-calls'), 1)
         upgraded = self.call('EL:PersistSourceSignature', restored, self.f.f.cfg)
@@ -67,7 +68,7 @@ class NetworkProofTests(unittest.TestCase):
         self.assertEqual(self.call('EL:PersistSourceSignature', restored, self.f.f.cfg), signature)
         self.call('EL:PerfFinish', Symbol('FINISHED'))
         self.call('EL:PerfStart', 'ELSTAT')
-        self.assertTrue(truth(self.call('EL:FreshResult', self.reopened(upgraded), self.f.f.cfg)))
+        self.assertTrue(truth(self.call('EL:FreshResult', self.roundtripped(upgraded), self.f.f.cfg)))
         self.assertEqual(self.metric('network-build-calls'), 0)
 
     def test_definition_edit_and_source_addition_rebuild_and_reject_stale(self):

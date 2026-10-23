@@ -244,3 +244,86 @@ config/power-input-*.eld
 # Date: 2026-10-21. Requested power-review trial package.
 /output/应急照明-v0.1.66/
 /output/应急照明-v0.1.66.zip
+
+# Date: 2026-10-21. Performance-branch original-DWG trial, never committed.
+/output/应急照明-v0.1.67/
+/output/应急照明-v0.1.67.zip
+
+# Date: 2026-10-21. Requested flashback repair and small-optimization trial.
+/output/应急照明-v0.1.68/
+/output/应急照明-v0.1.68.zip
+
+# Date: 2026-10-21. Requested recognition small-optimization trial.
+/output/应急照明-v0.1.69/
+/output/应急照明-v0.1.69.zip
+
+# Date: 2026-10-21. Requested plane-number and recognition-bounds trial.
+/output/应急照明-v0.1.70/
+/output/应急照明-v0.1.70.zip
+
+# Date: 2026-10-21. Requested timing/single-candidate A-B trial package.
+/output/应急照明-v0.1.71/
+/output/应急照明-v0.1.71.zip
+
+# Date: 2026-10-21. Requested root-scoped recognition trial package.
+/output/应急照明-v0.1.72/
+/output/应急照明-v0.1.72.zip
+
+# Date: 2026-10-21. Requested lightweight-proxy fallback repair trial package.
+/output/应急照明-v0.1.73/
+/output/应急照明-v0.1.73.zip
+
+# Date: 2026-10-21. Requested discovery timing and numbering reuse trial package.
+/output/应急照明-v0.1.74/
+/output/应急照明-v0.1.74.zip
+
+# Date: 2026-10-22. Requested read-only .NET prototype trial artifacts.
+/output/native-cold-v0.1.75/
+/output/应急照明-v0.1.75/
+/output/应急照明-v0.1.75.zip
+
+# Date: 2026-10-22. Requested cold-probe load-handshake repair trial.
+/output/native-cold-v0.1.76/
+/output/应急照明-v0.1.76/
+/output/应急照明-v0.1.76.zip
+
+# Date: 2026-10-22. v0.1.77 external-call bridge repair trial.
+/output/native-cold-v0.1.77/
+/output/应急照明-v0.1.77/
+/output/应急照明-v0.1.77.zip
+
+# Date: 2026-10-22. v0.1.78 native source identity guard repair trial.
+/output/native-cold-v0.1.78/
+/output/应急照明-v0.1.78/
+/output/应急照明-v0.1.78.zip
+
+# Date: 2026-10-22. Same-version diagnostic repack; preserve the previous delivery.
+/output/diagnostic-v0.1.78-20261022/
+
+# Date: 2026-10-22. Corrected diagnostic trial version requested by the user.
+/output/native-cold-v0.1.79/
+/output/应急照明-v0.1.79/
+/output/应急照明-v0.1.79.zip
+
+# Date: 2026-10-22. Requested default-Both v0.1.80 trial delivery.
+/output/native-cold-v0.1.80/
+/output/应急照明-v0.1.80/
+/output/应急照明-v0.1.80.zip
+
+# Date: 2026-10-22. Requested generation repair and line-arm diagnostic test package.
+/output/native-cold-v0.1.81/
+/output/应急照明-v0.1.81/
+/output/应急照明-v0.1.81.zip
+
+# Date: 2026-10-22. Requested Tianzheng cross-computer name fix test package.
+/output/native-cold-v0.1.82/
+/output/应急照明-v0.1.82/
+/output/应急照明-v0.1.82.zip
+
+# Date: 2026-10-23. Requested warning-only generation test package.
+/output/native-cold-v0.1.83/
+/output/应急照明-v0.1.83/
+/output/应急照明-v0.1.83.zip
+
+# Date: 2026-10-23. Preserve ignored artifacts before removing the merged worktree.
+/output/lighting-shape-reuse-archive-20261023/

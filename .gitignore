@@ -327,3 +327,8 @@ config/power-input-*.eld
 
 # Date: 2026-10-23. Preserve ignored artifacts before removing the merged worktree.
 /output/lighting-shape-reuse-archive-20261023/
+
+# Date: 2026-10-23. Requested shared circuit-start link repair test package.
+/output/native-cold-v0.1.84/
+/output/应急照明-v0.1.84/
+/output/应急照明-v0.1.84.zip

@@ -594,7 +594,7 @@
           '(id circuit-uid circuit-number number-status watts total-watts complete
             issues wires devices objects seed-key output-order rows groups)) circuits)))
       (append (EL:DiagnosticFields result '(panel drawing engine complete total-watts
-          capacity-option capacity-source diagram-id excluded-seeds))
+          capacity-option capacity-source diagram-id excluded-seeds start-link-exclusions))
         (list '(diagnostic-scope . business-fields)
           '(omitted-live-fields snapshot-geometry network-proof device-library caches)
           (cons 'snapshot-summary (list (cons 'drawing (EL:Get 'drawing snapshot))

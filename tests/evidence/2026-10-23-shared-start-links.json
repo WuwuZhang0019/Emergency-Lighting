@@ -1,0 +1,60 @@
+{
+  "date": "2026-10-23",
+  "status": "focused checks passed; native CAD acceptance pending",
+  "baseline_commit": "97652d3",
+  "version": "0.1.84",
+  "input": {
+    "fixture": "tests/fixtures/hotel-shared-start-link-20261023.json",
+    "original_dxf_sha256": "95afac5f9baa50589de0601ca1d61ab4e9b63419045871b20f40eeb94e54e57e"
+  },
+  "local_replay": {
+    "raw_roots": 5,
+    "actual_circuits": 4,
+    "kept_seeds": [
+      "6508",
+      "6606",
+      "660D",
+      "C8D1"
+    ],
+    "excluded_link": "C874",
+    "supporting_starts": [
+      "6508",
+      "6606",
+      "660D",
+      "C8D1"
+    ],
+    "input_configuration_unchanged": true,
+    "whole_dxf_device_or_power_recalculation": false
+  },
+  "checks": {
+    "test_shared_start_links": 8,
+    "test_circuit_starts": 23,
+    "test_generation_warnings": 13,
+    "entry_and_protocol_selected": 16,
+    "total_unique_tests": 60,
+    "scope": [
+      "real six-wire topology; five roots to four outputs",
+      "horizontal/rotated/reversed order",
+      "own device and downstream wire preserved",
+      "ordinary zero-device circuit retained",
+      "coincident/parallel/disconnected/elevated ports rejected as link proof",
+      "original source and seed identities retained; source edits invalidate",
+      "panel reentry preserves exclusions and row values",
+      "continuous picking and existing generation flow",
+      "v0.1.84 full/cold entry registration and exact native handshake"
+    ]
+  },
+  "cad_delivery_source_checks": {
+    "changed_lisp_parsed": 5,
+    "strict_gb2312_encodable": true
+  },
+  "native_cad_status": "pending; local topology adapters do not prove original-DWG recognition, DCL, placement, save/reopen or Undo",
+  "source_sha256": {
+    "src/simple.lsp": "21d5db86f3427572f783e2163647ca9e9968206bc503c1fb74f0765ac34388f0",
+    "src/panel.lsp": "dbd95fe910ba4f94087a702fc8d8417e4098d50a591520fbb9cc73cde6acc8af",
+    "src/diagram-update.lsp": "9fea589d8b56b4bd974ead9d36a42c68b4e006d845f0da872e567caab554d453",
+    "src/diagram-commands.lsp": "5128b091055a2721e7b44fe8e3c4a375b9e58646e619ca8342fa25df4e71e76a",
+    "tests/test_shared_start_links.py": "d0573f6cb15cf1cd7639038d371971101aff646665225c6c62951e38932f89ed",
+    "tests/fixtures/hotel-shared-start-link-20261023.json": "115f59ee9eff61d1582ff7e3627538cd8d722c001e916ce793045502e0f4035c"
+  }
+}

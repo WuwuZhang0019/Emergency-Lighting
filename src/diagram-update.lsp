@@ -49,8 +49,8 @@
       ((EL:Get 'concentrated-trunk cfg) (EL:TrunkSnapshot snapshot cfg panel)) (T snapshot))
     network (EL:LogCall "SIMPLE_NETWORK" (list (cons 'panel panel) (cons 'wires (length (EL:Get 'wires snapshot)))
       (cons 'blocks (length (EL:Get 'blocks snapshot)))) 'EL:SimpleNetwork (list snapshot cfg panel)))
-  (setq result (EL:SelectFixedExits (EL:SplitNativeNumberBranches
-    (EL:LogCall "SPLIT_NETWORK" (list (cons 'panel panel)) 'EL:SplitNetwork (list network cfg)) network cfg) nil))
+  (setq result (EL:SelectFixedExits (EL:ClassifyStartLinks (EL:SplitNativeNumberBranches
+    (EL:LogCall "SPLIT_NETWORK" (list (cons 'panel panel)) 'EL:SplitNetwork (list network cfg)) network cfg) cfg) nil))
   (if *EL:CollectMemo*
     (setq *EL:CollectMemo* (EL:Put 'input snapshot (EL:Put 'signature
       (EL:Get 'signature (EL:Get 'snapshot result)) *EL:CollectMemo*))))

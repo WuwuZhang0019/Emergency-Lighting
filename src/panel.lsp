@@ -120,7 +120,12 @@
     (if shared (setq issues (cons (EL:Issue 'CIRCUIT_OWNERSHIP_CONFLICT (EL:Get 'id circuit) (EL:Unique shared)) issues)))
     (setq out (cons (EL:Put 'complete (not issues) (EL:Put 'issues issues circuit)) out))) (reverse out))
 (defun EL:SelectFixedExits (result excluded / circuits keys)
-  (setq keys (mapcar '(lambda (c) (EL:Get 'key (EL:Get 'seed c))) (EL:Get 'circuits result))
+  ;; 日期：2026-10-23。重开面板时仍保留已证明的共享空段排除，不恢复成空回路。
+  (setq excluded (EL:Unique (append excluded (mapcar '(lambda (link) (EL:Get 'seed-key link))
+    (EL:Get 'start-link-exclusions result)))))
+  (setq keys (if (and (EL:Get 'start-link-exclusions result) (EL:Get 'candidate-keys result))
+      (EL:Get 'candidate-keys result)
+      (mapcar '(lambda (c) (EL:Get 'key (EL:Get 'seed c))) (EL:Get 'circuits result)))
     circuits (vl-remove-if '(lambda (c) (member (EL:Get 'key (EL:Get 'seed c)) excluded)) (EL:Get 'circuits result))
     circuits (EL:FixedOwnership circuits (EL:Get 'snapshot result)))
   (EL:Put 'candidate-keys keys (EL:Put 'excluded-seeds excluded (EL:Put 'circuits circuits

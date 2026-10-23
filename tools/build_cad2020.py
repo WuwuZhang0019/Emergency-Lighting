@@ -6,11 +6,11 @@ import shutil
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-# Date: 2026-10-23. Local trial with warning-only generation; no merge or publication.
-VERSION = '0.1.83'
-PACKAGE_NO = 182
-FULL_TEST_COMMAND = 'ELFULL83'
-COLD_TEST_COMMAND = 'ELCOLD83'
+# Date: 2026-10-23. Local shared-start-link repair trial; no publication.
+VERSION = '0.1.84'
+PACKAGE_NO = 183
+FULL_TEST_COMMAND = 'ELFULL84'
+COLD_TEST_COMMAND = 'ELCOLD84'
 NAME = f'应急照明-v{VERSION}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 OUTPUT_ROOT = ROOT / 'output'

@@ -1,6 +1,6 @@
 ;; Date: 2026-10-16. Compact panel feedback; print overflow without splitting GB2312 pairs.
 (defun EL:PanelText (key value / lines line units char cost index limit legacy step width)
-  (setq width (if (member key '("dl_asset" "dl_status")) 34 44))
+  (setq width (cond ((member key '("dl_asset" "dl_status")) 34) ((equal key "p_system_notice") 40) (T 44)))
   (setq line "" units 0 index 1 limit (cond ((equal key "p_total") 4) ((equal key "dl_status") 3) (T 2)))
   (setq legacy (= (strlen "中") 2))
   (while (<= index (strlen value))
@@ -527,12 +527,19 @@
     (strcat "已识别 " (itoa count) " 条实际回路；当前系统图最多容纳 8 条。"
       "\n面板仅显示前 8 条，全部回路数据已保留，不会截断。"
       "\n请拆分配电箱或重新选择回路后再生成。")))
-(defun EL:PanelGenerateBody (/ limit)
+(defun EL:PanelGenerateBody (/ limit missing)
   (EL:LogEvent "PANEL_ACTION" 'generate)
+  (EL:PanelSystemRecord 'generate-request 'drawing nil)
   (cond
     ((setq limit (EL:PanelCircuitLimitText *EL:PanelDraft*)) (EL:PanelText "p_error" limit))
     ((not (EL:Get 'circuits *EL:PanelDraft*)) (EL:PanelText "p_error" "请先拾取配电箱和实际出线，当前输入保留。"))
+    ;; 日期：2026-10-23。缺少真实模板定义时不关闭再打开对话框，直接指出补入入口。
+    ((and (not *EL:PanelTemplateReady*) (setq missing (EL:PanelSystemMissing)))
+      (setq *EL:PanelAction* nil *EL:PanelSystemNotice* missing)
+      (EL:PanelSystemRecord 'missing-definitions 'drawing missing)
+      (EL:PanelSystemFill))
     (T
+      (setq *EL:PanelSystemNotice* nil)
       (setq *EL:PanelDraft* (EL:GenerationResult *EL:PanelDraft*)
         *EL:PanelCapacity* (EL:CapacityDefault *EL:PanelCapacity*))
       (EL:GenerationVerify 'EL:DLSubmissionCurrent (list *EL:PanelDraft*) *EL:PanelDraft*
@@ -711,6 +718,27 @@
   (foreach row names
     (if (not (tblsearch kind (car row)))
       (setq text (strcat text (if (= text "") "" " / ") (cadr row))))) text)
+;; 日期：2026-10-23。仅采集当前图纸的系统图定义状态，不打开图库或写入图形。
+(defun EL:PanelSystemFacts ()
+  (list (cons 'missing-blocks (EL:SystemMissingSymbols "BLOCK"
+      '("ZYF_Tool_应急照明配电箱图块" "ZYF_Tool_应急照明配电回路图块")))
+    (cons 'missing-styles (EL:SystemMissingSymbols "STYLE" '("_TEL_DIM" "ICDA-STYLE1")))))
+(defun EL:PanelSystemMissing (/ facts)
+  (setq facts (EL:PanelSystemFacts))
+  (if (or (EL:Get 'missing-blocks facts) (EL:Get 'missing-styles facts))
+    "本图缺少系统图块或样式，请点“从图库补入缺项”，准备后再生成。"))
+(defun EL:PanelSystemRecord (stage source message / facts state owner current)
+  (setq current (namedobjdict) owner (cond (*EL:PanelSystemOwner*) (T current)))
+  (if (equal owner current)
+    (setq facts (EL:PanelSystemFacts))
+    (setq stage 'context-changed message "模板准备期间切换了图纸，原面板输入保留。"))
+  (setq state (append (list '(version . 1) '(date . "2026-10-23")
+      (cons 'panel (EL:Get 'panel *EL:PanelDraft*)) (cons 'stage stage) (cons 'source source)
+      (cons 'template-ready (and (equal owner current) (if *EL:PanelTemplateReady* T nil)))
+      (cons 'message message)) facts))
+  ;; 按原面板图纸分开保留；切图后的状态不得混入另一张图纸。
+  (setq *EL:PanelTemplateDiagnostics* (EL:Put owner state *EL:PanelTemplateDiagnostics*))
+  (EL:LogEvent "PANEL_SYSTEM_TEMPLATE" state) state)
 (defun EL:PanelSystemFill (/ blocks styles)
   (setq blocks (EL:PanelSystemMissingText "BLOCK"
       '(("ZYF_Tool_应急照明配电箱图块" "配电箱") ("ZYF_Tool_应急照明配电回路图块" "配电回路")))
@@ -718,30 +746,36 @@
   (set_tile "p_system_blocks" (cond ((/= blocks "") (strcat "缺少图块：" blocks))
     (*EL:PanelSystemNotice* "模板未准备完成，具体原因见命令行") (T "图块：使用本图已有定义")))
   (set_tile "p_system_styles" (cond ((/= styles "") (strcat "缺少样式：" styles))
-    (*EL:PanelTemplateReady* "模板已准备，可继续生成") (T "默认不打开图库；缺项可点上方补入"))))
+    (*EL:PanelTemplateReady* "模板已准备，可继续生成") (T "默认不打开图库；缺项可点上方补入")))
+  (EL:PanelText "p_system_notice" (cond (*EL:PanelSystemNotice*)
+    ((or (/= blocks "") (/= styles "")) "请点“从图库补入缺项”，准备后再生成。") (T ""))))
 (defun EL:PanelPrepareSystemTemplate (source / captured *EL:SystemBlockSource* *EL:SystemBlockNotice* *EL:TemplateNotice*)
   ;; One explicit import action grants access only to this preparation call.
   ;; Result, power overrides and capacity remain owned by the open panel flow.
   (setq *EL:SystemBlockSource* source *EL:PanelSystemNotice* nil)
+  (EL:PanelSystemRecord 'prepare-begin source nil)
   (setq captured (EL:MeasuredCatch 'EL:PerfCall
     (list "TEMPLATE_CAPTURE" 'EL:CaptureFixedTemplate (list *EL:PanelConfig*))))
   (EL:ClearPickHighlights)
   (if (and (not (vl-catch-all-error-p captured)) captured)
     (progn
       (setq *EL:PanelConfig* (EL:Put 'template captured *EL:PanelConfig*) *EL:PanelTemplateReady* T)
+      (EL:PanelSystemRecord 'prepared source nil)
       T)
     (progn
       (setq *EL:PanelTemplateReady* nil *EL:PanelSystemNotice*
         (cond ((vl-catch-all-error-p captured) (vl-catch-all-error-message captured))
           (*EL:SystemBlockNotice*) (*EL:TemplateNotice*) (T "模板准备未完成，请核对图块动态属性与文字样式。")))
+      (EL:PanelSystemRecord 'prepare-failed source *EL:PanelSystemNotice*)
       (princ (strcat "\n" *EL:PanelSystemNotice*
         "\n已返回原面板，当前识别结果、功率和容量已保留。")) nil)))
 (defun EL:PanelDialog (result cfg powers capacity)
   (EL:WithTemplateScope 'EL:PanelDialogWork (list result cfg powers capacity)))
 (defun EL:PanelDialogWork (result cfg powers capacity / dialog status limit-notice limit-shown
     *EL:PanelAction* *EL:PanelDraft* *EL:PanelPowers* *EL:PanelCapacity* *EL:PanelConfig*
-    *EL:PanelTemplateReady* *EL:PanelLibrarySnapshot* *EL:PanelDialogPosition* *EL:PanelPreviewPalette* *EL:PanelSystemNotice*
+    *EL:PanelTemplateReady* *EL:PanelLibrarySnapshot* *EL:PanelDialogPosition* *EL:PanelPreviewPalette* *EL:PanelSystemNotice* *EL:PanelSystemOwner*
     home dclpath)
+  (setq *EL:PanelSystemOwner* (namedobjdict))
   (setq home (not result) dclpath (strcat *EL:Root* "ui/power.dcl"))
   (EL:PanelLifecycle "prepare" (list (cons "home" home) (cons "dcl-path" dclpath)
     '("not-shown-reason" . nil) '("new-dialog-ready" . nil) '("dialog-id" . nil)
@@ -756,6 +790,7 @@
     *EL:PanelTemplateReady* (if result (EL:TemplateReady (EL:Get 'template cfg) cfg))
     *EL:PanelLibrarySnapshot* (cond (home (EL:DLSnapshot))
       (*EL:DLSessionSnapshot*) (T (EL:DLSnapshot))))
+  (if result (EL:PanelSystemRecord 'panel-open 'drawing nil))
   (EL:PanelLifecycle "dcl-load-requested" nil)
   (setq dialog (load_dialog dclpath) *EL:DialogID* dialog status 3)
   (EL:PanelLifecycle "dcl-load-returned" (list (cons "dialog-id" dialog)

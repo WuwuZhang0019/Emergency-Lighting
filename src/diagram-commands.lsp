@@ -738,7 +738,8 @@
         (cons 'summary *EL:MonitorLoadSummary*) (cons 'rows *EL:MonitorLoadRows*)
         (cons 'origin *EL:MonitorLoadOrigin*) (cons 'stamp *EL:MonitorLoadStamp*))))
       (cons "association.eld" record)
-      (cons "drawing-store.eld" store) (cons "current-result.eld" (EL:DiagnosticResult *EL:Result*)))
+      (cons "drawing-store.eld" store) (cons "current-result.eld" (EL:DiagnosticResult *EL:Result*))
+      (cons "panel-template.eld" (EL:Get (namedobjdict) *EL:PanelTemplateDiagnostics*)))
     (if (cdr entry)
       (progn (EL:DiagnosticWriteData (strcat folder "/" (car entry)) (cdr entry))
         (setq files (cons (car entry) files)))
@@ -780,6 +781,7 @@
       "manifest.eld 的 association-scope/current-run 区分本轮生成与历史关联；本轮原生命令状态和业务结果分别记录。\r\n"
       "drawing-store.eld：当前图纸已保存记录的只读快照，不代表所有旧图成员已核对。\r\n"
       "current-result.eld：当前识别结果的业务字段与源图数量；可能与最近一次成功出图不同。\r\n"
+      "panel-template.eld：当前图纸最近一次面板模板准备状态、缺项及原始失败原因，不代表已生成系统图。\r\n"
       "完整保存记录和出图关联保留在 drawing-store.eld / association.eld，不重复展开内存几何、网络证明及设备库缓存。\r\n"
       "progress.log：逐文件导出检查点；中断时可定位最后进入的阶段。\r\n"
       "runtime / active / temp 日志：已有共享历史文件，可能含此前命令或其他图纸；以 run.eld 为本次运行依据。\r\n"

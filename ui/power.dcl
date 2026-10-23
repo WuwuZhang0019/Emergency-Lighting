@@ -130,6 +130,9 @@ el_panel_review : column { fixed_width = true; fixed_height = true; alignment = 
         }
         : text { key = "p_system_blocks"; width = 40; fixed_width = true; }
         : text { key = "p_system_styles"; width = 40; fixed_width = true; }
+        // Date: 2026-10-23. Keep template preparation feedback visible in this section.
+        : text { key = "p_system_notice"; width = 40; fixed_width = true; }
+        : text { key = "p_system_notice1"; width = 40; fixed_width = true; }
       }
       : row { fixed_width = true; fixed_height = true; alignment = left;
         : image { key = "p_step4"; width = 8; height = 1.3; fixed_width = true; fixed_height = true; color = dialog_background; help_string = "第四步：生成新系统图"; }

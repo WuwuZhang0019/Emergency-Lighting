@@ -1,0 +1,211 @@
+{
+  "date": "2026-10-23",
+  "status": "focused checks passed; source only; native CAD pending",
+  "baseline_commit": "4c87708",
+  "source_version": "0.1.83 plus unbundled template feedback changes",
+  "inputs": [
+    {
+      "name": "output (38).zip",
+      "sha256": "e1a0bf03058ebe4bdb3c0548e9640f1d5a8a1176196fd123dbb9ea7a465c68f5"
+    },
+    {
+      "name": "output (39).zip",
+      "sha256": "48d915d599693f0f54e2c6521761fa53ae715887eb2d31c051bac69292542656"
+    }
+  ],
+  "hotel_run": {
+    "drawing": "【电气】酒店办公照明.dxf",
+    "panel": "CACF",
+    "error": null,
+    "generation_actions": 0,
+    "metrics": {
+      "panel-submits": 0,
+      "transaction-starts": 0,
+      "block-create-attempts": 0,
+      "store-write-calls": 0
+    },
+    "circuits": [
+      {
+        "id": "R1",
+        "wires": [
+          "6319",
+          "684D",
+          "6318",
+          "655A",
+          "6317",
+          "6559",
+          "655B",
+          "6316",
+          "6558",
+          "6315",
+          "674F",
+          "6556",
+          "627A",
+          "6604",
+          "660B",
+          "6508"
+        ],
+        "devices": [
+          "39D3",
+          "2362",
+          "235E",
+          "39CF",
+          "396A",
+          "3A2A",
+          "235A",
+          "386A",
+          "3A31",
+          "3967",
+          "3A2E",
+          "3A25",
+          "3867",
+          "38C4",
+          "3964",
+          "2538"
+        ],
+        "complete": "T",
+        "issues": "None"
+      },
+      {
+        "id": "R2",
+        "wires": [
+          "65A9",
+          "C776",
+          "C777",
+          "C779",
+          "65AA",
+          "65B0",
+          "65B2",
+          "C772",
+          "C773",
+          "C778",
+          "640F",
+          "65B1",
+          "C76B",
+          "6410",
+          "DDFE",
+          "DE15",
+          "640D",
+          "640E",
+          "DE14",
+          "640C",
+          "64B4",
+          "6409",
+          "64B3",
+          "C8D2",
+          "6606"
+        ],
+        "devices": [
+          "2356",
+          "234E",
+          "2346",
+          "39C7",
+          "3A34",
+          "3A47",
+          "39CB",
+          "234A",
+          "3A4F",
+          "253C",
+          "2342",
+          "C767",
+          "3961",
+          "3A3C",
+          "DE0C",
+          "396D",
+          "38C1",
+          "DE10",
+          "5ED2",
+          "38BE",
+          "3106",
+          "3974",
+          "38BB"
+        ],
+        "complete": "T",
+        "issues": "None"
+      },
+      {
+        "id": "R3",
+        "wires": [
+          "61DD",
+          "61DE",
+          "6610",
+          "660D"
+        ],
+        "devices": [
+          "346C",
+          "3474",
+          "2521"
+        ],
+        "complete": null,
+        "issues": "[[Pair(car='CODE', cdr='CLOSED_CIRCUIT'), Pair(car='OBJECT', cdr='346C'), Pair(car='DETAIL', cdr='3474')], [Pair(car='CODE', cdr='CLOSED_CIRCUIT'), Pair(car='OBJECT', cdr='3474'), Pair(car='DETAIL', cdr='61DE')]]"
+      },
+      {
+        "id": "R4",
+        "wires": [
+          "C874"
+        ],
+        "devices": null,
+        "complete": "T",
+        "issues": "None"
+      },
+      {
+        "id": "R5",
+        "wires": [
+          "6368",
+          "6369",
+          "67FC",
+          "67FD",
+          "67FE",
+          "67FF",
+          "C8D1"
+        ],
+        "devices": [
+          "3486",
+          "348E",
+          "2519"
+        ],
+        "complete": null,
+        "issues": "[[Pair(car='CODE', cdr='CLOSED_CIRCUIT'), Pair(car='OBJECT', cdr='6368'), Pair(car='DETAIL', cdr='3486')], [Pair(car='CODE', cdr='CLOSED_CIRCUIT'), Pair(car='OBJECT', cdr='3486'), Pair(car='DETAIL', cdr='348E')]]"
+      }
+    ]
+  },
+  "later_current_result": {
+    "panel": "C900",
+    "drawing": "【电气】地下室照明.DWG",
+    "circuits": 6,
+    "same_as_hotel_run": false
+  },
+  "findings": [
+    "screenshot and original hotel DXF lack the two system diagram BLOCK definitions",
+    "generation failure after placement is not present in supplied run evidence",
+    "old panel closes before missing-definition preparation and prints original failures only to command line",
+    "ZE5 seed C874 has no downstream wires/devices in the hotel trace"
+  ],
+  "checks": {
+    "test_panel_system_source": 7,
+    "test_generation_warnings": 13,
+    "test_diagnostic_bundle_selected": 2,
+    "total_unique_tests": 22,
+    "parsed_changed_lisp": 2,
+    "strict_gb2312_sources": [
+      "src/panel.lsp",
+      "src/diagram-commands.lsp",
+      "ui/power.dcl"
+    ]
+  },
+  "package_unchanged": {
+    "version": "0.1.83",
+    "sha256": "928a8ce8da964c6715230188673bcf58e9c37dc7a16aaf656c0023ebc4287c35",
+    "bytes": 7095575
+  },
+  "native_cad_status": "visible DCL, template import, generated geometry, save/reopen and Undo remain unverified",
+  "source_sha256": {
+    "src/panel.lsp": "0d815a07717c8c655604c175dc41dc3399587eb7eb8c9dcd2acb1299d0ae3ec3",
+    "src/diagram-commands.lsp": "6f6b2e4f6ca51376f50f45455cc82aaeda1053ebea2d36a53f2133be0562e569",
+    "ui/power.dcl": "5489337e10bdb5667e367c2f288b73b86222272c7133eb41d0a376d02925ff36",
+    "tests/test_panel_system_source.py": "f3db28baf7f4b06b2993a064fd308eb0ed96770e3ef19093af2afd5bed51d13b",
+    "tests/test_diagnostic_bundle.py": "3de257b09102b2048000cbf51ba10ff1f30a14e120052763d9a40047af8d59de",
+    "README.md": "28512a4176e21b4d49281834d490b0bf77fa64836dc6473899a0bcb856916b02",
+    "docs/更新记录/2026-10-23-模板缺项原面板提示与诊断.md": "a6ab4783427532181852161c8bf922ee9f72c7cbe9182f8c01e19e15520eccee"
+  }
+}

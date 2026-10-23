@@ -1,6 +1,6 @@
 """Drawing-first system-block preparation through real panel callbacks.
 
-Date: 2026-10-21. Status: focused adapter regression; native CAD acceptance pending.
+Date: 2026-10-23. Status: focused adapter regression; native CAD acceptance pending.
 """
 import copy
 import unittest
@@ -40,65 +40,65 @@ class PanelSystemSourceTests(unittest.TestCase):
         compact = layouts.panel_tiles('el_panel_compact')
         expanded = layouts.panel_tiles('el_panel')
         for key, kind in (('p_system_drawing', 'button'), ('p_system_import', 'button'),
-                          ('p_system_blocks', 'text'), ('p_system_styles', 'text')):
+                          ('p_system_blocks', 'text'), ('p_system_styles', 'text'),
+                          ('p_system_notice', 'text'), ('p_system_notice1', 'text')):
             self.assertEqual(compact[key], expanded[key])
             self.assertEqual(compact[key]['tile_type'], kind)
         self.assertEqual(compact['p_system_drawing']['label'], '检查本图图块')
         self.assertEqual(compact['p_system_import']['label'], '从图库补入缺项')
 
-    def test_default_generation_uses_drawing_and_returns_missing_items_without_alert(self):
+    def test_missing_definitions_keep_the_same_dialog_and_show_import_action(self):
         for expanded in (False, True):
-            with self.subTest(expanded=expanded):
-                f, callbacks, _, _ = self.prepared_fixture(expanded)
-                initial_cfg, before, sources = copy.deepcopy(f.cfg), [], []
-                table = f.h.builtins['TBLSEARCH']
-                f.h.builtins['TBLSEARCH'] = lambda kind, name: (
-                    None if (kind == 'BLOCK' and name in BLOCKS) or
-                    (kind == 'STYLE' and name in STYLES) else table(kind, name))
-                findfile = f.h.builtins['FINDFILE']
-                def drawing_only(path):
-                    self.assertFalse(path.endswith('/templates/系统图块库.dwg'),
-                                     'default source looked up system library')
-                    return findfile(path)
-                f.h.builtins['FINDFILE'] = drawing_only
-                f.h.builtins['EL:SYSTEMIMPORTWORK'] = lambda *args: self.fail('default source imported library')
-
-                def capture(cfg):
-                    sources.append(f.call('EL:SystemBlockSource'))
-                    self.assertEqual(cfg, initial_cfg)
-                    return None
-
-                f.h.builtins['EL:CAPTUREFIXEDTEMPLATE'] = capture
-
-                def generate():
-                    f.call('EL:PanelCapacity', 'p_600')
-                    before.append(self.snapshot(f))
-                    self.invoke(f, callbacks, 'p_generate')
-                    self.assertEqual(f.closed, 4)
-
-                def returned():
-                    self.assertEqual(self.snapshot(f), before[0])
-                    self.assertEqual(f.h.lookup('*EL:PANELCONFIG*'), initial_cfg)
-                    self.assertIn('配电箱 / 配电回路', f.tiles['p_system_blocks'])
-                    self.assertIn('_TEL_DIM / ICDA-STYLE1', f.tiles['p_system_styles'])
-                    self.assertFalse(truth(f.h.lookup('*EL:PANELACTION*')))
-                    self.invoke(f, callbacks, 'cancel')
-
-                f.actions = [generate, returned]
-                self.assertIsNone(f.dialog())
-                expected = 'el_panel' if expanded else 'el_panel_compact'
-                self.assertEqual(f.dialogs, [expected, expected])
-                self.assertEqual(sources, [Symbol('DRAWING')])
-                self.assertEqual(self.alerts, [])
-                self.assertIn('当前识别结果、功率和容量已保留', ''.join(self.messages))
-                self.assertEqual(f.cfg, initial_cfg)
-                self.assertIsNone(f.h.lookup('*EL:SYSTEMBLOCKSOURCE*'))
+            for styles_only in (False, True):
+                with self.subTest(expanded=expanded, styles_only=styles_only):
+                    f, callbacks, _, _ = self.prepared_fixture(expanded)
+                    f.h.step_limit = 2_000_000
+                    initial_cfg, before = copy.deepcopy(f.cfg), []
+                    table = f.h.builtins['TBLSEARCH']
+                    def symbols(kind, name):
+                        if kind == 'BLOCK' and name in BLOCKS:
+                            return [name] if styles_only else None
+                        if kind == 'STYLE' and name in STYLES:
+                            return None
+                        return table(kind, name)
+                    f.h.builtins.update({
+                        'TBLSEARCH': symbols,
+                        'EL:CAPTUREFIXEDTEMPLATE': lambda *a: self.fail('missing definitions closed the panel'),
+                        'EL:SYSTEMIMPORTWORK': lambda *a: self.fail('Generate imported without the source button'),
+                    })
+                    def generate_then_close():
+                        f.call('EL:PanelCapacity', 'p_600')
+                        before.append(self.snapshot(f))
+                        self.invoke(f, callbacks, 'p_generate')
+                        self.assertIsNone(f.closed)
+                        after = self.snapshot(f)
+                        self.assertEqual(after[0], f.call('EL:GenerationResult', before[0][0]))
+                        self.assertEqual(after[1:], before[0][1:])
+                        self.assertEqual(f.h.lookup('*EL:PANELCONFIG*'), initial_cfg)
+                        self.assertIn('从图库补入缺项', f.tiles['p_system_notice'] + f.tiles['p_system_notice1'])
+                        self.assertIn('_TEL_DIM / ICDA-STYLE1', f.tiles['p_system_styles'])
+                        self.assertFalse(truth(f.h.lookup('*EL:PANELACTION*')))
+                        state = f.call('EL:Get', 'NOD', f.h.lookup('*EL:PANELTEMPLATEDIAGNOSTICS*'))
+                        self.assertEqual(f.get('stage', state), Symbol('MISSING-DEFINITIONS'))
+                        self.assertEqual(f.get('missing-styles', state), STYLES)
+                        self.assertEqual(f.get('missing-blocks', state), None if styles_only else BLOCKS)
+                        self.invoke(f, callbacks, 'cancel')
+                    f.actions = [generate_then_close]
+                    self.assertIsNone(f.dialog())
+                    self.assertEqual(len(f.dialogs), 1)
+                    self.assertEqual(self.alerts, [])
+                    self.assertEqual(f.cfg, initial_cfg)
+                    self.assertIsNone(f.h.lookup('*EL:SYSTEMBLOCKSOURCE*'))
 
     def test_import_prepares_only_then_later_generation_defaults_to_drawing(self):
         for expanded in (False, True):
             with self.subTest(expanded=expanded):
                 f, callbacks, _, _ = self.prepared_fixture(expanded)
                 initial_cfg, before, sources = copy.deepcopy(f.cfg), [], []
+                table = f.h.builtins['TBLSEARCH']
+                f.h.builtins['TBLSEARCH'] = lambda kind, name: (
+                    [name] if (kind == 'BLOCK' and name in BLOCKS) or
+                    (kind == 'STYLE' and name in STYLES) else table(kind, name))
                 captured = f.h.run("'((verified . panel-source-fixture))")
 
                 def capture(cfg):
@@ -130,7 +130,7 @@ class PanelSystemSourceTests(unittest.TestCase):
                 result = f.dialog()
                 self.assertTrue(truth(f.get('generate', result)))
                 self.assertEqual(f.get('capacity', result), Symbol('CAP600'))
-                self.assertEqual(f.get('result', result), before[0][0])
+                self.assertEqual(f.get('result', result), f.call('EL:GenerationResult', before[0][0]))
                 self.assertEqual(f.get('powers', result), before[0][1])
                 self.assertEqual(f.get('config', result),
                                  f.call('EL:Put', Symbol('TEMPLATE'), captured, initial_cfg))
@@ -169,6 +169,12 @@ class PanelSystemSourceTests(unittest.TestCase):
                         self.assertEqual(f.h.lookup('*EL:PANELCONFIG*'), initial_cfg)
                         self.assertEqual(f.tiles['p_capacity'], 'p_1000')
                         self.assertFalse(truth(f.h.lookup('*EL:PANELTEMPLATEREADY*')))
+                        notice = f.tiles['p_system_notice'] + f.tiles['p_system_notice1']
+                        self.assertIn('Function cancelled' if cancelled else '图库未找到', notice)
+                        state = f.call('EL:Get', 'NOD', f.h.lookup('*EL:PANELTEMPLATEDIAGNOSTICS*'))
+                        self.assertEqual(f.get('stage', state), Symbol('PREPARE-FAILED'))
+                        self.assertEqual(f.get('source', state), Symbol('LIBRARY'))
+                        self.assertIn('Function cancelled' if cancelled else '图库未找到', f.get('message', state))
                         if expanded:
                             self.assertEqual(f.tiles['dl_display'], '保留的设备名称')
                             self.assertEqual(f.tiles['dl_watts'], '17')
@@ -257,6 +263,19 @@ class PanelSystemSourceTests(unittest.TestCase):
                 self.assertIn('当前输入保留', ''.join(self.messages))
                 self.assertIn('所需系统图块和文字样式已导入', ''.join(self.messages))
                 self.assertIsNone(f.h.lookup('*EL:SYSTEMBLOCKSOURCE*'))
+
+    def test_switched_drawing_does_not_read_or_export_the_new_drawings_definitions(self):
+        f, _, _, _ = self.prepared_fixture(False)
+        f.h.set('*EL:PANELSYSTEMOWNER*', 'original-drawing')
+        f.h.set('*EL:PANELTEMPLATEREADY*', True)
+        f.h.builtins['NAMEDOBJDICT'] = lambda: 'other-drawing'
+        f.h.builtins['TBLSEARCH'] = lambda *a: self.fail('read definitions from another drawing')
+        state = f.call('EL:PanelSystemRecord', Symbol('PREPARED'), Symbol('LIBRARY'), None)
+        self.assertEqual(f.get('stage', state), Symbol('CONTEXT-CHANGED'))
+        self.assertFalse(truth(f.get('template-ready', state)))
+        contexts = f.h.lookup('*EL:PANELTEMPLATEDIAGNOSTICS*')
+        self.assertEqual(f.call('EL:Get', 'original-drawing', contexts), state)
+        self.assertIsNone(f.call('EL:Get', 'other-drawing', contexts))
 
     def test_cancel_never_prepares_or_imports(self):
         for expanded in (False, True):

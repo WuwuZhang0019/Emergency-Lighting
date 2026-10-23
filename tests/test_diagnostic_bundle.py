@@ -120,6 +120,23 @@ class DiagnosticBundleTests(unittest.TestCase):
     def export(self):
         return Path(self.h.run('(EL:DiagnosticExport)'))
 
+    def test_template_failure_exports_without_a_run_and_is_scoped_to_current_drawing(self):
+        before = self.f.before()
+        state = self.h.run("'((date . \"2026-10-23\") (panel . \"CACF\") (stage . prepare-failed) (source . library) (message . \"图库未找到\") (missing-blocks \"missing-panel\"))")
+        self.h.set('*EL:PANELTEMPLATEDIAGNOSTICS*', [Pair('NOD', state)])
+        self.h.set('*EL:DIAGNOSTICRUNS*', None)
+        folder = self.export()
+        saved = (folder / 'panel-template.eld').read_text(encoding='utf-8-sig')
+        self.assertIn('CACF', saved)
+        self.assertIn('图库未找到', saved)
+        self.assertIn('PREPARE-FAILED', saved)
+        self.assertIn('panel-template.eld', (folder / 'manifest.eld').read_text(encoding='utf-8-sig'))
+        self.h.set('*EL:PANELTEMPLATEDIAGNOSTICS*', [Pair('other-drawing', state)])
+        other = self.export()
+        self.assertFalse((other / 'panel-template.eld').exists())
+        self.f.assert_business_unchanged(before)
+        self.assertEqual(self.processes, [])
+
     def test_complete_folder_exact_bytes_special_paths_no_dwg_writes_and_unique_names(self):
         before = self.f.before()
         raw = '历史事件\r\n'.encode('gb2312')

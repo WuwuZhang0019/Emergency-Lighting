@@ -1,4 +1,4 @@
-"""Offline AutoCAD 2020 cold-recognition build. Date: 2026-10-22."""
+"""Offline AutoCAD 2020 cold-recognition build. Date: 2026-10-23."""
 from __future__ import annotations
 
 import argparse
@@ -12,10 +12,10 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "0.1.82"
-DLL_NAME = "EmergencyLighting.ColdRecognition82.dll"
-TEST_NAME = "EmergencyLighting.ColdRecognition82.Tests.exe"
-DEFAULT_OUTPUT = ROOT / "output" / "native-cold-v0.1.82"
+VERSION = "0.1.83"
+DLL_NAME = "EmergencyLighting.ColdRecognition83.dll"
+TEST_NAME = "EmergencyLighting.ColdRecognition83.Tests.exe"
+DEFAULT_OUTPUT = ROOT / "output" / "native-cold-v0.1.83"
 CAD_VERSION = "23.1.0"
 CAD_PACKAGES = {
     "AcMgd.dll": "autocad.net",

@@ -1,4 +1,4 @@
-"""Build the AutoCAD 2020 trial package. Date: 2026-10-22."""
+"""Build the AutoCAD 2020 trial package. Date: 2026-10-23."""
 from pathlib import Path
 import base64
 import json
@@ -6,11 +6,11 @@ import shutil
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-# Date: 2026-10-22. Local read-only native prototype; no merge or publication.
-VERSION = '0.1.82'
-PACKAGE_NO = 181
-FULL_TEST_COMMAND = 'ELFULL82'
-COLD_TEST_COMMAND = 'ELCOLD82'
+# Date: 2026-10-23. Local trial with warning-only generation; no merge or publication.
+VERSION = '0.1.83'
+PACKAGE_NO = 182
+FULL_TEST_COMMAND = 'ELFULL83'
+COLD_TEST_COMMAND = 'ELCOLD83'
 NAME = f'应急照明-v{VERSION}'
 UPDATE_NAME = f'UPDATE-{PACKAGE_NO:03d}.lsp'
 OUTPUT_ROOT = ROOT / 'output'

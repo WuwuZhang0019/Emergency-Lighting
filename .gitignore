@@ -319,3 +319,8 @@ config/power-input-*.eld
 /output/native-cold-v0.1.82/
 /output/应急照明-v0.1.82/
 /output/应急照明-v0.1.82.zip
+
+# Date: 2026-10-23. Requested warning-only generation test package.
+/output/native-cold-v0.1.83/
+/output/应急照明-v0.1.83/
+/output/应急照明-v0.1.83.zip

@@ -332,3 +332,6 @@ config/power-input-*.eld
 /output/native-cold-v0.1.84/
 /output/应急照明-v0.1.84/
 /output/应急照明-v0.1.84.zip
+
+# Date: 2026-10-24. Local browser preview captures and verification files.
+/output/web-demo-review-20261024/
